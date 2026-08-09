@@ -1,7 +1,7 @@
-find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 LinguistTools)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Quick QuickControls2 LinguistTools)
 find_package(Threads REQUIRED)
 
-qt_standard_project_setup(REQUIRES 6.5 I18N_TRANSLATED_LANGUAGES zh_CN)
+qt_standard_project_setup(REQUIRES 6.9 I18N_TRANSLATED_LANGUAGES zh_CN)
 qt_policy(SET QTP0004 NEW)
 
 # Cargo owns the Rust project reader and generated CXX ABI. CMake owns the
@@ -82,7 +82,13 @@ qt_add_executable(shape-desktop
     src/main.cpp
     src/desktop_backend.cpp
     src/desktop_backend.hpp
+    src/ui_preferences.cpp
+    src/ui_preferences.hpp
+    src/mac_titlebar.hpp
 )
+if(APPLE)
+    target_sources(shape-desktop PRIVATE src/mac_titlebar.mm)
+endif()
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 qt_add_qml_module(shape-desktop
@@ -90,16 +96,28 @@ qt_add_qml_module(shape-desktop
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/MainTitleBar.qml
+        qml/ShapeSettingsDialog.qml
         qml/Theme.qml
         qml/components/ArtifactWorkspace.qml
         qml/components/IntentPanel.qml
         qml/components/SemanticHistory.qml
+        qml/components/ShapeButton.qml
+        qml/components/ShapeIcon.qml
+        qml/components/ShapeIconButton.qml
         qml/components/VariantsPanel.qml
+    RESOURCES
+        icons/compare.svg
+        icons/export.svg
+        icons/settings.svg
+        icons/verified.svg
 )
 
 qt_add_translations(shape-desktop
     TS_FILES translations/shape_zh_CN.ts
     RESOURCE_PREFIX "/translations"
+    LUPDATE_OPTIONS -no-obsolete
+    LRELEASE_OPTIONS -nounfinished
 )
 
 target_compile_features(shape-desktop PRIVATE cxx_std_20)
@@ -145,6 +163,7 @@ if(BUILD_TESTING)
     )
     set_tests_properties(shape-desktop-smoke PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
         TIMEOUT 15
     )
     add_test(
@@ -157,5 +176,8 @@ if(BUILD_TESTING)
             "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/project_smoke.cmake"
     )
-    set_tests_properties(shape-desktop-project-smoke PROPERTIES TIMEOUT 60)
+    set_tests_properties(shape-desktop-project-smoke PROPERTIES
+        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
+        TIMEOUT 60
+    )
 endif()

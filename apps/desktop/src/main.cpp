@@ -1,12 +1,16 @@
 #include "desktop_backend.hpp"
+#include "ui_preferences.hpp"
+
+#if defined(Q_OS_MACOS)
+#include "mac_titlebar.hpp"
+#endif
 
 #include "rust/cxx.h"
 
 #include <QGuiApplication>
-#include <QLocale>
 #include <QQmlApplicationEngine>
+#include <QQuickWindow>
 #include <QTimer>
-#include <QTranslator>
 #include <QVariant>
 
 #include <iostream>
@@ -52,17 +56,6 @@ int main(int argc, char* argv[]) {
     QGuiApplication application(argc, argv);
     application.setApplicationName(QStringLiteral("Shape"));
     application.setOrganizationName(QStringLiteral("Shape"));
-
-    QTranslator translator;
-    if (translator.load(
-            QLocale(),
-            QStringLiteral("shape"),
-            QStringLiteral("_"),
-            QStringLiteral(":/translations")
-        )) {
-        application.installTranslator(&translator);
-    }
-
     std::unique_ptr<DesktopBackend> backend;
     try {
         if (arguments->project_path.has_value()) {
@@ -77,6 +70,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    UiPreferences ui_preferences(application);
     QQmlApplicationEngine engine;
     QObject::connect(
         &engine,
@@ -85,8 +79,25 @@ int main(int argc, char* argv[]) {
         []() { QCoreApplication::exit(1); },
         Qt::QueuedConnection
     );
-    engine.setInitialProperties({{QStringLiteral("backend"), QVariant::fromValue(backend.get())}});
+    ui_preferences.attachEngine(engine);
+    engine.setInitialProperties({
+        {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
+        {QStringLiteral("uiPreferences"), QVariant::fromValue(&ui_preferences)},
+    });
     engine.loadFromModule(QStringLiteral("Shape.Desktop"), QStringLiteral("Main"));
+
+    if (engine.rootObjects().isEmpty()) {
+        std::cerr << "Shape QML shell failed to load" << std::endl;
+        return 1;
+    }
+
+#if defined(Q_OS_MACOS)
+    QObject* const root_object = engine.rootObjects().first();
+    QObject* const title_toolbar = root_object->findChild<QObject*>(QStringLiteral("titleToolBar"));
+    const int title_bar_height =
+        title_toolbar == nullptr ? 44 : qRound(title_toolbar->property("height").toReal());
+    installMacTitleBarAlignment(qobject_cast<QQuickWindow*>(root_object), title_bar_height);
+#endif
 
     if (arguments->smoke_exit) {
         if (arguments->project_path.has_value()

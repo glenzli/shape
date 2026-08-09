@@ -53,3 +53,9 @@ validated current project snapshot through CXX and contains no UI policy. Mutabl
 media bridges, an Infer client, capability registry, preview renderer, and project dependency
 resolver remain deferred until a real application path consumes them. Do not create empty crates
 for roadmap boxes.
+
+The desktop visual foundation adds two deliberately separate owners rather than growing the
+project projection: `UiPreferences` owns persistent appearance/language lifecycle, while
+`MainTitleBar.qml` owns integrated window chrome and native safe areas. Individual workspace QML
+components keep ownership of their own visual regions. This split should be revisited when a
+second settings domain or a second top-level workspace creates a concrete growth trigger.
