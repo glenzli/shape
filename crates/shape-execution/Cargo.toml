@@ -1,0 +1,18 @@
+[package]
+name = "shape-execution"
+description = "Executor lifecycle and provenance contracts for Shape"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+shape-domain.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

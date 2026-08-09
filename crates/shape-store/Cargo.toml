@@ -1,0 +1,21 @@
+[package]
+name = "shape-store"
+description = "Atomic Shape project bundle and content-addressed persistence"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+shape-domain.workspace = true
+shape-execution.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

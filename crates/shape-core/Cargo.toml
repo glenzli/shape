@@ -1,0 +1,21 @@
+[package]
+name = "shape-core"
+description = "Application use cases for Shape creative projects"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+shape-domain.workspace = true
+shape-execution.workspace = true
+shape-store.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true
+
+[lints]
+workspace = true

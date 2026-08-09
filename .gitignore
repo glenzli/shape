@@ -1,0 +1,14 @@
+/target/
+/Cargo.lock.tmp
+/.shape-local-*/
+/.agent-coordination/
+/.DS_Store
+*.swp
+*.user
+*.user.*
+
+# Project data and generated media never belong to the source repository.
+/*.shape/
+/local-data/
+/tmp/
+
