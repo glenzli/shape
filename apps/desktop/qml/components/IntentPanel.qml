@@ -35,7 +35,7 @@ Frame {
         }
         RowLayout {
             Label {
-                text: qsTr("Hard constraint: preserve the subject")
+                text: qsTr("Constraints will appear here")
                 color: Theme.accent
                 font.pixelSize: 12
             }

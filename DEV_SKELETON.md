@@ -35,6 +35,7 @@
 - Executor lifecycle and provenance: `crates/shape-execution/src/lib.rs`.
 - Project bundle, SQLite, and content-addressed objects: `crates/shape-store/src/lib.rs`.
 - Product use-case orchestration: `crates/shape-core/src/lib.rs`.
+- Bounded Rust/CXX desktop projection: `crates/shape-desktop-bridge/src/lib.rs`.
 - Runnable foundation slice: `apps/shape-cli/src/main.rs`.
 - Qt/QML desktop assembly: `apps/desktop/README.md`.
 
@@ -47,7 +48,8 @@ The first foundation intentionally keeps four Rust semantic owners:
 - `shape-store`: one atomic persistence owner spanning SQLite metadata and durable CAS publication;
 - `shape-core`: application use cases and built-in transformations.
 
-A desktop bridge, media bridge, Infer client, capability registry, preview renderer, and project
-dependency resolver are deferred until a real application path consumes them. Do not create empty
-crates for roadmap boxes.
-
+The first real desktop read path now owns one additional `shape-desktop-bridge`: it projects a
+validated current project snapshot through CXX and contains no UI policy. Mutable desktop sessions,
+media bridges, an Infer client, capability registry, preview renderer, and project dependency
+resolver remain deferred until a real application path consumes them. Do not create empty crates
+for roadmap boxes.

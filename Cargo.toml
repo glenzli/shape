@@ -2,6 +2,7 @@
 members = [
     "apps/shape-cli",
     "crates/shape-core",
+    "crates/shape-desktop-bridge",
     "crates/shape-domain",
     "crates/shape-execution",
     "crates/shape-store",
@@ -10,6 +11,7 @@ members = [
 default-members = [
     "apps/shape-cli",
     "crates/shape-core",
+    "crates/shape-desktop-bridge",
     "crates/shape-domain",
     "crates/shape-execution",
     "crates/shape-store",
@@ -26,10 +28,12 @@ publish = false
 
 [workspace.dependencies]
 blake3 = "1.8.5"
+cxx = "=1.0.198"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 shape-core = { path = "crates/shape-core" }
+shape-desktop-bridge = { path = "crates/shape-desktop-bridge" }
 shape-domain = { path = "crates/shape-domain" }
 shape-execution = { path = "crates/shape-execution" }
 shape-store = { path = "crates/shape-store" }

@@ -4,6 +4,10 @@ import QtQuick.Layouts
 import Shape.Desktop
 
 Frame {
+    id: variants
+    property string artifactText: ""
+    property bool hasAcceptedRevision: false
+    property bool hasTextPreview: false
     padding: 14
     background: Rectangle {
         color: Theme.surface
@@ -23,6 +27,7 @@ Frame {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 92
+            visible: variants.hasAcceptedRevision
             radius: Theme.radiusSmall
             color: Theme.accentSoft
             border.color: Theme.accent
@@ -30,7 +35,12 @@ Frame {
                 anchors.fill: parent
                 anchors.margins: 12
                 Label { text: qsTr("Current accepted"); color: Theme.accent; font.bold: true }
-                Label { text: qsTr("A quiet summer afternoon."); color: Theme.text }
+                Label {
+                    text: variants.hasTextPreview ? variants.artifactText : qsTr("Accepted non-text content")
+                    color: Theme.text
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                }
                 Label { text: qsTr("Durable · verified"); color: Theme.muted; font.pixelSize: 11 }
             }
         }
@@ -42,7 +52,12 @@ Frame {
             border.color: Theme.border
             ColumnLayout {
                 anchors.centerIn: parent
-                Label { text: qsTr("No pending candidates"); color: Theme.text }
+                Label {
+                    text: variants.hasAcceptedRevision
+                          ? qsTr("No pending candidates")
+                          : qsTr("No accepted or pending variants")
+                    color: Theme.text
+                }
                 Label { text: qsTr("Run an executor to explore alternatives"); color: Theme.muted; font.pixelSize: 11 }
             }
         }

@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -6,12 +8,20 @@ import "components"
 
 ApplicationWindow {
     id: window
+    required property DesktopBackend backend
+    property int selectedArtifactIndex: 0
+    readonly property var selectedArtifact: window.backend.artifacts.length > selectedArtifactIndex
+                                            ? window.backend.artifacts[selectedArtifactIndex]
+                                            : null
+    readonly property bool hasSelectedArtifact: selectedArtifact !== null
     width: 1440
     height: 900
     minimumWidth: 1024
     minimumHeight: 700
     visible: true
-    title: qsTr("Shape — Untitled Project")
+    title: window.backend.projectOpen
+           ? qsTr("Shape — %1").arg(window.backend.projectName)
+           : qsTr("Shape — No Project")
     color: Theme.background
 
     header: ToolBar {
@@ -40,12 +50,16 @@ ApplicationWindow {
                 color: Theme.border
             }
             Label {
-                text: qsTr("Untitled Project")
+                text: window.backend.projectOpen
+                      ? window.backend.projectName
+                      : qsTr("No project open")
                 color: Theme.text
                 font.pixelSize: 15
             }
             Label {
-                text: qsTr("Saved locally")
+                text: window.backend.projectOpen
+                      ? qsTr("Saved locally")
+                      : qsTr("Open a .shape project to begin")
                 color: Theme.muted
                 font.pixelSize: 12
             }
@@ -89,13 +103,36 @@ ApplicationWindow {
                     font.pixelSize: 11
                     font.bold: true
                 }
-                ItemDelegate {
+                ListView {
                     Layout.fillWidth: true
-                    highlighted: true
-                    text: qsTr("Story")
-                    icon.name: "text-x-generic"
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: 4
+                    model: window.backend.artifacts
+                    delegate: ItemDelegate {
+                        id: artifactDelegate
+                        required property int index
+                        required property var modelData
+                        width: ListView.view.width
+                        highlighted: window.selectedArtifactIndex === artifactDelegate.index
+                        text: artifactDelegate.modelData.name
+                        onClicked: window.selectedArtifactIndex = artifactDelegate.index
+                        contentItem: Column {
+                            spacing: 2
+                            Label { text: artifactDelegate.modelData.name; color: Theme.text }
+                            Label { text: artifactDelegate.modelData.kindLabel; color: Theme.muted; font.pixelSize: 11 }
+                        }
+                    }
                 }
-                Item { Layout.fillHeight: true }
+                Label {
+                    visible: window.backend.artifactCount === 0
+                    Layout.fillWidth: true
+                    text: window.backend.projectOpen
+                          ? qsTr("This project has no artifacts")
+                          : qsTr("No project loaded")
+                    color: Theme.muted
+                    wrapMode: Text.WordWrap
+                }
                 Label {
                     Layout.fillWidth: true
                     text: qsTr("A project contains stable creative artifacts. Accepted revisions remain immutable.")
@@ -114,6 +151,21 @@ ApplicationWindow {
             ArtifactWorkspace {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                artifactName: window.hasSelectedArtifact
+                              ? window.selectedArtifact.name
+                              : qsTr("No artifact selected")
+                artifactKind: window.hasSelectedArtifact
+                              ? window.selectedArtifact.kindLabel
+                              : ""
+                artifactText: window.hasSelectedArtifact
+                              ? window.selectedArtifact.textPreview
+                              : ""
+                hasAcceptedRevision: window.hasSelectedArtifact
+                                     && window.selectedArtifact.hasAcceptedRevision
+                hasTextPreview: window.hasSelectedArtifact
+                                && window.selectedArtifact.hasTextPreview
+                textPreviewTruncated: window.hasSelectedArtifact
+                                      && window.selectedArtifact.textPreviewTruncated
             }
 
             IntentPanel {
@@ -130,10 +182,22 @@ ApplicationWindow {
             VariantsPanel {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                artifactText: window.hasSelectedArtifact
+                              ? window.selectedArtifact.textPreview
+                              : ""
+                hasAcceptedRevision: window.hasSelectedArtifact
+                                     && window.selectedArtifact.hasAcceptedRevision
+                hasTextPreview: window.hasSelectedArtifact
+                                && window.selectedArtifact.hasTextPreview
             }
             SemanticHistory {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 260
+                hasAcceptedRevision: window.hasSelectedArtifact
+                                     && window.selectedArtifact.hasAcceptedRevision
+                revisionId: window.hasSelectedArtifact
+                            ? window.selectedArtifact.acceptedRevisionId
+                            : ""
             }
         }
     }

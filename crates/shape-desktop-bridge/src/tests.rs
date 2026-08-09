@@ -1,0 +1,62 @@
+use std::{fs, path::PathBuf};
+
+use shape_core::ShapeProject;
+use shape_domain::{ArtifactKind, IntentSpec};
+use uuid::Uuid;
+
+use super::load_project_snapshot;
+
+fn test_root() -> PathBuf {
+    std::env::temp_dir().join(format!("shape-desktop-bridge-{}", Uuid::now_v7()))
+}
+
+#[test]
+fn bridge_preserves_presence_identity_and_verified_text() {
+    let root = test_root();
+    let mut project = ShapeProject::create(&root, "Bridge Contract").expect("project creates");
+    let story = project
+        .create_artifact("Story", ArtifactKind::TextDocument)
+        .expect("story creates");
+    project
+        .create_artifact("References", ArtifactKind::ReferenceSet)
+        .expect("reference set creates");
+    let candidate = project
+        .propose_text(
+            story.id,
+            None,
+            "A quiet summer afternoon.",
+            IntentSpec::new("Import the opening").expect("intent valid"),
+            Vec::new(),
+        )
+        .expect("candidate executes");
+    let accepted = project.accept_text(candidate).expect("candidate accepts");
+    drop(project);
+
+    let snapshot = load_project_snapshot(root.to_str().expect("portable test path"))
+        .expect("bridge snapshot loads");
+    assert_eq!(snapshot.project_name, "Bridge Contract");
+    assert_eq!(snapshot.artifacts.len(), 2);
+
+    let story_wire = snapshot
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.id == story.id.to_string())
+        .expect("story is projected");
+    assert!(story_wire.has_accepted_revision);
+    assert_eq!(story_wire.accepted_revision_id, accepted.id.to_string());
+    assert!(story_wire.has_content);
+    assert_eq!(story_wire.media_type, "text/plain; charset=utf-8");
+    assert!(story_wire.has_text_preview);
+    assert!(!story_wire.text_preview_truncated);
+    assert_eq!(story_wire.text_preview, "A quiet summer afternoon.");
+
+    let reference_wire = snapshot
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.kind_key == "reference_set")
+        .expect("reference set is projected");
+    assert!(!reference_wire.has_accepted_revision);
+    assert!(!reference_wire.has_content);
+    assert!(!reference_wire.has_text_preview);
+    fs::remove_dir_all(root).expect("test project removes");
+}

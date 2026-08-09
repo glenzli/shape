@@ -16,18 +16,17 @@ implemented behavior.
 ## Stable dependency direction
 
 ```text
-shape-domain
-    ↑
-shape-execution
-    ↑       ↖
-shape-store  shape-core
-       ↖      ↑
-         applications
+shape-core -> shape-store -> shape-execution -> shape-domain
+shape-core -> shape-execution
+shape-core -> shape-domain
+shape-desktop-bridge -> shape-core
+desktop application -> shape-desktop-bridge
 ```
 
 `shape-domain` is platform- and runtime-independent. Qt, C++, provider, filesystem, SQLite, and
 network types may not enter it. `shape-core` orchestrates use cases but does not own persistence or
-executor mechanics.
+executor mechanics. `shape-desktop-bridge` is a terminal adapter: application code may depend on it,
+but no domain, execution, store, or core owner may depend back on the bridge.
 
 ## Tests
 
@@ -62,4 +61,3 @@ capability identifiers remain language-neutral.
 - Content identity is BLAKE3 over exact bytes. Stored objects are verified before consumption.
 - Execution success creates a candidate; only an explicit accept operation advances an artifact's
   accepted revision.
-
