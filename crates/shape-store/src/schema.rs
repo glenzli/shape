@@ -8,6 +8,7 @@ use crate::StoreError;
 pub(super) const INITIAL_SCHEMA_REVISION: &str = "20260810.1";
 pub(super) const SCENE_SCHEMA_REVISION: &str = "20260811.1";
 pub(super) const AUDIO_SCHEMA_REVISION: &str = "20260811.2";
+pub(super) const WORKING_GRAPH_SCHEMA_REVISION: &str = "20260811.3";
 
 const SCENE_SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS scenes (
@@ -93,6 +94,7 @@ pub(super) fn supports_migration(revision: &str) -> bool {
         INITIAL_SCHEMA_REVISION
             | SCENE_SCHEMA_REVISION
             | AUDIO_SCHEMA_REVISION
+            | WORKING_GRAPH_SCHEMA_REVISION
             | SHAPE_PROJECT_SCHEMA_REVISION
     )
 }

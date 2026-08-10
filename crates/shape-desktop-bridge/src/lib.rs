@@ -82,7 +82,7 @@ mod ffi {
         data_type_key: String,
     }
 
-    /// One session-local Operator entry awaiting its first real Candidate.
+    /// One project-backed Operator entry awaiting its first real Candidate.
     #[derive(Debug)]
     struct OperatorDraftWire {
         draft_id: String,
@@ -90,6 +90,8 @@ mod ffi {
         operator_type_key: String,
         input_data_type_key: String,
         output_data_type_key: String,
+        configuration_schema: String,
+        text_transform_instruction: String,
     }
 
     /// One Rust-owned Operator descriptor compatible with an accepted source.
@@ -260,6 +262,11 @@ mod ffi {
             operator_type: &str,
         ) -> Result<OperatorDraftWire>;
         fn session_operator_drafts(self: &DesktopSession) -> Vec<OperatorDraftWire>;
+        fn session_update_text_transform_draft(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            instruction: &str,
+        ) -> Result<OperatorDraftWire>;
         fn session_operator_descriptors(
             self: &DesktopSession,
             artifact_id: &str,

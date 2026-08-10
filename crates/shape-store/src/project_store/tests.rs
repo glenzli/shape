@@ -1,9 +1,10 @@
 use std::fs;
 
 use shape_domain::{
-    Constraint, IntentSpec, NamedSceneOutput, OperatorDataTypeId, OperatorGraph, OperatorGraphEdge,
-    OperatorGraphNode, OperatorNodeBinding, OperatorNodeId, OperatorNodeRole, OperatorPort,
-    OperatorPortId, OperatorTypeId, Scene, SceneOutputName, TransformationKind,
+    ArtifactWorkingGraph, Constraint, IntentSpec, NamedSceneOutput, OperatorDataTypeId,
+    OperatorGraph, OperatorGraphEdge, OperatorGraphNode, OperatorNodeBinding, OperatorNodeId,
+    OperatorNodeRole, OperatorPort, OperatorPortId, OperatorTypeId, Scene, SceneOutputName,
+    TransformationKind,
 };
 use shape_execution::{CapabilityId, ExecutionJob, ExecutorIdentity};
 
@@ -457,5 +458,63 @@ fn audio_schema_adds_working_graph_storage_without_changing_artifact_heads() {
         Some(accepted.id)
     );
     assert!(reopened.artifact_working_graphs().unwrap().is_empty());
+    fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn working_graph_schema_defaults_missing_operator_configuration_on_reopen() {
+    let root = test_root("working-graph-config-migration");
+    let mut store = ProjectStore::create(&root, "Migration Project").expect("project creates");
+    let artifact = Artifact::new("Story", ArtifactKind::TextDocument).unwrap();
+    store.insert_artifact(&artifact).unwrap();
+    let accepted = store.accept(successful_commit(&artifact, None)).unwrap();
+    let mut graph = ArtifactWorkingGraph::new(artifact.id, accepted.id);
+    graph
+        .add_operator(
+            OperatorTypeId::new("text.transform").unwrap(),
+            OperatorDataTypeId::new("text.document").unwrap(),
+            OperatorDataTypeId::new("text.document").unwrap(),
+        )
+        .unwrap();
+    store.save_artifact_working_graph(&graph).unwrap();
+    let mut metadata = store.metadata().clone();
+    drop(store);
+
+    metadata.schema_revision = schema::WORKING_GRAPH_SCHEMA_REVISION.to_owned();
+    let connection = Connection::open(root.join(DATABASE_FILE)).unwrap();
+    let graph_json: String = connection
+        .query_row(
+            "SELECT graph_json FROM artifact_working_graphs WHERE artifact_id = ?1",
+            [artifact.id.to_string()],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let mut graph_value: serde_json::Value = serde_json::from_str(&graph_json).unwrap();
+    graph_value["operators"].as_array_mut().unwrap()[0]
+        .as_object_mut()
+        .unwrap()
+        .remove("configuration");
+    connection
+        .execute(
+            "UPDATE artifact_working_graphs SET graph_json = ?1 WHERE artifact_id = ?2",
+            params![
+                serde_json::to_string(&graph_value).unwrap(),
+                artifact.id.to_string()
+            ],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE project_singleton SET metadata_json = ?1 WHERE singleton = 1",
+            [serde_json::to_string(&metadata).unwrap()],
+        )
+        .unwrap();
+    drop(connection);
+    write_manifest(&root, &metadata).unwrap();
+
+    let reopened = ProjectStore::open(&root).expect("Working Graph schema upgrades");
+    let graphs = reopened.artifact_working_graphs().unwrap();
+    assert_eq!(graphs.len(), 1);
+    assert!(graphs[0].operators()[0].configuration().is_none());
     fs::remove_dir_all(&root).unwrap();
 }

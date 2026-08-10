@@ -16,6 +16,13 @@ fn working_operator_is_recoverable_without_entering_accepted_graph_history() {
             text_id("text.document"),
         )
         .unwrap();
+    let configuration = WorkingOperatorConfiguration::new(
+        OperatorConfigurationSchemaId::new("shape.operator-draft.text-transform@20260811.1")
+            .unwrap(),
+        r#"{"instruction":"Make it warmer."}"#,
+    )
+    .unwrap();
+    assert!(graph.set_operator_configuration(draft.id(), Some(configuration.clone())));
     let repeated = graph
         .add_operator(
             OperatorTypeId::new("text.transform").unwrap(),
@@ -23,7 +30,8 @@ fn working_operator_is_recoverable_without_entering_accepted_graph_history() {
             text_id("text.document"),
         )
         .unwrap();
-    assert_eq!(draft, repeated);
+    assert_eq!(draft.id(), repeated.id());
+    assert_eq!(repeated.configuration(), Some(&configuration));
 
     let encoded = serde_json::to_string(&graph).unwrap();
     let recovered: ArtifactWorkingGraph = serde_json::from_str(&encoded).unwrap();
@@ -31,6 +39,10 @@ fn working_operator_is_recoverable_without_entering_accepted_graph_history() {
     assert_eq!(recovered, graph);
     assert_eq!(recovered.context_artifact_id(), artifact_id);
     assert_eq!(recovered.expected_revision_id(), revision_id);
+    assert_eq!(
+        recovered.operators()[0].configuration(),
+        Some(&configuration)
+    );
 }
 
 #[test]
@@ -71,4 +83,20 @@ fn serde_loaded_identifier_is_revalidated() {
         malformed.validate(),
         Err(DomainError::InvalidOperatorIdentifier { .. })
     ));
+}
+
+#[test]
+fn configuration_envelope_rejects_unversioned_non_object_and_oversized_json() {
+    assert!(OperatorConfigurationSchemaId::new("unversioned").is_err());
+    let schema =
+        OperatorConfigurationSchemaId::new("shape.operator-draft.text-transform@20260811.1")
+            .unwrap();
+    assert!(WorkingOperatorConfiguration::new(schema.clone(), "[]").is_err());
+    assert!(
+        WorkingOperatorConfiguration::new(
+            schema,
+            format!(r#"{{"value":"{}"}}"#, "x".repeat(64 * 1_024)),
+        )
+        .is_err()
+    );
 }

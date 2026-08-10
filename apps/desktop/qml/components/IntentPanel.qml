@@ -22,13 +22,19 @@ Rectangle {
     property bool generationRunning: false
     property bool credentialConfigured: false
     property string generationErrorCode: ""
+    property string operatorDraftId: ""
+    property string operatorTypeKey: ""
+    property string textTransformInstruction: ""
 
     readonly property bool selectedTextDocument: artifactId.length > 0
                                                 && artifactKindKey === "text_document"
     readonly property bool canEditText: selectedTextDocument && hasAcceptedRevision
+    readonly property bool editingText: operatorTypeKey === "text.edit"
+    readonly property bool transformingText: operatorTypeKey === "text.transform"
 
     signal candidateRequested(string artifactId, string replacementText)
     signal inferCandidateRequested(string artifactId, string prompt)
+    signal textTransformDraftSaveRequested(string draftId, string instruction)
     signal runtimeRefreshRequested()
 
     function resetDraft() : void {
@@ -62,9 +68,39 @@ Rectangle {
         }
     }
 
+    function synchronizeTransformInstruction() : void {
+        instructionSaveTimer.stop()
+        if (generationPrompt.text !== textTransformInstruction) {
+            generationPrompt.text = textTransformInstruction
+        }
+    }
+
+    function persistTransformInstruction() : void {
+        if (!transformingText || operatorDraftId.length === 0
+                || generationPrompt.text === textTransformInstruction) {
+            return
+        }
+        textTransformDraftSaveRequested(operatorDraftId, generationPrompt.text)
+    }
+
     onArtifactIdChanged: resetDraft()
     onAcceptedTextChanged: if (!candidatePending && !draftEditor.activeFocus) resetDraft()
     onCandidatePendingChanged: if (!candidatePending) resetDraft()
+    onOperatorDraftIdChanged: synchronizeTransformInstruction()
+    onTextTransformInstructionChanged: synchronizeTransformInstruction()
+    onVisibleChanged: {
+        if (!visible && instructionSaveTimer.running) {
+            instructionSaveTimer.stop()
+            persistTransformInstruction()
+        }
+    }
+
+    Timer {
+        id: instructionSaveTimer
+        interval: 350
+        repeat: false
+        onTriggered: panel.persistTransformInstruction()
+    }
 
     radius: Theme.radiusLarge
     color: Theme.surface
@@ -128,7 +164,7 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: panel.canEditText
+            visible: panel.canEditText && panel.editingText
             leftPadding: 12
             rightPadding: 12
             topPadding: 10
@@ -157,10 +193,11 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            visible: panel.canEditText
+            visible: panel.canEditText && panel.transformingText
 
             TextField {
                 id: generationPrompt
+                objectName: "textTransformInstructionField"
 
                 Layout.fillWidth: true
                 implicitHeight: 30
@@ -174,6 +211,11 @@ Rectangle {
                 selectedTextColor: Theme.text
                 font.pixelSize: 11
                 Accessible.name: qsTr("AI rewrite instruction")
+                onTextEdited: instructionSaveTimer.restart()
+                onEditingFinished: {
+                    instructionSaveTimer.stop()
+                    panel.persistTransformInstruction()
+                }
 
                 background: Rectangle {
                     color: Theme.raised
@@ -222,6 +264,7 @@ Rectangle {
             ShapeButton {
                 text: qsTr("Preview calibration")
                 primary: true
+                visible: panel.editingText
                 enabled: panel.canEditText
                          && draftEditor.text.trim().length > 0
                          && draftEditor.text !== panel.acceptedText

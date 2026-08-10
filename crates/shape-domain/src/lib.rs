@@ -60,4 +60,7 @@ pub use transformation::{
     Constraint, ConstraintKind, ConstraintStrength, IntentSpec, ReferenceBinding, ReferenceRole,
     Transformation, TransformationKind, TransformationOperation,
 };
-pub use working_graph::{ArtifactWorkingGraph, WorkingOperatorDraft};
+pub use working_graph::{
+    ArtifactWorkingGraph, OperatorConfigurationSchemaId, WorkingOperatorConfiguration,
+    WorkingOperatorDraft,
+};

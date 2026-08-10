@@ -468,25 +468,25 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
     QObject* const search_field =
         palette->findChild<QObject*>(QStringLiteral("operatorSearchField"));
     if (!palette->property("visible").toBool() || search_field == nullptr
-        || !search_field->setProperty("text", QStringLiteral("text edit"))) {
+        || !search_field->setProperty("text", QStringLiteral("AI text transform"))) {
         std::cerr << "desktop authoring smoke could not search the Operator palette"
                   << std::endl;
         return false;
     }
     QCoreApplication::processEvents();
     if (palette->property("visibleOperatorCount").toInt() != 1) {
-        std::cerr << "desktop authoring smoke Operator search did not narrow to Text Edit"
+        std::cerr << "desktop authoring smoke Operator search did not narrow to Text Transform"
                   << std::endl;
         return false;
     }
     QQmlExpression choose_operator(
         QQmlEngine::contextForObject(palette),
         palette,
-        QStringLiteral("chooseOperator('text.edit')")
+        QStringLiteral("chooseOperator('text.transform')")
     );
     choose_operator.evaluate();
     if (choose_operator.hasError()) {
-        std::cerr << "desktop authoring smoke could not choose the Text Edit Operator"
+        std::cerr << "desktop authoring smoke could not choose the Text Transform Operator"
                   << std::endl;
         return false;
     }
@@ -501,10 +501,36 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         return false;
     }
     if (workspace_surface->property("workspaceRouteKey").toString()
-            != QStringLiteral("operator.text.edit")
+            != QStringLiteral("operator.text.transform")
         || workspace_surface->property("loadedWorkspaceObjectName").toString()
                != QStringLiteral("textEditOperatorWorkspace")) {
         std::cerr << "desktop authoring smoke routed the draft to the wrong workspace" << std::endl;
+        return false;
+    }
+    QObject* const instruction_field =
+        root_object.findChild<QObject*>(QStringLiteral("textTransformInstructionField"));
+    const QString instruction = QStringLiteral("Make it warmer, but preserve the title.");
+    if (instruction_field == nullptr || !instruction_field->property("visible").toBool()
+        || !instruction_field->setProperty("text", instruction)
+        || !QMetaObject::invokeMethod(
+            instruction_field,
+            "editingFinished",
+            Qt::DirectConnection
+        )) {
+        std::cerr << "desktop authoring smoke could not author the Text Transform draft"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    const QVariantList configured_drafts = backend.operatorDrafts();
+    if (configured_drafts.size() != 1
+        || configured_drafts.first()
+                   .toMap()
+                   .value(QStringLiteral("textTransformInstruction"))
+                   .toString()
+               != instruction) {
+        std::cerr << "desktop authoring smoke did not persist the Text Transform instruction"
+                  << std::endl;
         return false;
     }
     if (!QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
@@ -527,7 +553,12 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
     QCoreApplication::processEvents();
     const QVariantList reopened_drafts = backend.operatorDrafts();
     if (reopened_drafts.size() != 1
-        || reopened_drafts.first().toMap().value(QStringLiteral("id")).toString() != draft_id) {
+        || reopened_drafts.first().toMap().value(QStringLiteral("id")).toString() != draft_id
+        || reopened_drafts.first()
+                   .toMap()
+                   .value(QStringLiteral("textTransformInstruction"))
+                   .toString()
+               != instruction) {
         std::cerr << "desktop authoring smoke did not restore the exact Operator draft"
                   << std::endl;
         return false;
@@ -542,6 +573,23 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         )
         == nullptr) {
         std::cerr << "desktop authoring smoke did not redraw the restored Operator draft"
+                  << std::endl;
+        return false;
+    }
+    QQmlExpression reopen_draft(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("openOperatorDraft('%1')").arg(draft_id)
+    );
+    if (!reopen_draft.evaluate().toBool() || reopen_draft.hasError()) {
+        std::cerr << "desktop authoring smoke could not reopen the restored Operator draft"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    if (!instruction_field->property("visible").toBool()
+        || instruction_field->property("text").toString() != instruction) {
+        std::cerr << "desktop authoring smoke did not restore the instruction in the workspace"
                   << std::endl;
         return false;
     }

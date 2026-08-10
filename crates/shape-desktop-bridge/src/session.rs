@@ -12,7 +12,7 @@ use operator_drafts::OperatorDrafts;
 
 use crate::operator_catalog::{
     AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, TEXT_EDIT_OPERATOR, TEXT_TRANSFORM_OPERATOR,
-    compatible_descriptors, descriptor_for,
+    compatible_descriptors, descriptor_for, instruction_from_draft,
 };
 
 use crate::infer_speech::InferSpeechCandidate;
@@ -85,7 +85,7 @@ impl DesktopSession {
         self.session_snapshot()
     }
 
-    /// Begins one session-local Operator draft against an accepted source.
+    /// Begins one project-backed Operator draft against an accepted source.
     pub fn session_begin_operator_draft(
         &mut self,
         artifact_id: &str,
@@ -136,12 +136,34 @@ impl DesktopSession {
             .collect())
     }
 
-    /// Returns all current session-local Operator drafts.
+    /// Returns all current project-backed Operator drafts.
     pub fn session_operator_drafts(&self) -> Vec<ffi::OperatorDraftWire> {
         self.operator_drafts
             .entries()
             .map(|(artifact_id, draft)| operator_draft_wire(artifact_id, draft))
             .collect()
+    }
+
+    /// Saves the authored instruction owned by one `text.transform` draft.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown or incompatible draft, invalid bounded
+    /// instruction, stale accepted source, or persistence failure.
+    pub fn session_update_text_transform_draft(
+        &mut self,
+        draft_id: &str,
+        instruction: &str,
+    ) -> Result<ffi::OperatorDraftWire, String> {
+        let previous = self.operator_drafts.clone();
+        let (artifact_id, draft) = self
+            .operator_drafts
+            .update_text_transform_instruction(draft_id, instruction)?;
+        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+            self.operator_drafts = previous;
+            return Err(error);
+        }
+        Ok(operator_draft_wire(artifact_id, &draft))
     }
 
     /// Discards one Operator draft without changing accepted history.
@@ -515,12 +537,20 @@ fn operator_draft_wire(
     context_artifact_id: ArtifactId,
     draft: &shape_domain::WorkingOperatorDraft,
 ) -> ffi::OperatorDraftWire {
+    let configuration_schema = draft
+        .configuration()
+        .map_or_else(String::new, |configuration| {
+            configuration.schema().as_str().to_owned()
+        });
     ffi::OperatorDraftWire {
         draft_id: draft.id().to_string(),
         context_artifact_id: context_artifact_id.to_string(),
         operator_type_key: draft.operator_type().to_string(),
         input_data_type_key: draft.input_data_type().to_string(),
         output_data_type_key: draft.output_data_type().to_string(),
+        configuration_schema,
+        text_transform_instruction: instruction_from_draft(draft)
+            .expect("session admits only validated Operator draft configurations"),
     }
 }
 

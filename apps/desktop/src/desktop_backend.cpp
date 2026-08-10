@@ -181,6 +181,11 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
     projected.insert(QStringLiteral("operatorTypeLabel"), operator_type_label(operator_type_key));
     projected.insert(QStringLiteral("inputDataTypeKey"), from_rust(draft.input_data_type_key));
     projected.insert(QStringLiteral("outputDataTypeKey"), from_rust(draft.output_data_type_key));
+    projected.insert(QStringLiteral("configurationSchema"), from_rust(draft.configuration_schema));
+    projected.insert(
+        QStringLiteral("textTransformInstruction"),
+        from_rust(draft.text_transform_instruction)
+    );
     return projected;
 }
 
@@ -564,6 +569,29 @@ QVariantList DesktopBackend::compatibleOperators(const QString& artifactId) {
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not load compatible Operators:" << error.what();
         return {};
+    }
+}
+
+bool DesktopBackend::updateTextTransformDraft(
+    const QString& draftId,
+    const QString& instruction
+) {
+    if (session_ == nullptr || draftId.isEmpty()) {
+        return false;
+    }
+    try {
+        session_->session->session_update_text_transform_draft(
+            to_utf8(draftId),
+            to_utf8(instruction)
+        );
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not save text transform draft:" << error.what();
+        setLastError(tr("Could not save the Operator draft."));
+        return false;
     }
 }
 

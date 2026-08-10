@@ -983,6 +983,7 @@ dependencies = [
  "cxx",
  "cxx-build",
  "image",
+ "serde",
  "serde_json",
  "shape-core",
  "shape-domain",

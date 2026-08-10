@@ -3,7 +3,7 @@ use shape_domain::{Artifact, ArtifactKind};
 use super::*;
 use crate::operator_catalog::{
     AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, TEXT_EDIT_OPERATOR, TEXT_TRANSFORM_OPERATOR,
-    descriptor_for,
+    descriptor_for, instruction_from_draft,
 };
 
 fn accepted_artifact(kind: ArtifactKind) -> Artifact {
@@ -77,10 +77,43 @@ fn project_backed_graphs_restore_exact_draft_identity() {
             descriptor_for(text.kind, TEXT_TRANSFORM_OPERATOR).unwrap(),
         )
         .unwrap();
+    drafts
+        .update_text_transform_instruction(
+            draft.id().as_str(),
+            "Make it warmer, but preserve the title.",
+        )
+        .unwrap();
     let graph = drafts.graph(text.id).unwrap().clone();
     let restored = OperatorDrafts::from_graphs(vec![graph]).unwrap();
     let entries = restored.entries().collect::<Vec<_>>();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].0, text.id);
     assert_eq!(entries[0].1.id(), draft.id());
+    assert_eq!(
+        instruction_from_draft(entries[0].1).unwrap(),
+        "Make it warmer, but preserve the title."
+    );
+    assert!(
+        restored
+            .clone()
+            .update_text_transform_instruction(draft.id().as_str(), "")
+            .is_ok()
+    );
+}
+
+#[test]
+fn configuration_is_rejected_for_the_wrong_operator_family() {
+    let text = accepted_artifact(ArtifactKind::TextDocument);
+    let mut drafts = OperatorDrafts::default();
+    let edit = drafts
+        .begin(
+            &text,
+            descriptor_for(text.kind, TEXT_EDIT_OPERATOR).unwrap(),
+        )
+        .unwrap();
+    assert!(
+        drafts
+            .update_text_transform_instruction(edit.id().as_str(), "Make it warmer.")
+            .is_err()
+    );
 }

@@ -323,6 +323,13 @@ ApplicationWindow {
                 generationRunning: window.inferText.running
                 credentialConfigured: window.inferText.credentialConfigured
                 generationErrorCode: window.inferText.errorCode
+                operatorDraftId: workspaceSurface.selectedDraft !== null
+                                 ? workspaceSurface.selectedDraft.id : ""
+                operatorTypeKey: workspaceSurface.selectedDraft !== null
+                                 ? workspaceSurface.selectedDraft.operatorTypeKey : ""
+                textTransformInstruction: workspaceSurface.selectedDraft !== null
+                                          ? workspaceSurface.selectedDraft
+                                            .textTransformInstruction : ""
                 runtimeProbing: window.inferRuntime.probing
                 runtimeReachable: window.inferRuntime.reachable
                 runtimeCompatible: window.inferRuntime.compatible
@@ -332,6 +339,9 @@ ApplicationWindow {
                 onInferCandidateRequested: (artifactId, prompt) => {
                     window.inferText.generate(
                         window.backend.bundlePath, artifactId, prompt)
+                }
+                onTextTransformDraftSaveRequested: (draftId, instruction) => {
+                    window.backend.updateTextTransformDraft(draftId, instruction)
                 }
                 onCandidateRequested: (artifactId, replacementText) => {
                     if (window.backend.proposeTextCandidate(artifactId, replacementText)) {

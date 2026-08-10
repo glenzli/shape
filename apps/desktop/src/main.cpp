@@ -428,7 +428,8 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
     if (!workspace_host_smoke::verifyOperatorDraftRoute(root_object, backend)
         || !backend.openProject(QUrl::fromLocalFile(bundle_path))
         || backend.artifactCount() != 1 || !backend.operatorDrafts().isEmpty()) {
-        std::cerr << "desktop authoring smoke did not reopen without transient drafts" << std::endl;
+        std::cerr << "desktop authoring smoke did not reopen without the discarded draft"
+                  << std::endl;
         return false;
     }
     return true;

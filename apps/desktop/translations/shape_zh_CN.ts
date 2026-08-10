@@ -690,6 +690,11 @@
         <translation>此操作节点无法使用所选场景源。</translation>
     </message>
     <message>
+        <location line="+25"/>
+        <source>Could not save the Operator draft.</source>
+        <translation>无法保存操作节点草稿。</translation>
+    </message>
+    <message>
         <location line="+17"/>
         <source>Could not remove the Operator draft.</source>
         <translation>无法移除操作节点草稿。</translation>

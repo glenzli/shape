@@ -13,6 +13,8 @@ crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 cxx.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 shape-core.workspace = true
 shape-domain.workspace = true
 shape-execution.workspace = true
@@ -22,7 +24,6 @@ cxx-build = "=1.0.198"
 
 [dev-dependencies]
 image.workspace = true
-serde_json.workspace = true
 uuid.workspace = true
 
 # CXX generates the audited unsafe ABI shim in this crate. Product code still

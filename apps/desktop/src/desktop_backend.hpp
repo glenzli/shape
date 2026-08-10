@@ -85,6 +85,10 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE QString
     beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey);
     Q_INVOKABLE QVariantList compatibleOperators(const QString& artifactId);
+    Q_INVOKABLE bool updateTextTransformDraft(
+        const QString& draftId,
+        const QString& instruction
+    );
     Q_INVOKABLE bool discardOperatorDraft(const QString& draftId);
     Q_INVOKABLE bool
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);

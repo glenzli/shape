@@ -76,9 +76,10 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   auditioned from an in-memory WAV device and becomes a new `audio.clip` only after explicit
   acceptance. Shape re-parses exact PCM S16 LE WAV bytes,
   requires preset voice/disclosure and local-only no-fallback Runtime provenance, and atomically
-  rejects a stale text source. Schema `20260811.3` additively upgrades initial, Scene-era, and
-  audio-era projects with mutable Working Graph storage without changing existing accepted heads.
-  Offline or unconfigured AI never affects direct editing.
+  rejects a stale text source. Schema `20260811.4` additively upgrades initial, Scene-era, audio-era,
+  and Working-Graph-era projects without changing existing accepted heads. Mutable Operator state
+  now uses a bounded versioned configuration envelope; the first real consumer restores an exact
+  `text.transform` instruction after reopen. Offline or unconfigured AI never affects direct editing.
 - Deferred: desktop editing of the new persistent Scene graph, GraphComponent instances, Infer-side
   App provisioning, Job/explain provenance inspection, pinned or durable explorations,
   composite/layer image structure, waveform editing, recording, Voice Reference execution,

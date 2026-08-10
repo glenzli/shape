@@ -11,6 +11,9 @@ use shape_domain::{
 };
 
 use crate::operator_catalog::OperatorDescriptor;
+use crate::operator_catalog::{
+    TEXT_TRANSFORM_OPERATOR, configuration_for_instruction, validate_draft_configuration,
+};
 
 /// Identity-addressed drafts owned by one open desktop session.
 #[derive(Debug, Clone, Default)]
@@ -22,6 +25,9 @@ impl OperatorDrafts {
     pub(crate) fn from_graphs(graphs: Vec<ArtifactWorkingGraph>) -> Result<Self, String> {
         for graph in &graphs {
             graph.validate().map_err(|error| error.to_string())?;
+            for draft in graph.operators() {
+                validate_draft_configuration(draft)?;
+            }
         }
         Ok(Self { graphs })
     }
@@ -75,6 +81,44 @@ impl OperatorDrafts {
         self.graphs
             .iter()
             .find(|graph| graph.context_artifact_id() == artifact_id)
+    }
+
+    pub(crate) fn update_text_transform_instruction(
+        &mut self,
+        draft_id: &str,
+        instruction: &str,
+    ) -> Result<(ArtifactId, WorkingOperatorDraft), String> {
+        let draft_id = OperatorNodeId::new(draft_id).map_err(|error| error.to_string())?;
+        let Some(graph_index) = self.graphs.iter().position(|graph| {
+            graph
+                .operators()
+                .iter()
+                .any(|draft| draft.id() == &draft_id)
+        }) else {
+            return Err("Operator draft does not exist".to_owned());
+        };
+        let operator_type = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("located draft remains in its Working Graph")
+            .operator_type()
+            .as_str();
+        if operator_type != TEXT_TRANSFORM_OPERATOR {
+            return Err("draft is not a text.transform Operator".to_owned());
+        }
+        let configuration = configuration_for_instruction(instruction)?;
+        let artifact_id = self.graphs[graph_index].context_artifact_id();
+        if !self.graphs[graph_index].set_operator_configuration(&draft_id, configuration) {
+            return Err("Operator draft disappeared during configuration".to_owned());
+        }
+        let draft = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("configured draft remains in its Working Graph")
+            .clone();
+        Ok((artifact_id, draft))
     }
 
     pub(crate) fn discard(&mut self, draft_id: &str) -> Result<ArtifactId, String> {

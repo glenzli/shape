@@ -155,14 +155,17 @@ and derives its graph from immutable accepted history. Behind that projection,
 that every accepted Output node has one unique portable name. `shape-store` persists Scene heads and
 graph revisions with expected-head compare-and-swap, verifies that every durable node binding
 resolves to a real Artifact Revision or Transformation, and additively migrates initial and
-Scene-era schemas through the audio-capable revision to schema `20260811.3`.
+Scene-era schemas through the audio-capable and Working Graph revisions to schema `20260811.4`.
 `shape-core::project::scene` keeps graph candidates transient until explicit acceptance. Two Scenes
 can therefore evolve and reopen independently without sharing draft state. The desktop compatibility
 slice stores type-compatible Operator drafts in a mutable Artifact Working Graph keyed to the exact
 accepted head. Unexecuted drafts restore on reopen without becoming accepted nodes; stale saves fail
 closed. `shape-desktop-bridge::operator_catalog` owns the currently executable compatibility and
 machine routing descriptors, while QML owns localized labels and search. Full persistent Scene graph
-mutation, editable Operator parameters, connections, a real multi-output Operator/UI flow, and
+`shape-domain::working_graph` also owns a bounded versioned JSON envelope for mutable Operator-owned
+configuration without interpreting media semantics. `operator_catalog::text_transform` is its first
+real validator and the desktop checkpoints exact rewrite instructions back to the project. General
+Operator parameters, full persistent Scene graph mutation, connections, a real multi-output flow, and
 reusable GraphComponent instances remain deferred until their real consumers freeze those contracts.
 
 Developer launch lifecycle is a separate repository-tooling owner under `scripts/`. A validated

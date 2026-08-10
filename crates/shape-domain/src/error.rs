@@ -94,6 +94,11 @@ pub enum DomainError {
     /// The first graph contract permits only acyclic creative dependencies.
     #[error("operator graph must be acyclic")]
     OperatorGraphCycle,
+    /// Mutable Operator configuration is not a bounded versioned JSON object.
+    #[error(
+        "working Operator configuration must be a versioned JSON object within {max_bytes} bytes"
+    )]
+    InvalidWorkingOperatorConfiguration { max_bytes: usize },
     /// An accepted audio value has an impossible or empty sample contract.
     #[error("audio value contract must declare bounded non-empty PCM audio")]
     InvalidAudioValueContract,

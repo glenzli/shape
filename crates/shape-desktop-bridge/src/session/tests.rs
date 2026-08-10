@@ -238,6 +238,48 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
 }
 
 #[test]
+fn text_transform_instruction_restores_with_its_exact_draft_identity() {
+    let root = test_root();
+    let path = root.to_str().expect("portable path");
+    let mut session = create_desktop_project(path, "Transform Draft").expect("project creates");
+    let snapshot = session
+        .session_create_text_document("Opening", "A first line.")
+        .expect("text scene creates");
+    let artifact_id = snapshot.artifacts[0].id.clone();
+    let draft = session
+        .session_begin_operator_draft(&artifact_id, "text.transform")
+        .expect("transform draft begins");
+    let updated = session
+        .session_update_text_transform_draft(
+            &draft.draft_id,
+            "  Make it warmer, but preserve the title.  ",
+        )
+        .expect("instruction saves");
+    assert_eq!(updated.draft_id, draft.draft_id);
+    assert_eq!(
+        updated.text_transform_instruction,
+        "  Make it warmer, but preserve the title.  "
+    );
+    assert!(!updated.configuration_schema.is_empty());
+    drop(session);
+
+    let mut reopened = open_desktop_session(path).expect("project reopens");
+    let restored = reopened.session_operator_drafts();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].draft_id, draft.draft_id);
+    assert_eq!(
+        restored[0].text_transform_instruction,
+        "  Make it warmer, but preserve the title.  "
+    );
+    let cleared = reopened
+        .session_update_text_transform_draft(&draft.draft_id, "")
+        .expect("instruction clears");
+    assert!(cleared.text_transform_instruction.is_empty());
+    assert!(cleared.configuration_schema.is_empty());
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
 fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     let root = test_root();
     let artifact_id = seeded_project(&root);

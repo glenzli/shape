@@ -14,6 +14,97 @@ use crate::{
 };
 
 const MAX_WORKING_OPERATORS: usize = 128;
+const MAX_CONFIGURATION_SCHEMA_BYTES: usize = 160;
+const MAX_CONFIGURATION_JSON_BYTES: usize = 64 * 1_024;
+
+/// Versioned, language-neutral identity of an Operator-owned draft contract.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct OperatorConfigurationSchemaId(String);
+
+impl OperatorConfigurationSchemaId {
+    /// Creates one bounded namespaced configuration schema identity.
+    ///
+    /// # Errors
+    ///
+    /// Rejects empty, oversized, non-ASCII, or unnamespaced values.
+    pub fn new(value: impl Into<String>) -> Result<Self, DomainError> {
+        let value = value.into();
+        if value.is_empty()
+            || value.len() > MAX_CONFIGURATION_SCHEMA_BYTES
+            || !value.is_ascii()
+            || !value.contains('.')
+        {
+            return Err(DomainError::InvalidOperatorIdentifier {
+                field: "operator configuration schema",
+                max_bytes: MAX_CONFIGURATION_SCHEMA_BYTES,
+            });
+        }
+        Ok(Self(value))
+    }
+
+    /// Returns the exact stable schema identity.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Bounded exact JSON owned and validated by one Operator family.
+///
+/// The generic Working Graph preserves this envelope without interpreting
+/// media semantics. A real Operator adapter must validate its exact schema
+/// before presentation or execution.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkingOperatorConfiguration {
+    schema: OperatorConfigurationSchemaId,
+    json: String,
+}
+
+impl WorkingOperatorConfiguration {
+    /// Creates a versioned configuration envelope around one JSON object.
+    ///
+    /// # Errors
+    ///
+    /// Rejects malformed, non-object, or oversized JSON.
+    pub fn new(
+        schema: OperatorConfigurationSchemaId,
+        json: impl Into<String>,
+    ) -> Result<Self, DomainError> {
+        let configuration = Self {
+            schema,
+            json: json.into(),
+        };
+        configuration.validate()?;
+        Ok(configuration)
+    }
+
+    #[must_use]
+    pub const fn schema(&self) -> &OperatorConfigurationSchemaId {
+        &self.schema
+    }
+
+    /// Returns exact authored JSON for validation by its Operator owner.
+    #[must_use]
+    pub fn json(&self) -> &str {
+        &self.json
+    }
+
+    fn validate(&self) -> Result<(), DomainError> {
+        OperatorConfigurationSchemaId::new(self.schema.as_str())?;
+        let value = serde_json::from_str::<serde_json::Value>(&self.json).map_err(|_| {
+            DomainError::InvalidWorkingOperatorConfiguration {
+                max_bytes: MAX_CONFIGURATION_JSON_BYTES,
+            }
+        })?;
+        if self.json.len() > MAX_CONFIGURATION_JSON_BYTES || !value.is_object() {
+            return Err(DomainError::InvalidWorkingOperatorConfiguration {
+                max_bytes: MAX_CONFIGURATION_JSON_BYTES,
+            });
+        }
+        Ok(())
+    }
+}
 
 /// One configured Operator that has not produced an accepted revision.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,6 +113,8 @@ pub struct WorkingOperatorDraft {
     operator_type: OperatorTypeId,
     input_data_type: OperatorDataTypeId,
     output_data_type: OperatorDataTypeId,
+    #[serde(default)]
+    configuration: Option<WorkingOperatorConfiguration>,
 }
 
 impl WorkingOperatorDraft {
@@ -43,6 +136,7 @@ impl WorkingOperatorDraft {
             operator_type,
             input_data_type,
             output_data_type,
+            configuration: None,
         }
     }
 
@@ -66,11 +160,19 @@ impl WorkingOperatorDraft {
         &self.output_data_type
     }
 
+    #[must_use]
+    pub const fn configuration(&self) -> Option<&WorkingOperatorConfiguration> {
+        self.configuration.as_ref()
+    }
+
     fn validate(&self) -> Result<(), DomainError> {
         OperatorNodeId::new(self.id.as_str())?;
         OperatorTypeId::new(self.operator_type.as_str())?;
         OperatorDataTypeId::new(self.input_data_type.as_str())?;
         OperatorDataTypeId::new(self.output_data_type.as_str())?;
+        if let Some(configuration) = &self.configuration {
+            configuration.validate()?;
+        }
         Ok(())
     }
 }
@@ -151,6 +253,23 @@ impl ArtifactWorkingGraph {
         let before = self.operators.len();
         self.operators.retain(|operator| operator.id != *draft_id);
         self.operators.len() != before
+    }
+
+    /// Replaces or clears one exact draft's Operator-owned configuration.
+    pub fn set_operator_configuration(
+        &mut self,
+        draft_id: &OperatorNodeId,
+        configuration: Option<WorkingOperatorConfiguration>,
+    ) -> bool {
+        let Some(draft) = self
+            .operators
+            .iter_mut()
+            .find(|operator| operator.id == *draft_id)
+        else {
+            return false;
+        };
+        draft.configuration = configuration;
+        true
     }
 
     /// Removes the current single-route draft for one Operator type.
