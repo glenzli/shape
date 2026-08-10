@@ -35,6 +35,7 @@ const TEXT_LITERAL_CAPABILITY: &str = "text.literal";
 const TEXT_GENERATE_CAPABILITY: &str = "text.generate";
 const TEXT_MEDIA_TYPE: &str = "text/plain; charset=utf-8";
 const BUILTIN_CONTRACT_REVISION: &str = "20260810.1";
+const INITIAL_TEXT_SOURCE_INTENT: &str = "Create initial text source";
 
 /// Complete parameters for one deterministic calibration `text.edit` proposal.
 ///
@@ -194,6 +195,55 @@ impl TextCandidate {
 }
 
 impl ShapeProject {
+    /// Creates one text document with its initial accepted source revision.
+    ///
+    /// Artifact identity, import Transformation, execution receipt, content,
+    /// and first immutable Revision are published in one store transaction.
+    /// This is the compatibility Scene entry used by the desktop until its
+    /// persistent Scene editor becomes the navigation authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid name, invisible initial text, execution
+    /// failure, or atomic durable publication failure.
+    pub fn create_text_document(
+        &mut self,
+        name: impl Into<String>,
+        initial_text: impl Into<String>,
+    ) -> Result<ArtifactRevision, CoreError> {
+        let initial_text = initial_text.into();
+        if initial_text.trim().is_empty() {
+            return Err(CoreError::InvalidTextCandidate);
+        }
+        let artifact = Artifact::new(name, ArtifactKind::TextDocument)?;
+        let transformation = Transformation::new(
+            TransformationKind::Import,
+            artifact.id,
+            Vec::new(),
+            IntentSpec::new(INITIAL_TEXT_SOURCE_INTENT)?,
+            Vec::new(),
+            Vec::new(),
+        )?;
+        let request = ExecutionRequest::new(
+            transformation.id,
+            CapabilityId::new(TEXT_LITERAL_CAPABILITY)?,
+            Vec::new(),
+            initial_text.into_bytes(),
+            TEXT_MEDIA_TYPE,
+        )?;
+        let ExecutedCandidate { output, receipt } =
+            ExecutionCoordinator::execute(&LiteralTextExecutor::new()?, &request)?;
+        Ok(self.store.accept_new_artifact(NewArtifactCommit {
+            artifact,
+            expected_input_heads: Vec::new(),
+            transformation,
+            receipt,
+            output_bytes: output.bytes.into(),
+            output_media_type: output.media_type,
+            content_contract: None,
+        })?)
+    }
+
     /// Executes the first-class direct Text Operator against one accepted input.
     ///
     /// The candidate is tied to `expected_head`; callers preview it and invoke

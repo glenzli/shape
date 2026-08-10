@@ -1,5 +1,6 @@
 #include "workspace_host_smoke.hpp"
 
+#include "desktop_backend.hpp"
 #include "ui_preferences.hpp"
 
 #include <QCoreApplication>
@@ -424,6 +425,100 @@ bool verifyLocalization(QObject& root_object, UiPreferences& ui_preferences) {
     QCoreApplication::processEvents();
     return speech_english && speech_chinese && speech_switched_back
            && QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection);
+}
+
+bool verifyProjectWelcome(QObject& root_object) {
+    QQuickItem* const welcome =
+        root_object.findChild<QQuickItem*>(QStringLiteral("projectWelcome"));
+    QQuickItem* const new_project =
+        root_object.findChild<QQuickItem*>(QStringLiteral("newProjectButton"));
+    QQuickItem* const open_project =
+        root_object.findChild<QQuickItem*>(QStringLiteral("openProjectButton"));
+    return welcome != nullptr && welcome->isVisible() && welcome->width() > 0.0
+           && welcome->height() > 0.0 && new_project != nullptr && new_project->isVisible()
+           && new_project->isEnabled() && open_project != nullptr && open_project->isVisible()
+           && open_project->isEnabled();
+}
+
+bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
+    const QVariantList artifacts = backend.artifacts();
+    if (artifacts.size() != 1) {
+        std::cerr << "desktop authoring smoke found no compatibility Scene" << std::endl;
+        return false;
+    }
+    QObject* const workspace_surface =
+        root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
+    if (workspace_surface == nullptr) {
+        return false;
+    }
+    QObject* const palette =
+        root_object.findChild<QObject*>(QStringLiteral("operatorPalette"));
+    if (palette == nullptr || palette->property("compatibleOperatorCount").toInt() != 3
+        || !invoke_packaged_click(
+            root_object,
+            QStringLiteral("addOperatorButton"),
+            "desktop authoring smoke could not open the Operator palette"
+        )) {
+        std::cerr << "desktop authoring smoke found the wrong compatible Operator catalog"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    QObject* const search_field =
+        palette->findChild<QObject*>(QStringLiteral("operatorSearchField"));
+    if (!palette->property("visible").toBool() || search_field == nullptr
+        || !search_field->setProperty("text", QStringLiteral("text edit"))) {
+        std::cerr << "desktop authoring smoke could not search the Operator palette"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    if (palette->property("visibleOperatorCount").toInt() != 1) {
+        std::cerr << "desktop authoring smoke Operator search did not narrow to Text Edit"
+                  << std::endl;
+        return false;
+    }
+    QQmlExpression choose_operator(
+        QQmlEngine::contextForObject(palette),
+        palette,
+        QStringLiteral("chooseOperator('text.edit')")
+    );
+    choose_operator.evaluate();
+    if (choose_operator.hasError()) {
+        std::cerr << "desktop authoring smoke could not choose the Text Edit Operator"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    const QVariantList drafts = backend.operatorDrafts();
+    if (drafts.size() != 1) {
+        std::cerr << "desktop authoring smoke could not begin an Operator draft" << std::endl;
+        return false;
+    }
+    const QString draft_id = drafts.first().toMap().value(QStringLiteral("id")).toString();
+    if (draft_id.isEmpty()) {
+        return false;
+    }
+    if (workspace_surface->property("workspaceRouteKey").toString()
+            != QStringLiteral("operator.text.edit")
+        || workspace_surface->property("loadedWorkspaceObjectName").toString()
+               != QStringLiteral("textEditOperatorWorkspace")) {
+        std::cerr << "desktop authoring smoke routed the draft to the wrong workspace" << std::endl;
+        return false;
+    }
+    if (!QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
+        return false;
+    }
+    QCoreApplication::processEvents();
+    if (find_quick_item(
+            qobject_cast<QQuickItem*>(workspace_surface),
+            QStringLiteral("draftGraphNode-0")
+        )
+        == nullptr) {
+        std::cerr << "desktop authoring smoke did not render the Operator draft" << std::endl;
+        return false;
+    }
+    return backend.discardOperatorDraft(draft_id) && backend.operatorDrafts().isEmpty();
 }
 
 } // namespace workspace_host_smoke

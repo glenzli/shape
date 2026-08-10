@@ -346,6 +346,7 @@ impl<'a> SpeechRequest<'a> {
                 ("infer.fallback", "none"),
                 ("infer.max_cost_usd", "0"),
                 ("infer.offline_required", "true"),
+                ("infer.latency", "interactive"),
                 ("infer.placement", "local_only"),
                 ("infer.policy", "local-first"),
                 ("infer.prefer", "local"),

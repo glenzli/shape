@@ -14,7 +14,7 @@ use shape_execution::{
 };
 use uuid::Uuid;
 
-use super::open_desktop_session;
+use super::{create_desktop_project, open_desktop_session};
 use crate::infer_speech::InferSpeechCandidate;
 
 #[derive(Debug)]
@@ -168,6 +168,59 @@ fn seeded_project(root: &PathBuf) -> shape_domain::ArtifactId {
         .expect("candidate executes");
     project.accept_text(initial).expect("candidate accepts");
     artifact.id
+}
+
+#[test]
+fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
+    let root = test_root();
+    let path = root.to_str().expect("portable path");
+    let mut session = create_desktop_project(path, "Debug Entry").expect("project creates");
+    assert!(
+        session
+            .session_snapshot()
+            .expect("empty snapshot reads")
+            .artifacts
+            .is_empty()
+    );
+
+    let snapshot = session
+        .session_create_text_document("Opening", "A first line.")
+        .expect("text scene creates");
+    let artifact = snapshot.artifacts.first().expect("text source projects");
+    assert_eq!(artifact.name, "Opening");
+    assert_eq!(artifact.text_preview, "A first line.");
+    assert_eq!(artifact.operator_graph_nodes.len(), 2);
+
+    let draft = session
+        .session_begin_operator_draft(&artifact.id, "text.edit")
+        .expect("draft begins");
+    assert_eq!(draft.context_artifact_id, artifact.id);
+    assert_eq!(draft.operator_type_key, "text.edit");
+    assert_eq!(session.session_operator_drafts().len(), 1);
+    let repeated = session
+        .session_begin_operator_draft(&artifact.id, "text.edit")
+        .expect("draft reuses");
+    assert_eq!(repeated.draft_id, draft.draft_id);
+
+    session
+        .session_propose_text(&artifact.id, "A revised first line.")
+        .expect("candidate executes");
+    assert!(session.session_operator_drafts().is_empty());
+    assert_eq!(session.session_candidates().len(), 1);
+    drop(session);
+
+    let reopened = open_desktop_session(path).expect("project reopens");
+    assert!(reopened.session_operator_drafts().is_empty());
+    assert!(reopened.session_candidates().is_empty());
+    assert_eq!(
+        reopened
+            .session_snapshot()
+            .expect("reopened snapshot reads")
+            .artifacts[0]
+            .text_preview,
+        "A first line."
+    );
+    fs::remove_dir_all(root).expect("fixture removes");
 }
 
 #[test]

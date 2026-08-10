@@ -206,6 +206,11 @@
     </message>
     <message>
         <location line="+1"/>
+        <source>Infer returned speech outside Shape&apos;s local execution policy.</source>
+        <translation>Infer 返回的语音不符合 Shape 的本地执行策略。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Infer returned audio that did not match Shape&apos;s WAV contract.</source>
         <translation>Infer 返回的音频不符合 Shape 的 WAV 合同。</translation>
     </message>
@@ -408,9 +413,100 @@
     </message>
 </context>
 <context>
+    <name>CreateProjectDialog</name>
+    <message>
+        <location filename="../qml/components/CreateProjectDialog.qml" line="+20"/>
+        <source>Untitled Project</source>
+        <translation>未命名项目</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>New Shape project</source>
+        <translation>新建 Shape 项目</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Choose where to create the project</source>
+        <translation>选择项目创建位置</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>PROJECT NAME</source>
+        <translation>项目名称</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Project name</source>
+        <translation>项目名称</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>LOCATION</source>
+        <translation>位置</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Choose a local folder</source>
+        <translation>选择本地文件夹</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Choose…</source>
+        <translation>选择…</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Create project</source>
+        <translation>创建项目</translation>
+    </message>
+</context>
+<context>
+    <name>CreateTextSceneDialog</name>
+    <message>
+        <location filename="../qml/components/CreateTextSceneDialog.qml" line="+18"/>
+        <source>Opening</source>
+        <translation>开场</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Create text Scene</source>
+        <translation>创建文本场景</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Scene name</source>
+        <translation>场景名称</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Enter the first accepted text source…</source>
+        <translation>输入第一个已接受的文本源…</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>This creates a Source and Main Output. Add an Operator from the Scene Graph next.</source>
+        <translation>这会创建一个输入源和主输出。接下来可在场景图中添加操作节点。</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Create Scene</source>
+        <translation>创建场景</translation>
+    </message>
+</context>
+<context>
     <name>DesktopBackend</name>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="+30"/>
+        <location filename="../src/desktop_backend.cpp" line="+31"/>
         <source>Text document</source>
         <translation>文本文档</translation>
     </message>
@@ -539,7 +635,67 @@
         <translation>未知操作</translation>
     </message>
     <message>
-        <location line="+280"/>
+        <location line="+313"/>
+        <source>Choose a local folder and enter a project name.</source>
+        <translation>请选择本地文件夹并输入项目名称。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The selected project location is not a folder.</source>
+        <translation>所选项目位置不是文件夹。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>A project with this name already exists in that folder.</source>
+        <translation>该文件夹中已存在同名项目。</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Could not create the project in this location.</source>
+        <translation>无法在此位置创建项目。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Choose a local .shape project folder.</source>
+        <translation>请选择本地 .shape 项目文件夹。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The selected Shape project is not a folder.</source>
+        <translation>所选 Shape 项目不是文件夹。</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Could not open this Shape project.</source>
+        <translation>无法打开此 Shape 项目。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Enter a Scene name and some starting text.</source>
+        <translation>请输入场景名称和起始文本。</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Could not create the text Scene.</source>
+        <translation>无法创建文本场景。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Choose a Scene before adding an Operator.</source>
+        <translation>添加操作节点前，请先选择场景。</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>This Operator cannot use the selected Scene source.</source>
+        <translation>此操作节点无法使用所选场景源。</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Could not remove the Operator draft.</source>
+        <translation>无法移除操作节点草稿。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Choose a local PNG or JPEG image.</source>
         <translation>请选择本地 PNG 或 JPEG 图像。</translation>
     </message>
@@ -559,7 +715,7 @@
         <translation>请选择有效的裁剪区域。</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+20"/>
         <source>Could not create the crop candidate.</source>
         <translation>无法创建裁剪候选。</translation>
     </message>
@@ -574,7 +730,7 @@
         <translation>请先打开项目，再创建候选。</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+15"/>
         <source>Could not create candidate.</source>
         <translation>无法创建候选。</translation>
     </message>
@@ -599,7 +755,7 @@
         <translation>无法丢弃候选方案。</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+39"/>
         <source>Open a project before previewing audio.</source>
         <translation>预览音频前请先打开项目。</translation>
     </message>
@@ -614,9 +770,47 @@
         <translation>无法刷新项目。</translation>
     </message>
     <message>
-        <location line="-121"/>
+        <location line="-125"/>
         <source>There is no candidate to accept.</source>
         <translation>没有可以接受的候选。</translation>
+    </message>
+</context>
+<context>
+    <name>GraphSelectionInspector</name>
+    <message>
+        <location filename="../qml/components/GraphSelectionInspector.qml" line="+82"/>
+        <source>Select a node to inspect its role and ports</source>
+        <translation>选择节点以查看其角色与端口</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Double-click a node to enter its dedicated workspace.</source>
+        <translation>双击节点进入其专用工作区。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Discard draft</source>
+        <translation>丢弃草稿</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Review</source>
+        <translation>审阅</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Open</source>
+        <translation>打开</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Review selected Candidate</source>
+        <translation>审阅所选候选</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open selected node workspace</source>
+        <translation>打开所选节点的工作台</translation>
     </message>
 </context>
 <context>
@@ -818,7 +1012,7 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/Main.qml" line="+117"/>
+        <location filename="../qml/Main.qml" line="+129"/>
         <source>Shape — %1</source>
         <translation>Shape — %1</translation>
     </message>
@@ -828,7 +1022,12 @@
         <translation>Shape — 无项目</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+47"/>
+        <source>Open Shape project folder</source>
+        <translation>打开 Shape 项目文件夹</translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>Import raster image</source>
         <translation>导入栅格图像</translation>
     </message>
@@ -874,6 +1073,94 @@
         <location line="+1"/>
         <source>Open settings</source>
         <translation>打开设置</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorPalette</name>
+    <message>
+        <location filename="../qml/components/OperatorPalette.qml" line="+28"/>
+        <source>Text edit</source>
+        <translation>文本编辑</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Revise exact text while preserving accepted history.</source>
+        <translation>在保留已接受历史的同时精确修改文本。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TEXT</source>
+        <translation>文本</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>AI text transform</source>
+        <translation>AI 文本变换</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rewrite, expand, or polish through Infer Runtime.</source>
+        <translation>通过 Infer Runtime 改写、扩写或润色。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>AI · TEXT</source>
+        <translation>AI · 文本</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Speech synthesis</source>
+        <translation>语音合成</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Create a local voice Candidate from accepted text.</source>
+        <translation>从已接受文本创建本地语音候选。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>AI · AUDIO</source>
+        <translation>AI · 音频</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Crop image</source>
+        <translation>裁剪图像</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Frame a non-destructive raster crop Candidate.</source>
+        <translation>创建非破坏性的栅格裁剪候选。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>IMAGE</source>
+        <translation>图像</translation>
+    </message>
+    <message>
+        <location line="+79"/>
+        <source>ADD OPERATOR</source>
+        <translation>添加操作节点</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Only compatible Operators are shown</source>
+        <translation>仅显示兼容的操作节点</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Search name, media, or capability…</source>
+        <translation>搜索名称、媒体或能力…</translation>
+    </message>
+    <message>
+        <location line="+133"/>
+        <source>No compatible Operator matches this search.</source>
+        <translation>没有与此搜索匹配的兼容操作节点。</translation>
     </message>
 </context>
 <context>
@@ -977,22 +1264,32 @@
 <context>
     <name>ProjectNavigator</name>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="+58"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="+61"/>
         <source>PROJECT</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location line="+86"/>
+        <location line="+119"/>
         <source>Import image…</source>
         <translation>导入图像…</translation>
     </message>
     <message>
-        <location line="-43"/>
+        <location line="-57"/>
         <source>SCENE GRAPH</source>
         <translation>场景图</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="-29"/>
+        <source>New</source>
+        <translation>新建</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Open…</source>
+        <translation>打开…</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>CURRENT</source>
         <translation>当前</translation>
     </message>
@@ -1007,7 +1304,12 @@
         <translation>打开当前场景图</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+13"/>
+        <source>+ Text Scene</source>
+        <translation>+ 文本场景</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>SCENES</source>
         <translation>场景</translation>
     </message>
@@ -1047,9 +1349,32 @@
         <translation>尚未载入项目</translation>
     </message>
     <message>
-        <location line="-162"/>
+        <location line="-177"/>
         <source>%1 accepted</source>
         <translation>已接受 %1 个</translation>
+    </message>
+</context>
+<context>
+    <name>ProjectWelcome</name>
+    <message>
+        <location filename="../qml/components/ProjectWelcome.qml" line="+53"/>
+        <source>Start shaping</source>
+        <translation>开始创作</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Create a project, add a Scene source, then place an Operator on the graph.</source>
+        <translation>创建项目，添加场景源，然后在图中放置操作节点。</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>New project</source>
+        <translation>新建项目</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Open project…</source>
+        <translation>打开项目…</translation>
     </message>
 </context>
 <context>
@@ -1124,25 +1449,9 @@
     </message>
 </context>
 <context>
-    <name>SceneOperatorGraphWorkspace</name>
+    <name>SceneGraphToolbar</name>
     <message>
-        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="+151"/>
-        <location line="+440"/>
-        <source>Source</source>
-        <translation>输入源</translation>
-    </message>
-    <message>
-        <location line="-436"/>
-        <source>%1 / Main</source>
-        <translation>%1 / 主输出</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Main output</source>
-        <translation>主输出</translation>
-    </message>
-    <message>
-        <location line="+68"/>
+        <location filename="../qml/components/SceneGraphToolbar.qml" line="+45"/>
         <source>SCENE OPERATOR GRAPH</source>
         <translation>场景操作图</translation>
     </message>
@@ -1163,21 +1472,95 @@
     </message>
     <message>
         <location line="+18"/>
-        <source>%1 nodes · %2 operators · %3 candidates</source>
-        <translation>%1 个节点 · %2 个操作 · %3 个候选</translation>
+        <source>%1 nodes · %2 drafts · %3 candidates</source>
+        <translation>%1 个节点 · %2 个草稿 · %3 个候选</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>Open node</source>
-        <translation>打开节点</translation>
+        <location line="+17"/>
+        <source>Zoom out</source>
+        <translation>缩小</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Zoom in</source>
+        <translation>放大</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Fit graph</source>
+        <translation>适应画布</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Operator</source>
+        <translation>操作节点</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Open selected node workspace</source>
-        <translation>打开所选节点的工作台</translation>
+        <source>Add a compatible Operator</source>
+        <translation>添加兼容的操作节点</translation>
+    </message>
+</context>
+<context>
+    <name>SceneOperatorGraphWorkspace</name>
+    <message>
+        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="+229"/>
+        <source>Source</source>
+        <translation>输入源</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+4"/>
+        <source>%1 / Main</source>
+        <translation>%1 / 主输出</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Main output</source>
+        <translation>主输出</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Pending Candidate</source>
+        <translation>待处理候选</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>CANDIDATE</source>
+        <translation>候选</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 input ports · %2 output ports · %3</source>
+        <translation>%1 个输入端口 · %2 个输出端口 · %3</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 → %2 · Session-only until execution</source>
+        <translation>%1 → %2 · 执行前仅存在于本次会话</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Audio result ready for review</source>
+        <translation>音频结果已可供审阅</translation>
+    </message>
+    <message>
+        <location line="-23"/>
+        <location line="+219"/>
+        <source>DRAFT OPERATOR</source>
+        <translation>操作节点草稿</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Remove Operator draft</source>
+        <translation>移除操作节点草稿</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>Open %1</source>
         <translation>打开 %1</translation>
     </message>
@@ -1197,7 +1580,8 @@
         <translation>待定方案 %1</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="-418"/>
+        <location line="+428"/>
         <source>Image result · %1 × %2</source>
         <translation>图像结果 · %1 × %2</translation>
     </message>
@@ -1215,26 +1599,6 @@
         <location line="+8"/>
         <source>Import or create content to begin its Operator Graph.</source>
         <translation>导入或创建内容，即可开始构建操作图。</translation>
-    </message>
-    <message>
-        <location line="+31"/>
-        <source>Operator</source>
-        <translation>操作节点</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Output</source>
-        <translation>输出</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Candidate</source>
-        <translation>候选</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Select a node · Double-click to open its workspace</source>
-        <translation>选择节点 · 双击打开其工作台</translation>
     </message>
 </context>
 <context>
@@ -1548,7 +1912,7 @@
 <context>
     <name>WorkspaceSurface</name>
     <message>
-        <location filename="../qml/components/WorkspaceSurface.qml" line="+291"/>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="+320"/>
         <source>SCENE GRAPH</source>
         <translation>场景图</translation>
     </message>

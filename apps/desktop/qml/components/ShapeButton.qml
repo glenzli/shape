@@ -8,9 +8,12 @@ Button {
     property bool primary: false
     property bool selected: false
     property bool quiet: !primary
+    property url iconSource
+    property int iconSize: 15
 
     implicitHeight: Theme.controlHeight
-    implicitWidth: Math.max(70, implicitContentWidth + 24)
+    implicitWidth: Math.max(text.length > 0 ? 70 : implicitHeight,
+                            buttonContent.implicitWidth + 24)
     leftPadding: 12
     rightPadding: 12
     focusPolicy: Qt.StrongFocus
@@ -44,14 +47,31 @@ Button {
         }
     }
 
-    contentItem: Text {
-        text: control.text
-        color: !control.enabled ? Theme.disabled
-                                : control.primary ? Theme.accentText
-                                                  : control.selected ? Theme.accent : Theme.textSoft
-        font.pixelSize: Theme.fontBody
-        font.weight: control.primary || control.selected ? Font.DemiBold : Font.Normal
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
+    contentItem: Row {
+        id: buttonContent
+
+        spacing: control.iconSource.toString().length > 0 && control.text.length > 0 ? 7 : 0
+
+        ShapeIcon {
+            visible: control.iconSource.toString().length > 0
+            source: control.iconSource
+            size: control.iconSize
+            color: !control.enabled ? Theme.disabled
+                                    : control.primary ? Theme.accentText
+                                                      : control.selected ? Theme.accent
+                                                                         : Theme.textSoft
+        }
+
+        Text {
+            visible: control.text.length > 0
+            text: control.text
+            color: !control.enabled ? Theme.disabled
+                                    : control.primary ? Theme.accentText
+                                                      : control.selected ? Theme.accent
+                                                                         : Theme.textSoft
+            font.pixelSize: Theme.fontBody
+            font.weight: control.primary || control.selected ? Font.DemiBold : Font.Normal
+            verticalAlignment: Text.AlignVCenter
+        }
     }
 }

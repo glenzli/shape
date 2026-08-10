@@ -1,12 +1,17 @@
 //! Mutable desktop lifecycle over one project and its transient Candidate Shelf.
 
 mod candidate_shelf;
+mod operator_drafts;
 
 use shape_core::{AudioCandidate, ImageCandidate, ShapeProject, TextCandidate, TextEditParameters};
 use shape_domain::{ArtifactContentContract, ArtifactId, ArtifactKind, IntentSpec, RasterCrop};
 
 use crate::{audio_origin_key, bounded_text_preview, ffi, project_snapshot};
 use candidate_shelf::{Candidate, CandidateShelf};
+use operator_drafts::{
+    AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, OperatorDraft, OperatorDrafts, TEXT_EDIT_OPERATOR,
+    TEXT_TRANSFORM_OPERATOR,
+};
 
 use crate::infer_speech::InferSpeechCandidate;
 use crate::infer_text::InferTextCandidate;
@@ -23,6 +28,17 @@ pub struct DesktopSession {
     project: ShapeProject,
     bundle_path: String,
     candidates: CandidateShelf,
+    operator_drafts: OperatorDrafts,
+}
+
+/// Creates a new empty project and opens it as the sole mutable desktop session.
+///
+/// # Errors
+///
+/// Returns a user-safe message when the bundle cannot be created.
+pub fn create_desktop_project(path: &str, name: &str) -> Result<Box<DesktopSession>, String> {
+    let project = ShapeProject::create(path, name).map_err(|error| error.to_string())?;
+    Ok(desktop_session(project, path))
 }
 
 /// Opens a validated project for mutable desktop use.
@@ -32,17 +48,66 @@ pub struct DesktopSession {
 /// Returns a user-safe message when the project cannot be opened.
 pub fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>, String> {
     let project = ShapeProject::open(path).map_err(|error| error.to_string())?;
-    Ok(Box::new(DesktopSession {
+    Ok(desktop_session(project, path))
+}
+
+fn desktop_session(project: ShapeProject, path: &str) -> Box<DesktopSession> {
+    Box::new(DesktopSession {
         project,
         bundle_path: super::project_path(path),
         candidates: CandidateShelf::default(),
-    }))
+        operator_drafts: OperatorDrafts::default(),
+    })
 }
 
 impl DesktopSession {
     /// Returns durable accepted state; pending previews are excluded.
     pub fn session_snapshot(&self) -> Result<ffi::ProjectSnapshotWire, String> {
         project_snapshot(&self.project, &self.bundle_path)
+    }
+
+    /// Atomically creates the first accepted text source for one compatibility Scene.
+    pub fn session_create_text_document(
+        &mut self,
+        artifact_name: &str,
+        initial_text: &str,
+    ) -> Result<ffi::ProjectSnapshotWire, String> {
+        self.project
+            .create_text_document(artifact_name, initial_text)
+            .map_err(|error| error.to_string())?;
+        self.session_snapshot()
+    }
+
+    /// Begins one session-local Operator draft against an accepted source.
+    pub fn session_begin_operator_draft(
+        &mut self,
+        artifact_id: &str,
+        operator_type: &str,
+    ) -> Result<ffi::OperatorDraftWire, String> {
+        let artifact_id = parse_artifact_id(artifact_id)?;
+        let artifact = self
+            .project
+            .snapshot()
+            .map_err(|error| error.to_string())?
+            .artifacts
+            .into_iter()
+            .find(|artifact| artifact.id == artifact_id)
+            .ok_or_else(|| "artifact does not exist in this project".to_owned())?;
+        let draft = self.operator_drafts.begin(&artifact, operator_type)?;
+        Ok(operator_draft_wire(&draft))
+    }
+
+    /// Returns all current session-local Operator drafts.
+    pub fn session_operator_drafts(&self) -> Vec<ffi::OperatorDraftWire> {
+        self.operator_drafts
+            .entries()
+            .map(operator_draft_wire)
+            .collect()
+    }
+
+    /// Discards one Operator draft without changing accepted history.
+    pub fn session_discard_operator_draft(&mut self, draft_id: &str) -> Result<(), String> {
+        self.operator_drafts.discard(draft_id)
     }
 
     /// Imports one user-selected PNG/JPEG as an atomic accepted raster origin.
@@ -100,6 +165,7 @@ impl DesktopSession {
             .map_err(|error| error.to_string())?;
         let wire = text_candidate_wire(&candidate);
         self.candidates.push(Candidate::Text(candidate));
+        self.operator_drafts.finish(artifact_id, TEXT_EDIT_OPERATOR);
         Ok(wire)
     }
 
@@ -145,6 +211,8 @@ impl DesktopSession {
             .map_err(|error| error.to_string())?;
         let wire = image_candidate_wire(&candidate);
         self.candidates.push(Candidate::Image(candidate));
+        self.operator_drafts
+            .finish(artifact_id, IMAGE_CROP_OPERATOR);
         Ok(wire)
     }
 
@@ -302,6 +370,8 @@ impl DesktopSession {
         }
         let wire = text_candidate_wire(&candidate);
         self.candidates.push(Candidate::Text(candidate));
+        self.operator_drafts
+            .finish(artifact_id, TEXT_TRANSFORM_OPERATOR);
         Ok(wire)
     }
 
@@ -330,7 +400,19 @@ impl DesktopSession {
         }
         let wire = audio_candidate_wire(&candidate);
         self.candidates.push(Candidate::Audio(candidate));
+        self.operator_drafts
+            .finish(source_artifact_id, AUDIO_SPEECH_OPERATOR);
         Ok(wire)
+    }
+}
+
+fn operator_draft_wire(draft: &OperatorDraft) -> ffi::OperatorDraftWire {
+    ffi::OperatorDraftWire {
+        draft_id: draft.id.clone(),
+        context_artifact_id: draft.context_artifact_id.to_string(),
+        operator_type_key: draft.operator_type.to_owned(),
+        input_data_type_key: draft.input_data_type.to_owned(),
+        output_data_type_key: draft.output_data_type.to_owned(),
     }
 }
 

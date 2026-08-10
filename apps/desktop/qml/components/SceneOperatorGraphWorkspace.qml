@@ -15,11 +15,15 @@ Rectangle {
     property string projectName: ""
     property string sceneName: ""
     property string sceneKind: ""
+    property string sceneKindKey: ""
     property var nodes: []
     property var edges: []
+    property var drafts: []
     property var candidates: []
     property string selectedNodeId: ""
     property string selectedCandidateId: ""
+    property real zoomLevel: 1.0
+    property string focusedSelectionKind: "node"
 
     readonly property real nodeWidth: 182
     readonly property real nodeHeight: 108
@@ -27,7 +31,20 @@ Rectangle {
     readonly property real rowGap: 52
     readonly property real graphMargin: 24
     readonly property int acceptedMaxStage: maximumAcceptedStage()
-    readonly property int projectedNodeCount: nodes.length + candidates.length
+    readonly property int projectedNodeCount: nodes.length + drafts.length + candidates.length
+    readonly property real minimumZoom: 0.65
+    readonly property real maximumZoom: 1.5
+    readonly property var inspectedNode: nodeForId(selectedNodeId)
+    readonly property var inspectedDraft: draftForId(selectedNodeId)
+    readonly property var inspectedCandidate: candidateForId(selectedCandidateId)
+    readonly property string inspectionKind: {
+        if (focusedSelectionKind === "candidate" && inspectedCandidate !== null) {
+            return "candidate"
+        }
+        if (inspectedDraft !== null) return "draft"
+        if (inspectedNode !== null) return "node"
+        return "none"
+    }
     readonly property int operatorCount: {
         let count = 0
         for (let index = 0; index < nodes.length; ++index) {
@@ -54,7 +71,8 @@ Rectangle {
             maximum = Math.max(maximum, acceptedNodesAtStage(stage))
         }
         maximum = Math.max(maximum,
-                           acceptedNodesAtStage(acceptedMaxStage) + candidates.length)
+                           acceptedNodesAtStage(acceptedMaxStage)
+                           + drafts.length + candidates.length)
         return maximum
     }
 
@@ -62,6 +80,10 @@ Rectangle {
     signal nodeOpened(string nodeId)
     signal candidateSelected(string candidateId)
     signal candidateReviewRequested(string candidateId)
+    signal draftRequested(string operatorTypeKey)
+    signal draftSelected(string draftId)
+    signal draftOpened(string draftId)
+    signal draftDiscardRequested(string draftId)
 
     function nodeIndex(nodeId) : int {
         for (let index = 0; index < nodes.length; ++index) {
@@ -72,6 +94,62 @@ Rectangle {
 
     function selectedNodeIndex() : int {
         return nodeIndex(selectedNodeId)
+    }
+
+    function selectedDraftIndex() : int {
+        for (let index = 0; index < drafts.length; ++index) {
+            if (drafts[index].id === selectedNodeId) return index
+        }
+        return -1
+    }
+
+    function nodeForId(nodeId) : var {
+        const index = nodeIndex(nodeId)
+        return index >= 0 ? nodes[index] : null
+    }
+
+    function draftForId(draftId) : var {
+        for (let index = 0; index < drafts.length; ++index) {
+            if (drafts[index].id === draftId) return drafts[index]
+        }
+        return null
+    }
+
+    function candidateForId(candidateId) : var {
+        for (let index = 0; index < candidates.length; ++index) {
+            if (candidates[index].id === candidateId) return candidates[index]
+        }
+        return null
+    }
+
+    function selectAcceptedNode(nodeId) : void {
+        focusedSelectionKind = "node"
+        nodeSelected(nodeId)
+    }
+
+    function selectDraft(draftId) : void {
+        focusedSelectionKind = "draft"
+        draftSelected(draftId)
+    }
+
+    function selectCandidate(candidateId) : void {
+        focusedSelectionKind = "candidate"
+        candidateSelected(candidateId)
+    }
+
+    function setZoom(nextZoom) : void {
+        zoomLevel = Math.max(minimumZoom, Math.min(maximumZoom, nextZoom))
+    }
+
+    function fitGraph() : void {
+        if (viewport.width <= 0 || viewport.height <= 0) return
+        const horizontal = Math.max(minimumZoom,
+                                    (viewport.width - 36) / contentGraphWidth())
+        const vertical = Math.max(minimumZoom,
+                                  (viewport.height - 36) / contentGraphHeight())
+        setZoom(Math.min(1.0, horizontal, vertical))
+        viewport.contentX = 0
+        viewport.contentY = 0
     }
 
     function nodeStage(nodeId, trail) : int {
@@ -135,7 +213,7 @@ Rectangle {
     }
 
     function nodeX(index) : real {
-        const available = Math.max(viewport.width, contentGraphWidth())
+        const available = Math.max(viewport.width / graph.zoomLevel, contentGraphWidth())
         const used = contentGraphWidth() - graph.graphMargin * 2
         const offset = Math.max(graph.graphMargin, (available - used) / 2)
         return offset + projectedStage(index) * (graph.nodeWidth + graph.columnGap)
@@ -168,6 +246,73 @@ Rectangle {
     function roleColor(roleKey) : color {
         if (roleKey === "operator") return Theme.accent
         if (roleKey === "output") return Theme.success
+        return Theme.muted
+    }
+
+    function roleIcon(roleKey) : url {
+        if (roleKey === "operator") {
+            return "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
+        }
+        if (roleKey === "output") {
+            return "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
+        }
+        return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
+    }
+
+    function inspectionTitle() : string {
+        if (inspectionKind === "node") return nodeTitle(inspectedNode)
+        if (inspectionKind === "draft") return inspectedDraft.operatorTypeLabel
+        if (inspectionKind === "candidate") return qsTr("Pending Candidate")
+        return ""
+    }
+
+    function inspectionEyebrow() : string {
+        if (inspectionKind === "node") return inspectedNode.roleLabel.toUpperCase()
+        if (inspectionKind === "draft") return qsTr("DRAFT OPERATOR")
+        if (inspectionKind === "candidate") return qsTr("CANDIDATE")
+        return ""
+    }
+
+    function inspectionDetail() : string {
+        if (inspectionKind === "node") {
+            return qsTr("%1 input ports · %2 output ports · %3")
+                    .arg(inspectedNode.inputPorts.length)
+                    .arg(inspectedNode.outputPorts.length)
+                    .arg(nodeDetail(inspectedNode))
+        }
+        if (inspectionKind === "draft") {
+            return qsTr("%1 → %2 · Session-only until execution")
+                    .arg(inspectedDraft.inputDataTypeKey)
+                    .arg(inspectedDraft.outputDataTypeKey)
+        }
+        if (inspectionKind === "candidate") {
+            return inspectedCandidate.hasImagePreview
+                    ? qsTr("Image result · %1 × %2")
+                          .arg(inspectedCandidate.imageWidth)
+                          .arg(inspectedCandidate.imageHeight)
+                    : inspectedCandidate.hasAudioPreview
+                      ? qsTr("Audio result ready for review")
+                      : inspectedCandidate.text
+        }
+        return ""
+    }
+
+    function inspectionIcon() : url {
+        if (inspectionKind === "node") return roleIcon(inspectedNode.roleKey)
+        if (inspectionKind === "draft") {
+            return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
+        }
+        if (inspectionKind === "candidate") {
+            return inspectedCandidate.hasAudioPreview
+                    ? "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
+                    : "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
+        }
+        return ""
+    }
+
+    function inspectionColor() : color {
+        if (inspectionKind === "node") return roleColor(inspectedNode.roleKey)
+        if (inspectionKind === "candidate" || inspectionKind === "draft") return Theme.accent
         return Theme.muted
     }
 
@@ -208,65 +353,24 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        RowLayout {
+        SceneGraphToolbar {
             Layout.fillWidth: true
             Layout.preferredHeight: 62
-            Layout.leftMargin: 18
-            Layout.rightMargin: 14
-            spacing: 10
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 1
-
-                Text {
-                    text: qsTr("SCENE OPERATOR GRAPH")
-                    color: Theme.text
-                    font.pixelSize: 14
-                    font.weight: Font.DemiBold
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("%1 › %2 › %3")
-                          .arg(graph.projectName.length > 0
-                               ? graph.projectName : qsTr("Project"))
-                          .arg(graph.sceneName.length > 0
-                               ? graph.sceneName : qsTr("Scene"))
-                          .arg(graph.sceneKind)
-                    color: Theme.muted
-                    font.pixelSize: 10
-                    elide: Text.ElideRight
-                }
-            }
-
-            Rectangle {
-                Layout.preferredWidth: graphSummary.implicitWidth + 20
-                Layout.preferredHeight: 26
-                radius: 13
-                color: Theme.raised
-                border.color: Theme.border
-
-                Text {
-                    id: graphSummary
-                    anchors.centerIn: parent
-                    text: qsTr("%1 nodes · %2 operators · %3 candidates")
-                          .arg(graph.nodes.length).arg(graph.operatorCount)
-                          .arg(graph.candidates.length)
-                    color: Theme.muted
-                    font.pixelSize: 10
-                }
-            }
-
-            ShapeButton {
-                objectName: "openSelectedNodeButton"
-                visible: graph.selectedNodeIndex() >= 0
-                implicitHeight: 30
-                text: qsTr("Open node")
-                primary: true
-                Accessible.name: qsTr("Open selected node workspace")
-                onClicked: graph.nodeOpened(graph.selectedNodeId)
-            }
+            projectName: graph.projectName
+            sceneName: graph.sceneName
+            sceneKind: graph.sceneKind
+            sceneKindKey: graph.sceneKindKey
+            nodeCount: graph.nodes.length
+            operatorCount: graph.operatorCount
+            draftCount: graph.drafts.length
+            candidateCount: graph.candidates.length
+            zoomLevel: graph.zoomLevel
+            minimumZoom: graph.minimumZoom
+            maximumZoom: graph.maximumZoom
+            onZoomOutRequested: graph.setZoom(graph.zoomLevel - 0.1)
+            onZoomInRequested: graph.setZoom(graph.zoomLevel + 0.1)
+            onFitRequested: graph.fitGraph()
+            onOperatorRequested: operatorTypeKey => graph.draftRequested(operatorTypeKey)
         }
 
         Rectangle {
@@ -282,8 +386,8 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            contentWidth: Math.max(width, graph.contentGraphWidth())
-            contentHeight: Math.max(height, graph.contentGraphHeight())
+            contentWidth: Math.max(width, graphCanvas.width * graph.zoomLevel)
+            contentHeight: Math.max(height, graphCanvas.height * graph.zoomLevel)
 
             ScrollBar.horizontal: ScrollBar {
                 policy: viewport.contentWidth > viewport.width
@@ -295,8 +399,14 @@ Rectangle {
             }
 
             Item {
-                width: viewport.contentWidth
-                height: viewport.contentHeight
+                id: graphCanvas
+
+                width: Math.max(viewport.width / graph.zoomLevel,
+                                graph.contentGraphWidth())
+                height: Math.max(viewport.height / graph.zoomLevel,
+                                 graph.contentGraphHeight())
+                scale: graph.zoomLevel
+                transformOrigin: Item.TopLeft
 
                 Canvas {
                     id: edgeCanvas
@@ -313,9 +423,14 @@ Rectangle {
                                                   graph.nodeIndex(edge.targetNodeId), false)
                         }
                         const terminalIndex = graph.nodeIndex(graph.terminalNodeId)
-                        for (let index = 0; index < graph.candidates.length; ++index) {
+                        for (let index = 0; index < graph.drafts.length; ++index) {
                             graph.paintConnection(context, terminalIndex,
                                                   graph.nodes.length + index, true)
+                        }
+                        for (let index = 0; index < graph.candidates.length; ++index) {
+                            graph.paintConnection(context, terminalIndex,
+                                                  graph.nodes.length + graph.drafts.length + index,
+                                                  true)
                         }
                     }
 
@@ -323,13 +438,94 @@ Rectangle {
                         target: graph
                         function onNodesChanged() : void { edgeCanvas.requestPaint() }
                         function onEdgesChanged() : void { edgeCanvas.requestPaint() }
+                        function onDraftsChanged() : void { edgeCanvas.requestPaint() }
                         function onCandidatesChanged() : void { edgeCanvas.requestPaint() }
                         function onWidthChanged() : void { edgeCanvas.requestPaint() }
+                        function onZoomLevelChanged() : void { edgeCanvas.requestPaint() }
                     }
 
                     Connections {
                         target: Theme
                         function onEffectiveDarkChanged() : void { edgeCanvas.requestPaint() }
+                    }
+                }
+
+                Repeater {
+                    model: graph.drafts
+
+                    delegate: ItemDelegate {
+                        id: draftNode
+                        objectName: "draftGraphNode-" + index
+
+                        required property int index
+                        required property var modelData
+                        readonly property bool selected: modelData.id === graph.selectedNodeId
+
+                        x: graph.nodeX(graph.nodes.length + index)
+                        y: graph.nodeY(graph.nodes.length + index)
+                        width: graph.nodeWidth
+                        height: graph.nodeHeight
+                        leftPadding: 13
+                        rightPadding: 13
+                        topPadding: 11
+                        bottomPadding: 11
+                        onClicked: graph.selectDraft(modelData.id)
+                        onDoubleClicked: graph.draftOpened(modelData.id)
+
+                        background: Rectangle {
+                            radius: Theme.radiusMedium
+                            color: draftNode.selected ? Theme.accentSoft : Theme.raised
+                            border.width: draftNode.selected ? 2 : 1
+                            border.color: Theme.accent
+                            opacity: 0.92
+                        }
+
+                        contentItem: ColumnLayout {
+                            spacing: 4
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Text {
+                                    text: qsTr("DRAFT OPERATOR")
+                                    color: Theme.accent
+                                    font.pixelSize: 9
+                                    font.weight: Font.DemiBold
+                                    font.letterSpacing: 0.5
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                Button {
+                                    objectName: "discardDraftButton-" + draftNode.index
+                                    implicitWidth: 22
+                                    implicitHeight: 22
+                                    text: "×"
+                                    flat: true
+                                    Accessible.name: qsTr("Remove Operator draft")
+                                    onClicked: graph.draftDiscardRequested(draftNode.modelData.id)
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: draftNode.modelData.operatorTypeLabel
+                                color: Theme.text
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("%1 → %2")
+                                      .arg(draftNode.modelData.inputDataTypeKey)
+                                      .arg(draftNode.modelData.outputDataTypeKey)
+                                color: Theme.muted
+                                font.pixelSize: 9
+                                elide: Text.ElideRight
+                            }
+                        }
                     }
                 }
 
@@ -355,7 +551,7 @@ Rectangle {
                         bottomPadding: 12
                         highlighted: currentNode
                         Accessible.name: qsTr("Open %1").arg(graph.nodeTitle(modelData))
-                        onClicked: graph.nodeSelected(modelData.id)
+                        onClicked: graph.selectAcceptedNode(modelData.id)
                         onDoubleClicked: graph.nodeOpened(modelData.id)
 
                         background: Rectangle {
@@ -461,8 +657,8 @@ Rectangle {
                         readonly property bool selected: modelData.id
                                                          === graph.selectedCandidateId
 
-                        x: graph.nodeX(graph.nodes.length + index)
-                        y: graph.nodeY(graph.nodes.length + index)
+                        x: graph.nodeX(graph.nodes.length + graph.drafts.length + index)
+                        y: graph.nodeY(graph.nodes.length + graph.drafts.length + index)
                         width: graph.nodeWidth
                         height: graph.nodeHeight
                         radius: Theme.radiusMedium
@@ -535,9 +731,9 @@ Rectangle {
                             Accessible.name: qsTr("Review candidate %1").arg(
                                                      candidateNode.index + 1)
                             Accessible.role: Accessible.Button
-                            onClicked: graph.candidateSelected(candidateNode.modelData.id)
+                            onClicked: graph.selectCandidate(candidateNode.modelData.id)
                             onDoubleClicked: {
-                                graph.candidateSelected(candidateNode.modelData.id)
+                                graph.selectCandidate(candidateNode.modelData.id)
                                 graph.candidateReviewRequested(candidateNode.modelData.id)
                             }
                         }
@@ -545,7 +741,7 @@ Rectangle {
                 }
 
                 ColumnLayout {
-                    visible: graph.nodes.length === 0
+                    visible: graph.nodes.length === 0 && graph.drafts.length === 0
                     anchors.centerIn: parent
                     spacing: 6
 
@@ -567,43 +763,27 @@ Rectangle {
             }
         }
 
-        Rectangle {
+        GraphSelectionInspector {
             Layout.fillWidth: true
-            Layout.preferredHeight: 42
-            color: Theme.raised
-            radius: Theme.radiusLarge
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: 12
-                color: parent.color
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 16
-                anchors.rightMargin: 16
-                spacing: 8
-
-                Text { text: "●"; color: Theme.muted; font.pixelSize: 8 }
-                Text { text: qsTr("Source"); color: Theme.muted; font.pixelSize: 9 }
-                Text { text: "●"; color: Theme.accent; font.pixelSize: 8 }
-                Text { text: qsTr("Operator"); color: Theme.muted; font.pixelSize: 9 }
-                Text { text: "●"; color: Theme.success; font.pixelSize: 8 }
-                Text { text: qsTr("Output"); color: Theme.muted; font.pixelSize: 9 }
-                Text { text: "- -"; color: Theme.accent; font.pixelSize: 10 }
-                Text { text: qsTr("Candidate"); color: Theme.muted; font.pixelSize: 9 }
-
-                Item { Layout.fillWidth: true }
-
-                Text {
-                    text: qsTr("Select a node · Double-click to open its workspace")
-                    color: Theme.muted
-                    font.pixelSize: 9
+            selectionKind: graph.inspectionKind
+            eyebrow: graph.inspectionEyebrow()
+            title: graph.inspectionTitle()
+            detail: graph.inspectionDetail()
+            iconSource: graph.inspectionIcon()
+            accentColor: graph.inspectionColor()
+            openAvailable: graph.inspectionKind === "node"
+                           || graph.inspectionKind === "draft"
+            reviewAvailable: graph.inspectionKind === "candidate"
+            discardAvailable: graph.inspectionKind === "draft"
+            onOpenRequested: {
+                if (graph.inspectionKind === "draft") {
+                    graph.draftOpened(graph.selectedNodeId)
+                } else if (graph.inspectionKind === "node") {
+                    graph.nodeOpened(graph.selectedNodeId)
                 }
             }
+            onReviewRequested: graph.candidateReviewRequested(graph.selectedCandidateId)
+            onDiscardRequested: graph.draftDiscardRequested(graph.selectedNodeId)
         }
     }
 }

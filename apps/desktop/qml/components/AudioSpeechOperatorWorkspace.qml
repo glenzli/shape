@@ -75,6 +75,7 @@ Item {
         case "no_candidate": return qsTr("No local speech model currently satisfies this request.")
         case "provider_unavailable":
         case "infer_unavailable": return qsTr("The local speech provider is unavailable.")
+        case "infer_policy_violation": return qsTr("Infer returned speech outside Shape's local execution policy.")
         case "invalid_audio_output": return qsTr("Infer returned audio that did not match Shape's WAV contract.")
         default: return qsTr("Speech synthesis could not create a candidate.")
         }

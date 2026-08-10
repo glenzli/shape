@@ -40,6 +40,9 @@ Rectangle {
     signal artifactSelected(int index)
     signal artifactOpened(int index)
     signal graphRequested()
+    signal newProjectRequested()
+    signal openProjectRequested()
+    signal createTextSceneRequested()
     signal importImageRequested()
 
     radius: Theme.radiusLarge
@@ -78,6 +81,25 @@ Rectangle {
                     color: Theme.muted
                     font.pixelSize: 10
                 }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            ShapeButton {
+                objectName: "navigatorNewProjectButton"
+                Layout.fillWidth: true
+                text: qsTr("New")
+                onClicked: navigator.newProjectRequested()
+            }
+
+            ShapeButton {
+                objectName: "navigatorOpenProjectButton"
+                Layout.fillWidth: true
+                text: qsTr("Open…")
+                onClicked: navigator.openProjectRequested()
             }
         }
 
@@ -139,11 +161,26 @@ Rectangle {
             }
         }
 
-        ShapeButton {
+        RowLayout {
             Layout.fillWidth: true
-            text: qsTr("Import image…")
-            enabled: navigator.projectOpen
-            onClicked: navigator.importImageRequested()
+            spacing: 6
+
+            ShapeButton {
+                objectName: "createTextSceneButton"
+                Layout.fillWidth: true
+                text: qsTr("+ Text Scene")
+                enabled: navigator.projectOpen
+                primary: navigator.artifacts.length === 0
+                onClicked: navigator.createTextSceneRequested()
+            }
+
+            ShapeButton {
+                objectName: "importImageSceneButton"
+                Layout.fillWidth: true
+                text: qsTr("Import image…")
+                enabled: navigator.projectOpen
+                onClicked: navigator.importImageRequested()
+            }
         }
 
         RowLayout {

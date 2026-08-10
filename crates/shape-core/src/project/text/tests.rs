@@ -69,6 +69,58 @@ fn seeded_text_project(root: &std::path::Path) -> (ShapeProject, ArtifactId, Art
 }
 
 #[test]
+fn initial_text_document_is_one_atomic_reopenable_origin() {
+    let root = test_root("initial-document");
+    let mut project = ShapeProject::create(&root, "Text Scene").expect("project creates");
+    let revision = project
+        .create_text_document("Opening", "A first line.")
+        .expect("initial text document creates");
+    let snapshot = project.snapshot().expect("snapshot reads");
+    assert_eq!(snapshot.artifacts.len(), 1);
+    assert_eq!(snapshot.artifacts[0].name, "Opening");
+    assert_eq!(snapshot.artifacts[0].kind, ArtifactKind::TextDocument);
+    assert_eq!(snapshot.artifacts[0].accepted_revision, Some(revision.id));
+    assert_eq!(
+        project
+            .transformation(revision.transformation_id)
+            .expect("origin transformation persists")
+            .intent
+            .as_str(),
+        INITIAL_TEXT_SOURCE_INTENT
+    );
+    drop(project);
+
+    let reopened = ShapeProject::open(&root).expect("project reopens");
+    assert_eq!(
+        reopened
+            .read_accepted(revision.artifact_id)
+            .expect("accepted content reads")
+            .expect("accepted content exists")
+            .bytes,
+        b"A first line."
+    );
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
+fn initial_text_document_rejects_invisible_content_without_an_artifact() {
+    let root = test_root("empty-initial-document");
+    let mut project = ShapeProject::create(&root, "Text Scene").expect("project creates");
+    assert!(matches!(
+        project.create_text_document("Opening", "  \n"),
+        Err(CoreError::InvalidTextCandidate)
+    ));
+    assert!(
+        project
+            .snapshot()
+            .expect("snapshot reads")
+            .artifacts
+            .is_empty()
+    );
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
 fn direct_text_edit_is_typed_preview_then_immutable_revision() {
     let root = test_root("direct");
     let (mut project, artifact_id, origin) = seeded_text_project(&root);

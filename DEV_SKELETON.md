@@ -157,7 +157,9 @@ graph revisions with expected-head compare-and-swap, verifies that every durable
 resolves to a real Artifact Revision or Transformation, and additively migrates initial and
 Scene-era schemas to the current audio-capable revision.
 `shape-core::project::scene` keeps graph candidates transient until explicit acceptance. Two Scenes
-can therefore evolve and reopen independently without sharing draft state. Desktop graph mutation,
+can therefore evolve and reopen independently without sharing draft state. The desktop compatibility
+slice now exposes type-compatible session-local Operator drafts so the authoring entry flow is real
+without writing incomplete nodes into persistent history. Persistent desktop Scene graph mutation,
 editable Operator parameters, a real multi-output Operator/UI flow, and reusable GraphComponent
 instances remain deferred until their real UI and Operator consumers freeze those contracts.
 

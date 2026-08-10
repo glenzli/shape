@@ -27,6 +27,8 @@ ApplicationWindow {
     readonly property bool hasSelectedArtifact: selectedArtifact !== null
     readonly property var artifactCandidates: hasSelectedArtifact
                                               ? candidatesForArtifact(selectedArtifact.id) : []
+    readonly property var artifactDrafts: hasSelectedArtifact
+                                          ? draftsForArtifact(selectedArtifact.id) : []
     readonly property var selectedCandidate: {
         for (let index = 0; index < artifactCandidates.length; ++index) {
             if (artifactCandidates[index].id === selectedCandidateId) {
@@ -42,6 +44,16 @@ ApplicationWindow {
         for (let index = 0; index < backend.candidates.length; ++index) {
             if (backend.candidates[index].contextArtifactId === artifactId) {
                 matches.push(backend.candidates[index])
+            }
+        }
+        return matches
+    }
+
+    function draftsForArtifact(artifactId) : var {
+        const matches = []
+        for (let index = 0; index < backend.operatorDrafts.length; ++index) {
+            if (backend.operatorDrafts[index].contextArtifactId === artifactId) {
+                matches.push(backend.operatorDrafts[index])
             }
         }
         return matches
@@ -137,6 +149,42 @@ ApplicationWindow {
         inferText: window.inferText
     }
 
+    CreateProjectDialog {
+        id: createProjectDialog
+        backend: window.backend
+        onProjectCreated: {
+            window.selectedArtifactIndex = 0
+            window.selectedCandidateId = ""
+            window.compareMode = false
+            workspaceSurface.showGraph()
+            Qt.callLater(createTextSceneDialog.openForCreation)
+        }
+    }
+
+    CreateTextSceneDialog {
+        id: createTextSceneDialog
+        backend: window.backend
+        onSceneCreated: {
+            window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
+            window.selectedCandidateId = ""
+            window.compareMode = false
+            workspaceSurface.showGraph()
+        }
+    }
+
+    FolderDialog {
+        id: projectOpenDialog
+        title: qsTr("Open Shape project folder")
+        onAccepted: {
+            if (window.backend.openProject(selectedFolder)) {
+                window.selectedArtifactIndex = 0
+                window.selectedCandidateId = ""
+                window.compareMode = false
+                workspaceSurface.showGraph()
+            }
+        }
+    }
+
     FileDialog {
         id: imageImportDialog
         title: qsTr("Import raster image")
@@ -191,6 +239,9 @@ ApplicationWindow {
             onArtifactSelected: index => workspaceSurface.activateScene(index)
             onArtifactOpened: index => workspaceSurface.activateScene(index)
             onGraphRequested: workspaceSurface.showGraph()
+            onNewProjectRequested: createProjectDialog.openForCreation()
+            onOpenProjectRequested: projectOpenDialog.open()
+            onCreateTextSceneRequested: createTextSceneDialog.openForCreation()
             onImportImageRequested: imageImportDialog.open()
         }
 
@@ -209,6 +260,7 @@ ApplicationWindow {
                 allArtifacts: window.backend.artifacts
                 selectedArtifact: window.selectedArtifact
                 candidates: window.artifactCandidates
+                operatorDrafts: window.artifactDrafts
                 selectedCandidate: window.selectedCandidate
                 selectedCandidateId: window.selectedCandidateId
                 compareMode: window.compareMode
@@ -235,6 +287,19 @@ ApplicationWindow {
                     window.inferSpeech.generate(
                         window.backend.bundlePath, sourceArtifactId,
                         artifactName, speedMilli)
+                }
+                onOperatorDraftRequested: operatorTypeKey => {
+                    if (!window.hasSelectedArtifact) return
+                    const draftId = window.backend.beginOperatorDraft(
+                        window.selectedArtifact.id, operatorTypeKey)
+                    if (draftId.length > 0) {
+                        workspaceSurface.openOperatorDraft(draftId)
+                    }
+                }
+                onOperatorDraftDiscardRequested: draftId => {
+                    if (window.backend.discardOperatorDraft(draftId)) {
+                        workspaceSurface.showGraph()
+                    }
                 }
             }
 
@@ -336,6 +401,10 @@ ApplicationWindow {
         function onProjectChanged() : void {
             Qt.callLater(window.refreshSelectedImage)
         }
+
+        function onOperatorDraftsChanged() : void {
+            Qt.callLater(workspaceSurface.synchronizeNodeSelection)
+        }
     }
 
     Connections {
@@ -360,5 +429,14 @@ ApplicationWindow {
                 contextInspector.currentPage = 0
             }
         }
+    }
+
+    ProjectWelcome {
+        anchors.fill: parent
+        z: 100
+        visible: !window.backend.projectOpen
+        errorMessage: window.backend.lastError
+        onNewProjectRequested: createProjectDialog.openForCreation()
+        onOpenProjectRequested: projectOpenDialog.open()
     }
 }

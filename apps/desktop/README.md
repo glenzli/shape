@@ -1,8 +1,10 @@
 # Shape Desktop
 
-This directory owns the cross-platform Qt 6/QML application assembly. It can open a real `.shape`
-bundle at startup, display its validated project metadata and artifact list, and render bounded
-accepted text or an on-demand verified raster preview supplied by Rust. Text documents can
+This directory owns the cross-platform Qt 6/QML application assembly. An empty launch presents
+explicit New Project and Open Project actions. Project creation publishes a real `.shape` bundle,
+then offers creation of the first Text Scene as one atomic accepted source revision. The shell can
+also open a bundle at startup, display its validated project metadata and artifact list, and render
+bounded accepted text or an on-demand verified raster preview supplied by Rust. Text documents can
 accumulate multiple transient candidates, compare and accept them in place, or branch one into a
 new artifact. An 8-bit PNG/JPEG can be imported into a canonical `image.raster` revision, shaped
 with a direct crop frame, compared against its transient crop candidate, accepted, and reopened.
@@ -30,8 +32,12 @@ The central surface switches between the selected Scene's typed Operator Graph a
 media workspace. Rust projects accepted Revision/Transformation history as
 `Source -> Operator -> Output`, including exact typed ports and cross-artifact Source boundaries;
 QML lays out and draws that graph without becoming semantic authority. Scene selection is shared
-across the navigator, graph, workspace, and inspector. Pending candidates appear as dashed ghost
-operators, but remain outside the durable accepted graph until explicit acceptance or branching.
+across the navigator, graph, workspace, and inspector. The graph provides real zoom/fit controls,
+a compact selection summary, and a searchable media-compatible Operator palette. Palette selection
+asks the Rust session to begin only type-compatible Operator drafts and immediately enters the
+dedicated Operator workspace. Those drafts are explicitly session-local,
+are discarded on reopen, and become Candidate ghosts only after a real execution path succeeds.
+Pending candidates remain outside the durable accepted graph until explicit acceptance or branching.
 
 This foundation currently adapts each existing Artifact into a single-output Scene. That
 compatibility boundary lets media-specific Operator work proceed without pretending that the final
@@ -40,6 +46,7 @@ Scene, named multi-output, or reusable GraphComponent persistence model already 
 [`shape-desktop-bridge`](../../crates/shape-desktop-bridge/src/lib.rs) owns the generated CXX ABI.
 Rust's bounded `DesktopSession` validates SQLite and content objects and owns the open project;
 `CandidateShelf` owns its in-memory, newest-first candidate collection and exact-ID mutations.
+`OperatorDrafts` owns the equally transient, typed authoring entries that precede execution.
 In-place acceptance and new-artifact branching still delegate to atomic project use cases. C++ maps
 explicit snapshots and commands into Qt presentation values; QML never reads or writes project
 files. Ordinary snapshots carry raster/audio metadata rather than encoded payloads; selected
@@ -83,7 +90,9 @@ translation lifecycle, and persistence. `MainTitleBar.qml` owns the fused toolba
 The shared shell uses Qt's expanded client area and safe-area margins on every platform; the small
 Objective-C++ adapter only aligns native macOS traffic-light buttons with that shared toolbar.
 `DesktopBackend` is a presentation facade over the Rust session; project and candidate authority
-never enters QML or UI settings. `TextOperatorWorkspace.qml` owns accepted text and Candidate
+never enters QML or UI settings. `ProjectWelcome.qml`, `CreateProjectDialog.qml`, and
+`CreateTextSceneDialog.qml` own the launch and first-content presentation flow without acquiring
+persistence authority. `TextOperatorWorkspace.qml` owns accepted text and Candidate
 presentation for `text.edit` and `text.transform`; `TextCompareWorkspace.qml` remains its compare
 owner. `RasterCropOperatorWorkspace.qml` separately owns crop-frame interaction, and
 `ImageCompareWorkspace.qml` owns raster comparison without becoming a pixel or persistence
@@ -91,8 +100,13 @@ authority. `ProjectNavigator.qml` owns Scene selection,
 `ContextInspector.qml` owns inspector navigation, `VariantsPanel.qml` owns artifact-scoped shelf
 selection and review controls, and the details and lineage panels own their respective read-only
 projections. `BranchArtifactDialog.qml` owns branch naming and submission;
-`SceneOperatorGraphWorkspace.qml` owns typed graph layout, single-selection, and open/review intent,
-while `OperatorWorkspaceHost.qml` owns exact Operator routes, Source/Output read-only routes,
+`SceneOperatorGraphWorkspace.qml` owns typed graph layout, zoom, single-selection, and open/review
+intent. `SceneGraphToolbar.qml` owns the scene breadcrumb, graph controls, and palette entry.
+`OperatorPalette.qml` owns presentation-only search and compatibility filtering, while
+`GraphSelectionInspector.qml` owns the compact selected-node action summary without acquiring node
+or lifecycle authority. `ShapeButton.qml`, `ShapeIconButton.qml`, and the shared SVG resources keep
+toolbar action treatment consistent. `OperatorWorkspaceHost.qml` owns exact Operator routes,
+Source/Output read-only routes,
 family fallbacks, Candidate identity, and the return lifecycle. `WorkspaceSurface.qml` remains the
 graph-first composition boundary and `Main.qml` remains an assembly root. A new media workspace can
 therefore evolve in its own QML owner and register through the Host without taking graph authority
@@ -130,6 +144,10 @@ cropped dimensions. It additionally opens the packaged Speech workspace from an 
 Operator and retranslates that live workspace between English and Simplified Chinese. Rust bridge
 tests cover audio generation adoption, selected-only WAV retrieval, acceptance, and reopen. The
 runtime itself may remain offline during deterministic desktop smoke paths.
+
+The no-project packaged smoke additionally follows the user-visible entry path: it creates a new
+bundle, creates the first accepted Text Scene, begins and opens a compatible Text Edit draft,
+discards it, and verifies on reopen that the transient draft was never persisted.
 
 The shell requires Qt 6.9 or newer for the cross-platform expanded client area. Platform-specific
 code is isolated to native window-control alignment; QML layout, themes, and settings are shared.

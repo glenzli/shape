@@ -118,11 +118,17 @@ qt_add_qml_module(shape-desktop
         qml/components/AudioSpeechOperatorWorkspace.qml
         qml/components/ImageCompareWorkspace.qml
         qml/components/ContextInspector.qml
+        qml/components/CreateProjectDialog.qml
+        qml/components/CreateTextSceneDialog.qml
+        qml/components/GraphSelectionInspector.qml
         qml/components/IntentPanel.qml
+        qml/components/OperatorPalette.qml
         qml/components/OperatorWorkspaceHost.qml
         qml/components/RasterCropOperatorWorkspace.qml
+        qml/components/SceneGraphToolbar.qml
         qml/components/SceneOperatorGraphWorkspace.qml
         qml/components/ProjectNavigator.qml
+        qml/components/ProjectWelcome.qml
         qml/components/ReadOnlyNodeWorkspace.qml
         qml/components/ShapeButton.qml
         qml/components/ShapeIcon.qml
@@ -132,10 +138,22 @@ qt_add_qml_module(shape-desktop
         qml/components/VariantsPanel.qml
         qml/components/WorkspaceSurface.qml
     RESOURCES
+        icons/add.svg
+        icons/close.svg
         icons/compare.svg
+        icons/crop.svg
+        icons/edit.svg
         icons/export.svg
+        icons/fit.svg
+        icons/open.svg
+        icons/search.svg
         icons/settings.svg
+        icons/sparkle.svg
+        icons/trash.svg
         icons/verified.svg
+        icons/waveform.svg
+        icons/zoom-in.svg
+        icons/zoom-out.svg
 )
 
 qt_add_translations(shape-desktop

@@ -5,6 +5,7 @@
 #include <QString>
 
 class QObject;
+class DesktopBackend;
 class UiPreferences;
 
 namespace workspace_host_smoke {
@@ -20,5 +21,9 @@ bool verifyOperatorRoute(
 );
 
 bool verifyLocalization(QObject& root_object, UiPreferences& ui_preferences);
+
+bool verifyProjectWelcome(QObject& root_object);
+
+bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend);
 
 } // namespace workspace_host_smoke

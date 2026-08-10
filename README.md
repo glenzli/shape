@@ -19,7 +19,7 @@ provenance and selected-only local audition before acceptance.
 | Use cases | [`shape-core`](crates/shape-core/src/lib.rs) | Project and Scene creation, graph draft/accept, text/raster/speech Candidates, cross-artifact branching, and inspection |
 | Desktop bridge | [`shape-desktop-bridge`](crates/shape-desktop-bridge/src/lib.rs) | Bounded CXX session for validated project snapshots, graph edges, on-demand raster/audio previews, and a cross-media Candidate Shelf |
 | Foundation CLI | [`shape-cli`](apps/shape-cli/src/main.rs) | Real public consumer used for end-to-end smoke and inspection |
-| Desktop shell | [`apps/desktop`](apps/desktop/README.md) | Cross-platform Qt/QML assembly that opens and displays real `.shape` projects |
+| Desktop shell | [`apps/desktop`](apps/desktop/README.md) | Cross-platform Qt/QML assembly that creates, opens, and edits real `.shape` projects |
 | Repository checks | [`xtask`](xtask/src/main.rs) | Formatting, lint, tests, CMake configuration, and prerequisite checks |
 
 The nearest code-owned module documentation is the navigation index. Planned modules in
@@ -63,8 +63,11 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   follows the same Draft/Preview → Candidate → Compare → Accept → Reopen lifecycle without putting
   previews in durable history. Selected accepted/candidate image bytes are verified and loaded on
   demand into a bounded native preview cache; ordinary project snapshots carry only raster
-  metadata. The cross-platform desktop keeps text and image candidates on one typed shelf while
-  each medium owns its central workspace. The desktop resolves Infer Runtime through strict owner-only
+  metadata. The cross-platform desktop can create or open a project, atomically create its first
+  accepted Text Scene, and begin compatible session-local Operator drafts from the graph. A draft
+  remains transient until execution produces a Candidate and explicit acceptance publishes durable
+  history. The desktop keeps text and image candidates on one typed shelf while each medium owns
+  its central workspace. It resolves Infer Runtime through strict owner-only
   Infra Discovery, imports a Shape-specific managed credential into an owner-only secret store,
   and can execute one local-only `assistant.general` text generation as a transient candidate.
   The `audio.speech_synthesize` desktop workspace consumes immutable accepted text and creates a

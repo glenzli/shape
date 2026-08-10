@@ -15,6 +15,7 @@ Item {
     property var allArtifacts: []
     property var selectedArtifact: null
     property var candidates: []
+    property var operatorDrafts: []
     property var selectedCandidate: null
     property string selectedCandidateId: ""
     property bool compareMode: false
@@ -58,12 +59,15 @@ Item {
         }
         return null
     }
+    readonly property var selectedDraft: draftForId(selectedNodeId)
 
     signal sceneSelected(int index)
     signal candidateSelected(string candidateId)
     signal candidateReviewRequested(string candidateId)
     signal cropRequested(string artifactId, int x, int y, int width, int height)
     signal speechSynthesisRequested(string sourceArtifactId, string artifactName, int speedMilli)
+    signal operatorDraftRequested(string operatorTypeKey)
+    signal operatorDraftDiscardRequested(string draftId)
 
     function showArtifact() : bool {
         if (selectedCandidate !== null && selectedCandidate.hasAudioPreview) {
@@ -124,6 +128,13 @@ Item {
         return null
     }
 
+    function draftForId(draftId) : var {
+        for (let index = 0; index < operatorDrafts.length; ++index) {
+            if (operatorDrafts[index].id === draftId) return operatorDrafts[index]
+        }
+        return null
+    }
+
     function openNode(nodeId) : bool {
         const node = nodeForId(nodeId)
         if (node === null) return false
@@ -137,10 +148,27 @@ Item {
         return true
     }
 
+    function openOperatorDraft(draftId) : bool {
+        const draft = draftForId(draftId)
+        if (draft === null || !hasSelectedArtifact
+                || draft.contextArtifactId !== selectedArtifact.id) {
+            return false
+        }
+        selectedNodeId = draftId
+        if (!operatorWorkspaceHost.openWorkspace(
+                draft.id, "operator", draft.operatorTypeKey,
+                selectedArtifact.id, selectedArtifact.acceptedRevisionId, "")) {
+            return false
+        }
+        currentMode = 1
+        return true
+    }
+
     function synchronizeNodeSelection() : void {
         for (let index = 0; index < graphNodes.length; ++index) {
             if (graphNodes[index].id === selectedNodeId) return
         }
+        if (draftForId(selectedNodeId) !== null) return
         selectedNodeId = ""
         for (let index = 0; index < graphNodes.length; ++index) {
             if (graphNodes[index].roleKey === "output") {
@@ -153,6 +181,7 @@ Item {
 
     onSelectedArtifactChanged: synchronizeNodeSelection()
     onGraphNodesChanged: synchronizeNodeSelection()
+    onOperatorDraftsChanged: synchronizeNodeSelection()
 
     Component {
         id: textEditOperatorWorkspace
@@ -336,13 +365,21 @@ Item {
                 sceneName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
                 sceneKind: surface.hasSelectedArtifact
                            ? surface.selectedArtifact.kindLabel : ""
+                sceneKindKey: surface.hasSelectedArtifact
+                              ? surface.selectedArtifact.kindKey : ""
                 nodes: surface.graphNodes
                 edges: surface.graphEdges
                 candidates: surface.candidates
+                drafts: surface.operatorDrafts
                 selectedNodeId: surface.selectedNodeId
                 selectedCandidateId: surface.selectedCandidateId
                 onNodeSelected: nodeId => surface.selectNode(nodeId)
                 onNodeOpened: nodeId => surface.openNode(nodeId)
+                onDraftRequested: operatorTypeKey => surface.operatorDraftRequested(
+                                      operatorTypeKey)
+                onDraftSelected: draftId => surface.selectNode(draftId)
+                onDraftOpened: draftId => surface.openOperatorDraft(draftId)
+                onDraftDiscardRequested: draftId => surface.operatorDraftDiscardRequested(draftId)
                 onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
                 onCandidateReviewRequested: candidateId => surface.candidateReviewRequested(
                                                 candidateId)

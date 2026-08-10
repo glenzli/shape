@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <QDebug>
+#include <QDir>
 #include <QFileInfo>
 #include <QImage>
 #include <QVariantMap>
@@ -171,6 +172,35 @@ QVariantMap operator_edge_projection(const shape::desktop::OperatorGraphEdgeWire
     return projected;
 }
 
+QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& draft) {
+    const QString operator_type_key = from_rust(draft.operator_type_key);
+    QVariantMap projected;
+    projected.insert(QStringLiteral("id"), from_rust(draft.draft_id));
+    projected.insert(QStringLiteral("contextArtifactId"), from_rust(draft.context_artifact_id));
+    projected.insert(QStringLiteral("operatorTypeKey"), operator_type_key);
+    projected.insert(QStringLiteral("operatorTypeLabel"), operator_type_label(operator_type_key));
+    projected.insert(QStringLiteral("inputDataTypeKey"), from_rust(draft.input_data_type_key));
+    projected.insert(QStringLiteral("outputDataTypeKey"), from_rust(draft.output_data_type_key));
+    return projected;
+}
+
+QString portable_project_directory_name(const QString& project_name) {
+    QString result;
+    result.reserve(project_name.size());
+    for (const QChar character : project_name.trimmed()) {
+        if (character.isLetterOrNumber() || character == QLatin1Char(' ')
+            || character == QLatin1Char('-') || character == QLatin1Char('_')) {
+            result.append(character);
+        } else {
+            result.append(QLatin1Char('-'));
+        }
+    }
+    while (result.contains(QStringLiteral("--"))) {
+        result.replace(QStringLiteral("--"), QStringLiteral("-"));
+    }
+    return result.trimmed();
+}
+
 QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artifact) {
     const QString kind_key = from_rust(artifact.kind_key);
     QVariantMap projected;
@@ -316,10 +346,8 @@ DesktopBackend::DesktopBackend(QObject* parent)
     : QObject(parent), image_preview_store_(std::make_shared<ImagePreviewStore>()) {}
 
 DesktopBackend::DesktopBackend(rust::Box<shape::desktop::DesktopSession> session, QObject* parent)
-    : QObject(parent), session_(std::make_unique<SessionState>(std::move(session))),
-      image_preview_store_(std::make_shared<ImagePreviewStore>()) {
-    applySnapshot(session_->session->session_snapshot());
-    applyCandidates(session_->session->session_candidates());
+    : QObject(parent), image_preview_store_(std::make_shared<ImagePreviewStore>()) {
+    replaceSession(std::move(session));
 }
 
 DesktopBackend::~DesktopBackend() = default;
@@ -354,6 +382,10 @@ QVariantList DesktopBackend::artifacts() const {
 
 QVariantList DesktopBackend::graphEdges() const {
     return graph_edges_;
+}
+
+QVariantList DesktopBackend::operatorDrafts() const {
+    return operator_drafts_;
 }
 
 int DesktopBackend::candidateCount() const {
@@ -394,6 +426,125 @@ QString DesktopBackend::candidateImageSource() const {
 
 QString DesktopBackend::lastError() const {
     return last_error_;
+}
+
+bool DesktopBackend::createProject(const QUrl& parentDirectory, const QString& projectName) {
+    const QString name = projectName.trimmed();
+    const QString directory_name = portable_project_directory_name(name);
+    if (!parentDirectory.isLocalFile() || name.isEmpty() || directory_name.isEmpty()) {
+        setLastError(tr("Choose a local folder and enter a project name."));
+        return false;
+    }
+    const QFileInfo parent(parentDirectory.toLocalFile());
+    if (!parent.isDir()) {
+        setLastError(tr("The selected project location is not a folder."));
+        return false;
+    }
+    const QString bundle_path =
+        QDir(parent.absoluteFilePath()).filePath(directory_name + QStringLiteral(".shape"));
+    if (QFileInfo::exists(bundle_path)) {
+        setLastError(tr("A project with this name already exists in that folder."));
+        return false;
+    }
+    try {
+        replaceSession(shape::desktop::create_desktop_project(to_utf8(bundle_path), to_utf8(name)));
+        setLastError(QString());
+        emit projectChanged();
+        emit candidateChanged();
+        emit operatorDraftsChanged();
+        emit imagePreviewChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create Shape project:" << error.what();
+        setLastError(tr("Could not create the project in this location."));
+        return false;
+    }
+}
+
+bool DesktopBackend::openProject(const QUrl& bundleUrl) {
+    if (!bundleUrl.isLocalFile()) {
+        setLastError(tr("Choose a local .shape project folder."));
+        return false;
+    }
+    const QFileInfo bundle(bundleUrl.toLocalFile());
+    if (!bundle.isDir()) {
+        setLastError(tr("The selected Shape project is not a folder."));
+        return false;
+    }
+    try {
+        replaceSession(shape::desktop::open_desktop_session(to_utf8(bundle.absoluteFilePath())));
+        setLastError(QString());
+        emit projectChanged();
+        emit candidateChanged();
+        emit operatorDraftsChanged();
+        emit imagePreviewChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not open Shape project:" << error.what();
+        setLastError(tr("Could not open this Shape project."));
+        return false;
+    }
+}
+
+bool DesktopBackend::createTextScene(const QString& sceneName, const QString& initialText) {
+    if (session_ == nullptr || sceneName.trimmed().isEmpty() || initialText.trimmed().isEmpty()) {
+        setLastError(tr("Enter a Scene name and some starting text."));
+        return false;
+    }
+    try {
+        applySnapshot(session_->session->session_create_text_document(
+            to_utf8(sceneName.trimmed()),
+            to_utf8(initialText)
+        ));
+        setLastError(QString());
+        emit projectChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create text Scene:" << error.what();
+        setLastError(tr("Could not create the text Scene."));
+        return false;
+    }
+}
+
+QString DesktopBackend::beginOperatorDraft(
+    const QString& artifactId,
+    const QString& operatorTypeKey
+) {
+    if (session_ == nullptr || artifactId.isEmpty() || operatorTypeKey.isEmpty()) {
+        setLastError(tr("Choose a Scene before adding an Operator."));
+        return QString();
+    }
+    try {
+        const auto draft = session_->session->session_begin_operator_draft(
+            to_utf8(artifactId),
+            to_utf8(operatorTypeKey)
+        );
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit operatorDraftsChanged();
+        return from_rust(draft.draft_id);
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not begin Operator draft:" << error.what();
+        setLastError(tr("This Operator cannot use the selected Scene source."));
+        return QString();
+    }
+}
+
+bool DesktopBackend::discardOperatorDraft(const QString& draftId) {
+    if (session_ == nullptr || draftId.isEmpty()) {
+        return false;
+    }
+    try {
+        session_->session->session_discard_operator_draft(to_utf8(draftId));
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not discard Operator draft:" << error.what();
+        setLastError(tr("Could not remove the Operator draft."));
+        return false;
+    }
 }
 
 bool DesktopBackend::importRaster(const QUrl& sourceUrl) {
@@ -446,8 +597,10 @@ bool DesktopBackend::proposeRasterCrop(
         );
         const QString candidate_id = from_rust(candidate.candidate_id);
         applyCandidates(session_->session->session_candidates(), candidate_id);
+        applyOperatorDrafts(session_->session->session_operator_drafts());
         setLastError(QString());
         emit candidateChanged();
+        emit operatorDraftsChanged();
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not create raster crop candidate:" << error.what();
@@ -502,8 +655,10 @@ bool DesktopBackend::proposeTextCandidate(
             session_->session->session_propose_text(to_utf8(artifactId), to_utf8(replacementText));
         const QString candidate_id = from_rust(candidate.candidate_id);
         applyCandidates(session_->session->session_candidates(), candidate_id);
+        applyOperatorDrafts(session_->session->session_operator_drafts());
         setLastError(QString());
         emit candidateChanged();
+        emit operatorDraftsChanged();
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not create desktop candidate:" << error.what();
@@ -588,8 +743,10 @@ DesktopBackend::adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandi
     const auto adopted = session_->session->session_adopt_infer_text(std::move(candidate));
     const QString candidate_id = from_rust(adopted.candidate_id);
     applyCandidates(session_->session->session_candidates(), candidate_id);
+    applyOperatorDrafts(session_->session->session_operator_drafts());
     setLastError(QString());
     emit candidateChanged();
+    emit operatorDraftsChanged();
     return candidate_id;
 }
 
@@ -602,8 +759,10 @@ QString DesktopBackend::adoptInferSpeechCandidate(
     const auto adopted = session_->session->session_adopt_infer_speech(std::move(candidate));
     const QString candidate_id = from_rust(adopted.candidate_id);
     applyCandidates(session_->session->session_candidates(), candidate_id);
+    applyOperatorDrafts(session_->session->session_operator_drafts());
     setLastError(QString());
     emit candidateChanged();
+    emit operatorDraftsChanged();
     return candidate_id;
 }
 
@@ -666,6 +825,27 @@ void DesktopBackend::applySnapshot(shape::desktop::ProjectSnapshotWire snapshot)
     bundle_path_ = from_rust(snapshot.bundle_path);
     artifacts_ = std::move(artifacts);
     graph_edges_ = std::move(graph_edges);
+}
+
+void DesktopBackend::applyOperatorDrafts(
+    rust::Vec<shape::desktop::OperatorDraftWire> drafts
+) {
+    QVariantList projected;
+    projected.reserve(static_cast<qsizetype>(drafts.size()));
+    for (const auto& draft : drafts) {
+        projected.append(operator_draft_projection(draft));
+    }
+    operator_drafts_ = std::move(projected);
+}
+
+void DesktopBackend::replaceSession(rust::Box<shape::desktop::DesktopSession> session) {
+    session_ = std::make_unique<SessionState>(std::move(session));
+    image_preview_store_->clear();
+    accepted_image_source_.clear();
+    candidate_image_source_.clear();
+    applySnapshot(session_->session->session_snapshot());
+    applyCandidates(session_->session->session_candidates());
+    applyOperatorDrafts(session_->session->session_operator_drafts());
 }
 
 void DesktopBackend::applyCandidates(

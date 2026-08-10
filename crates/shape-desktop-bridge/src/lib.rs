@@ -21,7 +21,7 @@ use infer_runtime_access::{infer_runtime_credential_status, install_infer_runtim
 use infer_speech::{InferSpeechCandidate, generate_infer_speech_candidate};
 use infer_text::{InferTextCandidate, generate_infer_text_candidate};
 use operator_graph::project_operator_graph;
-use session::{DesktopSession, open_desktop_session};
+use session::{DesktopSession, create_desktop_project, open_desktop_session};
 
 const MAX_TEXT_PREVIEW_BYTES: usize = 32 * 1024;
 
@@ -79,6 +79,16 @@ mod ffi {
         target_node_id: String,
         target_port_id: String,
         data_type_key: String,
+    }
+
+    /// One session-local Operator entry awaiting its first real Candidate.
+    #[derive(Debug)]
+    struct OperatorDraftWire {
+        draft_id: String,
+        context_artifact_id: String,
+        operator_type_key: String,
+        input_data_type_key: String,
+        output_data_type_key: String,
     }
 
     /// Explicit desktop projection of one current artifact head.
@@ -224,7 +234,22 @@ mod ffi {
         /// owner of transient candidates and the underlying project.
         fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>>;
 
+        /// Creates one new empty `.shape` bundle and opens its desktop session.
+        fn create_desktop_project(path: &str, name: &str) -> Result<Box<DesktopSession>>;
+
         fn session_snapshot(self: &DesktopSession) -> Result<ProjectSnapshotWire>;
+        fn session_create_text_document(
+            self: &mut DesktopSession,
+            artifact_name: &str,
+            initial_text: &str,
+        ) -> Result<ProjectSnapshotWire>;
+        fn session_begin_operator_draft(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            operator_type: &str,
+        ) -> Result<OperatorDraftWire>;
+        fn session_operator_drafts(self: &DesktopSession) -> Vec<OperatorDraftWire>;
+        fn session_discard_operator_draft(self: &mut DesktopSession, draft_id: &str) -> Result<()>;
         fn session_import_raster(
             self: &mut DesktopSession,
             source_path: &str,

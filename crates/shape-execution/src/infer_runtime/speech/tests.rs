@@ -221,6 +221,7 @@ fn unary_wav_becomes_typed_transient_candidate_with_runtime_job_provenance() {
         assert_eq!(request["execution_mode"], "unary");
         assert_eq!(request["metadata"]["infer.placement"], "local_only");
         assert_eq!(request["metadata"]["infer.offline_required"], "true");
+        assert_eq!(request["metadata"]["infer.latency"], "interactive");
         assert_eq!(request["metadata"]["infer.fallback"], "none");
         assert_eq!(request["metadata"]["infer.max_cost_usd"], "0");
         write_wav(&mut speech_stream, "job_shape_speech_1", &served_wav);

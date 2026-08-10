@@ -37,6 +37,7 @@ class DesktopBackend : public QObject {
     Q_PROPERTY(int artifactCount READ artifactCount NOTIFY projectChanged)
     Q_PROPERTY(QVariantList artifacts READ artifacts NOTIFY projectChanged)
     Q_PROPERTY(QVariantList graphEdges READ graphEdges NOTIFY projectChanged)
+    Q_PROPERTY(QVariantList operatorDrafts READ operatorDrafts NOTIFY operatorDraftsChanged)
     Q_PROPERTY(int candidateCount READ candidateCount NOTIFY candidateChanged)
     Q_PROPERTY(QVariantList candidates READ candidates NOTIFY candidateChanged)
     Q_PROPERTY(bool hasCandidate READ hasCandidate NOTIFY candidateChanged)
@@ -64,6 +65,7 @@ class DesktopBackend : public QObject {
     [[nodiscard]] int artifactCount() const;
     [[nodiscard]] QVariantList artifacts() const;
     [[nodiscard]] QVariantList graphEdges() const;
+    [[nodiscard]] QVariantList operatorDrafts() const;
 
     [[nodiscard]] int candidateCount() const;
     [[nodiscard]] QVariantList candidates() const;
@@ -76,6 +78,13 @@ class DesktopBackend : public QObject {
     [[nodiscard]] QString candidateImageSource() const;
     [[nodiscard]] QString lastError() const;
 
+    Q_INVOKABLE bool createProject(const QUrl& parentDirectory, const QString& projectName);
+    Q_INVOKABLE bool openProject(const QUrl& bundleUrl);
+    Q_INVOKABLE bool
+    createTextScene(const QString& sceneName, const QString& initialText);
+    Q_INVOKABLE QString
+    beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey);
+    Q_INVOKABLE bool discardOperatorDraft(const QString& draftId);
     Q_INVOKABLE bool
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);
     Q_INVOKABLE bool importRaster(const QUrl& sourceUrl);
@@ -108,6 +117,7 @@ class DesktopBackend : public QObject {
   signals:
     void projectChanged();
     void candidateChanged();
+    void operatorDraftsChanged();
     void lastErrorChanged();
     void imagePreviewChanged();
 
@@ -115,11 +125,13 @@ class DesktopBackend : public QObject {
     struct SessionState;
 
     void applySnapshot(shape::desktop::ProjectSnapshotWire snapshot);
+    void applyOperatorDrafts(rust::Vec<shape::desktop::OperatorDraftWire> drafts);
     void applyCandidates(
         rust::Vec<shape::desktop::CandidateWire> candidates,
         const QString& preferredCandidateId = QString()
     );
     bool applyCandidateSelection(const QString& candidateId);
+    void replaceSession(rust::Box<shape::desktop::DesktopSession> session);
     void clearCandidateSelection();
     void setLastError(const QString& message);
     [[nodiscard]] QString cacheImagePreview(shape::desktop::ImagePreviewWire preview);
@@ -132,6 +144,7 @@ class DesktopBackend : public QObject {
     QString bundle_path_;
     QVariantList artifacts_;
     QVariantList graph_edges_;
+    QVariantList operator_drafts_;
     QVariantList candidates_;
 
     bool has_candidate_ = false;

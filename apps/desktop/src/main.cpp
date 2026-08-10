@@ -405,6 +405,35 @@ bool verify_infer_runtime_surface(QObject& root_object) {
     return true;
 }
 
+bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) {
+    QTemporaryDir project_parent;
+    if (!project_parent.isValid()
+        || !backend.createProject(
+            QUrl::fromLocalFile(project_parent.path()),
+            QStringLiteral("Desktop Authoring")
+        )
+        || backend.artifactCount() != 0
+        || !backend.createTextScene(
+            QStringLiteral("Opening"),
+            QStringLiteral("A first accepted Scene source.")
+        )
+        || backend.artifactCount() != 1) {
+        std::cerr << "desktop authoring smoke could not create its project and first Scene"
+                  << std::endl;
+        return false;
+    }
+    root_object.setProperty("selectedArtifactIndex", 0);
+    QCoreApplication::processEvents();
+    const QString bundle_path = backend.bundlePath();
+    if (!workspace_host_smoke::verifyOperatorDraftRoute(root_object, backend)
+        || !backend.openProject(QUrl::fromLocalFile(bundle_path))
+        || backend.artifactCount() != 1 || !backend.operatorDrafts().isEmpty()) {
+        std::cerr << "desktop authoring smoke did not reopen without transient drafts" << std::endl;
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -488,8 +517,13 @@ int main(int argc, char* argv[]) {
 #endif
 
     if (arguments->smoke_exit) {
-        if (!verify_infer_runtime_surface(*root_object)
+        const bool began_without_project = !backend->projectOpen();
+        if ((began_without_project && !workspace_host_smoke::verifyProjectWelcome(*root_object))
+            || !verify_infer_runtime_surface(*root_object)
             || !workspace_host_smoke::verifyLocalization(*root_object, ui_preferences)) {
+            return 3;
+        }
+        if (began_without_project && !run_smoke_project_authoring(*backend, *root_object)) {
             return 3;
         }
         if (arguments->project_path.has_value()
