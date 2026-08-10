@@ -52,15 +52,15 @@ QString InferSpeechController::errorCode() const {
 void InferSpeechController::generate(
     const QString& projectPath,
     const QString& sourceArtifactId,
-    const QString& artifactName,
-    int speedMilli
+    const QString& draftId,
+    const QString& artifactName
 ) {
     if (running_) {
         setErrorCode(QStringLiteral("generation_busy"));
         return;
     }
-    if (projectPath.isEmpty() || sourceArtifactId.isEmpty() || artifactName.trimmed().isEmpty()
-        || speedMilli < 250 || speedMilli > 4'000) {
+    if (projectPath.isEmpty() || sourceArtifactId.isEmpty() || draftId.isEmpty()
+        || artifactName.trimmed().isEmpty()) {
         setErrorCode(QStringLiteral("invalid_speech_request"));
         return;
     }
@@ -77,8 +77,8 @@ void InferSpeechController::generate(
                            request_generation,
                            projectPath,
                            sourceArtifactId,
+                           draftId,
                            artifactName,
-                           speedMilli,
                            credential_path,
                            explicit_override]() mutable {
             GenerationResult result;
@@ -89,8 +89,8 @@ void InferSpeechController::generate(
                     shape::desktop::generate_infer_speech_candidate(
                         toUtf8(projectPath),
                         toUtf8(sourceArtifactId),
+                        toUtf8(draftId),
                         toUtf8(artifactName.trimmed()),
-                        static_cast<std::uint16_t>(speedMilli),
                         toUtf8(credential_path),
                         toUtf8(explicit_override)
                     )

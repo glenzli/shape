@@ -3,7 +3,11 @@ use shape_domain::{Artifact, ArtifactKind};
 use super::*;
 use crate::operator_catalog::{
     AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, TEXT_EDIT_OPERATOR, TEXT_TRANSFORM_OPERATOR,
-    descriptor_for, instruction_from_draft,
+    audio_speech_operation_from_draft, descriptor_for, instruction_from_draft, mode_from_draft,
+};
+use shape_execution::{
+    INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
 };
 
 fn accepted_artifact(kind: ArtifactKind) -> Artifact {
@@ -78,8 +82,9 @@ fn project_backed_graphs_restore_exact_draft_identity() {
         )
         .unwrap();
     drafts
-        .update_text_transform_instruction(
+        .update_text_transform_configuration(
             draft.id().as_str(),
+            "polish",
             "Make it warmer, but preserve the title.",
         )
         .unwrap();
@@ -93,11 +98,38 @@ fn project_backed_graphs_restore_exact_draft_identity() {
         instruction_from_draft(entries[0].1).unwrap(),
         "Make it warmer, but preserve the title."
     );
+    assert_eq!(mode_from_draft(entries[0].1).unwrap(), "polish");
     assert!(
         restored
             .clone()
-            .update_text_transform_instruction(draft.id().as_str(), "")
+            .update_text_transform_configuration(draft.id().as_str(), "rewrite", "")
             .is_ok()
+    );
+}
+
+#[test]
+fn legacy_unconfigured_speech_draft_receives_executable_preset_defaults() {
+    let text = accepted_artifact(ArtifactKind::TextDocument);
+    let mut graph = ArtifactWorkingGraph::new(text.id, text.accepted_revision.unwrap());
+    let legacy = graph
+        .add_operator(
+            OperatorTypeId::new(AUDIO_SPEECH_OPERATOR).unwrap(),
+            OperatorDataTypeId::new("text.document").unwrap(),
+            OperatorDataTypeId::new("audio.clip").unwrap(),
+        )
+        .unwrap();
+    assert!(legacy.configuration().is_none());
+    let mut drafts = OperatorDrafts::from_graphs(vec![graph]).unwrap();
+    let changed = drafts.initialize_audio_speech_defaults().unwrap();
+    assert_eq!(changed.len(), 1);
+    let restored = drafts.entries().next().unwrap().1;
+    assert_eq!(restored.id(), legacy.id());
+    assert_eq!(
+        audio_speech_operation_from_draft(restored)
+            .unwrap()
+            .unwrap()
+            .speed_milli,
+        1_000
     );
 }
 
@@ -113,7 +145,76 @@ fn configuration_is_rejected_for_the_wrong_operator_family() {
         .unwrap();
     assert!(
         drafts
-            .update_text_transform_instruction(edit.id().as_str(), "Make it warmer.")
+            .update_text_transform_configuration(edit.id().as_str(), "rewrite", "Make it warmer.",)
+            .is_err()
+    );
+}
+
+#[test]
+fn speech_draft_starts_configured_and_restores_exact_authored_pace() {
+    let text = accepted_artifact(ArtifactKind::TextDocument);
+    let mut drafts = OperatorDrafts::default();
+    let draft = drafts
+        .begin(
+            &text,
+            descriptor_for(text.kind, AUDIO_SPEECH_OPERATOR).unwrap(),
+        )
+        .unwrap();
+    let initial = audio_speech_operation_from_draft(&draft)
+        .unwrap()
+        .expect("new speech draft has executable defaults");
+    assert_eq!(initial.speed_milli, 1_000);
+    let (_, updated) = drafts
+        .update_audio_speech_configuration(
+            draft.id().as_str(),
+            INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+            INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
+            INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+            1_200,
+            true,
+        )
+        .unwrap();
+    assert_eq!(
+        audio_speech_operation_from_draft(&updated)
+            .unwrap()
+            .unwrap()
+            .speed_milli,
+        1_200
+    );
+
+    let restored = OperatorDrafts::from_graphs(vec![drafts.graph(text.id).unwrap().clone()])
+        .expect("configured speech draft restores");
+    let restored = restored.entries().next().unwrap().1;
+    assert_eq!(restored.id(), draft.id());
+    assert_eq!(
+        audio_speech_operation_from_draft(restored)
+            .unwrap()
+            .unwrap()
+            .speed_milli,
+        1_200
+    );
+}
+
+#[test]
+fn speech_configuration_rejects_other_operator_families() {
+    let text = accepted_artifact(ArtifactKind::TextDocument);
+    let mut drafts = OperatorDrafts::default();
+    let edit = drafts
+        .begin(
+            &text,
+            descriptor_for(text.kind, TEXT_EDIT_OPERATOR).unwrap(),
+        )
+        .unwrap();
+    assert!(
+        drafts
+            .update_audio_speech_configuration(
+                edit.id().as_str(),
+                INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+                INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
+                INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+                1_000,
+                true,
+            )
             .is_err()
     );
 }

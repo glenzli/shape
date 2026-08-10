@@ -91,7 +91,13 @@ mod ffi {
         input_data_type_key: String,
         output_data_type_key: String,
         configuration_schema: String,
+        text_transform_mode: String,
         text_transform_instruction: String,
+        audio_speech_preset_alias: String,
+        audio_speech_preset_catalog_revision: String,
+        audio_speech_language: String,
+        audio_speech_speed_milli: u16,
+        audio_speech_disclosure_required: bool,
     }
 
     /// One Rust-owned Operator descriptor compatible with an accepted source.
@@ -228,7 +234,7 @@ mod ffi {
         fn generate_infer_text_candidate(
             project_path: &str,
             artifact_id: &str,
-            prompt: &str,
+            draft_id: &str,
             credential_path: &str,
             explicit_override: &str,
         ) -> Result<Box<InferTextCandidate>>;
@@ -237,8 +243,8 @@ mod ffi {
         fn generate_infer_speech_candidate(
             project_path: &str,
             source_artifact_id: &str,
+            draft_id: &str,
             artifact_name: &str,
-            speed_milli: u16,
             credential_path: &str,
             explicit_override: &str,
         ) -> Result<Box<InferSpeechCandidate>>;
@@ -265,7 +271,17 @@ mod ffi {
         fn session_update_text_transform_draft(
             self: &mut DesktopSession,
             draft_id: &str,
+            mode_key: &str,
             instruction: &str,
+        ) -> Result<OperatorDraftWire>;
+        fn session_update_audio_speech_draft(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            preset_alias: &str,
+            preset_catalog_revision: &str,
+            language: &str,
+            speed_milli: u16,
+            synthetic_disclosure_required: bool,
         ) -> Result<OperatorDraftWire>;
         fn session_operator_descriptors(
             self: &DesktopSession,

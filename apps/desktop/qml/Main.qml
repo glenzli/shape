@@ -286,10 +286,27 @@ ApplicationWindow {
                         contextInspector.currentPage = 0
                     }
                 }
-                onSpeechSynthesisRequested: (sourceArtifactId, artifactName, speedMilli) => {
-                    window.inferSpeech.generate(
-                        window.backend.bundlePath, sourceArtifactId,
-                        artifactName, speedMilli)
+                onSpeechDraftSaveRequested: (draftId, presetAlias,
+                                             presetCatalogRevision, language,
+                                             speedMilli,
+                                             syntheticDisclosureRequired) => {
+                    window.backend.updateAudioSpeechDraft(
+                        draftId, presetAlias, presetCatalogRevision,
+                        language, speedMilli, syntheticDisclosureRequired)
+                }
+                onSpeechSynthesisRequested: (sourceArtifactId, draftId,
+                                             artifactName, presetAlias,
+                                             presetCatalogRevision, language,
+                                             speedMilli,
+                                             syntheticDisclosureRequired) => {
+                    if (window.backend.updateAudioSpeechDraft(
+                            draftId, presetAlias, presetCatalogRevision,
+                            language, speedMilli,
+                            syntheticDisclosureRequired)) {
+                        window.inferSpeech.generate(
+                            window.backend.bundlePath, sourceArtifactId,
+                            draftId, artifactName)
+                    }
                 }
                 onOperatorDraftRequested: operatorTypeKey => {
                     if (!window.hasSelectedArtifact) return
@@ -327,6 +344,9 @@ ApplicationWindow {
                                  ? workspaceSurface.selectedDraft.id : ""
                 operatorTypeKey: workspaceSurface.selectedDraft !== null
                                  ? workspaceSurface.selectedDraft.operatorTypeKey : ""
+                textTransformMode: workspaceSurface.selectedDraft !== null
+                                   ? workspaceSurface.selectedDraft
+                                     .textTransformMode : "rewrite"
                 textTransformInstruction: workspaceSurface.selectedDraft !== null
                                           ? workspaceSurface.selectedDraft
                                             .textTransformInstruction : ""
@@ -336,12 +356,19 @@ ApplicationWindow {
                 runtimeContractVersion: window.inferRuntime.contractVersion
                 runtimeEndpointSource: window.inferRuntime.endpointSource
                 onRuntimeRefreshRequested: window.inferRuntime.refresh()
-                onInferCandidateRequested: (artifactId, prompt) => {
-                    window.inferText.generate(
-                        window.backend.bundlePath, artifactId, prompt)
+                onInferCandidateRequested: (artifactId, draftId, modeKey,
+                                            instruction) => {
+                    if (window.backend.updateTextTransformDraft(
+                            draftId, modeKey, instruction)) {
+                        window.inferText.generate(
+                            window.backend.bundlePath, artifactId, draftId)
+                    }
                 }
-                onTextTransformDraftSaveRequested: (draftId, instruction) => {
-                    window.backend.updateTextTransformDraft(draftId, instruction)
+                onTextTransformDraftConfigurationSaveRequested: (draftId,
+                                                                  modeKey,
+                                                                  instruction) => {
+                    window.backend.updateTextTransformDraft(
+                        draftId, modeKey, instruction)
                 }
                 onCandidateRequested: (artifactId, replacementText) => {
                     if (window.backend.proposeTextCandidate(artifactId, replacementText)) {

@@ -39,5 +39,6 @@ pub use provenance::{
     ExternalAttemptProvenance, ExternalExecutionProvenance, ExternalRoutingCandidate,
 };
 pub use raster::{
-    RASTER_CROP_CAPABILITY, RASTER_IMPORT_CAPABILITY, RasterCropExecutor, RasterExecutor,
+    RASTER_CROP_CAPABILITY, RASTER_IMPORT_CAPABILITY, RASTER_RESIZE_CAPABILITY, RasterCropExecutor,
+    RasterExecutor, RasterResizeExecutor,
 };

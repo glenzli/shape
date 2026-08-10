@@ -31,9 +31,9 @@ Item {
 
     readonly property bool hasSelectedArtifact: selectedArtifact !== null
     readonly property var graphNodes: hasSelectedArtifact
-                                      ? selectedArtifact.operatorNodes : []
+                                      ? (selectedArtifact.operatorNodes || []) : []
     readonly property var graphEdges: hasSelectedArtifact
-                                      ? selectedArtifact.operatorEdges : []
+                                      ? (selectedArtifact.operatorEdges || []) : []
     readonly property bool graphActive: currentMode === 0
     readonly property bool focusActive: currentMode === 1
     readonly property bool editWorkspaceActive: focusActive
@@ -60,13 +60,26 @@ Item {
         }
         return null
     }
-    readonly property var selectedDraft: draftForId(selectedNodeId)
+    readonly property var selectedDraft: {
+        const draftId = selectedNodeId
+        const drafts = operatorDrafts || []
+        for (let index = 0; index < drafts.length; ++index) {
+            if (drafts[index].id === draftId) return drafts[index]
+        }
+        return null
+    }
 
     signal sceneSelected(int index)
     signal candidateSelected(string candidateId)
     signal candidateReviewRequested(string candidateId)
     signal cropRequested(string artifactId, int x, int y, int width, int height)
-    signal speechSynthesisRequested(string sourceArtifactId, string artifactName, int speedMilli)
+    signal speechDraftSaveRequested(string draftId, string presetAlias,
+                                    string presetCatalogRevision, string language,
+                                    int speedMilli, bool syntheticDisclosureRequired)
+    signal speechSynthesisRequested(string sourceArtifactId, string draftId,
+                                    string artifactName, string presetAlias,
+                                    string presetCatalogRevision, string language,
+                                    int speedMilli, bool syntheticDisclosureRequired)
     signal operatorDraftRequested(string operatorTypeKey)
     signal operatorDraftDiscardRequested(string draftId)
 
@@ -98,13 +111,18 @@ Item {
                 || !selectedArtifact.hasAcceptedRevision) {
             return false
         }
+        const speechDraft = speechDraftForArtifact(selectedArtifact.id)
+        const nodeId = speechDraft !== null
+                       ? speechDraft.id
+                       : "draft.audio.speech." + selectedArtifact.id
         if (!operatorWorkspaceHost.openWorkspace(
-                "draft.audio.speech." + selectedArtifact.id,
+                nodeId,
                 "operator", "audio.speech_synthesize", selectedArtifact.id,
                 selectedArtifact.acceptedRevisionId, "")) {
             return false
         }
         currentMode = 1
+        Qt.callLater(surface.refreshSpeechDraftProjection)
         return true
     }
 
@@ -130,10 +148,50 @@ Item {
     }
 
     function draftForId(draftId) : var {
-        for (let index = 0; index < operatorDrafts.length; ++index) {
-            if (operatorDrafts[index].id === draftId) return operatorDrafts[index]
+        const drafts = operatorDrafts || []
+        for (let index = 0; index < drafts.length; ++index) {
+            if (drafts[index].id === draftId) return drafts[index]
         }
         return null
+    }
+
+    function speechDraftForArtifact(artifactId) : var {
+        const drafts = operatorDrafts || []
+        for (let index = 0; index < drafts.length; ++index) {
+            const draft = drafts[index]
+            if (draft.contextArtifactId === artifactId
+                    && draft.operatorTypeKey === "audio.speech_synthesize") {
+                return draft
+            }
+        }
+        return null
+    }
+
+    function projectSpeechDraft(workspace) : void {
+        if (!workspace || workspace.objectName !== "audioSpeechOperatorWorkspace") {
+            return
+        }
+        const draft = draftForId(operatorWorkspaceHost.openedNodeId)
+        if (draft === null
+                || draft.operatorTypeKey !== "audio.speech_synthesize") {
+            workspace.operatorDraftId = ""
+            workspace.presetAlias = ""
+            workspace.presetCatalogRevision = ""
+            workspace.language = ""
+            workspace.speedMilli = 0
+            workspace.syntheticDisclosureRequired = false
+            return
+        }
+        workspace.operatorDraftId = draft.id
+        workspace.presetAlias = draft.audioSpeechPresetAlias
+        workspace.presetCatalogRevision = draft.audioSpeechPresetCatalogRevision
+        workspace.language = draft.audioSpeechLanguage
+        workspace.speedMilli = draft.audioSpeechSpeedMilli
+        workspace.syntheticDisclosureRequired = draft.audioSpeechDisclosureRequired
+    }
+
+    function refreshSpeechDraftProjection() : void {
+        projectSpeechDraft(operatorWorkspaceHost.loadedWorkspace)
     }
 
     function openNode(nodeId) : bool {
@@ -162,27 +220,44 @@ Item {
             return false
         }
         currentMode = 1
+        Qt.callLater(surface.refreshSpeechDraftProjection)
         return true
     }
 
     function synchronizeNodeSelection() : void {
-        for (let index = 0; index < graphNodes.length; ++index) {
-            if (graphNodes[index].id === selectedNodeId) return
+        const nodes = graphNodes || []
+        for (let index = 0; index < nodes.length; ++index) {
+            if (nodes[index].id === selectedNodeId) return
         }
         if (draftForId(selectedNodeId) !== null) return
         selectedNodeId = ""
-        for (let index = 0; index < graphNodes.length; ++index) {
-            if (graphNodes[index].roleKey === "output") {
-                selectedNodeId = graphNodes[index].id
+        for (let index = 0; index < nodes.length; ++index) {
+            if (nodes[index].roleKey === "output") {
+                selectedNodeId = nodes[index].id
                 return
             }
         }
-        if (graphNodes.length > 0) selectedNodeId = graphNodes[0].id
+        if (nodes.length > 0) selectedNodeId = nodes[0].id
     }
 
     onSelectedArtifactChanged: synchronizeNodeSelection()
     onGraphNodesChanged: synchronizeNodeSelection()
-    onOperatorDraftsChanged: synchronizeNodeSelection()
+    onOperatorDraftsChanged: {
+        synchronizeNodeSelection()
+        refreshSpeechDraftProjection()
+    }
+
+    Connections {
+        target: operatorWorkspaceHost
+
+        function onWorkspaceLoaded(workspace) : void {
+            surface.projectSpeechDraft(workspace)
+        }
+
+        function onOpenedNodeIdChanged() : void {
+            surface.refreshSpeechDraftProjection()
+        }
+    }
 
     Component {
         id: textEditOperatorWorkspace
@@ -264,7 +339,6 @@ Item {
                                           .transformationInputArtifactIds[0]
                                       : operatorWorkspaceHost.openedArtifactId
             property var sourceArtifact: surface.artifactForId(sourceId)
-
             inferSpeech: surface.inferSpeech
             audioPreview: surface.audioPreview
             projectPath: surface.projectPath
@@ -274,6 +348,7 @@ Item {
                         ? sourceArtifact.textPreview : ""
             canGenerate: !selectedIsAcceptedAudio && sourceArtifact !== null
                          && sourceArtifact.kindKey === "text_document"
+                         && operatorDraftId.length > 0
             credentialConfigured: surface.inferCredentialConfigured
             acceptedAudioArtifactId: selectedIsAcceptedAudio
                                      ? surface.selectedArtifact.id : ""
@@ -288,9 +363,24 @@ Item {
             candidate: surface.candidateForSelected
                        && surface.selectedCandidate.hasAudioPreview
                        ? surface.selectedCandidate : null
-            onSynthesizeRequested: (sourceArtifactId, artifactName, speedMilli) =>
+
+            onDraftSaveRequested: (draftId, presetAlias, presetCatalogRevision,
+                                   language, speedMilli,
+                                   syntheticDisclosureRequired) =>
+                                      surface.speechDraftSaveRequested(
+                                          draftId, presetAlias,
+                                          presetCatalogRevision, language,
+                                          speedMilli,
+                                          syntheticDisclosureRequired)
+            onSynthesizeRequested: (sourceArtifactId, draftId, artifactName,
+                                    presetAlias, presetCatalogRevision,
+                                    language, speedMilli,
+                                    syntheticDisclosureRequired) =>
                                       surface.speechSynthesisRequested(
-                                          sourceArtifactId, artifactName, speedMilli)
+                                          sourceArtifactId, draftId, artifactName,
+                                          presetAlias, presetCatalogRevision,
+                                          language, speedMilli,
+                                          syntheticDisclosureRequired)
         }
     }
 

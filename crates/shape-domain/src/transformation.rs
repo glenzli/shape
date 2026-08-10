@@ -5,7 +5,8 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArtifactId, DomainError, RasterCrop, RevisionId, SpeechSynthesisOperation, TransformationId,
+    ArtifactId, DomainError, RasterCrop, RasterResize, RevisionId, SpeechSynthesisOperation,
+    TransformationId,
 };
 
 const MAX_INTENT_BYTES: usize = 4_096;
@@ -37,6 +38,7 @@ pub enum TransformationKind {
 #[serde(tag = "operation", content = "parameters", rename_all = "snake_case")]
 pub enum TransformationOperation {
     RasterCrop(RasterCrop),
+    RasterResize(RasterResize),
     AudioSpeechSynthesis(SpeechSynthesisOperation),
 }
 
@@ -245,9 +247,9 @@ impl Transformation {
         }
         let operation_matches_kind = match &operation {
             None => true,
-            Some(TransformationOperation::RasterCrop(_)) => {
-                kind == TransformationKind::DeterministicEdit
-            }
+            Some(
+                TransformationOperation::RasterCrop(_) | TransformationOperation::RasterResize(_),
+            ) => kind == TransformationKind::DeterministicEdit,
             Some(TransformationOperation::AudioSpeechSynthesis(_)) => {
                 kind == TransformationKind::GenerativeEdit
             }

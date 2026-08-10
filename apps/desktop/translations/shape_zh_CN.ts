@@ -965,13 +965,13 @@
     </message>
     <message>
         <location line="+21"/>
-        <source>Describe how AI should rewrite this text…</source>
-        <translation>描述希望 AI 如何改写这段文字…</translation>
+        <source>Describe how AI should transform this text…</source>
+        <translation>描述希望 AI 如何处理这段文字…</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>AI rewrite instruction</source>
-        <translation>AI 改写指令</translation>
+        <source>AI transform instruction</source>
+        <translation>AI 变换指令</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -980,8 +980,33 @@
     </message>
     <message>
         <location line="+0"/>
-        <source>Rewrite with AI</source>
-        <translation>使用 AI 改写</translation>
+        <source>Transform with AI</source>
+        <translation>使用 AI 变换</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="+0"/>
+        <source>Mode</source>
+        <translation>模式</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="+0"/>
+        <source>Rewrite</source>
+        <translation>改写</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="+0"/>
+        <source>Expand</source>
+        <translation>扩写</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="+0"/>
+        <source>Polish</source>
+        <translation>润色</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="+0"/>
+        <source>Shorten</source>
+        <translation>精简</translation>
     </message>
     <message>
         <location line="+35"/>

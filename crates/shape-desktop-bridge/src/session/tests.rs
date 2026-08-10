@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 use super::{create_desktop_project, open_desktop_session};
 use crate::infer_speech::InferSpeechCandidate;
+use crate::operator_catalog::AUDIO_SPEECH_OPERATOR;
 
 #[derive(Debug)]
 struct BridgeSpeechExecutor {
@@ -238,7 +239,7 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
 }
 
 #[test]
-fn text_transform_instruction_restores_with_its_exact_draft_identity() {
+fn text_transform_configuration_restores_with_its_exact_draft_identity() {
     let root = test_root();
     let path = root.to_str().expect("portable path");
     let mut session = create_desktop_project(path, "Transform Draft").expect("project creates");
@@ -252,10 +253,12 @@ fn text_transform_instruction_restores_with_its_exact_draft_identity() {
     let updated = session
         .session_update_text_transform_draft(
             &draft.draft_id,
+            "polish",
             "  Make it warmer, but preserve the title.  ",
         )
         .expect("instruction saves");
     assert_eq!(updated.draft_id, draft.draft_id);
+    assert_eq!(updated.text_transform_mode, "polish");
     assert_eq!(
         updated.text_transform_instruction,
         "  Make it warmer, but preserve the title.  "
@@ -267,15 +270,98 @@ fn text_transform_instruction_restores_with_its_exact_draft_identity() {
     let restored = reopened.session_operator_drafts();
     assert_eq!(restored.len(), 1);
     assert_eq!(restored[0].draft_id, draft.draft_id);
+    assert_eq!(restored[0].text_transform_mode, "polish");
     assert_eq!(
         restored[0].text_transform_instruction,
         "  Make it warmer, but preserve the title.  "
     );
     let cleared = reopened
-        .session_update_text_transform_draft(&draft.draft_id, "")
+        .session_update_text_transform_draft(&draft.draft_id, "rewrite", "")
         .expect("instruction clears");
+    assert_eq!(cleared.text_transform_mode, "rewrite");
     assert!(cleared.text_transform_instruction.is_empty());
     assert!(cleared.configuration_schema.is_empty());
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
+fn speech_draft_configuration_persists_and_failed_stale_save_rolls_back() {
+    let root = test_root();
+    let path = root.to_str().expect("portable path");
+    let mut session = create_desktop_project(path, "Speech Draft").expect("project creates");
+    let snapshot = session
+        .session_create_text_document("Opening", "A first line.")
+        .expect("text scene creates");
+    let artifact_id = snapshot.artifacts[0].id.clone();
+    let draft = session
+        .session_begin_operator_draft(&artifact_id, AUDIO_SPEECH_OPERATOR)
+        .expect("speech draft begins with executable defaults");
+    assert_eq!(
+        draft.audio_speech_preset_alias,
+        INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1
+    );
+    assert_eq!(
+        draft.audio_speech_preset_catalog_revision,
+        INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION
+    );
+    assert_eq!(
+        draft.audio_speech_language,
+        INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE
+    );
+    assert_eq!(draft.audio_speech_speed_milli, 1_000);
+    assert!(draft.audio_speech_disclosure_required);
+    let updated = session
+        .session_update_audio_speech_draft(
+            &draft.draft_id,
+            INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+            INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
+            INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+            1_150,
+            true,
+        )
+        .expect("speech configuration saves");
+    assert_eq!(updated.audio_speech_speed_milli, 1_150);
+    drop(session);
+
+    let mut reopened = open_desktop_session(path).expect("project reopens");
+    let restored = reopened.session_operator_drafts();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].draft_id, draft.draft_id);
+    assert_eq!(restored[0].audio_speech_speed_milli, 1_150);
+    assert!(restored[0].audio_speech_disclosure_required);
+
+    let artifact_id = artifact_id.parse::<shape_domain::ArtifactId>().unwrap();
+    let expected_head = reopened.project.snapshot().unwrap().artifacts[0]
+        .accepted_revision
+        .unwrap();
+    let newer = reopened
+        .project
+        .propose_text(
+            artifact_id,
+            Some(expected_head),
+            "A newer accepted line.",
+            IntentSpec::new("Advance source behind stale Working Graph").unwrap(),
+            Vec::new(),
+        )
+        .unwrap();
+    reopened.project.accept_text(newer).unwrap();
+    assert!(
+        reopened
+            .session_update_audio_speech_draft(
+                &draft.draft_id,
+                INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+                INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
+                INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+                900,
+                true,
+            )
+            .is_err()
+    );
+    assert_eq!(
+        reopened.session_operator_drafts()[0].audio_speech_speed_milli,
+        1_150,
+        "a failed durable save restores the complete in-memory draft"
+    );
     fs::remove_dir_all(root).expect("fixture removes");
 }
 

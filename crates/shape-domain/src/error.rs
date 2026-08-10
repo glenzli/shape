@@ -64,6 +64,16 @@ pub enum DomainError {
         source_width: u32,
         source_height: u32,
     },
+    /// Resize dimensions exceeded a portable axis or total-pixel bound.
+    #[error(
+        "resize dimensions must be within 1..={maximum_dimension} and at most {maximum_pixels} pixels; received {width}x{height}"
+    )]
+    InvalidRasterResizeDimensions {
+        width: u32,
+        height: u32,
+        maximum_dimension: u32,
+        maximum_pixels: u64,
+    },
     /// A typed operation was attached to an incompatible transformation family.
     #[error("typed operation is incompatible with its transformation family")]
     InvalidTransformationOperation,

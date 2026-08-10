@@ -2,15 +2,10 @@
 //! session, then adopted through its stale-source Candidate Shelf boundary.
 
 use shape_core::{AudioCandidate, CoreError, ShapeProject};
-use shape_domain::{
-    ArtifactId, PresetVoiceAlias, PresetVoiceSelection, SpeechSynthesisOperation,
-    SpeechVoiceSelection,
-};
-use shape_execution::{
-    ExecutionError, INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
-    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
-    InferRuntimeCredentialStore, InferRuntimeSpeechExecutor,
-};
+use shape_domain::{ArtifactId, OperatorNodeId};
+use shape_execution::{ExecutionError, InferRuntimeCredentialStore, InferRuntimeSpeechExecutor};
+
+use crate::operator_catalog::{AUDIO_SPEECH_OPERATOR, audio_speech_operation_from_draft};
 
 /// Opaque ownership of one fully executed but still transient speech Candidate.
 #[derive(Debug)]
@@ -31,14 +26,16 @@ impl InferSpeechCandidate {
 pub(super) fn generate_infer_speech_candidate(
     project_path: &str,
     source_artifact_id: &str,
+    draft_id: &str,
     artifact_name: &str,
-    speed_milli: u16,
     credential_path: &str,
     explicit_override: &str,
 ) -> Result<Box<InferSpeechCandidate>, String> {
     let source_artifact_id = source_artifact_id
         .parse::<ArtifactId>()
         .map_err(|_| "invalid_artifact".to_owned())?;
+    let draft_id =
+        OperatorNodeId::new(draft_id).map_err(|_| "invalid_operator_draft".to_owned())?;
     let project = ShapeProject::open(project_path).map_err(|_| "project_unavailable".to_owned())?;
     let source = project
         .snapshot()
@@ -50,20 +47,25 @@ pub(super) fn generate_infer_speech_candidate(
     let expected_source_head = source
         .accepted_revision
         .ok_or_else(|| "missing_accepted_revision".to_owned())?;
-    let operation = SpeechSynthesisOperation::new(
-        INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
-        SpeechVoiceSelection::Preset(
-            PresetVoiceSelection::new(
-                PresetVoiceAlias::new(INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1)
-                    .map_err(|_| "speech_preset_invalid".to_owned())?,
-                INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
-            )
-            .map_err(|_| "speech_preset_invalid".to_owned())?,
-        ),
-        speed_milli,
-        true,
-    )
-    .map_err(|_| "invalid_speech_request".to_owned())?;
+    let graph = project
+        .artifact_working_graphs()
+        .map_err(|_| "project_unavailable".to_owned())?
+        .into_iter()
+        .find(|graph| graph.context_artifact_id() == source_artifact_id)
+        .ok_or_else(|| "invalid_operator_draft".to_owned())?;
+    if graph.expected_revision_id() != expected_source_head {
+        return Err("stale_candidate".to_owned());
+    }
+    let draft = graph
+        .operators()
+        .iter()
+        .find(|draft| {
+            draft.id() == &draft_id && draft.operator_type().as_str() == AUDIO_SPEECH_OPERATOR
+        })
+        .ok_or_else(|| "invalid_operator_draft".to_owned())?;
+    let operation = audio_speech_operation_from_draft(draft)
+        .map_err(|_| "invalid_speech_request".to_owned())?
+        .ok_or_else(|| "speech_draft_unconfigured".to_owned())?;
     let credential = InferRuntimeCredentialStore::new(credential_path)
         .load()
         .map_err(|error| crate::infer_runtime_access::credential_error_code(&error).to_owned())?;
@@ -107,8 +109,10 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::InvalidRasterSource { .. }
         | CoreError::InvalidRasterContent { .. }
         | CoreError::NoOpRasterCrop
+        | CoreError::NoOpRasterResize
         | CoreError::MissingRasterOutputContract
         | CoreError::RasterCropOutputContractMismatch
+        | CoreError::RasterResizeOutputContractMismatch
         | CoreError::Execution(_) => "execution_invalid".to_owned(),
     }
 }

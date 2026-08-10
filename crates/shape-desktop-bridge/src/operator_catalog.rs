@@ -5,10 +5,18 @@
 
 use shape_domain::ArtifactKind;
 
+mod audio_speech;
 mod text_transform;
 
+use audio_speech::validate_audio_speech_configuration;
+pub(crate) use audio_speech::{
+    audio_speech_operation_from_draft, configuration_for_audio_speech,
+    default_audio_speech_configuration,
+};
 use text_transform::validate_text_transform_configuration;
-pub(crate) use text_transform::{configuration_for_instruction, instruction_from_draft};
+pub(crate) use text_transform::{
+    configuration_for_mode_and_instruction, instruction_from_draft, mode_from_draft,
+};
 
 pub(crate) const AUDIO_SPEECH_OPERATOR: &str = "audio.speech_synthesize";
 pub(crate) const IMAGE_CROP_OPERATOR: &str = "image.crop";
@@ -85,6 +93,9 @@ pub(crate) fn validate_draft_configuration(
     draft: &shape_domain::WorkingOperatorDraft,
 ) -> Result<(), String> {
     match (draft.operator_type().as_str(), draft.configuration()) {
+        (AUDIO_SPEECH_OPERATOR, configuration) => {
+            validate_audio_speech_configuration(configuration)
+        }
         (TEXT_TRANSFORM_OPERATOR, configuration) => {
             validate_text_transform_configuration(configuration)
         }

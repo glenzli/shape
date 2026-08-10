@@ -36,8 +36,8 @@ class InferSpeechController : public QObject {
     Q_INVOKABLE void generate(
         const QString& projectPath,
         const QString& sourceArtifactId,
-        const QString& artifactName,
-        int speedMilli
+        const QString& draftId,
+        const QString& artifactName
     );
 
   signals:

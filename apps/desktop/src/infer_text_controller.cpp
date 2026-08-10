@@ -58,7 +58,7 @@ QString InferTextController::errorCode() const {
 void InferTextController::generate(
     const QString& projectPath,
     const QString& artifactId,
-    const QString& prompt
+    const QString& draftId
 ) {
     if (running_) {
         setErrorCode(QStringLiteral("generation_busy"));
@@ -68,7 +68,7 @@ void InferTextController::generate(
         setErrorCode(QStringLiteral("credential_missing"));
         return;
     }
-    if (projectPath.isEmpty() || artifactId.isEmpty() || prompt.isEmpty()) {
+    if (projectPath.isEmpty() || artifactId.isEmpty() || draftId.isEmpty()) {
         setErrorCode(QStringLiteral("invalid_prompt"));
         return;
     }
@@ -85,7 +85,7 @@ void InferTextController::generate(
                            request_generation,
                            projectPath,
                            artifactId,
-                           prompt,
+                           draftId,
                            credential_path,
                            explicit_override]() mutable {
             GenerationResult result;
@@ -96,7 +96,7 @@ void InferTextController::generate(
                     shape::desktop::generate_infer_text_candidate(
                         toUtf8(projectPath),
                         toUtf8(artifactId),
-                        toUtf8(prompt),
+                        toUtf8(draftId),
                         toUtf8(credential_path),
                         toUtf8(explicit_override)
                     )

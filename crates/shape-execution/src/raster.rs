@@ -1,6 +1,7 @@
 //! Bounded PNG/JPEG normalization and canonical raster materialization.
 
 mod crop;
+mod resize;
 
 use std::io::Cursor;
 
@@ -18,6 +19,7 @@ use crate::{
 };
 
 pub use crop::{RASTER_CROP_CAPABILITY, RasterCropExecutor};
+pub use resize::{RASTER_RESIZE_CAPABILITY, RasterResizeExecutor};
 
 pub const RASTER_IMPORT_CAPABILITY: &str = "image.raster.import";
 const RASTER_MEDIA_TYPE: &str = "image/png";

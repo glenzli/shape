@@ -92,6 +92,13 @@ cache. `RasterCropOperatorWorkspace.qml` owns direct crop gestures, while `Image
 owns accepted-versus-candidate presentation. Image branching, composites, masks, color adjustment,
 external editors, and model-backed image operations remain
 deferred until a concrete consumer freezes each contract.
+`shape-domain::image_resize` now separately owns the typed `image.resize` dimensions, aspect, and
+resampling contract. One opaque prepared plan carries its validated source and output interpretation
+into `shape-execution::raster::resize`; request JSON cannot reinterpret it. The executor accepts only
+materialized canonical PNG, preserves alpha/color/ICC interpretation, and applies explicit 32K-axis
+and 64-Mi-pixel bounds. `shape-core::project::image::raster_resize` owns the corresponding transient
+Candidate and explicit Accept use case. This Rust vertical slice is deliberately absent from the
+desktop catalog until a real resize workspace consumes it.
 
 The first audio foundation continues those same dependency directions without introducing a media
 kernel. `shape-domain::audio` owns `audio.generate`,
@@ -163,10 +170,14 @@ accepted head. Unexecuted drafts restore on reopen without becoming accepted nod
 closed. `shape-desktop-bridge::operator_catalog` owns the currently executable compatibility and
 machine routing descriptors, while QML owns localized labels and search. Full persistent Scene graph
 `shape-domain::working_graph` also owns a bounded versioned JSON envelope for mutable Operator-owned
-configuration without interpreting media semantics. `operator_catalog::text_transform` is its first
-real validator and the desktop checkpoints exact rewrite instructions back to the project. General
-Operator parameters, full persistent Scene graph mutation, connections, a real multi-output flow, and
-reusable GraphComponent instances remain deferred until their real consumers freeze those contracts.
+configuration without interpreting media semantics. `operator_catalog::text_transform` validates
+the exact rewrite/expand/polish/shorten mode plus instruction contract, including legacy rewrite-only
+configuration, while `operator_catalog::audio_speech` validates the preset, language, pace, and
+mandatory disclosure contract. Both Infer controllers execute from an exact project-backed draft
+identity and re-read its Working Graph configuration instead of trusting a QML projection. General
+Operator parameters, full persistent Scene graph mutation, connections, a real multi-output flow,
+and reusable GraphComponent instances remain deferred until their real consumers freeze those
+contracts.
 
 Developer launch lifecycle is a separate repository-tooling owner under `scripts/`. A validated
 candidate app is copied into an immutable revision-stamped release, then a product-side lock guards

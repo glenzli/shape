@@ -37,8 +37,10 @@ a compact selection summary, and a searchable media-compatible Operator palette.
 uses a Rust-owned Operator catalog, asks the session to begin only type-compatible Operator drafts,
 and immediately enters the dedicated Operator workspace. Unexecuted drafts are stored in the
 project's mutable Working Graph, restore with the same identity on reopen, and remain outside
-accepted history. `text.transform` additionally checkpoints its exact authored rewrite instruction
-through a versioned Operator-owned contract, so reopening the draft restores useful editor state.
+accepted history. `text.transform` additionally checkpoints one of rewrite, expand, polish, or
+shorten together with its exact authored instruction through a versioned Operator-owned contract.
+The Infer Text controller receives only the draft identity; Rust reopens the Working Graph and
+revalidates the persisted mode and instruction before execution.
 A successful execution removes the draft and creates a transient Candidate ghost.
 Pending candidates remain outside the durable accepted graph until explicit acceptance or branching.
 
@@ -86,8 +88,11 @@ new audio target to the shelf. Candidate projection distinguishes target Artifac
 the source Artifact that owns review context. `AudioPreviewController` separately owns one selected
 WAV allocation, `QBuffer`, `QMediaPlayer`, position, seek, and terminal playback errors; ordinary
 snapshots and QML never carry encoded audio. `AudioSpeechOperatorWorkspace.qml` owns voice-preset,
-pace, naming, disclosure, generation, and audition presentation. This is a preview surface, not the
-future Echo-backed composition/render engine.
+pace, naming, disclosure, generation, and audition presentation. Preset, catalog, language, pace,
+and mandatory synthetic disclosure are stored as one exact Operator-owned configuration. Legacy
+speech drafts receive and persist the validated default on open, and generation re-reads the exact
+draft identity instead of accepting UI parameters as execution authority. This is a preview surface,
+not the future Echo-backed composition/render engine.
 
 `UiPreferences` is the process-level owner for appearance, effective system color scheme,
 translation lifecycle, and persistence. `MainTitleBar.qml` owns the fused toolbar/title region.

@@ -1,19 +1,21 @@
 use std::fs;
 
 use shape_core::ShapeProject;
-use shape_domain::{ArtifactKind, IntentSpec};
+use shape_domain::{
+    ArtifactKind, ArtifactWorkingGraph, IntentSpec, OperatorDataTypeId, OperatorTypeId,
+};
 use uuid::Uuid;
 
 use super::*;
 
 #[test]
-fn malformed_identity_and_speed_fail_before_credential_or_network_access() {
+fn draft_identity_and_configuration_are_authoritative_before_credential_access() {
     assert_eq!(
         generate_infer_speech_candidate(
             "/missing/project.shape",
             "not-an-artifact",
+            "draft.invalid",
             "Narration",
-            1_000,
             "/missing/token",
             ""
         )
@@ -36,19 +38,55 @@ fn malformed_identity_and_speed_fail_before_credential_or_network_access() {
         )
         .expect("candidate executes");
     project.accept_text(initial).expect("candidate accepts");
+    let source_head = project
+        .snapshot()
+        .unwrap()
+        .artifacts
+        .into_iter()
+        .find(|artifact| artifact.id == source.id)
+        .unwrap()
+        .accepted_revision
+        .unwrap();
+    let mut graph = ArtifactWorkingGraph::new(source.id, source_head);
+    let draft = graph
+        .add_operator(
+            OperatorTypeId::new(AUDIO_SPEECH_OPERATOR).unwrap(),
+            OperatorDataTypeId::new("text.document").unwrap(),
+            OperatorDataTypeId::new("audio.clip").unwrap(),
+        )
+        .unwrap();
+    graph.set_operator_configuration(
+        draft.id(),
+        Some(crate::operator_catalog::default_audio_speech_configuration().unwrap()),
+    );
+    project
+        .save_artifact_working_graph(&graph)
+        .expect("speech Working Graph saves");
     drop(project);
 
     assert_eq!(
         generate_infer_speech_candidate(
             root.to_str().expect("portable path"),
             &source.id.to_string(),
+            "draft.invalid",
             "Narration",
-            0,
             "/missing/token",
             ""
         )
         .unwrap_err(),
-        "invalid_speech_request"
+        "invalid_operator_draft"
+    );
+    assert_eq!(
+        generate_infer_speech_candidate(
+            root.to_str().expect("portable path"),
+            &source.id.to_string(),
+            draft.id().as_str(),
+            "Narration",
+            "/missing/token",
+            ""
+        )
+        .unwrap_err(),
+        "credential_missing"
     );
     fs::remove_dir_all(root).expect("fixture removes");
 }

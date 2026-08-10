@@ -54,8 +54,10 @@ Rectangle {
     }
     readonly property string loadedWorkspaceObjectName: workspaceLoader.item !== null
                                                         ? workspaceLoader.item.objectName : ""
+    readonly property var loadedWorkspace: workspaceLoader.item
 
     signal returnRequested()
+    signal workspaceLoaded(var workspace)
 
     function openWorkspace(nodeId, roleKey, operatorTypeKey, artifactId,
                            revisionId, transformationId) : bool {
@@ -259,6 +261,7 @@ Rectangle {
             Layout.fillHeight: true
             active: host.active
             sourceComponent: host.routedWorkspace
+            onLoaded: host.workspaceLoaded(item)
         }
     }
 }

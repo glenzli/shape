@@ -78,8 +78,17 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   requires preset voice/disclosure and local-only no-fallback Runtime provenance, and atomically
   rejects a stale text source. Schema `20260811.4` additively upgrades initial, Scene-era, audio-era,
   and Working-Graph-era projects without changing existing accepted heads. Mutable Operator state
-  now uses a bounded versioned configuration envelope; the first real consumer restores an exact
-  `text.transform` instruction after reopen. Offline or unconfigured AI never affects direct editing.
+  now uses bounded versioned configuration envelopes. `text.transform` restores an exact authored
+  mode plus instruction, keeps rewrite/expand/polish/shorten inside one stable Operator identity,
+  and reloads that project-backed draft before Infer execution. `audio.speech_synthesize` likewise
+  persists its preset, language, pace, and disclosure contract; legacy unconfigured speech drafts
+  receive the same validated preset default before the desktop session becomes available. Offline
+  or unconfigured AI never affects direct editing.
+- The deterministic raster foundation now also includes a real `image.resize` Rust path. Its typed
+  target dimensions, stretch/fit-within policy, four explicit resampling kernels, bounded pixel
+  budget, prepared execution plan, and Candidate/Accept lifecycle are exercised through reopen.
+  Desktop catalog and workspace registration remain a separate consumer slice, so the UI does not
+  advertise resize before it can execute it end to end.
 - Deferred: desktop editing of the new persistent Scene graph, GraphComponent instances, Infer-side
   App provisioning, Job/explain provenance inspection, pinned or durable explorations,
   composite/layer image structure, waveform editing, recording, Voice Reference execution,

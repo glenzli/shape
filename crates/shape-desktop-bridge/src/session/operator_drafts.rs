@@ -12,7 +12,9 @@ use shape_domain::{
 
 use crate::operator_catalog::OperatorDescriptor;
 use crate::operator_catalog::{
-    TEXT_TRANSFORM_OPERATOR, configuration_for_instruction, validate_draft_configuration,
+    AUDIO_SPEECH_OPERATOR, TEXT_TRANSFORM_OPERATOR, configuration_for_audio_speech,
+    configuration_for_mode_and_instruction, default_audio_speech_configuration,
+    validate_draft_configuration,
 };
 
 /// Identity-addressed drafts owned by one open desktop session.
@@ -30,6 +32,40 @@ impl OperatorDrafts {
             }
         }
         Ok(Self { graphs })
+    }
+
+    /// Upgrades legacy preset speech drafts that predate Operator-owned
+    /// configuration. The caller persists every returned graph before making
+    /// the session available, so execution never observes UI-only defaults.
+    pub(crate) fn initialize_audio_speech_defaults(
+        &mut self,
+    ) -> Result<Vec<ArtifactWorkingGraph>, String> {
+        let mut changed = Vec::new();
+        for graph in &mut self.graphs {
+            let draft_ids = graph
+                .operators()
+                .iter()
+                .filter(|draft| {
+                    draft.operator_type().as_str() == AUDIO_SPEECH_OPERATOR
+                        && draft.configuration().is_none()
+                })
+                .map(|draft| draft.id().clone())
+                .collect::<Vec<_>>();
+            if draft_ids.is_empty() {
+                continue;
+            }
+            for draft_id in draft_ids {
+                if !graph.set_operator_configuration(
+                    &draft_id,
+                    Some(default_audio_speech_configuration()?),
+                ) {
+                    return Err("Operator draft disappeared during legacy configuration".to_owned());
+                }
+            }
+            graph.validate().map_err(|error| error.to_string())?;
+            changed.push(graph.clone());
+        }
+        Ok(changed)
     }
 
     /// Begins or reuses one compatible Operator draft.
@@ -57,7 +93,7 @@ impl OperatorDrafts {
                 .last_mut()
                 .expect("a just-pushed Working Graph exists")
         };
-        graph
+        let draft = graph
             .add_operator(
                 OperatorTypeId::new(descriptor.type_key).map_err(|error| error.to_string())?,
                 OperatorDataTypeId::new(descriptor.input_data_type)
@@ -65,7 +101,22 @@ impl OperatorDrafts {
                 OperatorDataTypeId::new(descriptor.output_data_type)
                     .map_err(|error| error.to_string())?,
             )
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        if descriptor.type_key == AUDIO_SPEECH_OPERATOR && draft.configuration().is_none() {
+            let configuration = default_audio_speech_configuration()?;
+            if !graph.set_operator_configuration(draft.id(), Some(configuration)) {
+                return Err("Operator draft disappeared during default configuration".to_owned());
+            }
+            return graph
+                .operators()
+                .iter()
+                .find(|operator| operator.id() == draft.id())
+                .cloned()
+                .ok_or_else(|| {
+                    "Operator draft disappeared during default configuration".to_owned()
+                });
+        }
+        Ok(draft)
     }
 
     pub(crate) fn entries(&self) -> impl Iterator<Item = (ArtifactId, &WorkingOperatorDraft)> {
@@ -83,18 +134,14 @@ impl OperatorDrafts {
             .find(|graph| graph.context_artifact_id() == artifact_id)
     }
 
-    pub(crate) fn update_text_transform_instruction(
+    pub(crate) fn update_text_transform_configuration(
         &mut self,
         draft_id: &str,
+        mode_key: &str,
         instruction: &str,
     ) -> Result<(ArtifactId, WorkingOperatorDraft), String> {
         let draft_id = OperatorNodeId::new(draft_id).map_err(|error| error.to_string())?;
-        let Some(graph_index) = self.graphs.iter().position(|graph| {
-            graph
-                .operators()
-                .iter()
-                .any(|draft| draft.id() == &draft_id)
-        }) else {
+        let Some(graph_index) = self.graph_index_for_draft(&draft_id) else {
             return Err("Operator draft does not exist".to_owned());
         };
         let operator_type = self.graphs[graph_index]
@@ -107,9 +154,52 @@ impl OperatorDrafts {
         if operator_type != TEXT_TRANSFORM_OPERATOR {
             return Err("draft is not a text.transform Operator".to_owned());
         }
-        let configuration = configuration_for_instruction(instruction)?;
+        let configuration = configuration_for_mode_and_instruction(mode_key, instruction)?;
         let artifact_id = self.graphs[graph_index].context_artifact_id();
         if !self.graphs[graph_index].set_operator_configuration(&draft_id, configuration) {
+            return Err("Operator draft disappeared during configuration".to_owned());
+        }
+        let draft = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("configured draft remains in its Working Graph")
+            .clone();
+        Ok((artifact_id, draft))
+    }
+
+    pub(crate) fn update_audio_speech_configuration(
+        &mut self,
+        draft_id: &str,
+        preset_alias: &str,
+        preset_catalog_revision: &str,
+        language: &str,
+        speed_milli: u16,
+        synthetic_disclosure_required: bool,
+    ) -> Result<(ArtifactId, WorkingOperatorDraft), String> {
+        let draft_id = OperatorNodeId::new(draft_id).map_err(|error| error.to_string())?;
+        let Some(graph_index) = self.graph_index_for_draft(&draft_id) else {
+            return Err("Operator draft does not exist".to_owned());
+        };
+        let operator_type = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("located draft remains in its Working Graph")
+            .operator_type()
+            .as_str();
+        if operator_type != AUDIO_SPEECH_OPERATOR {
+            return Err("draft is not an audio.speech_synthesize Operator".to_owned());
+        }
+        let configuration = configuration_for_audio_speech(
+            preset_alias,
+            preset_catalog_revision,
+            language,
+            speed_milli,
+            synthetic_disclosure_required,
+        )?;
+        let artifact_id = self.graphs[graph_index].context_artifact_id();
+        if !self.graphs[graph_index].set_operator_configuration(&draft_id, Some(configuration)) {
             return Err("Operator draft disappeared during configuration".to_owned());
         }
         let draft = self.graphs[graph_index]
@@ -157,6 +247,12 @@ impl OperatorDrafts {
         self.graphs
             .retain(|graph| graph.context_artifact_id() != artifact_id);
         self.graphs.len() != before
+    }
+
+    fn graph_index_for_draft(&self, draft_id: &OperatorNodeId) -> Option<usize> {
+        self.graphs
+            .iter()
+            .position(|graph| graph.operators().iter().any(|draft| draft.id() == draft_id))
     }
 }
 

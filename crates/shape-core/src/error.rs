@@ -55,8 +55,12 @@ pub enum CoreError {
     InvalidRasterContent { artifact_id: ArtifactId },
     #[error("crop matches the full accepted raster and would create no change")]
     NoOpRasterCrop,
+    #[error("resize resolves to the accepted raster dimensions and would create no change")]
+    NoOpRasterResize,
     #[error("raster executor returned no image.raster content contract")]
     MissingRasterOutputContract,
     #[error("raster crop executor output does not match the prepared image.crop contract")]
     RasterCropOutputContractMismatch,
+    #[error("raster resize executor output does not match the prepared image.resize contract")]
+    RasterResizeOutputContractMismatch,
 }

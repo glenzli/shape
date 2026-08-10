@@ -56,6 +56,12 @@ pub struct TextEditParameters {
 pub enum TextTransformMode {
     /// Re-express the complete accepted document under one creative direction.
     Rewrite,
+    /// Add useful detail while retaining the accepted document's subject.
+    Expand,
+    /// Improve clarity and style without changing the accepted document's intent.
+    Polish,
+    /// Condense the accepted document while preserving its essential meaning.
+    Shorten,
 }
 
 impl TextTransformMode {
@@ -64,12 +70,33 @@ impl TextTransformMode {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Rewrite => "rewrite",
+            Self::Expand => "expand",
+            Self::Polish => "polish",
+            Self::Shorten => "shorten",
+        }
+    }
+
+    /// Parses one language-neutral authored mode key.
+    ///
+    /// Unknown keys stay outside the creative contract instead of silently
+    /// falling back to Rewrite.
+    #[must_use]
+    pub fn from_key(key: &str) -> Option<Self> {
+        match key {
+            "rewrite" => Some(Self::Rewrite),
+            "expand" => Some(Self::Expand),
+            "polish" => Some(Self::Polish),
+            "shorten" => Some(Self::Shorten),
+            _ => None,
         }
     }
 
     const fn intent_verb(self) -> &'static str {
         match self {
             Self::Rewrite => "Rewrite text",
+            Self::Expand => "Expand text",
+            Self::Polish => "Polish text",
+            Self::Shorten => "Shorten text",
         }
     }
 }

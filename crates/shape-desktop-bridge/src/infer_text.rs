@@ -4,8 +4,10 @@
 use shape_core::{
     CoreError, ShapeProject, TextCandidate, TextTransformMode, TextTransformParameters,
 };
-use shape_domain::{ArtifactId, ArtifactKind};
+use shape_domain::{ArtifactId, ArtifactKind, OperatorNodeId};
 use shape_execution::{ExecutionError, InferRuntimeCredentialStore, InferRuntimeExecutor};
+
+use crate::operator_catalog::{TEXT_TRANSFORM_OPERATOR, instruction_from_draft, mode_from_draft};
 
 /// Opaque ownership of one fully executed but still transient candidate.
 #[derive(Debug)]
@@ -22,13 +24,15 @@ impl InferTextCandidate {
 pub(super) fn generate_infer_text_candidate(
     project_path: &str,
     artifact_id: &str,
-    prompt: &str,
+    draft_id: &str,
     credential_path: &str,
     explicit_override: &str,
 ) -> Result<Box<InferTextCandidate>, String> {
     let artifact_id = artifact_id
         .parse::<ArtifactId>()
         .map_err(|_| "invalid_artifact".to_owned())?;
+    let draft_id =
+        OperatorNodeId::new(draft_id).map_err(|_| "invalid_operator_draft".to_owned())?;
     let project = ShapeProject::open(project_path).map_err(|_| "project_unavailable".to_owned())?;
     let snapshot = project
         .snapshot()
@@ -44,8 +48,29 @@ pub(super) fn generate_infer_text_candidate(
     let expected_head = artifact
         .accepted_revision
         .ok_or_else(|| "missing_accepted_revision".to_owned())?;
-    let parameters = TextTransformParameters::new(TextTransformMode::Rewrite, prompt)
-        .map_err(|_| "invalid_prompt".to_owned())?;
+    let graph = project
+        .artifact_working_graphs()
+        .map_err(|_| "project_unavailable".to_owned())?
+        .into_iter()
+        .find(|graph| graph.context_artifact_id() == artifact_id)
+        .ok_or_else(|| "invalid_operator_draft".to_owned())?;
+    if graph.expected_revision_id() != expected_head {
+        return Err("stale_candidate".to_owned());
+    }
+    let draft = graph
+        .operators()
+        .iter()
+        .find(|draft| {
+            draft.id() == &draft_id && draft.operator_type().as_str() == TEXT_TRANSFORM_OPERATOR
+        })
+        .ok_or_else(|| "invalid_operator_draft".to_owned())?;
+    let mode = TextTransformMode::from_key(
+        &mode_from_draft(draft).map_err(|_| "invalid_prompt".to_owned())?,
+    )
+    .ok_or_else(|| "invalid_prompt".to_owned())?;
+    let instruction = instruction_from_draft(draft).map_err(|_| "invalid_prompt".to_owned())?;
+    let parameters =
+        TextTransformParameters::new(mode, instruction).map_err(|_| "invalid_prompt".to_owned())?;
     let credential = InferRuntimeCredentialStore::new(credential_path)
         .load()
         .map_err(|error| crate::infer_runtime_access::credential_error_code(&error).to_owned())?;
@@ -84,8 +109,10 @@ fn core_error_code(error: CoreError) -> String {
         CoreError::InvalidRasterSource { .. }
         | CoreError::InvalidRasterContent { .. }
         | CoreError::NoOpRasterCrop
+        | CoreError::NoOpRasterResize
         | CoreError::MissingRasterOutputContract
         | CoreError::RasterCropOutputContractMismatch
+        | CoreError::RasterResizeOutputContractMismatch
         | CoreError::InvalidSpeechSource { .. }
         | CoreError::UnsupportedSpeechVoiceReference
         | CoreError::MissingAudioOutputContract

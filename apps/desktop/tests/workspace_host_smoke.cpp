@@ -447,13 +447,13 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         std::cerr << "desktop authoring smoke found no compatibility Scene" << std::endl;
         return false;
     }
+    const QString artifact_id = artifacts.first().toMap().value(QStringLiteral("id")).toString();
     QObject* const workspace_surface =
         root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
     if (workspace_surface == nullptr) {
         return false;
     }
-    QObject* const palette =
-        root_object.findChild<QObject*>(QStringLiteral("operatorPalette"));
+    QObject* const palette = root_object.findChild<QObject*>(QStringLiteral("operatorPalette"));
     if (palette == nullptr || palette->property("compatibleOperatorCount").toInt() != 3
         || !invoke_packaged_click(
             root_object,
@@ -469,8 +469,7 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         palette->findChild<QObject*>(QStringLiteral("operatorSearchField"));
     if (!palette->property("visible").toBool() || search_field == nullptr
         || !search_field->setProperty("text", QStringLiteral("AI text transform"))) {
-        std::cerr << "desktop authoring smoke could not search the Operator palette"
-                  << std::endl;
+        std::cerr << "desktop authoring smoke could not search the Operator palette" << std::endl;
         return false;
     }
     QCoreApplication::processEvents();
@@ -507,16 +506,19 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         std::cerr << "desktop authoring smoke routed the draft to the wrong workspace" << std::endl;
         return false;
     }
+    if (!invoke_packaged_click(
+            root_object,
+            QStringLiteral("textTransformModePolishButton"),
+            "desktop authoring smoke could not choose the Text Transform mode"
+        )) {
+        return false;
+    }
     QObject* const instruction_field =
         root_object.findChild<QObject*>(QStringLiteral("textTransformInstructionField"));
     const QString instruction = QStringLiteral("Make it warmer, but preserve the title.");
     if (instruction_field == nullptr || !instruction_field->property("visible").toBool()
         || !instruction_field->setProperty("text", instruction)
-        || !QMetaObject::invokeMethod(
-            instruction_field,
-            "editingFinished",
-            Qt::DirectConnection
-        )) {
+        || !QMetaObject::invokeMethod(instruction_field, "editingFinished", Qt::DirectConnection)) {
         std::cerr << "desktop authoring smoke could not author the Text Transform draft"
                   << std::endl;
         return false;
@@ -528,7 +530,9 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
                    .toMap()
                    .value(QStringLiteral("textTransformInstruction"))
                    .toString()
-               != instruction) {
+               != instruction
+        || configured_drafts.first().toMap().value(QStringLiteral("textTransformMode")).toString()
+               != QStringLiteral("polish")) {
         std::cerr << "desktop authoring smoke did not persist the Text Transform instruction"
                   << std::endl;
         return false;
@@ -558,7 +562,9 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
                    .toMap()
                    .value(QStringLiteral("textTransformInstruction"))
                    .toString()
-               != instruction) {
+               != instruction
+        || reopened_drafts.first().toMap().value(QStringLiteral("textTransformMode")).toString()
+               != QStringLiteral("polish")) {
         std::cerr << "desktop authoring smoke did not restore the exact Operator draft"
                   << std::endl;
         return false;
@@ -587,13 +593,126 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         return false;
     }
     QCoreApplication::processEvents();
+    QObject* const polish_mode_button =
+        root_object.findChild<QObject*>(QStringLiteral("textTransformModePolishButton"));
     if (!instruction_field->property("visible").toBool()
-        || instruction_field->property("text").toString() != instruction) {
+        || instruction_field->property("text").toString() != instruction
+        || polish_mode_button == nullptr || !polish_mode_button->property("selected").toBool()) {
         std::cerr << "desktop authoring smoke did not restore the instruction in the workspace"
                   << std::endl;
         return false;
     }
-    return backend.discardOperatorDraft(draft_id) && backend.operatorDrafts().isEmpty();
+    if (!backend.discardOperatorDraft(draft_id) || !backend.operatorDrafts().isEmpty()) {
+        return false;
+    }
+
+    const QString speech_draft_id =
+        backend.beginOperatorDraft(artifact_id, QStringLiteral("audio.speech_synthesize"));
+    const QVariantList speech_drafts = backend.operatorDrafts();
+    if (speech_draft_id.isEmpty() || speech_drafts.size() != 1
+        || speech_drafts.first().toMap().value(QStringLiteral("audioSpeechSpeedMilli")).toInt()
+               != 1'000
+        || !speech_drafts.first()
+                .toMap()
+                .value(QStringLiteral("audioSpeechDisclosureRequired"))
+                .toBool()) {
+        std::cerr << "desktop authoring smoke found an invalid default speech draft" << std::endl;
+        return false;
+    }
+    QQmlExpression open_speech_draft(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("openOperatorDraft('%1')").arg(speech_draft_id)
+    );
+    if (!open_speech_draft.evaluate().toBool() || open_speech_draft.hasError()) {
+        std::cerr << "desktop authoring smoke could not open the speech draft" << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    QObject* const operator_workspace_host =
+        workspace_surface->findChild<QObject*>(QStringLiteral("operatorWorkspaceHost"));
+    QObject* const speech_workspace =
+        operator_workspace_host != nullptr
+            ? operator_workspace_host->property("loadedWorkspace").value<QObject*>()
+            : nullptr;
+    QObject* const speed_slider =
+        speech_workspace != nullptr
+            ? speech_workspace->findChild<QObject*>(QStringLiteral("speechSpeedSlider"))
+            : nullptr;
+    if (speech_workspace == nullptr || speed_slider == nullptr
+        || speech_workspace->objectName() != QStringLiteral("audioSpeechOperatorWorkspace")) {
+        std::cerr << "desktop authoring smoke did not load the speech workspace" << std::endl;
+        return false;
+    }
+    if (speech_workspace->property("operatorDraftId").toString() != speech_draft_id
+        || speech_workspace->property("speedMilli").toInt() != 1'000) {
+        std::cerr << "desktop authoring smoke did not project the speech draft" << std::endl;
+        return false;
+    }
+    if (!speed_slider->setProperty("value", 1'150)
+        || !QMetaObject::invokeMethod(speed_slider, "moved", Qt::DirectConnection)
+        || !QMetaObject::invokeMethod(
+            speech_workspace,
+            "persistDraftConfiguration",
+            Qt::DirectConnection
+        )) {
+        std::cerr << "desktop authoring smoke could not author the speech pace" << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    const int persisted_speech_speed = backend.operatorDrafts()
+                                           .first()
+                                           .toMap()
+                                           .value(QStringLiteral("audioSpeechSpeedMilli"))
+                                           .toInt();
+    if (persisted_speech_speed != 1'150) {
+        std::cerr << "desktop authoring smoke did not persist the speech pace" << std::endl;
+        return false;
+    }
+    if (!backend.openProject(QUrl::fromLocalFile(bundle_path))) {
+        std::cerr << "desktop authoring smoke could not reopen the speech draft project"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    const QVariantList restored_speech_drafts = backend.operatorDrafts();
+    if (restored_speech_drafts.size() != 1
+        || restored_speech_drafts.first().toMap().value(QStringLiteral("id")).toString()
+               != speech_draft_id
+        || restored_speech_drafts.first()
+                   .toMap()
+                   .value(QStringLiteral("audioSpeechSpeedMilli"))
+                   .toInt()
+               != 1'150) {
+        std::cerr << "desktop authoring smoke did not restore the exact speech draft" << std::endl;
+        return false;
+    }
+    if (!QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
+        return false;
+    }
+    QCoreApplication::processEvents();
+    QQmlExpression reopen_speech_draft(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("openOperatorDraft('%1')").arg(speech_draft_id)
+    );
+    if (!reopen_speech_draft.evaluate().toBool() || reopen_speech_draft.hasError()) {
+        return false;
+    }
+    QCoreApplication::processEvents();
+    QObject* const restored_speech_workspace =
+        operator_workspace_host->property("loadedWorkspace").value<QObject*>();
+    QObject* const restored_speed_slider =
+        restored_speech_workspace != nullptr
+            ? restored_speech_workspace->findChild<QObject*>(QStringLiteral("speechSpeedSlider"))
+            : nullptr;
+    if (restored_speed_slider == nullptr
+        || restored_speed_slider->property("value").toInt() != 1'150) {
+        std::cerr << "desktop authoring smoke did not restore speech pace in the workspace"
+                  << std::endl;
+        return false;
+    }
+    return backend.discardOperatorDraft(speech_draft_id) && backend.operatorDrafts().isEmpty();
 }
 
 } // namespace workspace_host_smoke

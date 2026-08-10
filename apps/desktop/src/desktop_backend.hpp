@@ -80,14 +80,22 @@ class DesktopBackend : public QObject {
 
     Q_INVOKABLE bool createProject(const QUrl& parentDirectory, const QString& projectName);
     Q_INVOKABLE bool openProject(const QUrl& bundleUrl);
-    Q_INVOKABLE bool
-    createTextScene(const QString& sceneName, const QString& initialText);
+    Q_INVOKABLE bool createTextScene(const QString& sceneName, const QString& initialText);
     Q_INVOKABLE QString
     beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey);
     Q_INVOKABLE QVariantList compatibleOperators(const QString& artifactId);
     Q_INVOKABLE bool updateTextTransformDraft(
         const QString& draftId,
+        const QString& modeKey,
         const QString& instruction
+    );
+    Q_INVOKABLE bool updateAudioSpeechDraft(
+        const QString& draftId,
+        const QString& presetAlias,
+        const QString& presetCatalogRevision,
+        const QString& language,
+        int speedMilli,
+        bool syntheticDisclosureRequired
     );
     Q_INVOKABLE bool discardOperatorDraft(const QString& draftId);
     Q_INVOKABLE bool

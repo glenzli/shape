@@ -15,6 +15,7 @@ Item {
     required property InferSpeechController inferSpeech
     required property AudioPreviewController audioPreview
     property string projectPath: ""
+    property string operatorDraftId: ""
     property string sourceArtifactId: ""
     property string sourceName: ""
     property string sourceText: ""
@@ -26,6 +27,12 @@ Item {
     property int acceptedChannels: 0
     property string acceptedOriginKey: ""
     property var candidate: null
+    property string presetAlias: ""
+    property string presetCatalogRevision: ""
+    property string language: ""
+    property int speedMilli: 0
+    property bool syntheticDisclosureRequired: false
+    property int pendingSpeedMilli: speedMilli > 0 ? speedMilli : 1000
 
     readonly property bool hasCandidateAudio: candidate !== null
                                                 && candidate.hasAudioPreview
@@ -48,7 +55,34 @@ Item {
                                                : acceptedOriginKey
     property alias artifactName: artifactNameField.text
 
-    signal synthesizeRequested(string sourceArtifactId, string artifactName, int speedMilli)
+    signal draftSaveRequested(string draftId, string presetAlias,
+                              string presetCatalogRevision, string language,
+                              int speedMilli, bool syntheticDisclosureRequired)
+    signal synthesizeRequested(string sourceArtifactId, string draftId,
+                               string artifactName, string presetAlias,
+                               string presetCatalogRevision, string language,
+                               int speedMilli, bool syntheticDisclosureRequired)
+
+    function synchronizeDraftConfiguration() : void {
+        speedSaveTimer.stop()
+        pendingSpeedMilli = speedMilli > 0 ? speedMilli : 1000
+        speedSlider.value = pendingSpeedMilli
+    }
+
+    function persistDraftConfiguration() : void {
+        if (operatorDraftId.length === 0 || pendingSpeedMilli === speedMilli) return
+        draftSaveRequested(operatorDraftId, presetAlias, presetCatalogRevision,
+                           language, pendingSpeedMilli,
+                           syntheticDisclosureRequired)
+    }
+
+    function requestSynthesis() : void {
+        speedSaveTimer.stop()
+        synthesizeRequested(sourceArtifactId, operatorDraftId,
+                            artifactNameField.text.trim(), presetAlias,
+                            presetCatalogRevision, language,
+                            pendingSpeedMilli, syntheticDisclosureRequired)
+    }
 
     function formatDuration(milliseconds) : string {
         const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000))
@@ -100,15 +134,36 @@ Item {
 
     onPreviewArtifactIdChanged: Qt.callLater(workspace.refreshPreview)
     onPreviewCandidateIdChanged: Qt.callLater(workspace.refreshPreview)
+    onOperatorDraftIdChanged: Qt.callLater(workspace.synchronizeDraftConfiguration)
+    onSpeedMilliChanged: {
+        if (!speedSlider.pressed) Qt.callLater(workspace.synchronizeDraftConfiguration)
+    }
+    onVisibleChanged: {
+        if (!visible && speedSaveTimer.running) {
+            speedSaveTimer.stop()
+            persistDraftConfiguration()
+        }
+    }
     Component.onCompleted: {
         if (artifactNameField.text.length === 0) {
             artifactNameField.text = sourceName.length > 0
                                      ? qsTr("%1 narration").arg(sourceName)
                                      : qsTr("Narration")
         }
+        synchronizeDraftConfiguration()
         Qt.callLater(workspace.refreshPreview)
     }
-    Component.onDestruction: workspace.audioPreview.clear()
+    Component.onDestruction: {
+        if (speedSaveTimer.running) persistDraftConfiguration()
+        workspace.audioPreview.clear()
+    }
+
+    Timer {
+        id: speedSaveTimer
+        interval: 350
+        repeat: false
+        onTriggered: workspace.persistDraftConfiguration()
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -296,9 +351,12 @@ Item {
                                 font.weight: Font.Medium
                             }
                             Text {
-                                text: qsTr("Versioned preset · no voice cloning")
+                                Layout.fillWidth: true
+                                text: workspace.presetAlias + " · "
+                                      + workspace.presetCatalogRevision
                                 color: Theme.muted
                                 font.pixelSize: 9
+                                elide: Text.ElideMiddle
                             }
                         }
                     }
@@ -318,11 +376,22 @@ Item {
                             from: 750
                             to: 1250
                             stepSize: 50
-                            value: 1000
+                            value: workspace.pendingSpeedMilli
                             snapMode: Slider.SnapAlways
+                            onMoved: {
+                                workspace.pendingSpeedMilli = Math.round(value)
+                                speedSaveTimer.restart()
+                            }
+                            onPressedChanged: {
+                                if (!pressed) {
+                                    workspace.pendingSpeedMilli = Math.round(value)
+                                    speedSaveTimer.stop()
+                                    workspace.persistDraftConfiguration()
+                                }
+                            }
                         }
                         Text {
-                            text: (speedSlider.value / 1000).toFixed(2) + "×"
+                            text: (workspace.pendingSpeedMilli / 1000).toFixed(2) + "×"
                             color: Theme.accent
                             font.pixelSize: 10
                         }
@@ -335,14 +404,16 @@ Item {
                         primary: true
                         enabled: !workspace.inferSpeech.running
                                  && workspace.credentialConfigured
+                                 && workspace.operatorDraftId.length > 0
+                                 && workspace.presetAlias.length > 0
+                                 && workspace.presetCatalogRevision.length > 0
+                                 && workspace.language.length > 0
+                                 && workspace.syntheticDisclosureRequired
                                  && artifactNameField.text.trim().length > 0
                         text: workspace.inferSpeech.running
                               ? qsTr("Synthesizing locally…")
                               : qsTr("Create speech candidate")
-                        onClicked: workspace.synthesizeRequested(
-                                       workspace.sourceArtifactId,
-                                       artifactNameField.text.trim(),
-                                       Math.round(speedSlider.value))
+                        onClicked: workspace.requestSynthesis()
                     }
 
                     Text {

@@ -182,26 +182,37 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
     projected.insert(QStringLiteral("inputDataTypeKey"), from_rust(draft.input_data_type_key));
     projected.insert(QStringLiteral("outputDataTypeKey"), from_rust(draft.output_data_type_key));
     projected.insert(QStringLiteral("configurationSchema"), from_rust(draft.configuration_schema));
+    projected.insert(QStringLiteral("textTransformMode"), from_rust(draft.text_transform_mode));
     projected.insert(
         QStringLiteral("textTransformInstruction"),
         from_rust(draft.text_transform_instruction)
     );
+    projected.insert(
+        QStringLiteral("audioSpeechPresetAlias"),
+        from_rust(draft.audio_speech_preset_alias)
+    );
+    projected.insert(
+        QStringLiteral("audioSpeechPresetCatalogRevision"),
+        from_rust(draft.audio_speech_preset_catalog_revision)
+    );
+    projected.insert(QStringLiteral("audioSpeechLanguage"), from_rust(draft.audio_speech_language));
+    projected.insert(
+        QStringLiteral("audioSpeechSpeedMilli"),
+        static_cast<int>(draft.audio_speech_speed_milli)
+    );
+    projected.insert(
+        QStringLiteral("audioSpeechDisclosureRequired"),
+        draft.audio_speech_disclosure_required
+    );
     return projected;
 }
 
-QVariantMap operator_descriptor_projection(
-    const shape::desktop::OperatorDescriptorWire& descriptor
-) {
+QVariantMap
+operator_descriptor_projection(const shape::desktop::OperatorDescriptorWire& descriptor) {
     QVariantMap projected;
     projected.insert(QStringLiteral("typeKey"), from_rust(descriptor.operator_type));
-    projected.insert(
-        QStringLiteral("inputDataTypeKey"),
-        from_rust(descriptor.input_data_type)
-    );
-    projected.insert(
-        QStringLiteral("outputDataTypeKey"),
-        from_rust(descriptor.output_data_type)
-    );
+    projected.insert(QStringLiteral("inputDataTypeKey"), from_rust(descriptor.input_data_type));
+    projected.insert(QStringLiteral("outputDataTypeKey"), from_rust(descriptor.output_data_type));
     projected.insert(QStringLiteral("categoryKey"), from_rust(descriptor.category));
     projected.insert(QStringLiteral("iconKey"), from_rust(descriptor.icon));
     return projected;
@@ -529,10 +540,8 @@ bool DesktopBackend::createTextScene(const QString& sceneName, const QString& in
     }
 }
 
-QString DesktopBackend::beginOperatorDraft(
-    const QString& artifactId,
-    const QString& operatorTypeKey
-) {
+QString
+DesktopBackend::beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey) {
     if (session_ == nullptr || artifactId.isEmpty() || operatorTypeKey.isEmpty()) {
         setLastError(tr("Choose a Scene before adding an Operator."));
         return QString();
@@ -574,14 +583,16 @@ QVariantList DesktopBackend::compatibleOperators(const QString& artifactId) {
 
 bool DesktopBackend::updateTextTransformDraft(
     const QString& draftId,
+    const QString& modeKey,
     const QString& instruction
 ) {
-    if (session_ == nullptr || draftId.isEmpty()) {
+    if (session_ == nullptr || draftId.isEmpty() || modeKey.isEmpty()) {
         return false;
     }
     try {
         session_->session->session_update_text_transform_draft(
             to_utf8(draftId),
+            to_utf8(modeKey),
             to_utf8(instruction)
         );
         applyOperatorDrafts(session_->session->session_operator_drafts());
@@ -590,6 +601,37 @@ bool DesktopBackend::updateTextTransformDraft(
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not save text transform draft:" << error.what();
+        setLastError(tr("Could not save the Operator draft."));
+        return false;
+    }
+}
+
+bool DesktopBackend::updateAudioSpeechDraft(
+    const QString& draftId,
+    const QString& presetAlias,
+    const QString& presetCatalogRevision,
+    const QString& language,
+    int speedMilli,
+    bool syntheticDisclosureRequired
+) {
+    if (session_ == nullptr || draftId.isEmpty() || speedMilli < 0 || speedMilli > 65'535) {
+        return false;
+    }
+    try {
+        session_->session->session_update_audio_speech_draft(
+            to_utf8(draftId),
+            to_utf8(presetAlias),
+            to_utf8(presetCatalogRevision),
+            to_utf8(language),
+            static_cast<std::uint16_t>(speedMilli),
+            syntheticDisclosureRequired
+        );
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not save audio speech draft:" << error.what();
         setLastError(tr("Could not save the Operator draft."));
         return false;
     }
@@ -892,9 +934,7 @@ void DesktopBackend::applySnapshot(shape::desktop::ProjectSnapshotWire snapshot)
     graph_edges_ = std::move(graph_edges);
 }
 
-void DesktopBackend::applyOperatorDrafts(
-    rust::Vec<shape::desktop::OperatorDraftWire> drafts
-) {
+void DesktopBackend::applyOperatorDrafts(rust::Vec<shape::desktop::OperatorDraftWire> drafts) {
     QVariantList projected;
     projected.reserve(static_cast<qsizetype>(drafts.size()));
     for (const auto& draft : drafts) {

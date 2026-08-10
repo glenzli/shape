@@ -205,6 +205,31 @@ fn text_edit_rejects_a_non_text_input_before_execution() {
 }
 
 #[test]
+fn text_transform_modes_are_stable_creative_keys_and_never_fallback() {
+    let cases = [
+        (TextTransformMode::Rewrite, "rewrite", "Rewrite text"),
+        (TextTransformMode::Expand, "expand", "Expand text"),
+        (TextTransformMode::Polish, "polish", "Polish text"),
+        (TextTransformMode::Shorten, "shorten", "Shorten text"),
+    ];
+
+    for (mode, key, verb) in cases {
+        assert_eq!(mode.as_str(), key);
+        assert_eq!(TextTransformMode::from_key(key), Some(mode));
+        let parameters = TextTransformParameters::new(mode, "Keep the title.")
+            .expect("mode parameters are valid");
+        assert_eq!(
+            parameters.intent().expect("intent is valid").as_str(),
+            format!("{verb}: Keep the title.")
+        );
+    }
+
+    assert_eq!(TextTransformMode::from_key(""), None);
+    assert_eq!(TextTransformMode::from_key("Rewrite"), None);
+    assert_eq!(TextTransformMode::from_key("summarize"), None);
+}
+
+#[test]
 fn generated_text_keeps_physical_job_separate_from_creative_acceptance() {
     let root = test_root("generated");
     let (mut project, artifact_id, accepted) = seeded_text_project(&root);

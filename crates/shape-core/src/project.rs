@@ -6,7 +6,7 @@ mod scene;
 mod text;
 
 pub use audio::AudioCandidate;
-pub use image::ImageCandidate;
+pub use image::{ImageCandidate, ImageResizeCandidate};
 pub use scene::SceneGraphCandidate;
 pub use text::{
     TEXT_DOCUMENT_DATA_TYPE, TEXT_EDIT_OPERATOR_TYPE, TEXT_TRANSFORM_OPERATOR_TYPE, TextCandidate,

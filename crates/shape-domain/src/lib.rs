@@ -8,6 +8,7 @@
 //! - [`artifact`] owns creative identity and immutable accepted revisions;
 //! - [`audio`] owns portable audio values, family ports, and voice authorization;
 //! - [`image_crop`] owns the first stable image Operator contract;
+//! - [`image_resize`] owns deterministic resize dimensions and policies;
 //! - [`operator_graph`] owns typed Source/Operator/Output scene structure;
 //! - [`scene`] owns stable Scene identity, immutable accepted graph revisions,
 //!   and named output publication;
@@ -24,6 +25,7 @@ mod error;
 mod ids;
 mod image_crop;
 mod image_raster;
+mod image_resize;
 mod operator_graph;
 mod project;
 mod scene;
@@ -49,6 +51,12 @@ pub use image_raster::{
     IMAGE_RASTER_CONTRACT_REVISION, ImageAlphaMode, ImageColorPrimaries, ImageColorProfile,
     ImageLightReference, ImageOrientation, ImagePixelFormat, ImageRasterContract,
     ImageTransferFunction,
+};
+pub use image_resize::{
+    IMAGE_RESIZE_DATA_TYPE, IMAGE_RESIZE_MAX_DIMENSION, IMAGE_RESIZE_MAX_PIXELS,
+    IMAGE_RESIZE_OPERATOR_TYPE, IMAGE_RESIZE_PARAMETERS_REVISION, ImageResizeContractError,
+    ImageResizeOperator, PreparedImageResize, RasterResize, RasterResizeAspectPolicy,
+    RasterResizeDimensions, RasterResizeResampling,
 };
 pub use operator_graph::{
     OperatorDataTypeId, OperatorGraph, OperatorGraphEdge, OperatorGraphNode, OperatorNodeBinding,

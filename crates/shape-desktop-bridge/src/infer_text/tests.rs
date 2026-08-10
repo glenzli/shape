@@ -78,7 +78,9 @@ fn fake_runtime() -> (String, thread::JoinHandle<()>) {
         );
 
         let (mut responses, _) = listener.accept().expect("Responses request connects");
-        assert!(read_request(&mut responses).starts_with("POST /v1/responses HTTP/1.1"));
+        let request = read_request(&mut responses);
+        assert!(request.starts_with("POST /v1/responses HTTP/1.1"));
+        assert!(request.contains(r"Creative text transform mode: expand\nMake it more vivid."));
         write_response(
             &mut responses,
             &json!({
@@ -119,6 +121,17 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
         .expect("initial candidate accepts");
     drop(project);
 
+    let mut draft_session =
+        open_desktop_session(project_path.to_str().expect("portable project path"))
+            .expect("draft session opens");
+    let draft = draft_session
+        .session_begin_operator_draft(&artifact.id.to_string(), "text.transform")
+        .expect("text transform draft begins");
+    draft_session
+        .session_update_text_transform_draft(&draft.draft_id, "expand", "Make it more vivid.")
+        .expect("text transform draft config persists");
+    drop(draft_session);
+
     let secret_path = credential_path();
     let token = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     InferRuntimeCredentialStore::new(&secret_path)
@@ -128,7 +141,7 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
     let generated = generate_infer_text_candidate(
         project_path.to_str().expect("portable project path"),
         &artifact.id.to_string(),
-        "Make it more vivid.",
+        &draft.draft_id,
         secret_path.to_str().expect("portable secret path"),
         &origin,
     )
@@ -162,7 +175,7 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
     );
     assert_eq!(
         accepted.artifacts[0].transformation_intent,
-        "Rewrite text: Make it more vivid."
+        "Expand text: Make it more vivid."
     );
     assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
     assert_eq!(

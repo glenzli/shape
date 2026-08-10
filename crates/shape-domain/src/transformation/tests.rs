@@ -1,5 +1,6 @@
 use crate::{
     Artifact, ArtifactKind, Constraint, ConstraintKind, ConstraintStrength, IntentSpec, RasterCrop,
+    RasterResize, RasterResizeAspectPolicy, RasterResizeDimensions, RasterResizeResampling,
     RevisionId, TransformationOperation,
 };
 
@@ -28,6 +29,40 @@ fn change_and_preserve_are_distinct_contracts() {
     assert_eq!(
         transformation.intent.as_str(),
         "change the background to a quiet summer afternoon"
+    );
+}
+
+#[test]
+fn typed_resize_operation_belongs_only_to_deterministic_edits() {
+    let artifact = Artifact::new("Portrait", ArtifactKind::ImageRaster).unwrap();
+    let operation = TransformationOperation::RasterResize(RasterResize::new(
+        RasterResizeDimensions::new(1280, 720).unwrap(),
+        RasterResizeAspectPolicy::FitWithin,
+        RasterResizeResampling::Lanczos3,
+    ));
+    let deterministic = Transformation::new_with_operation(
+        TransformationKind::DeterministicEdit,
+        artifact.id,
+        vec![RevisionId::new()],
+        IntentSpec::new("resize the raster").unwrap(),
+        Vec::new(),
+        Vec::new(),
+        Some(operation.clone()),
+    )
+    .unwrap();
+    assert_eq!(deterministic.operation, Some(operation.clone()));
+
+    assert!(
+        Transformation::new_with_operation(
+            TransformationKind::GenerativeEdit,
+            artifact.id,
+            Vec::new(),
+            IntentSpec::new("create a variation").unwrap(),
+            Vec::new(),
+            Vec::new(),
+            Some(operation),
+        )
+        .is_err()
     );
 }
 

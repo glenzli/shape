@@ -24,7 +24,9 @@ Rectangle {
     property string generationErrorCode: ""
     property string operatorDraftId: ""
     property string operatorTypeKey: ""
+    property string textTransformMode: "rewrite"
     property string textTransformInstruction: ""
+    property string pendingTextTransformMode: "rewrite"
 
     readonly property bool selectedTextDocument: artifactId.length > 0
                                                 && artifactKindKey === "text_document"
@@ -33,8 +35,11 @@ Rectangle {
     readonly property bool transformingText: operatorTypeKey === "text.transform"
 
     signal candidateRequested(string artifactId, string replacementText)
-    signal inferCandidateRequested(string artifactId, string prompt)
-    signal textTransformDraftSaveRequested(string draftId, string instruction)
+    signal inferCandidateRequested(string artifactId, string draftId,
+                                   string modeKey, string instruction)
+    signal textTransformDraftConfigurationSaveRequested(string draftId,
+                                                        string modeKey,
+                                                        string instruction)
     signal runtimeRefreshRequested()
 
     function resetDraft() : void {
@@ -75,23 +80,59 @@ Rectangle {
         }
     }
 
-    function persistTransformInstruction() : void {
+    function normalizeTransformMode(modeKey) : string {
+        switch (modeKey) {
+        case "rewrite":
+        case "expand":
+        case "polish":
+        case "shorten": return modeKey
+        default: return "rewrite"
+        }
+    }
+
+    function transformModeLabel(modeKey) : string {
+        switch (modeKey) {
+        case "expand": return qsTr("Expand")
+        case "polish": return qsTr("Polish")
+        case "shorten": return qsTr("Shorten")
+        default: return qsTr("Rewrite")
+        }
+    }
+
+    function synchronizeTransformMode() : void {
+        pendingTextTransformMode = normalizeTransformMode(textTransformMode)
+    }
+
+    function selectTransformMode(modeKey) : void {
+        pendingTextTransformMode = normalizeTransformMode(modeKey)
+        instructionSaveTimer.stop()
+        if (generationPrompt.text.trim().length > 0) {
+            persistTransformConfiguration()
+        }
+    }
+
+    function persistTransformConfiguration() : void {
         if (!transformingText || operatorDraftId.length === 0
-                || generationPrompt.text === textTransformInstruction) {
+                || (generationPrompt.text === textTransformInstruction
+                    && pendingTextTransformMode
+                       === normalizeTransformMode(textTransformMode))) {
             return
         }
-        textTransformDraftSaveRequested(operatorDraftId, generationPrompt.text)
+        textTransformDraftConfigurationSaveRequested(
+                    operatorDraftId, pendingTextTransformMode,
+                    generationPrompt.text)
     }
 
     onArtifactIdChanged: resetDraft()
     onAcceptedTextChanged: if (!candidatePending && !draftEditor.activeFocus) resetDraft()
     onCandidatePendingChanged: if (!candidatePending) resetDraft()
     onOperatorDraftIdChanged: synchronizeTransformInstruction()
+    onTextTransformModeChanged: synchronizeTransformMode()
     onTextTransformInstructionChanged: synchronizeTransformInstruction()
     onVisibleChanged: {
         if (!visible && instructionSaveTimer.running) {
             instructionSaveTimer.stop()
-            persistTransformInstruction()
+            persistTransformConfiguration()
         }
     }
 
@@ -99,7 +140,7 @@ Rectangle {
         id: instructionSaveTimer
         interval: 350
         repeat: false
-        onTriggered: panel.persistTransformInstruction()
+        onTriggered: panel.persistTransformConfiguration()
     }
 
     radius: Theme.radiusLarge
@@ -192,6 +233,60 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: 6
+            visible: panel.canEditText && panel.transformingText
+
+            Text {
+                text: qsTr("Mode")
+                color: Theme.muted
+                font.pixelSize: 10
+            }
+
+            ShapeButton {
+                objectName: "textTransformModeRewriteButton"
+                implicitHeight: 26
+                text: panel.transformModeLabel("rewrite")
+                selected: panel.pendingTextTransformMode === "rewrite"
+                enabled: panel.canEditText && !panel.generationRunning
+                Accessible.name: text
+                onClicked: panel.selectTransformMode("rewrite")
+            }
+
+            ShapeButton {
+                objectName: "textTransformModeExpandButton"
+                implicitHeight: 26
+                text: panel.transformModeLabel("expand")
+                selected: panel.pendingTextTransformMode === "expand"
+                enabled: panel.canEditText && !panel.generationRunning
+                Accessible.name: text
+                onClicked: panel.selectTransformMode("expand")
+            }
+
+            ShapeButton {
+                objectName: "textTransformModePolishButton"
+                implicitHeight: 26
+                text: panel.transformModeLabel("polish")
+                selected: panel.pendingTextTransformMode === "polish"
+                enabled: panel.canEditText && !panel.generationRunning
+                Accessible.name: text
+                onClicked: panel.selectTransformMode("polish")
+            }
+
+            ShapeButton {
+                objectName: "textTransformModeShortenButton"
+                implicitHeight: 26
+                text: panel.transformModeLabel("shorten")
+                selected: panel.pendingTextTransformMode === "shorten"
+                enabled: panel.canEditText && !panel.generationRunning
+                Accessible.name: text
+                onClicked: panel.selectTransformMode("shorten")
+            }
+
+            Item { Layout.fillWidth: true }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
             spacing: 8
             visible: panel.canEditText && panel.transformingText
 
@@ -203,18 +298,18 @@ Rectangle {
                 implicitHeight: 30
                 enabled: panel.canEditText && !panel.generationRunning
                 placeholderText: panel.credentialConfigured
-                                 ? qsTr("Describe how AI should rewrite this text…")
+                                 ? qsTr("Describe how AI should transform this text…")
                                  : qsTr("Add an Infer credential in Settings to use AI")
                 color: Theme.text
                 placeholderTextColor: Theme.muted
                 selectionColor: Theme.accentSoft
                 selectedTextColor: Theme.text
                 font.pixelSize: 11
-                Accessible.name: qsTr("AI rewrite instruction")
+                Accessible.name: qsTr("AI transform instruction")
                 onTextEdited: instructionSaveTimer.restart()
                 onEditingFinished: {
                     instructionSaveTimer.stop()
-                    panel.persistTransformInstruction()
+                    panel.persistTransformConfiguration()
                 }
 
                 background: Rectangle {
@@ -227,15 +322,18 @@ Rectangle {
             ShapeButton {
                 objectName: "inferGenerateButton"
                 implicitHeight: 30
-                text: panel.generationRunning ? qsTr("Transforming…") : qsTr("Rewrite with AI")
+                text: panel.generationRunning ? qsTr("Transforming…") : qsTr("Transform with AI")
                 selected: panel.generationRunning
                 enabled: panel.canEditText
                          && panel.runtimeCompatible
                          && panel.credentialConfigured
                          && !panel.generationRunning
+                         && panel.operatorDraftId.length > 0
                          && generationPrompt.text.trim().length > 0
                 onClicked: panel.inferCandidateRequested(
-                               panel.artifactId, generationPrompt.text.trim())
+                               panel.artifactId, panel.operatorDraftId,
+                               panel.pendingTextTransformMode,
+                               generationPrompt.text)
             }
         }
 
@@ -309,5 +407,9 @@ Rectangle {
         }
     }
 
-    Component.onCompleted: resetDraft()
+    Component.onCompleted: {
+        resetDraft()
+        synchronizeTransformInstruction()
+        synchronizeTransformMode()
+    }
 }

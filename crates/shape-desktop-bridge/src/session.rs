@@ -4,7 +4,9 @@ mod candidate_shelf;
 mod operator_drafts;
 
 use shape_core::{AudioCandidate, ImageCandidate, ShapeProject, TextCandidate, TextEditParameters};
-use shape_domain::{ArtifactContentContract, ArtifactId, ArtifactKind, IntentSpec, RasterCrop};
+use shape_domain::{
+    ArtifactContentContract, ArtifactId, ArtifactKind, IntentSpec, RasterCrop, SpeechVoiceSelection,
+};
 
 use crate::{audio_origin_key, bounded_text_preview, ffi, project_snapshot};
 use candidate_shelf::{Candidate, CandidateShelf};
@@ -12,7 +14,8 @@ use operator_drafts::OperatorDrafts;
 
 use crate::operator_catalog::{
     AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, TEXT_EDIT_OPERATOR, TEXT_TRANSFORM_OPERATOR,
-    compatible_descriptors, descriptor_for, instruction_from_draft,
+    audio_speech_operation_from_draft, compatible_descriptors, descriptor_for,
+    instruction_from_draft, mode_from_draft,
 };
 
 use crate::infer_speech::InferSpeechCandidate;
@@ -54,11 +57,16 @@ pub fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>, String> {
 }
 
 fn desktop_session(project: ShapeProject, path: &str) -> Result<Box<DesktopSession>, String> {
-    let operator_drafts = OperatorDrafts::from_graphs(
+    let mut operator_drafts = OperatorDrafts::from_graphs(
         project
             .artifact_working_graphs()
             .map_err(|error| error.to_string())?,
     )?;
+    for graph in operator_drafts.initialize_audio_speech_defaults()? {
+        project
+            .save_artifact_working_graph(&graph)
+            .map_err(|error| error.to_string())?;
+    }
     Ok(Box::new(DesktopSession {
         project,
         bundle_path: super::project_path(path),
@@ -144,7 +152,7 @@ impl DesktopSession {
             .collect()
     }
 
-    /// Saves the authored instruction owned by one `text.transform` draft.
+    /// Saves the authored mode and instruction owned by one `text.transform` draft.
     ///
     /// # Errors
     ///
@@ -153,12 +161,46 @@ impl DesktopSession {
     pub fn session_update_text_transform_draft(
         &mut self,
         draft_id: &str,
+        mode_key: &str,
         instruction: &str,
     ) -> Result<ffi::OperatorDraftWire, String> {
         let previous = self.operator_drafts.clone();
-        let (artifact_id, draft) = self
-            .operator_drafts
-            .update_text_transform_instruction(draft_id, instruction)?;
+        let (artifact_id, draft) = self.operator_drafts.update_text_transform_configuration(
+            draft_id,
+            mode_key,
+            instruction,
+        )?;
+        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+            self.operator_drafts = previous;
+            return Err(error);
+        }
+        Ok(operator_draft_wire(artifact_id, &draft))
+    }
+
+    /// Saves the preset-only authored state owned by one speech synthesis draft.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown or incompatible draft, unsupported
+    /// preset, hidden synthetic disclosure, stale source, or persistence failure.
+    pub fn session_update_audio_speech_draft(
+        &mut self,
+        draft_id: &str,
+        preset_alias: &str,
+        preset_catalog_revision: &str,
+        language: &str,
+        speed_milli: u16,
+        synthetic_disclosure_required: bool,
+    ) -> Result<ffi::OperatorDraftWire, String> {
+        let previous = self.operator_drafts.clone();
+        let (artifact_id, draft) = self.operator_drafts.update_audio_speech_configuration(
+            draft_id,
+            preset_alias,
+            preset_catalog_revision,
+            language,
+            speed_milli,
+            synthetic_disclosure_required,
+        )?;
         if let Err(error) = self.persist_operator_drafts(artifact_id) {
             self.operator_drafts = previous;
             return Err(error);
@@ -542,6 +584,22 @@ fn operator_draft_wire(
         .map_or_else(String::new, |configuration| {
             configuration.schema().as_str().to_owned()
         });
+    let audio_speech_operation = audio_speech_operation_from_draft(draft)
+        .expect("session admits only validated Operator draft configurations");
+    let (audio_speech_preset_alias, audio_speech_preset_catalog_revision) =
+        match audio_speech_operation
+            .as_ref()
+            .map(|operation| &operation.voice)
+        {
+            Some(SpeechVoiceSelection::Preset(selection)) => (
+                selection.alias.as_str().to_owned(),
+                selection.catalog_revision.clone(),
+            ),
+            Some(SpeechVoiceSelection::AuthorizedReference(_)) => {
+                unreachable!("preset-only speech draft codec rejects authorized voice references")
+            }
+            None => (String::new(), String::new()),
+        };
     ffi::OperatorDraftWire {
         draft_id: draft.id().to_string(),
         context_artifact_id: context_artifact_id.to_string(),
@@ -549,8 +607,20 @@ fn operator_draft_wire(
         input_data_type_key: draft.input_data_type().to_string(),
         output_data_type_key: draft.output_data_type().to_string(),
         configuration_schema,
+        text_transform_mode: mode_from_draft(draft)
+            .expect("session admits only validated Operator draft configurations"),
         text_transform_instruction: instruction_from_draft(draft)
             .expect("session admits only validated Operator draft configurations"),
+        audio_speech_preset_alias,
+        audio_speech_preset_catalog_revision,
+        audio_speech_language: audio_speech_operation
+            .as_ref()
+            .map_or_else(String::new, |operation| operation.language.clone()),
+        audio_speech_speed_milli: audio_speech_operation
+            .as_ref()
+            .map_or(0, |operation| operation.speed_milli),
+        audio_speech_disclosure_required: audio_speech_operation
+            .is_some_and(|operation| operation.synthetic_disclosure_required),
     }
 }
 
