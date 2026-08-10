@@ -166,6 +166,7 @@ ApplicationWindow {
                 runtimeReachable: window.inferRuntime.reachable
                 runtimeCompatible: window.inferRuntime.compatible
                 runtimeContractVersion: window.inferRuntime.contractVersion
+                runtimeEndpointSource: window.inferRuntime.endpointSource
                 onRuntimeRefreshRequested: window.inferRuntime.refresh()
                 onCandidateRequested: (artifactId, replacementText) => {
                     if (window.backend.proposeTextCandidate(artifactId, replacementText)) {

@@ -16,6 +16,7 @@ Rectangle {
     property bool runtimeReachable: false
     property bool runtimeCompatible: false
     property string runtimeContractVersion: ""
+    property string runtimeEndpointSource: ""
 
     readonly property bool canEditText: artifactId.length > 0
                                          && artifactKindKey === "text_document"
@@ -78,8 +79,17 @@ Rectangle {
                 selected: panel.runtimeCompatible
                 enabled: !panel.runtimeProbing
                 Accessible.name: panel.runtimeCompatible
-                                 ? qsTr("Infer Runtime ready, contract %1").arg(
-                                       panel.runtimeContractVersion)
+                                 ? panel.runtimeEndpointSource === "discovery"
+                                   ? qsTr("Infer Runtime ready through Infra Discovery, contract %1").arg(
+                                         panel.runtimeContractVersion)
+                                   : panel.runtimeEndpointSource === "explicit_override"
+                                     ? qsTr("Infer Runtime ready through an explicit endpoint, contract %1").arg(
+                                           panel.runtimeContractVersion)
+                                     : panel.runtimeEndpointSource === "compatibility_fallback"
+                                       ? qsTr("Infer Runtime ready through the compatibility fallback, contract %1").arg(
+                                             panel.runtimeContractVersion)
+                                       : qsTr("Infer Runtime ready, contract %1").arg(
+                                             panel.runtimeContractVersion)
                                  : text
                 onClicked: panel.runtimeRefreshRequested()
             }

@@ -9,7 +9,7 @@ mod session;
 
 use shape_core::ShapeProject;
 use shape_domain::{Artifact, ArtifactKind, TransformationKind};
-use shape_execution::{InferRuntimeClient, InferRuntimeClientError, InferRuntimeContract};
+use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_runtime_contract};
 
 use session::{DesktopSession, open_desktop_session};
 
@@ -85,6 +85,10 @@ mod ffi {
         compatible: bool,
         contract_version: String,
         error_code: String,
+        endpoint_origin: String,
+        endpoint_source: String,
+        runtime_instance_id: String,
+        runtime_generation: String,
     }
 
     extern "Rust" {
@@ -121,20 +125,39 @@ mod ffi {
     }
 }
 
-fn probe_infer_runtime(base_url: &str) -> ffi::InferRuntimeProbeWire {
-    let result = InferRuntimeClient::new(base_url).and_then(|client| client.probe_contract());
-    infer_runtime_probe_wire(result)
+fn probe_infer_runtime(explicit_override: &str) -> ffi::InferRuntimeProbeWire {
+    infer_runtime_probe_wire(probe_infer_runtime_contract(explicit_override))
 }
 
-fn infer_runtime_probe_wire(
-    result: Result<InferRuntimeContract, InferRuntimeClientError>,
-) -> ffi::InferRuntimeProbeWire {
-    match result {
+fn infer_runtime_probe_wire(probe: InferRuntimeProbe) -> ffi::InferRuntimeProbeWire {
+    let endpoint_origin = probe
+        .endpoint
+        .as_ref()
+        .map_or_else(String::new, |endpoint| endpoint.origin.clone());
+    let endpoint_source = probe
+        .endpoint
+        .as_ref()
+        .map_or_else(String::new, |endpoint| endpoint.source.code().to_owned());
+    let runtime_instance_id = probe
+        .endpoint
+        .as_ref()
+        .and_then(|endpoint| endpoint.instance_id.clone())
+        .unwrap_or_default();
+    let runtime_generation = probe
+        .endpoint
+        .as_ref()
+        .and_then(|endpoint| endpoint.generation.clone())
+        .unwrap_or_default();
+    match probe.contract {
         Ok(contract) => ffi::InferRuntimeProbeWire {
             reachable: true,
             compatible: true,
             contract_version: contract.contract_version,
             error_code: String::new(),
+            endpoint_origin,
+            endpoint_source,
+            runtime_instance_id,
+            runtime_generation,
         },
         Err(error) => {
             let reachable = !matches!(
@@ -150,6 +173,10 @@ fn infer_runtime_probe_wire(
                 compatible: false,
                 contract_version,
                 error_code: error.code().to_owned(),
+                endpoint_origin,
+                endpoint_source,
+                runtime_instance_id,
+                runtime_generation,
             }
         }
     }

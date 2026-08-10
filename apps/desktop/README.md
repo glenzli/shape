@@ -36,9 +36,12 @@ adapters.
 
 The first Infer Runtime boundary is deliberately smaller than an executor. `InferRuntimeController`
 runs a bounded public-contract probe away from the UI thread and projects only checking, reachable,
-compatible, contract-version, and stable-error state. The default endpoint is the loopback origin
-`http://127.0.0.1:8787`; `SHAPE_INFER_RUNTIME_URL` may select another loopback origin for local
-development. Redirects, remote hosts, credentials, authenticated submission, and automatic Infer
+compatible, contract-version, endpoint-source, instance/generation, and stable-error state. Rust
+selects endpoints in this order: canonical numeric-loopback `SHAPE_INFER_RUNTIME_URL` override,
+live owner-only `infer-runtime.consumer@0.1.0-candidate.2` Infra Discovery offer, then the temporary
+`http://127.0.0.1:8787` migration fallback. It validates the exact Discovery schema, filesystem
+ownership and modes, lease, generation, offer binding, and raw endpoint before HTTP. Proxies,
+redirects, hostnames, remote hosts, credentials, authenticated submission, and automatic Infer
 configuration changes are excluded. An unavailable runtime is surfaced as a refreshable status in
 the intent panel while direct editing and accepted project content remain usable.
 

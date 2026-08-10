@@ -49,9 +49,9 @@ CMake output is written to the sibling `.shape-local-build` directory, not the s
   deterministic text acceptance and new-artifact branching, CLI, a bounded Rust/CXX desktop
   session, and a cross-platform desktop flow for keeping multiple text candidates, selecting,
   comparing, discarding, accepting, branching, reopening, and interactively inspecting persisted
-  text lineage as a project graph. The desktop also performs a bounded, credential-free check of a
-  loopback Infer Runtime's public contract and reports offline or incompatible status without
-  affecting direct editing.
+  text lineage as a project graph. The desktop also resolves Infer Runtime through a strict,
+  owner-only Infra Discovery registration and performs a bounded, credential-free public-contract
+  check. Offline, incompatible, and migration-fallback states never affect direct editing.
 - Deferred: pinned or durable explorations, image buffers, preview renderer, authenticated Infer
   Runtime execution and credential provisioning, Shadow/Echo suite adapters, external executors,
   project imports/exports, and AI planning.

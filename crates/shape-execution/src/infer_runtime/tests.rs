@@ -5,7 +5,21 @@ use std::{
     time::Duration,
 };
 
-use super::{INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError};
+#[cfg(unix)]
+use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+
+#[cfg(unix)]
+use serde_json::json;
+#[cfg(unix)]
+use time::{Duration as TimeDuration, OffsetDateTime, format_description::well_known::Rfc3339};
+#[cfg(unix)]
+use uuid::Uuid;
+
+use super::{
+    INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
+    InferRuntimeEndpointResolver, InferRuntimeEndpointSource, ResolvedInferRuntimeEndpoint,
+    probe_with_resolver, should_retry_endpoint,
+};
 
 fn fake_runtime(status: u16, body: String) -> (String, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("fake runtime binds");
@@ -63,6 +77,93 @@ fn compatible_contract_accepts_unknown_response_fields() {
 }
 
 #[test]
+fn failed_probe_retries_only_a_distinct_transport_or_discovery_generation() {
+    let failed = ResolvedInferRuntimeEndpoint {
+        origin: "http://127.0.0.1:8787".to_owned(),
+        source: InferRuntimeEndpointSource::Discovery,
+        instance_id: Some("local".to_owned()),
+        generation: Some("generation-a".to_owned()),
+        lease_expires_at_unix: Some(1),
+    };
+    let same_address_fallback = ResolvedInferRuntimeEndpoint {
+        origin: failed.origin.clone(),
+        source: InferRuntimeEndpointSource::CompatibilityFallback,
+        instance_id: None,
+        generation: None,
+        lease_expires_at_unix: None,
+    };
+    assert!(!should_retry_endpoint(&failed, &same_address_fallback));
+
+    let new_generation = ResolvedInferRuntimeEndpoint {
+        generation: Some("generation-b".to_owned()),
+        ..failed.clone()
+    };
+    assert!(should_retry_endpoint(&failed, &new_generation));
+
+    let new_address_fallback = ResolvedInferRuntimeEndpoint {
+        origin: "http://127.0.0.1:8788".to_owned(),
+        ..same_address_fallback
+    };
+    assert!(should_retry_endpoint(&failed, &new_address_fallback));
+}
+
+#[cfg(unix)]
+#[test]
+fn resolved_probe_uses_the_discovered_generation_and_contract() {
+    let (base_url, worker) = fake_runtime(200, compatible_manifest());
+    let root = std::env::temp_dir().join(format!("shape-live-discovery-{}", Uuid::now_v7()));
+    fs::create_dir_all(root.join("registrations")).expect("registration directory creates");
+    fs::create_dir_all(root.join("sockets")).expect("socket directory creates");
+    set_mode(&root, 0o700);
+    set_mode(&root.join("registrations"), 0o700);
+    set_mode(&root.join("sockets"), 0o700);
+    let now = OffsetDateTime::now_utc();
+    let registration = json!({
+        "schema": "infra.discovery.registration",
+        "schema_version": "20260810.1",
+        "service": {
+            "kind": "infer-runtime",
+            "instance_id": "local",
+            "generation": "generation-integration"
+        },
+        "lease": {
+            "renewed_at": (now - TimeDuration::seconds(5)).format(&Rfc3339).expect("time formats"),
+            "expires_at": (now + TimeDuration::seconds(40)).format(&Rfc3339).expect("time formats")
+        },
+        "offers": [{
+            "protocol": "infer-runtime.consumer",
+            "protocol_versions": [INFER_RUNTIME_CONTRACT_VERSION],
+            "binding": "infer-runtime.http-loopback",
+            "endpoint": base_url
+        }]
+    });
+    let manifest = root.join("registrations/infer-runtime--local.json");
+    fs::write(
+        &manifest,
+        serde_json::to_vec(&registration).expect("registration serializes"),
+    )
+    .expect("registration writes");
+    set_mode(&manifest, 0o600);
+    let resolver =
+        InferRuntimeEndpointResolver::with_runtime_root("", root.clone(), "http://127.0.0.1:9");
+
+    let probe = probe_with_resolver(&resolver);
+    let endpoint = probe.endpoint.expect("probe retains endpoint identity");
+    assert_eq!(endpoint.source, InferRuntimeEndpointSource::Discovery);
+    assert_eq!(
+        endpoint.generation.as_deref(),
+        Some("generation-integration")
+    );
+    assert_eq!(
+        probe.contract.expect("contract validates").contract_version,
+        INFER_RUNTIME_CONTRACT_VERSION
+    );
+
+    worker.join().expect("fake runtime exits");
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
 fn contract_revision_and_required_route_fail_closed() {
     let incompatible = r#"{
         "contract_version":"0.1.0-candidate.99",
@@ -93,10 +194,13 @@ fn contract_revision_and_required_route_fail_closed() {
 }
 
 #[test]
-fn probe_rejects_non_loopback_redirects_and_oversized_manifests() {
+fn probe_rejects_noncanonical_origins_and_oversized_manifests() {
     for endpoint in [
         "https://127.0.0.1:8787",
+        "http://localhost:8787",
         "http://example.com:8787",
+        "http://127.0.0.1",
+        "http://127.0.0.1:8787/",
         "http://127.0.0.1:8787/nested",
         "http://user@127.0.0.1:8787",
     ] {
@@ -138,4 +242,9 @@ fn http_and_transport_failures_have_stable_codes() {
         .probe_contract()
         .expect_err("closed port fails");
     assert_eq!(error.code(), "unavailable");
+}
+
+#[cfg(unix)]
+fn set_mode(path: &Path, mode: u32) {
+    fs::set_permissions(path, fs::Permissions::from_mode(mode)).expect("fixture mode sets");
 }

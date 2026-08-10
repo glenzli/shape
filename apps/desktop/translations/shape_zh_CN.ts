@@ -368,67 +368,82 @@
 <context>
     <name>IntentPanel</name>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="56"/>
+        <location filename="../qml/components/IntentPanel.qml" line="57"/>
         <source>TEXT DRAFT</source>
         <translation>文本草稿</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="66"/>
+        <location filename="../qml/components/IntentPanel.qml" line="67"/>
         <source>Direct edit · candidate before commit</source>
         <translation>直接编辑 · 提交前为候选</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="74"/>
+        <location filename="../qml/components/IntentPanel.qml" line="75"/>
         <source>Checking AI…</source>
         <translation>正在检查 AI…</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="75"/>
+        <location filename="../qml/components/IntentPanel.qml" line="76"/>
         <source>AI ready</source>
         <translation>AI 就绪</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="76"/>
+        <location filename="../qml/components/IntentPanel.qml" line="77"/>
         <source>AI contract mismatch</source>
         <translation>AI 契约不匹配</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="77"/>
+        <location filename="../qml/components/IntentPanel.qml" line="78"/>
         <source>AI offline</source>
         <translation>AI 离线</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="81"/>
+        <location filename="../qml/components/IntentPanel.qml" line="83"/>
+        <source>Infer Runtime ready through Infra Discovery, contract %1</source>
+        <translation>Infer Runtime 已通过 Infra Discovery 就绪，契约 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="86"/>
+        <source>Infer Runtime ready through an explicit endpoint, contract %1</source>
+        <translation>Infer Runtime 已通过显式端点就绪，契约 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="89"/>
+        <source>Infer Runtime ready through the compatibility fallback, contract %1</source>
+        <translation>Infer Runtime 已通过兼容回退就绪，契约 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="91"/>
         <source>Infer Runtime ready, contract %1</source>
         <translation>Infer Runtime 已就绪，契约 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="99"/>
+        <location filename="../qml/components/IntentPanel.qml" line="109"/>
         <source>Write the next text revision…</source>
         <translation>写下一个文本版本…</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="100"/>
+        <location filename="../qml/components/IntentPanel.qml" line="110"/>
         <source>Select a text document to begin</source>
         <translation>选择一个文本文档即可开始</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="107"/>
+        <location filename="../qml/components/IntentPanel.qml" line="117"/>
         <source>Text draft</source>
         <translation>文本草稿</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="125"/>
+        <location filename="../qml/components/IntentPanel.qml" line="135"/>
         <source>Keep editing to add another option, or review the shelf.</source>
         <translation>继续编辑以添加其他方案，或在候选架中查看。</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="126"/>
+        <location filename="../qml/components/IntentPanel.qml" line="136"/>
         <source>Accepted history stays unchanged until you accept the candidate.</source>
         <translation>在你接受候选之前，已接受历史不会改变。</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="135"/>
+        <location filename="../qml/components/IntentPanel.qml" line="145"/>
         <source>Create candidate</source>
         <translation>创建候选</translation>
     </message>

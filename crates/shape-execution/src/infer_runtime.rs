@@ -1,10 +1,17 @@
-//! Loopback-only Infer Runtime consumer-contract discovery.
+//! Infer Runtime endpoint discovery and public consumer-contract validation.
 
-use std::{io::Read, net::IpAddr, time::Duration};
+use std::{io::Read, net::SocketAddr, time::Duration};
 
 use reqwest::{Url, blocking::Client, redirect::Policy};
 use serde::Deserialize;
 use thiserror::Error;
+
+mod discovery;
+
+pub use discovery::{
+    INFER_RUNTIME_COMPATIBILITY_ENDPOINT, InferRuntimeEndpointResolver, InferRuntimeEndpointSource,
+    ResolvedInferRuntimeEndpoint,
+};
 
 /// Infer Runtime wire contract implemented by this Shape build.
 pub const INFER_RUNTIME_CONTRACT_VERSION: &str = "0.1.0-candidate.2";
@@ -21,12 +28,21 @@ pub struct InferRuntimeContract {
     pub contract_version: String,
 }
 
+/// Final endpoint identity and public contract result from one bounded probe.
+#[derive(Debug)]
+pub struct InferRuntimeProbe {
+    /// Endpoint ultimately attempted, absent only for invalid explicit config.
+    pub endpoint: Option<ResolvedInferRuntimeEndpoint>,
+    /// Compatible public contract or a payload-free stable failure.
+    pub contract: Result<InferRuntimeContract, InferRuntimeClientError>,
+}
+
 /// Stable failures for public contract discovery. Response payloads and URLs
 /// are deliberately excluded so diagnostics cannot capture credentials later.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum InferRuntimeClientError {
-    /// Only a bare loopback HTTP origin is accepted for the first integration.
-    #[error("Infer Runtime endpoint must be a loopback HTTP origin")]
+    /// Only a canonical numeric-loopback HTTP origin is accepted.
+    #[error("Infer Runtime endpoint must be a canonical numeric-loopback HTTP origin")]
     InvalidEndpoint,
     /// No valid HTTP response arrived within the bounded request window.
     #[error("Infer Runtime is unavailable")]
@@ -56,11 +72,12 @@ impl InferRuntimeClientError {
     }
 }
 
-/// Bounded client for Infer Runtime's unauthenticated public contract surface.
+/// Bounded HTTP client for Infer Runtime's unauthenticated public contract.
 ///
 /// This owner does not load credentials or submit inference. Redirects are
-/// disabled and the origin must be loopback so a configuration mistake cannot
-/// turn a future probe into an arbitrary network request.
+/// disabled, proxies are bypassed, and the raw origin must be canonical
+/// numeric loopback so a configuration mistake cannot turn a future probe into
+/// an arbitrary network request.
 #[derive(Debug, Clone)]
 pub struct InferRuntimeClient {
     base_url: Url,
@@ -73,24 +90,15 @@ impl InferRuntimeClient {
     /// # Errors
     ///
     /// Returns [`InferRuntimeClientError::InvalidEndpoint`] unless `base_url`
-    /// is a bare `http://localhost`, IPv4 loopback, or IPv6 loopback origin.
+    /// is a canonical numeric IPv4 or IPv6 loopback HTTP origin with an
+    /// explicit non-zero port and no trailing slash.
     pub fn new(base_url: &str) -> Result<Self, InferRuntimeClientError> {
-        let base_url =
-            Url::parse(base_url).map_err(|_| InferRuntimeClientError::InvalidEndpoint)?;
-        if base_url.scheme() != "http"
-            || !base_url.username().is_empty()
-            || base_url.password().is_some()
-            || base_url.query().is_some()
-            || base_url.fragment().is_some()
-            || base_url.path() != "/"
-            || !is_loopback_host(&base_url)
-        {
-            return Err(InferRuntimeClientError::InvalidEndpoint);
-        }
+        let base_url = canonical_loopback_url(base_url)?;
         let client = Client::builder()
             .connect_timeout(CONNECT_TIMEOUT)
             .timeout(REQUEST_TIMEOUT)
             .redirect(Policy::none())
+            .no_proxy()
             .user_agent("shape/0.1 infer-contract-probe")
             .build()
             .map_err(|_| InferRuntimeClientError::InvalidEndpoint)?;
@@ -151,6 +159,58 @@ impl InferRuntimeClient {
     }
 }
 
+/// Resolves Infer Runtime and validates its public contract in one bounded
+/// Consumer lifecycle.
+///
+/// A transport failure triggers one immediate Discovery re-read. Shape retries
+/// only when that produces a different endpoint or Discovery generation; the
+/// temporary migration fallback never causes a duplicate hit to the same
+/// failed address.
+#[must_use]
+pub fn probe_infer_runtime_contract(explicit_override: &str) -> InferRuntimeProbe {
+    let resolver = InferRuntimeEndpointResolver::from_environment(explicit_override);
+    probe_with_resolver(&resolver)
+}
+
+fn probe_with_resolver(resolver: &InferRuntimeEndpointResolver) -> InferRuntimeProbe {
+    let mut endpoint = match resolver.resolve() {
+        Ok(endpoint) => endpoint,
+        Err(error) => {
+            return InferRuntimeProbe {
+                endpoint: None,
+                contract: Err(error),
+            };
+        }
+    };
+    let mut contract = probe_endpoint(&endpoint);
+    if matches!(contract, Err(InferRuntimeClientError::Unavailable))
+        && let Ok(rediscovered) = resolver.resolve_after_connection_failure(&endpoint)
+        && should_retry_endpoint(&endpoint, &rediscovered)
+    {
+        endpoint = rediscovered;
+        contract = probe_endpoint(&endpoint);
+    }
+    InferRuntimeProbe {
+        endpoint: Some(endpoint),
+        contract,
+    }
+}
+
+fn should_retry_endpoint(
+    failed: &ResolvedInferRuntimeEndpoint,
+    candidate: &ResolvedInferRuntimeEndpoint,
+) -> bool {
+    candidate.origin != failed.origin
+        || (candidate.source == InferRuntimeEndpointSource::Discovery
+            && candidate.generation != failed.generation)
+}
+
+fn probe_endpoint(
+    endpoint: &ResolvedInferRuntimeEndpoint,
+) -> Result<InferRuntimeContract, InferRuntimeClientError> {
+    InferRuntimeClient::new(&endpoint.origin)?.probe_contract()
+}
+
 #[derive(Debug, Deserialize)]
 struct ContractManifest {
     contract_version: String,
@@ -164,14 +224,26 @@ struct ConsumerRoute {
     path: String,
 }
 
-fn is_loopback_host(url: &Url) -> bool {
-    match url.host_str() {
-        Some("localhost") => true,
-        Some(host) => host
-            .parse::<IpAddr>()
-            .is_ok_and(|address| address.is_loopback()),
-        None => false,
+fn canonical_loopback_url(origin: &str) -> Result<Url, InferRuntimeClientError> {
+    if origin.is_empty() || origin.trim() != origin {
+        return Err(InferRuntimeClientError::InvalidEndpoint);
     }
+    let authority = origin
+        .strip_prefix("http://")
+        .ok_or(InferRuntimeClientError::InvalidEndpoint)?;
+    if authority.is_empty()
+        || authority.contains(['/', '?', '#', '@'])
+        || authority.chars().any(char::is_whitespace)
+    {
+        return Err(InferRuntimeClientError::InvalidEndpoint);
+    }
+    let address = authority
+        .parse::<SocketAddr>()
+        .map_err(|_| InferRuntimeClientError::InvalidEndpoint)?;
+    if !address.ip().is_loopback() || address.port() == 0 || format!("http://{address}") != origin {
+        return Err(InferRuntimeClientError::InvalidEndpoint);
+    }
+    Url::parse(origin).map_err(|_| InferRuntimeClientError::InvalidEndpoint)
 }
 
 #[cfg(test)]

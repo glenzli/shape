@@ -18,6 +18,10 @@ class InferRuntimeController : public QObject {
     Q_PROPERTY(bool available READ available NOTIFY statusChanged)
     Q_PROPERTY(QString contractVersion READ contractVersion NOTIFY statusChanged)
     Q_PROPERTY(QString errorCode READ errorCode NOTIFY statusChanged)
+    Q_PROPERTY(QString endpointOrigin READ endpointOrigin NOTIFY statusChanged)
+    Q_PROPERTY(QString endpointSource READ endpointSource NOTIFY statusChanged)
+    Q_PROPERTY(QString runtimeInstanceId READ runtimeInstanceId NOTIFY statusChanged)
+    Q_PROPERTY(QString runtimeGeneration READ runtimeGeneration NOTIFY statusChanged)
 
   public:
     explicit InferRuntimeController(QObject* parent = nullptr);
@@ -29,6 +33,10 @@ class InferRuntimeController : public QObject {
     [[nodiscard]] bool available() const;
     [[nodiscard]] QString contractVersion() const;
     [[nodiscard]] QString errorCode() const;
+    [[nodiscard]] QString endpointOrigin() const;
+    [[nodiscard]] QString endpointSource() const;
+    [[nodiscard]] QString runtimeInstanceId() const;
+    [[nodiscard]] QString runtimeGeneration() const;
 
     /// Coalesces refresh requests while one bounded probe is active.
     Q_INVOKABLE void refresh();
@@ -39,7 +47,7 @@ class InferRuntimeController : public QObject {
   private:
     void finishProbe();
 
-    QString base_url_;
+    QString explicit_override_;
     QFutureWatcher<QVariantMap> watcher_;
     quint64 generation_ = 0;
     bool refresh_queued_ = false;
@@ -48,4 +56,8 @@ class InferRuntimeController : public QObject {
     bool compatible_ = false;
     QString contract_version_;
     QString error_code_;
+    QString endpoint_origin_;
+    QString endpoint_source_;
+    QString runtime_instance_id_;
+    QString runtime_generation_;
 };

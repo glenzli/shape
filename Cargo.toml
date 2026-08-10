@@ -30,6 +30,7 @@ publish = false
 blake3 = "1.8.5"
 cxx = "=1.0.198"
 reqwest = { version = "0.12.28", default-features = false, features = ["blocking"] }
+rustix = { version = "1.1.4", features = ["fs", "process"] }
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
@@ -39,6 +40,7 @@ shape-domain = { path = "crates/shape-domain" }
 shape-execution = { path = "crates/shape-execution" }
 shape-store = { path = "crates/shape-store" }
 thiserror = "2.0.18"
+time = { version = "0.3.55", features = ["formatting", "parsing"] }
 uuid = { version = "1.23.2", features = ["serde", "std", "v7"] }
 
 [workspace.lints.rust]

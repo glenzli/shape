@@ -55,11 +55,15 @@ collection. Candidates project newest-first through CXX without UI policy. Succe
 acceptance clears siblings prepared against the old head; branching and discard consume only the
 chosen candidate. Acceptance still crosses the existing `shape-core` use case and `shape-store`
 compare-and-swap commit boundary. `shape-execution::infer_runtime` now owns the first real Infer
-Runtime consumer: a bounded, redirect-free, loopback-only probe for the public contract manifest.
-It does not submit work or carry credentials. Pinned or durable explorations, media bridges, the
-authenticated Infer executor, capability registry, preview renderer, and project dependency
-resolver remain deferred until a real application path and credential boundary consume them. Do
-not create empty crates for roadmap boxes.
+Runtime consumer. Its `discovery` owner validates the owner-only
+`infra.discovery.registration@20260810.1` manifest, exact Consumer offer, lease, generation, and
+canonical numeric-loopback endpoint. The HTTP owner then performs a bounded, proxy-free,
+redirect-free public-contract probe. Explicit diagnostics override remains first; the fixed 8787
+origin is only a temporary final migration fallback. This boundary does not submit work or carry
+credentials. Pinned or durable explorations, media bridges, the authenticated Infer executor,
+capability registry, preview renderer, and project dependency resolver remain deferred until a real
+application path and Shape-specific credential boundary consume them. Do not create empty crates
+for roadmap boxes.
 
 The desktop visual foundation adds two deliberately separate owners rather than growing the
 project projection: `UiPreferences` owns persistent appearance/language lifecycle, while
@@ -69,9 +73,10 @@ second settings domain or a second top-level workspace creates a concrete growth
 `TextCompareWorkspace.qml` separately owns accepted-versus-candidate presentation; the C++
 `DesktopBackend` remains a presentation facade and never becomes the draft or persistence owner.
 The independent `InferRuntimeController` owns the asynchronous desktop probe lifecycle and exposes
-only availability, compatibility, contract version, and stable error identity to QML. It never
-enters `DesktopSession`, blocks the UI thread, edits Infer configuration, or makes accepted content
-dependent on runtime availability.
+only availability, compatibility, contract version, endpoint source, instance/generation identity,
+and stable error identity to QML. Endpoint selection remains authoritative in Rust. The controller
+never enters `DesktopSession`, blocks the UI thread, edits Infer configuration, or makes accepted
+content dependent on runtime availability.
 The graph-aware desktop information architecture adds `ProjectNavigator.qml` for project-level
 creative-object selection and `ContextInspector.qml` for Explore, Details, and Lineage modes.
 `ArtifactWorkspace.qml` remains the media-workspace owner. The bridge projects only lineage already
