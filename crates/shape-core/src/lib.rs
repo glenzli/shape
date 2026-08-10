@@ -8,4 +8,4 @@ mod error;
 mod project;
 
 pub use error::CoreError;
-pub use project::{AcceptedArtifactContent, ShapeProject, TextCandidate};
+pub use project::{AcceptedArtifactContent, ImageCandidate, ShapeProject, TextCandidate};

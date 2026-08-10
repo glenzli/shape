@@ -1,4 +1,5 @@
 #include "desktop_backend.hpp"
+#include "image_preview_provider.hpp"
 #include "infer_runtime_controller.hpp"
 #include "infer_text_controller.hpp"
 #include "ui_preferences.hpp"
@@ -9,14 +10,18 @@
 
 #include "rust/cxx.h"
 
+#include <QColor>
 #include <QDir>
 #include <QGuiApplication>
+#include <QImage>
 #include <QMetaObject>
 #include <QQmlApplicationEngine>
 #include <QQmlExpression>
 #include <QQuickWindow>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTimer>
+#include <QUrl>
 #include <QVariant>
 
 #include <algorithm>
@@ -31,6 +36,7 @@ struct Arguments {
     std::optional<std::string> project_path;
     bool smoke_exit = false;
     bool smoke_text_cycle = false;
+    bool smoke_raster_cycle = false;
 };
 
 std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
@@ -46,11 +52,112 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             arguments.smoke_exit = true;
         } else if (argument == "--smoke-text-cycle") {
             arguments.smoke_text_cycle = true;
+        } else if (argument == "--smoke-raster-cycle") {
+            arguments.smoke_raster_cycle = true;
         } else {
             return std::nullopt;
         }
     }
     return arguments;
+}
+
+bool run_smoke_raster_cycle(
+    DesktopBackend& backend,
+    QObject& root_object,
+    const std::string& project_path
+) {
+    QTemporaryDir fixture_directory;
+    if (!fixture_directory.isValid()) {
+        std::cerr << "desktop raster smoke could not create fixture directory" << std::endl;
+        return false;
+    }
+    const QString fixture_path = fixture_directory.filePath(QStringLiteral("fixture.png"));
+    QImage fixture(8, 6, QImage::Format_RGBA8888);
+    for (int y = 0; y < fixture.height(); ++y) {
+        for (int x = 0; x < fixture.width(); ++x) {
+            fixture.setPixelColor(x, y, QColor(x * 24, y * 32, 96, 255));
+        }
+    }
+    if (!fixture.save(fixture_path, "PNG")
+        || !backend.importRaster(QUrl::fromLocalFile(fixture_path))) {
+        std::cerr << "desktop raster smoke could not import fixture" << std::endl;
+        return false;
+    }
+
+    const QVariantList imported_artifacts = backend.artifacts();
+    const auto imported = std::find_if(
+        imported_artifacts.cbegin(),
+        imported_artifacts.cend(),
+        [](const QVariant& artifact) {
+            return artifact.toMap().value(QStringLiteral("kindKey")).toString()
+                   == QStringLiteral("image_raster");
+        }
+    );
+    if (imported == imported_artifacts.cend()) {
+        std::cerr << "desktop raster smoke lost imported artifact" << std::endl;
+        return false;
+    }
+    const QVariantMap imported_artifact = imported->toMap();
+    const QString artifact_id = imported_artifact.value(QStringLiteral("id")).toString();
+    const QString imported_head =
+        imported_artifact.value(QStringLiteral("acceptedRevisionId")).toString();
+    const int artifact_index =
+        static_cast<int>(std::distance(imported_artifacts.cbegin(), imported));
+    root_object.setProperty("selectedArtifactIndex", artifact_index);
+    QCoreApplication::processEvents();
+    if (imported_artifact.value(QStringLiteral("imageWidth")).toInt() != 8
+        || imported_artifact.value(QStringLiteral("imageHeight")).toInt() != 6
+        || !backend.prepareImagePreviews(artifact_id) || backend.acceptedImageSource().isEmpty()
+        || root_object.findChild<QObject*>(QStringLiteral("imageRasterWorkspace")) == nullptr) {
+        std::cerr << "desktop raster smoke could not present accepted image" << std::endl;
+        return false;
+    }
+
+    if (!backend.proposeRasterCrop(artifact_id, 1, 1, 4, 3) || !backend.hasCandidate()) {
+        std::cerr << "desktop raster smoke could not create crop candidate" << std::endl;
+        return false;
+    }
+    const QString candidate_id = backend.candidateId();
+    if (backend.artifacts()[artifact_index]
+                .toMap()
+                .value(QStringLiteral("acceptedRevisionId"))
+                .toString()
+            != imported_head
+        || !backend.prepareImagePreviews(artifact_id, candidate_id)
+        || backend.candidateImageSource().isEmpty()) {
+        std::cerr << "desktop raster candidate changed history or failed preview" << std::endl;
+        return false;
+    }
+    root_object.setProperty("compareMode", true);
+    QCoreApplication::processEvents();
+    if (root_object.findChild<QObject*>(QStringLiteral("imageCompareWorkspace")) == nullptr) {
+        std::cerr << "desktop raster smoke could not find packaged comparison" << std::endl;
+        return false;
+    }
+
+    if (!backend.acceptCandidate(candidate_id) || backend.hasCandidate()) {
+        std::cerr << "desktop raster smoke could not accept crop candidate" << std::endl;
+        return false;
+    }
+    const QVariantMap accepted = backend.artifacts()[artifact_index].toMap();
+    if (accepted.value(QStringLiteral("acceptedRevisionId")).toString() == imported_head
+        || accepted.value(QStringLiteral("imageWidth")).toInt() != 4
+        || accepted.value(QStringLiteral("imageHeight")).toInt() != 3) {
+        std::cerr << "desktop raster smoke committed an unexpected crop" << std::endl;
+        return false;
+    }
+
+    const auto reopened = shape::desktop::load_project_snapshot(project_path);
+    const auto reopened_artifact = std::find_if(
+        reopened.artifacts.begin(),
+        reopened.artifacts.end(),
+        [&artifact_id](const shape::desktop::ArtifactSummaryWire& artifact) {
+            return QString::fromUtf8(artifact.id.data(), static_cast<qsizetype>(artifact.id.size()))
+                   == artifact_id;
+        }
+    );
+    return reopened_artifact != reopened.artifacts.end() && reopened_artifact->has_image_preview
+           && reopened_artifact->image_width == 4 && reopened_artifact->image_height == 3;
 }
 
 bool run_smoke_text_cycle(DesktopBackend& backend) {
@@ -304,7 +411,7 @@ int main(int argc, char* argv[]) {
     const auto arguments = parse_arguments(argc, argv);
     if (!arguments.has_value()) {
         std::cerr << "usage: shape-desktop [--project PROJECT.shape] [--smoke-exit] "
-                     "[--smoke-text-cycle]"
+                     "[--smoke-text-cycle] [--smoke-raster-cycle]"
                   << std::endl;
         return 2;
     }
@@ -341,6 +448,10 @@ int main(int argc, char* argv[]) {
     );
     backend->retranslate();
     QQmlApplicationEngine engine;
+    engine.addImageProvider(
+        QStringLiteral("shape-preview"),
+        new ImagePreviewProvider(backend->imagePreviewStore())
+    );
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,
@@ -385,6 +496,11 @@ int main(int argc, char* argv[]) {
             && (!run_smoke_text_cycle(*backend) || !verify_project_graph_interaction(*root_object)
                 || !verify_candidate_shelf_interaction(*backend, *root_object))) {
             return 4;
+        }
+        if (arguments->smoke_raster_cycle
+            && (!arguments->project_path.has_value()
+                || !run_smoke_raster_cycle(*backend, *root_object, *arguments->project_path))) {
+            return 5;
         }
         QTimer::singleShot(0, &application, &QCoreApplication::quit);
     }

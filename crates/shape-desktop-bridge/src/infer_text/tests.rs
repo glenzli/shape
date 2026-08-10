@@ -172,7 +172,7 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
         "Accepted before Infer."
     );
     let accepted = session
-        .session_accept_text(&adopted.candidate_id)
+        .session_accept_candidate(&adopted.candidate_id)
         .expect("generated candidate accepts");
     assert_eq!(
         accepted.artifacts[0].text_preview,

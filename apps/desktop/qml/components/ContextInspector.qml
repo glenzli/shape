@@ -73,6 +73,9 @@ Item {
                 hasAcceptedRevision: inspector.hasArtifact
                                      && inspector.artifact.hasAcceptedRevision
                 hasTextPreview: inspector.hasArtifact && inspector.artifact.hasTextPreview
+                artifactKindKey: inspector.hasArtifact ? inspector.artifact.kindKey : ""
+                imageWidth: inspector.hasArtifact ? inspector.artifact.imageWidth : 0
+                imageHeight: inspector.hasArtifact ? inspector.artifact.imageHeight : 0
                 acceptedRevisionId: inspector.hasArtifact
                                     ? inspector.artifact.acceptedRevisionId : ""
                 candidates: inspector.candidates

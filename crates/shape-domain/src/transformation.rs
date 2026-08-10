@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactId, DomainError, RevisionId, TransformationId};
+use crate::{ArtifactId, DomainError, RasterCrop, RevisionId, TransformationId};
 
 const MAX_INTENT_BYTES: usize = 4_096;
 const MAX_CONSTRAINT_BYTES: usize = 1_024;
@@ -28,6 +28,13 @@ pub enum TransformationKind {
     Composite,
     /// Re-import a snapshot changed in an external application.
     ExternalRoundTrip,
+}
+
+/// Typed semantic operation parameters for deterministic transformations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "operation", content = "parameters", rename_all = "snake_case")]
+pub enum TransformationOperation {
+    RasterCrop(RasterCrop),
 }
 
 /// Bounded human-authored creative intent.
@@ -181,6 +188,9 @@ pub struct Transformation {
     pub intent: IntentSpec,
     pub constraints: Vec<Constraint>,
     pub references: Vec<ReferenceBinding>,
+    /// Exact authored operation when natural-language intent alone is insufficient.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation: Option<TransformationOperation>,
 }
 
 impl Transformation {
@@ -197,12 +207,41 @@ impl Transformation {
         constraints: Vec<Constraint>,
         references: Vec<ReferenceBinding>,
     ) -> Result<Self, DomainError> {
+        Self::new_with_operation(
+            kind,
+            target_artifact_id,
+            inputs,
+            intent,
+            constraints,
+            references,
+            None,
+        )
+    }
+
+    /// Creates a transformation with an exact typed operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for oversized collections, duplicate inputs, or an
+    /// operation attached to a non-deterministic transformation family.
+    pub fn new_with_operation(
+        kind: TransformationKind,
+        target_artifact_id: ArtifactId,
+        inputs: Vec<RevisionId>,
+        intent: IntentSpec,
+        constraints: Vec<Constraint>,
+        references: Vec<ReferenceBinding>,
+        operation: Option<TransformationOperation>,
+    ) -> Result<Self, DomainError> {
         validate_size("transformation inputs", inputs.len())?;
         validate_size("transformation constraints", constraints.len())?;
         validate_size("transformation references", references.len())?;
         let unique_inputs = inputs.iter().copied().collect::<HashSet<_>>();
         if unique_inputs.len() != inputs.len() {
             return Err(DomainError::DuplicateTransformationInput);
+        }
+        if operation.is_some() && kind != TransformationKind::DeterministicEdit {
+            return Err(DomainError::InvalidTransformationOperation);
         }
         Ok(Self {
             id: TransformationId::new(),
@@ -212,6 +251,7 @@ impl Transformation {
             intent,
             constraints,
             references,
+            operation,
         })
     }
 }

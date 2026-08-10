@@ -8,6 +8,8 @@ Rectangle {
     property string projectName: ""
     property string artifactName: ""
     property string artifactKind: ""
+    property string artifactKindKey: ""
+    property string artifactId: ""
     property string artifactText: ""
     property bool hasAcceptedRevision: false
     property bool hasTextPreview: false
@@ -15,6 +17,15 @@ Rectangle {
     property bool hasCandidate: false
     property string candidateText: ""
     property bool compareMode: false
+    property string acceptedImageSource: ""
+    property string candidateImageSource: ""
+    property int imageWidth: 0
+    property int imageHeight: 0
+
+    readonly property bool isText: artifactKindKey === "text_document"
+    readonly property bool isRaster: artifactKindKey === "image_raster"
+
+    signal cropRequested(int x, int y, int width, int height)
 
     radius: Theme.radiusLarge
     color: Theme.surface
@@ -114,7 +125,7 @@ Rectangle {
             Layout.fillHeight: true
 
             Rectangle {
-                visible: !workspace.compareMode || !workspace.hasCandidate
+                visible: workspace.isText && (!workspace.compareMode || !workspace.hasCandidate)
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 72, 680)
                 height: Math.min(parent.height - 54, 360)
@@ -181,9 +192,36 @@ Rectangle {
             TextCompareWorkspace {
                 anchors.fill: parent
                 anchors.margins: 24
-                visible: workspace.compareMode && workspace.hasCandidate
+                visible: workspace.isText && workspace.compareMode && workspace.hasCandidate
                 acceptedText: workspace.artifactText
                 candidateText: workspace.candidateText
+            }
+
+            ImageRasterWorkspace {
+                anchors.fill: parent
+                anchors.margins: 24
+                visible: workspace.isRaster && (!workspace.compareMode || !workspace.hasCandidate)
+                artifactId: workspace.artifactId
+                source: workspace.acceptedImageSource
+                sourceWidth: workspace.imageWidth
+                sourceHeight: workspace.imageHeight
+                onCropRequested: (x, y, width, height) => workspace.cropRequested(
+                                     x, y, width, height)
+            }
+
+            ImageCompareWorkspace {
+                anchors.fill: parent
+                anchors.margins: 24
+                visible: workspace.isRaster && workspace.compareMode && workspace.hasCandidate
+                acceptedSource: workspace.acceptedImageSource
+                candidateSource: workspace.candidateImageSource
+            }
+
+            Text {
+                anchors.centerIn: parent
+                visible: !workspace.isText && !workspace.isRaster
+                text: qsTr("This media workspace is not available yet")
+                color: Theme.muted
             }
         }
     }

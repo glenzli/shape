@@ -1,13 +1,20 @@
 #include "desktop_backend.hpp"
+#include "image_preview_provider.hpp"
 
+#include <QByteArray>
 #include <QDebug>
+#include <QFileInfo>
+#include <QImage>
 #include <QVariantMap>
 
 #include <algorithm>
 #include <cstdint>
+#include <stdexcept>
 #include <utility>
 
 namespace {
+
+constexpr int kMaximumPreviewDimension = 4096;
 
 QString from_rust(const rust::String& value) {
     return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
@@ -126,6 +133,9 @@ QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artif
     projected.insert(QStringLiteral("hasTextPreview"), artifact.has_text_preview);
     projected.insert(QStringLiteral("textPreview"), from_rust(artifact.text_preview));
     projected.insert(QStringLiteral("textPreviewTruncated"), artifact.text_preview_truncated);
+    projected.insert(QStringLiteral("hasImagePreview"), artifact.has_image_preview);
+    projected.insert(QStringLiteral("imageWidth"), static_cast<qulonglong>(artifact.image_width));
+    projected.insert(QStringLiteral("imageHeight"), static_cast<qulonglong>(artifact.image_height));
     return projected;
 }
 
@@ -145,14 +155,23 @@ QVariantMap graph_edge_projection(const shape::desktop::ProjectGraphEdgeWire& ed
     return projected;
 }
 
-QVariantMap candidate_projection(const shape::desktop::TextCandidateWire& candidate) {
+QVariantMap candidate_projection(const shape::desktop::CandidateWire& candidate) {
     QVariantMap projected;
     projected.insert(QStringLiteral("id"), from_rust(candidate.candidate_id));
     projected.insert(QStringLiteral("artifactId"), from_rust(candidate.artifact_id));
+    projected.insert(QStringLiteral("kindKey"), from_rust(candidate.kind_key));
     projected.insert(QStringLiteral("hasExpectedHead"), candidate.has_expected_head);
     projected.insert(QStringLiteral("expectedHead"), from_rust(candidate.expected_head));
+    projected.insert(QStringLiteral("canBranch"), candidate.can_branch);
+    projected.insert(QStringLiteral("hasTextPreview"), candidate.has_text_preview);
     projected.insert(QStringLiteral("text"), from_rust(candidate.text_preview));
     projected.insert(QStringLiteral("textTruncated"), candidate.text_preview_truncated);
+    projected.insert(QStringLiteral("hasImagePreview"), candidate.has_image_preview);
+    projected.insert(QStringLiteral("imageWidth"), static_cast<qulonglong>(candidate.image_width));
+    projected.insert(
+        QStringLiteral("imageHeight"),
+        static_cast<qulonglong>(candidate.image_height)
+    );
     return projected;
 }
 
@@ -165,12 +184,14 @@ struct DesktopBackend::SessionState {
     rust::Box<shape::desktop::DesktopSession> session;
 };
 
-DesktopBackend::DesktopBackend(QObject* parent) : QObject(parent) {}
+DesktopBackend::DesktopBackend(QObject* parent)
+    : QObject(parent), image_preview_store_(std::make_shared<ImagePreviewStore>()) {}
 
 DesktopBackend::DesktopBackend(rust::Box<shape::desktop::DesktopSession> session, QObject* parent)
-    : QObject(parent), session_(std::make_unique<SessionState>(std::move(session))) {
+    : QObject(parent), session_(std::make_unique<SessionState>(std::move(session))),
+      image_preview_store_(std::make_shared<ImagePreviewStore>()) {
     applySnapshot(session_->session->session_snapshot());
-    applyCandidates(session_->session->session_text_candidates());
+    applyCandidates(session_->session->session_candidates());
 }
 
 DesktopBackend::~DesktopBackend() = default;
@@ -235,8 +256,109 @@ bool DesktopBackend::candidateTextTruncated() const {
     return candidate_text_truncated_;
 }
 
+QString DesktopBackend::acceptedImageSource() const {
+    return accepted_image_source_;
+}
+
+QString DesktopBackend::candidateImageSource() const {
+    return candidate_image_source_;
+}
+
 QString DesktopBackend::lastError() const {
     return last_error_;
+}
+
+bool DesktopBackend::importRaster(const QUrl& sourceUrl) {
+    if (session_ == nullptr || !sourceUrl.isLocalFile()) {
+        setLastError(tr("Choose a local PNG or JPEG image."));
+        return false;
+    }
+    const QString source_path = sourceUrl.toLocalFile();
+    const QString artifact_name = QFileInfo(source_path).completeBaseName().trimmed();
+    if (artifact_name.isEmpty()) {
+        setLastError(tr("The image needs a usable file name."));
+        return false;
+    }
+    try {
+        applySnapshot(
+            session_->session->session_import_raster(to_utf8(source_path), to_utf8(artifact_name))
+        );
+        applyCandidates(session_->session->session_candidates());
+        setLastError(QString());
+        emit projectChanged();
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not import raster image:" << error.what();
+        setLastError(
+            tr("Could not import this image. Use an 8-bit PNG or JPEG within the local size limit.")
+        );
+        return false;
+    }
+}
+
+bool DesktopBackend::proposeRasterCrop(
+    const QString& artifactId,
+    int x,
+    int y,
+    int width,
+    int height
+) {
+    if (session_ == nullptr || x < 0 || y < 0 || width <= 0 || height <= 0) {
+        setLastError(tr("Choose a valid crop area."));
+        return false;
+    }
+    try {
+        const auto candidate = session_->session->session_propose_raster_crop(
+            to_utf8(artifactId),
+            static_cast<std::uint32_t>(x),
+            static_cast<std::uint32_t>(y),
+            static_cast<std::uint32_t>(width),
+            static_cast<std::uint32_t>(height)
+        );
+        const QString candidate_id = from_rust(candidate.candidate_id);
+        applyCandidates(session_->session->session_candidates(), candidate_id);
+        setLastError(QString());
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create raster crop candidate:" << error.what();
+        setLastError(tr("Could not create the crop candidate."));
+        return false;
+    }
+}
+
+bool DesktopBackend::prepareImagePreviews(const QString& artifactId, const QString& candidateId) {
+    if (session_ == nullptr || artifactId.isEmpty()) {
+        return false;
+    }
+    try {
+        const QString accepted_source = cacheImagePreview(
+            session_->session->session_image_preview(to_utf8(artifactId), std::string())
+        );
+        QString candidate_source;
+        if (!candidateId.isEmpty()) {
+            candidate_source = cacheImagePreview(
+                session_->session->session_image_preview(to_utf8(artifactId), to_utf8(candidateId))
+            );
+        }
+        const bool changed = accepted_image_source_ != accepted_source
+                             || candidate_image_source_ != candidate_source;
+        accepted_image_source_ = accepted_source;
+        candidate_image_source_ = candidate_source;
+        if (changed) {
+            emit imagePreviewChanged();
+        }
+        setLastError(QString());
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not prepare raster preview:" << error.what();
+        accepted_image_source_.clear();
+        candidate_image_source_.clear();
+        emit imagePreviewChanged();
+        setLastError(tr("Could not load the verified image preview."));
+        return false;
+    }
 }
 
 bool DesktopBackend::proposeTextCandidate(
@@ -251,7 +373,7 @@ bool DesktopBackend::proposeTextCandidate(
         const auto candidate =
             session_->session->session_propose_text(to_utf8(artifactId), to_utf8(replacementText));
         const QString candidate_id = from_rust(candidate.candidate_id);
-        applyCandidates(session_->session->session_text_candidates(), candidate_id);
+        applyCandidates(session_->session->session_candidates(), candidate_id);
         setLastError(QString());
         emit candidateChanged();
         return true;
@@ -277,8 +399,9 @@ bool DesktopBackend::acceptCandidate(const QString& candidateId) {
         return false;
     }
     try {
-        applySnapshot(session_->session->session_accept_text(to_utf8(candidateId)));
-        applyCandidates(session_->session->session_text_candidates());
+        applySnapshot(session_->session->session_accept_candidate(to_utf8(candidateId)));
+        applyCandidates(session_->session->session_candidates());
+        image_preview_store_->remove(candidateId);
         setLastError(QString());
         emit projectChanged();
         emit candidateChanged();
@@ -297,9 +420,9 @@ bool DesktopBackend::branchCandidate(const QString& candidateId, const QString& 
     }
     try {
         applySnapshot(
-            session_->session->session_branch_text(to_utf8(candidateId), to_utf8(artifactName))
+            session_->session->session_branch_candidate(to_utf8(candidateId), to_utf8(artifactName))
         );
-        applyCandidates(session_->session->session_text_candidates());
+        applyCandidates(session_->session->session_candidates());
         setLastError(QString());
         emit projectChanged();
         emit candidateChanged();
@@ -316,8 +439,9 @@ bool DesktopBackend::discardCandidate(const QString& candidateId) {
         return false;
     }
     try {
-        session_->session->session_discard_text(to_utf8(candidateId));
-        applyCandidates(session_->session->session_text_candidates());
+        session_->session->session_discard_candidate(to_utf8(candidateId));
+        applyCandidates(session_->session->session_candidates());
+        image_preview_store_->remove(candidateId);
         setLastError(QString());
         emit candidateChanged();
         return true;
@@ -335,7 +459,7 @@ DesktopBackend::adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandi
     }
     const auto adopted = session_->session->session_adopt_infer_text(std::move(candidate));
     const QString candidate_id = from_rust(adopted.candidate_id);
-    applyCandidates(session_->session->session_text_candidates(), candidate_id);
+    applyCandidates(session_->session->session_candidates(), candidate_id);
     setLastError(QString());
     emit candidateChanged();
     return candidate_id;
@@ -376,7 +500,7 @@ void DesktopBackend::applySnapshot(shape::desktop::ProjectSnapshotWire snapshot)
 }
 
 void DesktopBackend::applyCandidates(
-    rust::Vec<shape::desktop::TextCandidateWire> candidates,
+    rust::Vec<shape::desktop::CandidateWire> candidates,
     const QString& preferredCandidateId
 ) {
     QVariantList projected;
@@ -397,6 +521,38 @@ void DesktopBackend::applyCandidates(
         return;
     }
     clearCandidateSelection();
+}
+
+QString DesktopBackend::cacheImagePreview(shape::desktop::ImagePreviewWire preview) {
+    if (preview.png_bytes.empty()) {
+        return QString();
+    }
+    const QByteArray encoded = QByteArray::fromRawData(
+        reinterpret_cast<const char*>(preview.png_bytes.data()),
+        static_cast<qsizetype>(preview.png_bytes.size())
+    );
+    QImage image = QImage::fromData(encoded, "PNG");
+    if (image.isNull() || image.width() != static_cast<int>(preview.width)
+        || image.height() != static_cast<int>(preview.height)) {
+        throw std::runtime_error("raster preview dimensions do not match its contract");
+    }
+    if (image.width() > kMaximumPreviewDimension || image.height() > kMaximumPreviewDimension) {
+        image = image.scaled(
+            kMaximumPreviewDimension,
+            kMaximumPreviewDimension,
+            Qt::KeepAspectRatio,
+            Qt::SmoothTransformation
+        );
+    }
+    const QString identity = from_rust(preview.identity);
+    if (!image_preview_store_->put(identity, std::move(image))) {
+        throw std::runtime_error("raster preview exceeds the resident cache budget");
+    }
+    return QStringLiteral("image://shape-preview/") + identity;
+}
+
+std::shared_ptr<ImagePreviewStore> DesktopBackend::imagePreviewStore() const {
+    return image_preview_store_;
 }
 
 bool DesktopBackend::applyCandidateSelection(const QString& candidateId) {

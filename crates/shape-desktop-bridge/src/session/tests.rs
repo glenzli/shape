@@ -58,7 +58,7 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     );
 
     let accepted = session
-        .session_accept_text(&candidate.candidate_id)
+        .session_accept_candidate(&candidate.candidate_id)
         .expect("candidate accepts");
     assert!(accepted.graph_edges.is_empty());
     assert_ne!(accepted.artifacts[0].accepted_revision_id, before_revision);
@@ -105,7 +105,7 @@ fn failed_reproposal_does_not_replace_a_valid_pending_candidate() {
     );
 
     let accepted = session
-        .session_accept_text(&candidate.candidate_id)
+        .session_accept_candidate(&candidate.candidate_id)
         .expect("original candidate accepts");
     assert_eq!(
         accepted.artifacts[0].text_preview,
@@ -128,10 +128,10 @@ fn pending_candidate_can_branch_as_a_new_artifact_with_a_source_edge() {
     let candidate = session
         .session_propose_text(&artifact_id.to_string(), "A quiet summer afternoon.")
         .expect("candidate executes");
-    assert_eq!(session.session_text_candidates().len(), 2);
+    assert_eq!(session.session_candidates().len(), 2);
 
     let branched = session
-        .session_branch_text(&candidate.candidate_id, "Story — Quiet")
+        .session_branch_candidate(&candidate.candidate_id, "Story — Quiet")
         .expect("candidate branches");
     assert_eq!(branched.artifacts.len(), 2);
     let source = branched
@@ -164,13 +164,13 @@ fn pending_candidate_can_branch_as_a_new_artifact_with_a_source_edge() {
     assert_eq!(edge.target_revision_id, branch.accepted_revision_id);
     assert_eq!(edge.transformation_id, branch.transformation_id);
     assert_eq!(edge.transformation_kind_key, "text_rewrite");
-    let remaining = session.session_text_candidates();
+    let remaining = session.session_candidates();
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].candidate_id, first.candidate_id);
     session
-        .session_discard_text(&first.candidate_id)
+        .session_discard_candidate(&first.candidate_id)
         .expect("remaining candidate discards");
-    assert!(session.session_text_candidates().is_empty());
+    assert!(session.session_candidates().is_empty());
     drop(session);
 
     let reopened = open_desktop_session(path).expect("session reopens");
@@ -203,20 +203,86 @@ fn shelf_accumulates_candidates_and_accepting_one_clears_stale_siblings() {
             .is_err()
     );
 
-    let projected = session.session_text_candidates();
+    let projected = session.session_candidates();
     assert_eq!(projected.len(), 2);
     assert_eq!(projected[0].candidate_id, second.candidate_id);
     assert_eq!(projected[1].candidate_id, first.candidate_id);
-    assert!(session.session_accept_text("missing-candidate").is_err());
-    assert_eq!(session.session_text_candidates().len(), 2);
+    assert!(
+        session
+            .session_accept_candidate("missing-candidate")
+            .is_err()
+    );
+    assert_eq!(session.session_candidates().len(), 2);
 
     let accepted = session
-        .session_accept_text(&second.candidate_id)
+        .session_accept_candidate(&second.candidate_id)
         .expect("selected candidate accepts");
     assert_eq!(
         accepted.artifacts[0].text_preview,
         "A still summer afternoon."
     );
-    assert!(session.session_text_candidates().is_empty());
+    assert!(session.session_candidates().is_empty());
     fs::remove_dir_all(root).expect("test project removes");
+}
+
+#[test]
+fn raster_import_crop_candidate_accept_and_reopen_cross_the_desktop_bridge() {
+    use image::{ColorType, ImageEncoder, codecs::png::PngEncoder};
+
+    let root = test_root();
+    let source = root.with_extension("png");
+    let pixels: Vec<u8> = (0_u8..48).flat_map(|value| [value, 40, 80, 255]).collect();
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&pixels, 8, 6, ColorType::Rgba8.into())
+        .unwrap();
+    fs::write(&source, png).unwrap();
+
+    ShapeProject::create(&root, "Desktop Raster").unwrap();
+    let path = root.to_str().unwrap();
+    let mut session = open_desktop_session(path).unwrap();
+    let imported = session
+        .session_import_raster(source.to_str().unwrap(), "Cover")
+        .unwrap();
+    let artifact = imported.artifacts.first().unwrap();
+    assert!(artifact.has_image_preview);
+    assert_eq!((artifact.image_width, artifact.image_height), (8, 6));
+    let imported_head = artifact.accepted_revision_id.clone();
+    let accepted_preview = session.session_image_preview(&artifact.id, "").unwrap();
+    assert_eq!((accepted_preview.width, accepted_preview.height), (8, 6));
+
+    let candidate = session
+        .session_propose_raster_crop(&artifact.id, 1, 1, 4, 3)
+        .unwrap();
+    assert_eq!(candidate.kind_key, "image_raster");
+    assert_eq!((candidate.image_width, candidate.image_height), (4, 3));
+    assert_eq!(
+        session.session_snapshot().unwrap().artifacts[0].accepted_revision_id,
+        imported_head
+    );
+    let candidate_preview = session
+        .session_image_preview(&artifact.id, &candidate.candidate_id)
+        .unwrap();
+    assert_eq!((candidate_preview.width, candidate_preview.height), (4, 3));
+
+    let accepted = session
+        .session_accept_candidate(&candidate.candidate_id)
+        .unwrap();
+    assert_ne!(accepted.artifacts[0].accepted_revision_id, imported_head);
+    assert_eq!(
+        (
+            accepted.artifacts[0].image_width,
+            accepted.artifacts[0].image_height
+        ),
+        (4, 3)
+    );
+    drop(session);
+
+    let reopened = open_desktop_session(path).unwrap();
+    let preview = reopened
+        .session_image_preview(&accepted.artifacts[0].id, "")
+        .unwrap();
+    assert_eq!((preview.width, preview.height), (4, 3));
+    fs::remove_file(source).unwrap();
+    fs::remove_dir_all(root).unwrap();
 }

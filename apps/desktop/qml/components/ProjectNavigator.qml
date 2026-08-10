@@ -39,6 +39,7 @@ Rectangle {
 
     signal artifactSelected(int index)
     signal graphRequested()
+    signal importImageRequested()
 
     radius: Theme.radiusLarge
     color: Theme.surface
@@ -77,6 +78,13 @@ Rectangle {
                     font.pixelSize: 10
                 }
             }
+        }
+
+        ShapeButton {
+            Layout.fillWidth: true
+            text: qsTr("Import image…")
+            enabled: navigator.projectOpen
+            onClicked: navigator.importImageRequested()
         }
 
         RowLayout {
@@ -214,7 +222,7 @@ Rectangle {
             Layout.preferredHeight: 82
             radius: Theme.radiusMedium
             color: navigator.graphActive ? Theme.accentSoft
-                                         : graphMouse.hovered ? Theme.raisedHover : Theme.raised
+                                         : graphMouse.containsMouse ? Theme.raisedHover : Theme.raised
             border.color: navigator.graphActive ? Theme.accent : Theme.border
 
             ColumnLayout {

@@ -67,9 +67,24 @@ payload-free execution receipt for later Job/explain lookup, but Runtime success
 Shape Candidate. `shape-core::propose_generated_text` owns the generative transformation and
 accepted-text context; `shape-desktop-bridge::infer_text` prepares a candidate outside the live
 session and `DesktopSession` revalidates its expected head before adopting it. Detailed provenance
-inspection, additional Intents, media bridges, capability registry, preview renderer, and project
-dependency resolver remain deferred until real product paths consume them. Do not create empty
-crates for roadmap boxes.
+inspection, additional Intents, media bridges, capability registry, and project dependency resolver
+remain deferred until real product paths consume them. Do not create empty crates for roadmap
+boxes.
+
+The first raster path extends those existing owners instead of introducing a media-kernel crate.
+`shape-domain::image_raster` owns the platform-independent RGBA8, alpha, orientation, color, ICC,
+and crop contracts. `shape-execution::raster` owns bounded PNG/JPEG decode, EXIF normalization,
+canonical PNG materialization, and deterministic crop execution. `shape-core::project::image` owns
+the atomic import-origin commit and image Candidate/Accept use cases. The desktop shelf is now a
+typed text-or-image collection with the same identity, expected-head, discard, and sibling
+invalidation rules. Image-candidate clones share one immutable byte allocation, so exact-ID
+acceptance does not duplicate the full encoded payload. Ordinary bridge snapshots project only
+image dimensions and immutable content identity; selected accepted or candidate PNG bytes cross
+the Rust/CXX boundary only on demand and are decoded into a display-scaled, byte-bounded native
+cache. `ImageRasterWorkspace.qml` owns direct crop gestures, while `ImageCompareWorkspace.qml`
+owns accepted-versus-candidate presentation. Image branching, composites, masks, color adjustment,
+external editors, and model-backed image operations remain
+deferred until a concrete consumer freezes each contract.
 
 The desktop visual foundation adds two deliberately separate owners rather than growing the
 project projection: `UiPreferences` owns persistent appearance/language lifecycle, while

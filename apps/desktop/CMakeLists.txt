@@ -86,6 +86,8 @@ qt_add_executable(shape-desktop
     src/infer_runtime_controller.hpp
     src/infer_text_controller.cpp
     src/infer_text_controller.hpp
+    src/image_preview_provider.cpp
+    src/image_preview_provider.hpp
     src/ui_preferences.cpp
     src/ui_preferences.hpp
     src/mac_titlebar.hpp
@@ -107,6 +109,8 @@ qt_add_qml_module(shape-desktop
         qml/components/ArtifactDetailsPanel.qml
         qml/components/ArtifactLineagePanel.qml
         qml/components/ArtifactWorkspace.qml
+        qml/components/ImageCompareWorkspace.qml
+        qml/components/ImageRasterWorkspace.qml
         qml/components/ContextInspector.qml
         qml/components/IntentPanel.qml
         qml/components/ProjectGraphWorkspace.qml

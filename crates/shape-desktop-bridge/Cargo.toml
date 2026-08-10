@@ -21,6 +21,7 @@ shape-execution.workspace = true
 cxx-build = "=1.0.198"
 
 [dev-dependencies]
+image.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 

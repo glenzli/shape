@@ -76,7 +76,8 @@ Rectangle {
             Layout.fillWidth: true
 
             Text {
-                text: qsTr("TEXT DRAFT")
+                text: panel.artifactKindKey === "image_raster"
+                      ? qsTr("IMAGE CROP") : qsTr("TEXT DRAFT")
                 color: Theme.muted
                 font.pixelSize: Theme.fontMeta
                 font.weight: Font.DemiBold
@@ -86,7 +87,9 @@ Rectangle {
             Item { Layout.fillWidth: true }
 
             Text {
-                text: qsTr("Direct edit · candidate before commit")
+                text: panel.artifactKindKey === "image_raster"
+                      ? qsTr("Direct manipulation · candidate before commit")
+                      : qsTr("Direct edit · candidate before commit")
                 color: Theme.muted
                 font.pixelSize: 10
             }
@@ -122,6 +125,7 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
+            visible: panel.canEditText
             leftPadding: 12
             rightPadding: 12
             topPadding: 10
@@ -148,6 +152,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
+            visible: panel.canEditText
 
             TextField {
                 id: generationPrompt
@@ -190,6 +195,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
+            visible: panel.canEditText
 
             Text {
                 Layout.fillWidth: true
@@ -216,6 +222,41 @@ Rectangle {
                          && draftEditor.text !== panel.acceptedText
                          && !panel.draftMatchesCandidate()
                 onClicked: panel.candidateRequested(panel.artifactId, draftEditor.text)
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: panel.artifactKindKey === "image_raster"
+            radius: Theme.radiusSmall
+            color: Theme.raised
+            border.color: Theme.border
+
+            ColumnLayout {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 32, 520)
+                spacing: 8
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Shape the crop directly on the image")
+                    color: Theme.text
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: panel.errorMessage.length > 0
+                          ? panel.errorMessage
+                          : qsTr("Drag the frame to move it, use the lower-right handle to resize it, then create a transient candidate.")
+                    color: panel.errorMessage.length > 0 ? Theme.danger : Theme.muted
+                    font.pixelSize: 10
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
             }
         }
     }

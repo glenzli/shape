@@ -40,6 +40,7 @@ impl Executor for GeneratedTextExecutor {
             bytes: b"A generated replacement.".to_vec(),
             media_type: request.output_media_type.clone(),
             executor_job_id: Some("resp_core_test".to_owned()),
+            content_contract: None,
         })
     }
 }

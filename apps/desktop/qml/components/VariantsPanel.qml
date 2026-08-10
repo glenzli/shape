@@ -15,6 +15,9 @@ Rectangle {
     property string artifactText: ""
     property bool hasAcceptedRevision: false
     property bool hasTextPreview: false
+    property string artifactKindKey: ""
+    property int imageWidth: 0
+    property int imageHeight: 0
     property string acceptedRevisionId: ""
     property var candidates: []
     property string selectedCandidateId: ""
@@ -124,6 +127,9 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     text: variants.hasTextPreview ? variants.artifactText
+                          : variants.artifactKindKey === "image_raster"
+                            ? qsTr("Raster image · %1 × %2").arg(
+                                  variants.imageWidth).arg(variants.imageHeight)
                                                   : qsTr("Accepted non-text content")
                     color: Theme.textSoft
                     font.pixelSize: 12
@@ -227,7 +233,11 @@ Rectangle {
                     Text {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        text: candidateDelegate.modelData.text
+                        text: candidateDelegate.modelData.hasImagePreview
+                              ? qsTr("Crop preview · %1 × %2").arg(
+                                    candidateDelegate.modelData.imageWidth).arg(
+                                    candidateDelegate.modelData.imageHeight)
+                              : candidateDelegate.modelData.text
                         color: Theme.text
                         font.pixelSize: 12
                         elide: Text.ElideRight
@@ -268,7 +278,9 @@ Rectangle {
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: qsTr("Edit the text draft to create an option")
+                    text: variants.artifactKindKey === "image_raster"
+                          ? qsTr("Adjust the crop frame to create an option")
+                          : qsTr("Edit the text draft to create an option")
                     color: Theme.muted
                     font.pixelSize: 10
                 }
@@ -283,6 +295,8 @@ Rectangle {
             ShapeButton {
                 Layout.fillWidth: true
                 text: qsTr("Branch selected option")
+                visible: variants.selectedCandidate !== null
+                         && variants.selectedCandidate.canBranch
                 onClicked: variants.branchRequested(variants.selectedCandidate.id)
             }
 

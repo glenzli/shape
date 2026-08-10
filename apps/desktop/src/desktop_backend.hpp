@@ -4,6 +4,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QUrl>
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
@@ -11,6 +12,8 @@
 
 #include "rust/cxx.h"
 #include "shape-desktop-bridge/src/lib.rs.h"
+
+class ImagePreviewStore;
 
 class DesktopBackend : public QObject {
     Q_OBJECT
@@ -31,6 +34,8 @@ class DesktopBackend : public QObject {
     Q_PROPERTY(QString candidateArtifactId READ candidateArtifactId NOTIFY candidateChanged)
     Q_PROPERTY(QString candidateText READ candidateText NOTIFY candidateChanged)
     Q_PROPERTY(bool candidateTextTruncated READ candidateTextTruncated NOTIFY candidateChanged)
+    Q_PROPERTY(QString acceptedImageSource READ acceptedImageSource NOTIFY imagePreviewChanged)
+    Q_PROPERTY(QString candidateImageSource READ candidateImageSource NOTIFY imagePreviewChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
 
   public:
@@ -57,10 +62,17 @@ class DesktopBackend : public QObject {
     [[nodiscard]] QString candidateArtifactId() const;
     [[nodiscard]] QString candidateText() const;
     [[nodiscard]] bool candidateTextTruncated() const;
+    [[nodiscard]] QString acceptedImageSource() const;
+    [[nodiscard]] QString candidateImageSource() const;
     [[nodiscard]] QString lastError() const;
 
     Q_INVOKABLE bool
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);
+    Q_INVOKABLE bool importRaster(const QUrl& sourceUrl);
+    Q_INVOKABLE bool
+    proposeRasterCrop(const QString& artifactId, int x, int y, int width, int height);
+    Q_INVOKABLE bool
+    prepareImagePreviews(const QString& artifactId, const QString& candidateId = QString());
     Q_INVOKABLE bool selectCandidate(const QString& candidateId);
     Q_INVOKABLE bool acceptCandidate(const QString& candidateId);
     Q_INVOKABLE bool branchCandidate(const QString& candidateId, const QString& artifactName);
@@ -74,22 +86,26 @@ class DesktopBackend : public QObject {
     /// Rebuilds translated presentation values after a runtime locale change.
     void retranslate();
 
+    [[nodiscard]] std::shared_ptr<ImagePreviewStore> imagePreviewStore() const;
+
   signals:
     void projectChanged();
     void candidateChanged();
     void lastErrorChanged();
+    void imagePreviewChanged();
 
   private:
     struct SessionState;
 
     void applySnapshot(shape::desktop::ProjectSnapshotWire snapshot);
     void applyCandidates(
-        rust::Vec<shape::desktop::TextCandidateWire> candidates,
+        rust::Vec<shape::desktop::CandidateWire> candidates,
         const QString& preferredCandidateId = QString()
     );
     bool applyCandidateSelection(const QString& candidateId);
     void clearCandidateSelection();
     void setLastError(const QString& message);
+    [[nodiscard]] QString cacheImagePreview(shape::desktop::ImagePreviewWire preview);
 
     std::unique_ptr<SessionState> session_;
     bool project_open_ = false;
@@ -107,4 +123,7 @@ class DesktopBackend : public QObject {
     QString candidate_text_;
     bool candidate_text_truncated_ = false;
     QString last_error_;
+    std::shared_ptr<ImagePreviewStore> image_preview_store_;
+    QString accepted_image_source_;
+    QString candidate_image_source_;
 };

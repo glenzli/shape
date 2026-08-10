@@ -37,8 +37,9 @@ fn successful_commit(artifact: &Artifact, expected_head: Option<RevisionId>) -> 
         expected_head,
         transformation,
         receipt,
-        output_bytes: b"accepted content".to_vec(),
+        output_bytes: b"accepted content".to_vec().into(),
         output_media_type: "text/plain; charset=utf-8".to_owned(),
+        content_contract: None,
     }
 }
 
@@ -68,8 +69,9 @@ fn successful_new_artifact_commit(
         artifact,
         transformation,
         receipt,
-        output_bytes: b"branched content".to_vec(),
+        output_bytes: b"branched content".to_vec().into(),
         output_media_type: "text/plain; charset=utf-8".to_owned(),
+        content_contract: None,
     }
 }
 

@@ -15,15 +15,21 @@ mod artifact;
 mod content;
 mod error;
 mod ids;
+mod image_raster;
 mod project;
 mod transformation;
 
-pub use artifact::{Artifact, ArtifactKind, ArtifactRevision};
+pub use artifact::{Artifact, ArtifactContentContract, ArtifactKind, ArtifactRevision};
 pub use content::{ContentDigest, ContentDigestParseError, ContentRef};
 pub use error::DomainError;
 pub use ids::{ArtifactId, ProjectId, RevisionId, TransformationId};
+pub use image_raster::{
+    IMAGE_RASTER_CONTRACT_REVISION, ImageAlphaMode, ImageColorPrimaries, ImageColorProfile,
+    ImageLightReference, ImageOrientation, ImagePixelFormat, ImageRasterContract,
+    ImageTransferFunction, RasterCrop,
+};
 pub use project::{ProjectMetadata, SHAPE_PROJECT_SCHEMA_REVISION};
 pub use transformation::{
     Constraint, ConstraintKind, ConstraintStrength, IntentSpec, ReferenceBinding, ReferenceRole,
-    Transformation, TransformationKind,
+    Transformation, TransformationKind, TransformationOperation,
 };

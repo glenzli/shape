@@ -36,4 +36,26 @@ pub enum DomainError {
     /// A reference label is empty or too large.
     #[error("reference label must contain 1..={max_bytes} UTF-8 bytes")]
     InvalidReferenceLabel { max_bytes: usize },
+    /// A raster contract contained zero or non-portable dimensions.
+    #[error("raster dimensions must be within 1..={maximum}; received {width}x{height}")]
+    InvalidRasterDimensions {
+        width: u32,
+        height: u32,
+        maximum: u32,
+    },
+    /// A crop rectangle was empty or exceeded its source raster.
+    #[error(
+        "crop rectangle ({x}, {y}, {width}, {height}) exceeds source {source_width}x{source_height}"
+    )]
+    InvalidRasterCrop {
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        source_width: u32,
+        source_height: u32,
+    },
+    /// A typed operation was attached to an incompatible transformation family.
+    #[error("typed operation requires a deterministic edit transformation")]
+    InvalidTransformationOperation,
 }

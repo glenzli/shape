@@ -9,12 +9,14 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+serde_json.workspace = true
 shape-domain.workspace = true
 shape-execution.workspace = true
 shape-store.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+image.workspace = true
 uuid.workspace = true
 
 [lints]

@@ -1,4 +1,8 @@
-//! Project lifecycle and the deterministic text foundation slice.
+//! Project lifecycle and the deterministic text/raster foundation slices.
+
+mod image;
+
+pub use image::ImageCandidate;
 
 use std::{fmt, path::Path};
 
@@ -307,8 +311,9 @@ impl ShapeProject {
             expected_head: candidate.expected_head,
             transformation: candidate.transformation,
             receipt: candidate.receipt,
-            output_bytes: candidate.output_text.into_bytes(),
+            output_bytes: candidate.output_text.into_bytes().into(),
             output_media_type: candidate.output_media_type,
+            content_contract: None,
         })?)
     }
 
@@ -367,8 +372,9 @@ impl ShapeProject {
             artifact: target,
             transformation,
             receipt,
-            output_bytes: output.bytes,
+            output_bytes: output.bytes.into(),
             output_media_type: output.media_type,
+            content_contract: None,
         })?)
     }
 
@@ -440,6 +446,7 @@ impl Executor for LiteralTextExecutor {
             bytes: text.as_bytes().to_vec(),
             media_type: request.output_media_type.clone(),
             executor_job_id: None,
+            content_contract: None,
         })
     }
 }

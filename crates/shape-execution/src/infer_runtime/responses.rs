@@ -291,6 +291,7 @@ fn parse_response(bytes: &[u8]) -> Result<ExecutionOutput, ResponsesAttemptFailu
         bytes: text.into_bytes(),
         media_type: TEXT_MEDIA_TYPE.to_owned(),
         executor_job_id: Some(response.id),
+        content_contract: None,
     })
 }
 

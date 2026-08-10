@@ -1,11 +1,12 @@
 # Shape Desktop
 
 This directory owns the cross-platform Qt 6/QML application assembly. It can open a real `.shape`
-bundle at startup, display its validated project metadata and artifact list, and render the bounded
-accepted text projection supplied by Rust. A text document can now accumulate multiple transient
-candidates, switch and compare them beside its accepted revision, discard an exact option,
-explicitly accept one in place, or branch one into a newly named artifact. Navigation, draft,
-Candidate Shelf, compare, and semantic-history
+bundle at startup, display its validated project metadata and artifact list, and render bounded
+accepted text or an on-demand verified raster preview supplied by Rust. Text documents can
+accumulate multiple transient candidates, compare and accept them in place, or branch one into a
+new artifact. An 8-bit PNG/JPEG can be imported into a canonical `image.raster` revision, shaped
+with a direct crop frame, compared against its transient crop candidate, accepted, and reopened.
+Navigation, draft, Candidate Shelf, compare, and semantic-history
 regions retain complete English and Simplified Chinese message identities. Language can switch at
 runtime between system, English, and Simplified Chinese. Appearance defaults to the system color
 scheme and can be pinned to light or dark; both preferences persist across launches.
@@ -30,9 +31,11 @@ Rust's bounded `DesktopSession` validates SQLite and content objects and owns th
 `CandidateShelf` owns its in-memory, newest-first candidate collection and exact-ID mutations.
 In-place acceptance and new-artifact branching still delegate to atomic project use cases. C++ maps
 explicit snapshots and commands into Qt presentation values; QML never reads or writes project
-files. Pinned or durable explorations, image buffers, authenticated Infer Runtime execution,
-Shadow/Echo interop, and third-party editor process control remain behind future capability
-adapters.
+files. Ordinary snapshots carry raster metadata rather than encoded pixels; selected accepted and
+candidate PNG bytes are fetched separately, decoded by C++, and retained only in a byte-bounded
+display-scaled native preview cache. Pinned or durable explorations, image composites and layers,
+model-backed image editing, Shadow/Echo interop, and third-party editor process control remain
+behind future capability adapters.
 
 `InferRuntimeController` runs the bounded public-contract probe away from the UI thread and projects
 only checking, reachable, compatible, contract-version, endpoint-source, instance/generation, and
@@ -59,7 +62,9 @@ The shared shell uses Qt's expanded client area and safe-area margins on every p
 Objective-C++ adapter only aligns native macOS traffic-light buttons with that shared toolbar.
 `DesktopBackend` is a presentation facade over the Rust session; project and candidate authority
 never enters QML or UI settings. `TextCompareWorkspace.qml` owns the side-by-side text comparison
-without taking persistence responsibility. `ProjectNavigator.qml` owns project-level selection,
+without taking persistence responsibility. `ImageRasterWorkspace.qml` separately owns crop-frame
+interaction, and `ImageCompareWorkspace.qml` owns raster comparison without becoming a pixel or
+persistence authority. `ProjectNavigator.qml` owns project-level selection,
 `ContextInspector.qml` owns inspector navigation, `VariantsPanel.qml` owns artifact-scoped shelf
 selection and review controls, and the details and lineage panels own their respective read-only
 projections. `BranchArtifactDialog.qml` owns branch naming and submission;
@@ -79,7 +84,9 @@ After creating a demo through `shape-cli`, launch the platform executable with
 create → link → open → propose → accept → propose → branch path automatically, including source
 head preservation, the projected cross-artifact input edge, exact shelf selection/discard,
 packaged graph activation, graph/candidate selection synchronization, and presence of the packaged
-Infer Runtime status control. The runtime itself may remain offline during this smoke path.
+Infer Runtime status control. The same packaged smoke also imports a raster, verifies its preview,
+creates and compares a crop candidate without advancing the head, accepts it, and reopens the
+cropped dimensions. The runtime itself may remain offline during either deterministic path.
 
 The shell requires Qt 6.9 or newer for the cross-platform expanded client area. Platform-specific
 code is isolated to native window-control alignment; QML layout, themes, and settings are shared.

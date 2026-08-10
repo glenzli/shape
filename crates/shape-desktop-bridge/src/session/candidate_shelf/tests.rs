@@ -4,26 +4,28 @@ use shape_core::ShapeProject;
 use shape_domain::{ArtifactKind, IntentSpec};
 use uuid::Uuid;
 
-use super::{CandidateShelf, candidate_id};
+use super::{Candidate, CandidateShelf};
 
 fn test_root() -> PathBuf {
     std::env::temp_dir().join(format!("shape-candidate-shelf-{}", Uuid::now_v7()))
 }
 
-fn candidate(
+fn text_candidate(
     project: &ShapeProject,
     artifact_id: shape_domain::ArtifactId,
     text: &str,
-) -> shape_core::TextCandidate {
-    project
-        .propose_text(
-            artifact_id,
-            None,
-            text,
-            IntentSpec::new("Explore text alternative").expect("intent valid"),
-            Vec::new(),
-        )
-        .expect("candidate executes")
+) -> Candidate {
+    Candidate::Text(
+        project
+            .propose_text(
+                artifact_id,
+                None,
+                text,
+                IntentSpec::new("Explore text alternative").expect("intent valid"),
+                Vec::new(),
+            )
+            .expect("candidate executes"),
+    )
 }
 
 #[test]
@@ -33,10 +35,10 @@ fn shelf_projects_newest_first_and_discards_exact_identity() {
     let artifact = project
         .create_artifact("Story", ArtifactKind::TextDocument)
         .expect("artifact creates");
-    let first = candidate(&project, artifact.id, "First");
-    let first_id = candidate_id(&first);
-    let second = candidate(&project, artifact.id, "Second");
-    let second_id = candidate_id(&second);
+    let first = text_candidate(&project, artifact.id, "First");
+    let first_id = first.id();
+    let second = text_candidate(&project, artifact.id, "Second");
+    let second_id = second.id();
     let mut shelf = CandidateShelf::default();
     shelf.push(first);
     shelf.push(second);
@@ -44,12 +46,12 @@ fn shelf_projects_newest_first_and_discards_exact_identity() {
     assert!(shelf.contains_text(artifact.id, "First"));
     assert!(!shelf.contains_text(artifact.id, "Unseen"));
     assert_eq!(
-        shelf.newest_first().map(candidate_id).collect::<Vec<_>>(),
+        shelf.newest_first().map(Candidate::id).collect::<Vec<_>>(),
         vec![second_id.clone(), first_id.clone()]
     );
     shelf.discard(&first_id).expect("first candidate discards");
     assert_eq!(
-        shelf.newest_first().map(candidate_id).collect::<Vec<_>>(),
+        shelf.newest_first().map(Candidate::id).collect::<Vec<_>>(),
         vec![second_id]
     );
     assert!(shelf.discard("missing-candidate").is_err());
@@ -67,9 +69,9 @@ fn accepting_policy_can_clear_only_one_artifacts_candidates() {
         .create_artifact("Notes", ArtifactKind::TextDocument)
         .expect("notes create");
     let mut shelf = CandidateShelf::default();
-    shelf.push(candidate(&project, story.id, "Story option one"));
-    shelf.push(candidate(&project, notes.id, "Note option"));
-    shelf.push(candidate(&project, story.id, "Story option two"));
+    shelf.push(text_candidate(&project, story.id, "Story option one"));
+    shelf.push(text_candidate(&project, notes.id, "Note option"));
+    shelf.push(text_candidate(&project, story.id, "Story option two"));
 
     shelf.discard_artifact(story.id);
 

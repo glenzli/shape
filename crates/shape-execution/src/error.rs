@@ -40,6 +40,9 @@ pub enum ExecutionError {
     /// The request media type was not a portable media type.
     #[error("output media type must be bounded ASCII and contain a slash")]
     InvalidMediaType,
+    /// Materialized bytes did not match their immutable content reference.
+    #[error("materialized execution input failed digest or length verification")]
+    InvalidInput,
     /// A state transition is not legal for the current job state.
     #[error("cannot perform {operation} while execution job is {state:?}")]
     InvalidTransition {

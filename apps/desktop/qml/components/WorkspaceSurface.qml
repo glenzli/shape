@@ -20,6 +20,8 @@ Item {
     property var selectedCandidate: null
     property string selectedCandidateId: ""
     property bool compareMode: false
+    property string acceptedImageSource: ""
+    property string candidateImageSource: ""
     property int currentMode: 0
 
     readonly property bool hasSelectedArtifact: selectedArtifact !== null
@@ -30,6 +32,7 @@ Item {
 
     signal artifactSelected(int index)
     signal candidateSelected(string candidateId)
+    signal cropRequested(string artifactId, int x, int y, int width, int height)
 
     function showArtifact() : void {
         currentMode = 0
@@ -100,6 +103,10 @@ Item {
                               : qsTr("No artifact selected")
                 artifactKind: surface.hasSelectedArtifact
                               ? surface.selectedArtifact.kindLabel : ""
+                artifactKindKey: surface.hasSelectedArtifact
+                                 ? surface.selectedArtifact.kindKey : ""
+                artifactId: surface.hasSelectedArtifact
+                            ? surface.selectedArtifact.id : ""
                 artifactText: surface.hasSelectedArtifact
                               ? surface.selectedArtifact.textPreview : ""
                 hasAcceptedRevision: surface.hasSelectedArtifact
@@ -112,6 +119,18 @@ Item {
                 candidateText: surface.candidateForSelected
                                ? surface.selectedCandidate.text : ""
                 compareMode: surface.compareMode
+                acceptedImageSource: surface.acceptedImageSource
+                candidateImageSource: surface.candidateImageSource
+                imageWidth: surface.hasSelectedArtifact
+                            ? surface.selectedArtifact.imageWidth : 0
+                imageHeight: surface.hasSelectedArtifact
+                             ? surface.selectedArtifact.imageHeight : 0
+                onCropRequested: (x, y, width, height) => {
+                    if (surface.hasSelectedArtifact) {
+                        surface.cropRequested(surface.selectedArtifact.id,
+                                              x, y, width, height)
+                    }
+                }
             }
 
             ProjectGraphWorkspace {

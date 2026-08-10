@@ -1,5 +1,6 @@
 use crate::{
-    Artifact, ArtifactKind, Constraint, ConstraintKind, ConstraintStrength, IntentSpec, RevisionId,
+    Artifact, ArtifactKind, Constraint, ConstraintKind, ConstraintStrength, IntentSpec, RasterCrop,
+    RevisionId, TransformationOperation,
 };
 
 use super::{Transformation, TransformationKind};
@@ -43,4 +44,33 @@ fn duplicate_inputs_are_rejected() {
         Vec::new(),
     );
     assert!(result.is_err());
+}
+
+#[test]
+fn typed_crop_operation_belongs_only_to_deterministic_edits() {
+    let artifact = Artifact::new("Portrait", ArtifactKind::ImageRaster).unwrap();
+    let operation =
+        TransformationOperation::RasterCrop(RasterCrop::new(1, 2, 30, 20, 100, 80).unwrap());
+    let deterministic = Transformation::new_with_operation(
+        TransformationKind::DeterministicEdit,
+        artifact.id,
+        vec![RevisionId::new()],
+        IntentSpec::new("crop the raster").unwrap(),
+        Vec::new(),
+        Vec::new(),
+        Some(operation.clone()),
+    )
+    .unwrap();
+    assert_eq!(deterministic.operation, Some(operation.clone()));
+
+    let invalid = Transformation::new_with_operation(
+        TransformationKind::GenerativeEdit,
+        artifact.id,
+        Vec::new(),
+        IntentSpec::new("create a variation").unwrap(),
+        Vec::new(),
+        Vec::new(),
+        Some(operation),
+    );
+    assert!(invalid.is_err());
 }

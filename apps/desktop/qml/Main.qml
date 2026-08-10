@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import QtQuick.Window
 import Shape.Desktop
 import "components"
@@ -50,14 +51,30 @@ ApplicationWindow {
         }
     }
 
-    onSelectedArtifactIndexChanged: {
+    function refreshSelectedImage() : void {
+        if (!hasSelectedArtifact || selectedArtifact.kindKey !== "image_raster"
+                || !selectedArtifact.hasAcceptedRevision) {
+            return
+        }
+        const imageCandidateId = selectedCandidate !== null
+                                 && selectedCandidate.hasImagePreview
+                                 ? selectedCandidate.id : ""
+        backend.prepareImagePreviews(selectedArtifact.id, imageCandidateId)
+    }
+
+    function synchronizeSelectedArtifact() : void {
         compareMode = false
         const candidates = hasSelectedArtifact ? candidatesForArtifact(selectedArtifact.id) : []
         selectedCandidateId = candidates.length > 0 ? candidates[0].id : ""
         if (selectedCandidateId.length > 0) {
             backend.selectCandidate(selectedCandidateId)
         }
+        Qt.callLater(window.refreshSelectedImage)
     }
+
+    onSelectedArtifactIndexChanged: Qt.callLater(window.synchronizeSelectedArtifact)
+
+    onSelectedCandidateIdChanged: Qt.callLater(window.refreshSelectedImage)
 
     width: 1440
     height: 900
@@ -87,6 +104,21 @@ ApplicationWindow {
         id: settingsDialog
         uiPreferences: window.uiPreferences
         inferText: window.inferText
+    }
+
+    FileDialog {
+        id: imageImportDialog
+        title: qsTr("Import raster image")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTr("Images (*.png *.jpg *.jpeg)")]
+        onAccepted: {
+            if (window.backend.importRaster(selectedFile)) {
+                window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
+                window.compareMode = false
+                workspaceSurface.showArtifact()
+                Qt.callLater(window.refreshSelectedImage)
+            }
+        }
     }
 
     BranchArtifactDialog {
@@ -127,6 +159,7 @@ ApplicationWindow {
             graphActive: workspaceSurface.currentMode === 1
             onArtifactSelected: index => window.selectedArtifactIndex = index
             onGraphRequested: workspaceSurface.showGraph()
+            onImportImageRequested: imageImportDialog.open()
         }
 
         ColumnLayout {
@@ -149,8 +182,20 @@ ApplicationWindow {
                 selectedCandidate: window.selectedCandidate
                 selectedCandidateId: window.selectedCandidateId
                 compareMode: window.compareMode
+                acceptedImageSource: window.backend.acceptedImageSource
+                candidateImageSource: window.backend.candidateImageSource
                 onArtifactSelected: index => window.selectedArtifactIndex = index
                 onCandidateSelected: candidateId => window.activateCandidate(candidateId)
+                onCropRequested: (artifactId, x, y, width, height) => {
+                    if (window.backend.proposeRasterCrop(
+                            artifactId, x, y, width, height)) {
+                        window.selectedCandidateId = window.backend.candidateId
+                        window.compareMode = true
+                        window.backend.prepareImagePreviews(
+                            artifactId, window.selectedCandidateId)
+                        contextInspector.currentPage = 0
+                    }
+                }
             }
 
             IntentPanel {
@@ -230,6 +275,11 @@ ApplicationWindow {
             if (!window.candidateForSelected) {
                 window.compareMode = false
             }
+            Qt.callLater(window.refreshSelectedImage)
+        }
+
+        function onProjectChanged() : void {
+            Qt.callLater(window.refreshSelectedImage)
         }
     }
 

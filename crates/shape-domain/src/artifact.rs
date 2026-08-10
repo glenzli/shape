@@ -2,7 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactId, ContentRef, DomainError, RevisionId, TransformationId};
+use crate::{
+    ArtifactId, ContentRef, DomainError, ImageRasterContract, RevisionId, TransformationId,
+};
 
 const MAX_ARTIFACT_NAME_BYTES: usize = 120;
 const MAX_REVISION_PARENTS: usize = 8;
@@ -19,6 +21,16 @@ pub enum ArtifactKind {
     ImageComposite,
     /// A named set of typed creative references.
     ReferenceSet,
+}
+
+/// Media-specific contract carried by one immutable accepted revision.
+///
+/// The payload remains content-addressed separately; this value makes its
+/// interpretation explicit without teaching the generic CAS about media.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "contract", rename_all = "snake_case")]
+pub enum ArtifactContentContract {
+    ImageRaster(ImageRasterContract),
 }
 
 /// One stable user-recognizable creative object.
@@ -67,6 +79,9 @@ pub struct ArtifactRevision {
     pub parents: Vec<RevisionId>,
     /// Durable content bytes.
     pub content: ContentRef,
+    /// Typed interpretation of media payload bytes. Legacy text revisions omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_contract: Option<ArtifactContentContract>,
     /// Creative transformation that produced this state.
     pub transformation_id: TransformationId,
     /// Wall-clock evidence for display and audit, never identity.
@@ -86,6 +101,29 @@ impl ArtifactRevision {
         transformation_id: TransformationId,
         created_at_unix_ms: u64,
     ) -> Result<Self, DomainError> {
+        Self::new_with_content_contract(
+            artifact_id,
+            parents,
+            content,
+            None,
+            transformation_id,
+            created_at_unix_ms,
+        )
+    }
+
+    /// Creates a validated immutable revision with an explicit media contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when more parent revisions are supplied than the contract permits.
+    pub fn new_with_content_contract(
+        artifact_id: ArtifactId,
+        parents: Vec<RevisionId>,
+        content: ContentRef,
+        content_contract: Option<ArtifactContentContract>,
+        transformation_id: TransformationId,
+        created_at_unix_ms: u64,
+    ) -> Result<Self, DomainError> {
         if parents.len() > MAX_REVISION_PARENTS {
             return Err(DomainError::CollectionTooLarge {
                 collection: "revision parents",
@@ -98,6 +136,7 @@ impl ArtifactRevision {
             artifact_id,
             parents,
             content,
+            content_contract,
             transformation_id,
             created_at_unix_ms,
         })

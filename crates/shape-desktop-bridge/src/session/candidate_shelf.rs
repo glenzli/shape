@@ -1,52 +1,96 @@
-//! Transient candidate collection with stable identity-addressed mutation.
+//! Transient cross-media candidate collection with exact identity mutation.
 
-use shape_core::TextCandidate;
+use shape_core::{ImageCandidate, TextCandidate};
 use shape_domain::ArtifactId;
 
-/// One in-memory shelf of executed candidates, newest first at projection time.
-///
-/// The shelf never persists candidate bytes. Exact candidate identity is required
-/// for consequential operations so a selection change cannot accept or discard
-/// a different preview.
+/// One executed payload awaiting explicit user acceptance.
+#[derive(Debug, Clone)]
+pub(super) enum Candidate {
+    Text(TextCandidate),
+    Image(ImageCandidate),
+}
+
+impl Candidate {
+    pub(super) fn id(&self) -> String {
+        match self {
+            Self::Text(candidate) => candidate.receipt().attempt_id.to_string(),
+            Self::Image(candidate) => candidate.receipt().attempt_id.to_string(),
+        }
+    }
+
+    pub(super) const fn artifact_id(&self) -> ArtifactId {
+        match self {
+            Self::Text(candidate) => candidate.artifact_id(),
+            Self::Image(candidate) => candidate.artifact_id(),
+        }
+    }
+}
+
+/// One in-memory shelf, projected newest first across media families.
 #[derive(Debug, Default)]
 pub(super) struct CandidateShelf {
-    candidates: Vec<TextCandidate>,
+    candidates: Vec<Candidate>,
 }
 
 impl CandidateShelf {
-    pub(super) fn push(&mut self, candidate: TextCandidate) {
+    pub(super) fn push(&mut self, candidate: Candidate) {
         debug_assert!(
             self.candidates
                 .iter()
-                .all(|existing| candidate_id(existing) != candidate_id(&candidate))
+                .all(|existing| existing.id() != candidate.id())
         );
         self.candidates.push(candidate);
     }
 
-    pub(super) fn newest_first(&self) -> impl Iterator<Item = &TextCandidate> {
+    pub(super) fn newest_first(&self) -> impl Iterator<Item = &Candidate> {
         self.candidates.iter().rev()
     }
 
     pub(super) fn contains_text(&self, artifact_id: ArtifactId, text: &str) -> bool {
-        self.candidates
-            .iter()
-            .any(|candidate| candidate.artifact_id() == artifact_id && candidate.text() == text)
+        self.candidates.iter().any(|candidate| {
+            matches!(
+                candidate,
+                Candidate::Text(candidate)
+                    if candidate.artifact_id() == artifact_id && candidate.text() == text
+            )
+        })
     }
 
-    pub(super) fn clone_candidate(&self, candidate_id: &str) -> Result<TextCandidate, String> {
+    pub(super) fn contains_image_crop(
+        &self,
+        artifact_id: ArtifactId,
+        crop: shape_domain::RasterCrop,
+    ) -> bool {
+        self.candidates.iter().any(|candidate| {
+            let Candidate::Image(candidate) = candidate else {
+                return false;
+            };
+            candidate.artifact_id() == artifact_id
+                && matches!(
+                    candidate.operation(),
+                    Some(shape_domain::TransformationOperation::RasterCrop(existing))
+                        if *existing == crop
+                )
+        })
+    }
+
+    pub(super) fn candidate(&self, candidate_id: &str) -> Result<&Candidate, String> {
         self.candidates
             .iter()
-            .find(|candidate| self::candidate_id(candidate) == candidate_id)
-            .cloned()
-            .ok_or_else(|| "text candidate does not exist in this session".to_owned())
+            .find(|candidate| candidate.id() == candidate_id)
+            .ok_or_else(|| "candidate does not exist in this session".to_owned())
+    }
+
+    pub(super) fn clone_candidate(&self, candidate_id: &str) -> Result<Candidate, String> {
+        self.candidate(candidate_id).cloned()
     }
 
     pub(super) fn discard(&mut self, candidate_id: &str) -> Result<(), String> {
         let index = self
             .candidates
             .iter()
-            .position(|candidate| self::candidate_id(candidate) == candidate_id)
-            .ok_or_else(|| "text candidate does not exist in this session".to_owned())?;
+            .position(|candidate| candidate.id() == candidate_id)
+            .ok_or_else(|| "candidate does not exist in this session".to_owned())?;
         self.candidates.remove(index);
         Ok(())
     }
@@ -55,10 +99,6 @@ impl CandidateShelf {
         self.candidates
             .retain(|candidate| candidate.artifact_id() != artifact_id);
     }
-}
-
-fn candidate_id(candidate: &TextCandidate) -> String {
-    candidate.receipt().attempt_id.to_string()
 }
 
 #[cfg(test)]

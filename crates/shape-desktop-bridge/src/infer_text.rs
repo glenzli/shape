@@ -109,7 +109,11 @@ fn core_error_code(error: CoreError) -> String {
             "project_unavailable".to_owned()
         }
         CoreError::BranchRequiresAcceptedSource { .. } => "project_unavailable".to_owned(),
-        CoreError::Execution(_) => "execution_invalid".to_owned(),
+        CoreError::InvalidRasterSource { .. }
+        | CoreError::InvalidRasterContent { .. }
+        | CoreError::NoOpRasterCrop
+        | CoreError::MissingRasterOutputContract
+        | CoreError::Execution(_) => "execution_invalid".to_owned(),
     }
 }
 

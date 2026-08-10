@@ -27,4 +27,14 @@ pub enum CoreError {
     BranchRequiresAcceptedSource { artifact_id: ArtifactId },
     #[error("text executor returned bytes that are not valid UTF-8")]
     InvalidTextCandidate,
+    #[error(
+        "raster source must be a non-empty regular PNG or JPEG no larger than {maximum_bytes} bytes"
+    )]
+    InvalidRasterSource { maximum_bytes: u64 },
+    #[error("artifact {artifact_id} does not carry a valid image.raster content contract")]
+    InvalidRasterContent { artifact_id: ArtifactId },
+    #[error("crop matches the full accepted raster and would create no change")]
+    NoOpRasterCrop,
+    #[error("raster executor returned no image.raster content contract")]
+    MissingRasterOutputContract,
 }

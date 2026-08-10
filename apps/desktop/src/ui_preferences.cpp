@@ -119,8 +119,8 @@ void UiPreferences::setLanguageMode(const QString& mode) {
     }
     language_mode_ = normalized;
     settings_->setValue(QString::fromLatin1(kLanguageSettingsKey), language_mode_);
-    emit languageModeChanged();
     applyLanguage();
+    emit languageModeChanged();
 }
 
 void UiPreferences::attachEngine(QQmlEngine& engine) {

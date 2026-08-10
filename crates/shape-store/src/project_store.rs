@@ -5,14 +5,15 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
+    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use shape_domain::{
-    Artifact, ArtifactId, ArtifactKind, ArtifactRevision, ContentRef, ProjectMetadata, RevisionId,
-    SHAPE_PROJECT_SCHEMA_REVISION, Transformation, TransformationId,
+    Artifact, ArtifactContentContract, ArtifactId, ArtifactKind, ArtifactRevision, ContentRef,
+    ProjectMetadata, RevisionId, SHAPE_PROJECT_SCHEMA_REVISION, Transformation, TransformationId,
 };
 use shape_execution::{ExecutionOutcome, ExecutionReceipt};
 use uuid::Uuid;
@@ -29,8 +30,9 @@ pub struct AcceptedCommit {
     pub expected_head: Option<RevisionId>,
     pub transformation: Transformation,
     pub receipt: ExecutionReceipt,
-    pub output_bytes: Vec<u8>,
+    pub output_bytes: Arc<[u8]>,
     pub output_media_type: String,
+    pub content_contract: Option<ArtifactContentContract>,
 }
 
 /// Provenance and output to publish as the first accepted revision of a new artifact.
@@ -38,8 +40,9 @@ pub struct NewArtifactCommit {
     pub artifact: Artifact,
     pub transformation: Transformation,
     pub receipt: ExecutionReceipt,
-    pub output_bytes: Vec<u8>,
+    pub output_bytes: Arc<[u8]>,
     pub output_media_type: String,
+    pub content_contract: Option<ArtifactContentContract>,
 }
 
 impl fmt::Debug for NewArtifactCommit {
@@ -51,6 +54,7 @@ impl fmt::Debug for NewArtifactCommit {
             .field("receipt", &self.receipt)
             .field("output_byte_length", &self.output_bytes.len())
             .field("output_media_type", &self.output_media_type)
+            .field("content_contract", &self.content_contract)
             .finish()
     }
 }
@@ -65,6 +69,7 @@ impl fmt::Debug for AcceptedCommit {
             .field("receipt", &self.receipt)
             .field("output_byte_length", &self.output_bytes.len())
             .field("output_media_type", &self.output_media_type)
+            .field("content_contract", &self.content_contract)
             .finish()
     }
 }
@@ -340,15 +345,24 @@ impl ProjectStore {
     /// Returns an error for inconsistent provenance, stale heads, or durable write failure.
     pub fn accept(&mut self, commit: AcceptedCommit) -> Result<ArtifactRevision, StoreError> {
         validate_commit(&commit)?;
+        let artifact = self
+            .artifact(commit.artifact_id)?
+            .ok_or(StoreError::UnknownArtifact(commit.artifact_id))?;
+        validate_content_contract(
+            artifact.kind,
+            &commit.output_media_type,
+            commit.content_contract.as_ref(),
+        )?;
         let content = self
             .objects
             .publish(&commit.output_bytes, commit.output_media_type)?;
         let created_at_unix_ms = unix_time_ms()?;
         let parents = commit.expected_head.into_iter().collect();
-        let revision = ArtifactRevision::new(
+        let revision = ArtifactRevision::new_with_content_contract(
             commit.artifact_id,
             parents,
             content,
+            commit.content_contract,
             commit.transformation.id,
             created_at_unix_ms,
         )?;
@@ -430,13 +444,19 @@ impl ProjectStore {
         commit: NewArtifactCommit,
     ) -> Result<ArtifactRevision, StoreError> {
         validate_new_artifact_commit(&commit)?;
+        validate_content_contract(
+            commit.artifact.kind,
+            &commit.output_media_type,
+            commit.content_contract.as_ref(),
+        )?;
         let content = self
             .objects
             .publish(&commit.output_bytes, commit.output_media_type)?;
-        let revision = ArtifactRevision::new(
+        let revision = ArtifactRevision::new_with_content_contract(
             commit.artifact.id,
             Vec::new(),
             content,
+            commit.content_contract,
             commit.transformation.id,
             unix_time_ms()?,
         )?;
@@ -548,6 +568,27 @@ fn validate_new_artifact_commit(commit: &NewArtifactCommit) -> Result<(), StoreE
         ));
     }
     Ok(())
+}
+
+fn validate_content_contract(
+    artifact_kind: ArtifactKind,
+    media_type: &str,
+    contract: Option<&ArtifactContentContract>,
+) -> Result<(), StoreError> {
+    match (artifact_kind, contract) {
+        (ArtifactKind::ImageRaster, Some(ArtifactContentContract::ImageRaster(_)))
+            if media_type == "image/png" =>
+        {
+            Ok(())
+        }
+        (ArtifactKind::ImageRaster, _) => Err(StoreError::InvalidCommit(
+            "raster revisions require an image.raster contract and canonical image/png bytes",
+        )),
+        (_, Some(_)) => Err(StoreError::InvalidCommit(
+            "media content contract does not match artifact kind",
+        )),
+        (_, None) => Ok(()),
+    }
 }
 
 fn write_manifest(root: &Path, metadata: &ProjectMetadata) -> Result<(), StoreError> {

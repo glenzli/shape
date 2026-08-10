@@ -1662,6 +1662,11 @@ M1 至少覆盖：
 
 ## 23. M1 完成定义
 
+> 2026-08-11 实现基线：文件导入的 `image.raster` 已冻结首版显式色彩/像素合同，并完成
+> PNG/JPEG → 确定性 Crop → Candidate → Compare → Accept → Reopen 的桌面纵向切片。它验证了
+> “确定性图像编辑复用同一接受心智模型”，但尚不代表 M0/M1 完成；Shadow 来源、Composite、
+> Preserve/Reference、AI 图像执行与 Export 等门槛仍保持未勾选。
+
 只有以下全部成立，才能说 Shape 的第一阶段成立：
 
 - [ ] 用户能从文件和 Shadow 导入图像，且来源修订版明确。

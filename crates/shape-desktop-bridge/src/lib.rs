@@ -9,7 +9,7 @@ mod infer_text;
 mod session;
 
 use shape_core::ShapeProject;
-use shape_domain::{Artifact, ArtifactKind, TransformationKind};
+use shape_domain::{Artifact, ArtifactContentContract, ArtifactKind, TransformationKind};
 use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_runtime_contract};
 
 use infer_text::{
@@ -68,18 +68,36 @@ mod ffi {
         has_text_preview: bool,
         text_preview_truncated: bool,
         text_preview: String,
+        has_image_preview: bool,
+        image_width: u32,
+        image_height: u32,
     }
 
-    /// Transient text candidate projection. Candidate bytes are not durable
-    /// history until `session_accept_text` succeeds.
+    /// Transient cross-media candidate projection. Large image bytes are
+    /// fetched separately only for the selected preview.
     #[derive(Debug)]
-    struct TextCandidateWire {
+    struct CandidateWire {
         candidate_id: String,
         artifact_id: String,
+        kind_key: String,
         has_expected_head: bool,
         expected_head: String,
+        can_branch: bool,
+        has_text_preview: bool,
         text_preview_truncated: bool,
         text_preview: String,
+        has_image_preview: bool,
+        image_width: u32,
+        image_height: u32,
+    }
+
+    /// One on-demand selected raster preview. Bytes never enter QML strings.
+    #[derive(Debug)]
+    struct ImagePreviewWire {
+        identity: String,
+        width: u32,
+        height: u32,
+        png_bytes: Vec<u8>,
     }
 
     /// Public Infer Runtime contract availability. Error codes are stable and
@@ -134,28 +152,46 @@ mod ffi {
         fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>>;
 
         fn session_snapshot(self: &DesktopSession) -> Result<ProjectSnapshotWire>;
+        fn session_import_raster(
+            self: &mut DesktopSession,
+            source_path: &str,
+            artifact_name: &str,
+        ) -> Result<ProjectSnapshotWire>;
         fn session_propose_text(
             self: &mut DesktopSession,
             artifact_id: &str,
             replacement_text: &str,
-        ) -> Result<TextCandidateWire>;
-        fn session_text_candidates(self: &DesktopSession) -> Vec<TextCandidateWire>;
-        fn session_accept_text(
+        ) -> Result<CandidateWire>;
+        fn session_propose_raster_crop(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            x: u32,
+            y: u32,
+            width: u32,
+            height: u32,
+        ) -> Result<CandidateWire>;
+        fn session_candidates(self: &DesktopSession) -> Vec<CandidateWire>;
+        fn session_accept_candidate(
             self: &mut DesktopSession,
             candidate_id: &str,
         ) -> Result<ProjectSnapshotWire>;
-        fn session_branch_text(
+        fn session_branch_candidate(
             self: &mut DesktopSession,
             candidate_id: &str,
             artifact_name: &str,
         ) -> Result<ProjectSnapshotWire>;
-        fn session_discard_text(self: &mut DesktopSession, candidate_id: &str) -> Result<()>;
+        fn session_discard_candidate(self: &mut DesktopSession, candidate_id: &str) -> Result<()>;
+        fn session_image_preview(
+            self: &DesktopSession,
+            artifact_id: &str,
+            candidate_id: &str,
+        ) -> Result<ImagePreviewWire>;
         /// Adopts one completed background result only if its target head is
         /// still current and it is not already on the Candidate Shelf.
         fn session_adopt_infer_text(
             self: &mut DesktopSession,
             candidate: Box<InferTextCandidate>,
-        ) -> Result<TextCandidateWire>;
+        ) -> Result<CandidateWire>;
     }
 }
 
@@ -286,9 +322,6 @@ fn project_artifact(
     artifact: &Artifact,
     project_artifacts: &[Artifact],
 ) -> Result<ffi::ArtifactSummaryWire, String> {
-    let accepted = project
-        .read_accepted(artifact.id)
-        .map_err(|error| error.to_string())?;
     let mut wire = ffi::ArtifactSummaryWire {
         id: artifact.id.to_string(),
         name: artifact.name.clone(),
@@ -311,19 +344,21 @@ fn project_artifact(
         has_text_preview: false,
         text_preview_truncated: false,
         text_preview: String::new(),
+        has_image_preview: false,
+        image_width: 0,
+        image_height: 0,
     };
-    if let Some(content) = accepted {
+    if let Some(revision_id) = artifact.accepted_revision {
+        let revision = project
+            .revision(revision_id)
+            .map_err(|error| error.to_string())?;
         let transformation = project
-            .transformation(content.revision.transformation_id)
+            .transformation(revision.transformation_id)
             .map_err(|error| error.to_string())?;
         wire.has_accepted_revision = true;
-        wire.accepted_revision_id = content.revision.id.to_string();
-        wire.accepted_parent_revision_ids = content
-            .revision
-            .parents
-            .iter()
-            .map(ToString::to_string)
-            .collect();
+        wire.accepted_revision_id = revision.id.to_string();
+        wire.accepted_parent_revision_ids =
+            revision.parents.iter().map(ToString::to_string).collect();
         wire.transformation_id = transformation.id.to_string();
         transformation_kind_key(transformation.kind).clone_into(&mut wire.transformation_kind_key);
         transformation
@@ -351,15 +386,24 @@ fn project_artifact(
         wire.constraint_count = transformation.constraints.len() as u64;
         wire.reference_count = transformation.references.len() as u64;
         wire.has_content = true;
-        wire.content_digest = content.revision.content.digest.to_string();
-        wire.media_type = content.revision.content.media_type;
-        wire.byte_length = content.revision.content.byte_length;
-        if wire.media_type.starts_with("text/")
-            && let Some((preview, truncated)) = bounded_text_preview(&content.bytes)
-        {
-            wire.has_text_preview = true;
-            wire.text_preview_truncated = truncated;
-            wire.text_preview = preview;
+        wire.content_digest = revision.content.digest.to_string();
+        wire.media_type.clone_from(&revision.content.media_type);
+        wire.byte_length = revision.content.byte_length;
+        if wire.media_type.starts_with("text/") {
+            let content = project
+                .read_accepted(artifact.id)
+                .map_err(|error| error.to_string())?
+                .ok_or_else(|| "accepted revision disappeared while projecting it".to_owned())?;
+            if let Some((preview, truncated)) = bounded_text_preview(&content.bytes) {
+                wire.has_text_preview = true;
+                wire.text_preview_truncated = truncated;
+                wire.text_preview = preview;
+            }
+        }
+        if let Some(ArtifactContentContract::ImageRaster(contract)) = revision.content_contract {
+            wire.has_image_preview = true;
+            wire.image_width = contract.width;
+            wire.image_height = contract.height;
         }
     }
     Ok(wire)

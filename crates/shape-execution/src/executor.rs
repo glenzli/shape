@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use shape_domain::{ContentRef, TransformationId};
+use shape_domain::{ArtifactContentContract, ContentDigest, ContentRef, TransformationId};
 
 use crate::{ExecutionError, ExecutionFailure};
 
@@ -95,7 +95,7 @@ pub struct ExecutionRequest {
     /// Logical ability required from an executor.
     pub capability: CapabilityId,
     /// Immutable accepted inputs available to the executor.
-    pub inputs: Vec<ContentRef>,
+    pub inputs: Vec<ExecutionInput>,
     /// Executor-specific bounded instruction bytes; not included in receipts.
     pub instruction: Vec<u8>,
     /// Requested candidate media type.
@@ -126,10 +126,83 @@ impl ExecutionRequest {
         Ok(Self {
             transformation_id,
             capability,
-            inputs,
+            inputs: inputs.into_iter().map(ExecutionInput::reference).collect(),
             instruction,
             output_media_type,
         })
+    }
+
+    /// Creates a request with verified, transient materialized input bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the output media type is invalid or any payload
+    /// does not match its immutable content reference.
+    pub fn new_materialized(
+        transformation_id: TransformationId,
+        capability: CapabilityId,
+        inputs: Vec<ExecutionInput>,
+        instruction: Vec<u8>,
+        output_media_type: impl Into<String>,
+    ) -> Result<Self, ExecutionError> {
+        if inputs.iter().any(|input| input.bytes.is_none()) {
+            return Err(ExecutionError::InvalidInput);
+        }
+        let request = Self::new(
+            transformation_id,
+            capability,
+            Vec::new(),
+            instruction,
+            output_media_type,
+        )?;
+        Ok(Self { inputs, ..request })
+    }
+}
+
+/// One immutable executor input with optional verified payload bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExecutionInput {
+    content: ContentRef,
+    bytes: Option<Vec<u8>>,
+}
+
+impl ExecutionInput {
+    /// Carries provenance without materializing bytes for executors that do not need them.
+    #[must_use]
+    pub const fn reference(content: ContentRef) -> Self {
+        Self {
+            content,
+            bytes: None,
+        }
+    }
+
+    /// Binds exact bytes to a durable content reference.
+    ///
+    /// # Errors
+    ///
+    /// Rejects length or BLAKE3 mismatches before an executor receives input.
+    pub fn materialized(content: ContentRef, bytes: Vec<u8>) -> Result<Self, ExecutionError> {
+        let byte_length = u64::try_from(bytes.len()).map_err(|_| ExecutionError::InvalidInput)?;
+        if byte_length != content.byte_length || ContentDigest::from_bytes(&bytes) != content.digest
+        {
+            return Err(ExecutionError::InvalidInput);
+        }
+        Ok(Self {
+            content,
+            bytes: Some(bytes),
+        })
+    }
+
+    /// Returns the immutable content identity for this input.
+    #[must_use]
+    pub const fn content(&self) -> &ContentRef {
+        &self.content
+    }
+
+    /// Returns verified payload bytes when this input is materialized.
+    #[must_use]
+    pub fn bytes(&self) -> Option<&[u8]> {
+        self.bytes.as_deref()
     }
 }
 
@@ -143,6 +216,8 @@ pub struct ExecutionOutput {
     /// Executor-owned job identity used to retrieve detailed physical
     /// provenance. It must not contain payloads or credentials.
     pub executor_job_id: Option<String>,
+    /// Typed media interpretation for the candidate payload, when applicable.
+    pub content_contract: Option<ArtifactContentContract>,
 }
 
 /// One implementation capable of physically executing a logical transformation.

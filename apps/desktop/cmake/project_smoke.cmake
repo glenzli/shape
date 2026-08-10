@@ -29,7 +29,7 @@ execute_process(
     COMMAND
         "${CMAKE_COMMAND}" -E env QT_QPA_PLATFORM=offscreen
         "${SHAPE_DESKTOP_EXECUTABLE}" --project "${project_path}"
-        --smoke-text-cycle --smoke-exit
+        --smoke-text-cycle --smoke-raster-cycle --smoke-exit
     RESULT_VARIABLE desktop_result
     OUTPUT_VARIABLE desktop_output
     ERROR_VARIABLE desktop_error

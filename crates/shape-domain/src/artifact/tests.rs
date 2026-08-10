@@ -18,5 +18,6 @@ fn revision_binds_content_and_creative_cause() {
     let revision =
         ArtifactRevision::new(artifact.id, vec![parent], content, transformation, 42).unwrap();
     assert_eq!(revision.parents, vec![parent]);
+    assert!(revision.content_contract.is_none());
     assert_eq!(revision.transformation_id, transformation);
 }
