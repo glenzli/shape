@@ -60,6 +60,18 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     let accepted = session.session_accept_text().expect("candidate accepts");
     assert_ne!(accepted.artifacts[0].accepted_revision_id, before_revision);
     assert_eq!(
+        accepted.artifacts[0].accepted_parent_revision_ids,
+        vec![before_revision.clone()]
+    );
+    assert_eq!(
+        accepted.artifacts[0].transformation_kind_key,
+        "text_rewrite"
+    );
+    assert_eq!(
+        accepted.artifacts[0].transformation_input_revision_ids,
+        vec![before_revision]
+    );
+    assert_eq!(
         accepted.artifacts[0].text_preview,
         "A quiet summer afternoon."
     );

@@ -2,51 +2,205 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
-    <name>ArtifactWorkspace</name>
+    <name>ArtifactDetailsPanel</name>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="40"/>
-        <source>Current artifact</source>
-        <translation>当前创作对象</translation>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="21"/>
+        <source>No materialized content</source>
+        <translation>没有已生成内容</translation>
     </message>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="50"/>
-        <source>Creative workspace</source>
-        <translation>创作工作区</translation>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="24"/>
+        <source>%1 bytes</source>
+        <translation>%1 字节</translation>
     </message>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="74"/>
-        <source>Comparing candidate</source>
-        <translation>正在对比候选</translation>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="26"/>
+        <source>%1 KB</source>
+        <translation>%1 KB</translation>
     </message>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="75"/>
-        <source>Accepted head</source>
-        <translation>已接受版本</translation>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="39"/>
+        <source>ARTIFACT DETAILS</source>
+        <translation>创作对象详情</translation>
     </message>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="76"/>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="61"/>
+        <source>No artifact selected</source>
+        <translation>未选择创作对象</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="79"/>
+        <source>Candidate awaiting review</source>
+        <translation>候选等待审核</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="81"/>
+        <source>Accepted head · verified</source>
+        <translation>已接受版本 · 已校验</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="82"/>
         <source>No accepted head</source>
         <translation>尚无已接受版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="128"/>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="92"/>
+        <source>IDENTITY</source>
+        <translation>身份</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="118"/>
+        <source>MATERIAL</source>
+        <translation>内容</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="139"/>
+        <source>No media type</source>
+        <translation>没有媒体类型</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="156"/>
+        <source>No content digest</source>
+        <translation>没有内容摘要</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="168"/>
+        <source>Artifact identity stays stable while accepted revisions advance explicitly.</source>
+        <translation>创作对象身份保持稳定，已接受修订只会显式前移。</translation>
+    </message>
+</context>
+<context>
+    <name>ArtifactLineagePanel</name>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="30"/>
+        <source>LINEAGE</source>
+        <translation>沿袭</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="70"/>
+        <source>Current accepted head</source>
+        <translation>当前已接受版本</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="71"/>
+        <source>No accepted history</source>
+        <translation>尚无已接受历史</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="80"/>
+        <source>Waiting for the first accepted change</source>
+        <translation>等待第一次接受变更</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="103"/>
+        <source>TRANSFORMATION</source>
+        <translation>变换</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="138"/>
+        <source>Inputs</source>
+        <translation>输入</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="139"/>
+        <source>Constraints</source>
+        <translation>约束</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="140"/>
+        <source>References</source>
+        <translation>参考</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="179"/>
+        <source>PARENT REVISION</source>
+        <translation>父修订</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="202"/>
+        <source>Previous accepted state</source>
+        <translation>上一个已接受状态</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="202"/>
+        <source>Origin revision</source>
+        <translation>起始修订</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="212"/>
+        <source>This head starts the artifact history</source>
+        <translation>此版本是创作对象历史的起点</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="224"/>
+        <source>Only accepted revisions enter the durable creative lineage.</source>
+        <translation>只有已接受修订会进入持久化创作沿袭。</translation>
+    </message>
+</context>
+<context>
+    <name>ArtifactWorkspace</name>
+    <message>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="41"/>
+        <source>Current artifact</source>
+        <translation>当前创作对象</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="54"/>
+        <source>Creative workspace</source>
+        <translation>创作工作区</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="94"/>
+        <source>Comparing candidate</source>
+        <translation>正在对比候选</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="95"/>
+        <source>Accepted head</source>
+        <translation>已接受版本</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="96"/>
+        <source>No accepted head</source>
+        <translation>尚无已接受版本</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="148"/>
         <source>No accepted text content</source>
         <translation>没有已接受的文本内容</translation>
     </message>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="140"/>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="160"/>
         <source>Loaded from the verified accepted revision. Executor output stays a candidate until you accept it.</source>
         <translation>内容来自已校验的接受版本。执行器输出在你接受前始终只是候选。</translation>
     </message>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="141"/>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="161"/>
         <source>This artifact has no accepted revision yet.</source>
         <translation>这个创作对象还没有已接受的版本。</translation>
     </message>
     <message>
-        <location filename="../qml/components/ArtifactWorkspace.qml" line="152"/>
+        <location filename="../qml/components/ArtifactWorkspace.qml" line="172"/>
         <source>Preview truncated</source>
         <translation>预览已截断</translation>
+    </message>
+</context>
+<context>
+    <name>ContextInspector</name>
+    <message>
+        <location filename="../qml/components/ContextInspector.qml" line="41"/>
+        <source>Explore</source>
+        <translation>探索</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ContextInspector.qml" line="49"/>
+        <source>Details</source>
+        <translation>详情</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ContextInspector.qml" line="57"/>
+        <source>Lineage</source>
+        <translation>沿袭</translation>
     </message>
 </context>
 <context>
@@ -77,27 +231,67 @@
         <translation>未知创作对象</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="133"/>
+        <location filename="../src/desktop_backend.cpp" line="38"/>
+        <source>Imported origin</source>
+        <translation>导入起点</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="41"/>
+        <source>Text revision</source>
+        <translation>文本修订</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="44"/>
+        <source>Deterministic edit</source>
+        <translation>确定性编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="47"/>
+        <source>Generative edit</source>
+        <translation>生成式编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="50"/>
+        <source>Composite</source>
+        <translation>合成</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="53"/>
+        <source>External round trip</source>
+        <translation>外部往返编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="55"/>
+        <source>Unknown transformation</source>
+        <translation>未知变换</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="60"/>
+        <source>Direct text edit</source>
+        <translation>直接文本编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="198"/>
         <source>Open a project before creating a candidate.</source>
         <translation>请先打开项目，再创建候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="145"/>
+        <location filename="../src/desktop_backend.cpp" line="210"/>
         <source>Could not create candidate.</source>
         <translation>无法创建候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="164"/>
+        <location filename="../src/desktop_backend.cpp" line="229"/>
         <source>Could not accept candidate.</source>
         <translation>无法接受候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="189"/>
+        <location filename="../src/desktop_backend.cpp" line="254"/>
         <source>Could not refresh project.</source>
         <translation>无法刷新项目。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="152"/>
+        <location filename="../src/desktop_backend.cpp" line="217"/>
         <source>There is no candidate to accept.</source>
         <translation>没有可以接受的候选。</translation>
     </message>
@@ -158,29 +352,7 @@
         <translation>Shape — 无项目</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="91"/>
-        <source>ARTIFACTS</source>
-        <translation>创作对象</translation>
-    </message>
-    <message>
-        <location filename="../qml/Main.qml" line="197"/>
-        <source>This project has no artifacts</source>
-        <translation>这个项目还没有创作对象</translation>
-    </message>
-    <message>
-        <location filename="../qml/Main.qml" line="198"/>
-        <source>No project loaded</source>
-        <translation>尚未载入项目</translation>
-    </message>
-    <message>
-        <location filename="../qml/Main.qml" line="212"/>
-        <source>Stable identities
-Immutable accepted revisions</source>
-        <translation>稳定身份
-不可变的已接受修订</translation>
-    </message>
-    <message>
-        <location filename="../qml/Main.qml" line="232"/>
+        <location filename="../qml/Main.qml" line="98"/>
         <source>No artifact selected</source>
         <translation>未选择创作对象</translation>
     </message>
@@ -224,31 +396,61 @@ Immutable accepted revisions</source>
     </message>
 </context>
 <context>
-    <name>SemanticHistory</name>
+    <name>ProjectNavigator</name>
     <message>
-        <location filename="../qml/components/SemanticHistory.qml" line="21"/>
-        <source>SEMANTIC HISTORY</source>
-        <translation>语义历史</translation>
+        <location filename="../qml/components/ProjectNavigator.qml" line="45"/>
+        <source>PROJECT</source>
+        <translation>项目</translation>
     </message>
     <message>
-        <location filename="../qml/components/SemanticHistory.qml" line="63"/>
-        <source>Accepted revision</source>
+        <location filename="../qml/components/ProjectNavigator.qml" line="75"/>
+        <source>CREATIVE OBJECTS</source>
+        <translation>创作对象</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectNavigator.qml" line="85"/>
+        <source>Current heads</source>
+        <translation>当前版本</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectNavigator.qml" line="175"/>
+        <source>Candidate pending</source>
+        <translation>候选待处理</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectNavigator.qml" line="177"/>
+        <source>Accepted head</source>
         <translation>已接受版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/SemanticHistory.qml" line="63"/>
-        <source>No accepted history</source>
-        <translation>尚无已接受历史</translation>
+        <location filename="../qml/components/ProjectNavigator.qml" line="178"/>
+        <source>Awaiting first revision</source>
+        <translation>等待首个修订</translation>
     </message>
     <message>
-        <location filename="../qml/components/SemanticHistory.qml" line="72"/>
-        <source>Waiting for the first accepted change</source>
-        <translation>等待第一次接受变更</translation>
+        <location filename="../qml/components/ProjectNavigator.qml" line="192"/>
+        <source>This project has no creative objects</source>
+        <translation>这个项目还没有创作对象</translation>
     </message>
     <message>
-        <location filename="../qml/components/SemanticHistory.qml" line="83"/>
-        <source>Every accepted transformation will form a durable, inspectable timeline.</source>
-        <translation>每次接受的变换都会形成持久、可检查的时间线。</translation>
+        <location filename="../qml/components/ProjectNavigator.qml" line="193"/>
+        <source>No project loaded</source>
+        <translation>尚未载入项目</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectNavigator.qml" line="215"/>
+        <source>CREATIVE GRAPH</source>
+        <translation>创作图谱</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectNavigator.qml" line="225"/>
+        <source>%1 accepted</source>
+        <translation>已接受 %1 个</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectNavigator.qml" line="233"/>
+        <source>Candidates stay outside the graph until accepted.</source>
+        <translation>候选只有在接受后才会进入图谱。</translation>
     </message>
 </context>
 <context>
@@ -322,8 +524,8 @@ Immutable accepted revisions</source>
     <name>VariantsPanel</name>
     <message>
         <location filename="../qml/components/VariantsPanel.qml" line="32"/>
-        <source>VARIANTS</source>
-        <translation>候选版本</translation>
+        <source>EXPLORATION</source>
+        <translation>探索</translation>
     </message>
     <message>
         <location filename="../qml/components/VariantsPanel.qml" line="51"/>

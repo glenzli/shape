@@ -1,0 +1,113 @@
+//! Right-side contextual navigation for exploration, artifact facts, and lineage.
+
+import QtQuick
+import QtQuick.Layouts
+import Shape.Desktop
+
+Item {
+    id: inspector
+
+    property var artifact: null
+    property bool hasCandidate: false
+    property string candidateText: ""
+    property bool candidateTextTruncated: false
+    property int currentPage: 0
+
+    readonly property bool hasArtifact: artifact !== null
+
+    signal compareRequested()
+    signal discardRequested()
+    signal acceptRequested()
+
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 10
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 44
+            radius: Theme.radiusMedium
+            color: Theme.surface
+            border.color: Theme.border
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 5
+                spacing: 5
+
+                ShapeButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 32
+                    text: qsTr("Explore")
+                    selected: inspector.currentPage === 0
+                    onClicked: inspector.currentPage = 0
+                }
+
+                ShapeButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 32
+                    text: qsTr("Details")
+                    selected: inspector.currentPage === 1
+                    onClicked: inspector.currentPage = 1
+                }
+
+                ShapeButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 32
+                    text: qsTr("Lineage")
+                    selected: inspector.currentPage === 2
+                    onClicked: inspector.currentPage = 2
+                }
+            }
+        }
+
+        StackLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            currentIndex: inspector.currentPage
+
+            VariantsPanel {
+                artifactText: inspector.hasArtifact ? inspector.artifact.textPreview : ""
+                hasAcceptedRevision: inspector.hasArtifact
+                                     && inspector.artifact.hasAcceptedRevision
+                hasTextPreview: inspector.hasArtifact && inspector.artifact.hasTextPreview
+                hasCandidate: inspector.hasCandidate
+                candidateText: inspector.candidateText
+                candidateTextTruncated: inspector.candidateTextTruncated
+                onCompareRequested: inspector.compareRequested()
+                onDiscardRequested: inspector.discardRequested()
+                onAcceptRequested: inspector.acceptRequested()
+            }
+
+            ArtifactDetailsPanel {
+                artifactName: inspector.hasArtifact ? inspector.artifact.name : ""
+                artifactKind: inspector.hasArtifact ? inspector.artifact.kindLabel : ""
+                artifactId: inspector.hasArtifact ? inspector.artifact.id : ""
+                hasAcceptedRevision: inspector.hasArtifact
+                                     && inspector.artifact.hasAcceptedRevision
+                hasCandidate: inspector.hasCandidate
+                mediaType: inspector.hasArtifact ? inspector.artifact.mediaType : ""
+                byteLength: inspector.hasArtifact ? inspector.artifact.byteLength : 0
+                contentDigest: inspector.hasArtifact ? inspector.artifact.contentDigest : ""
+            }
+
+            ArtifactLineagePanel {
+                hasAcceptedRevision: inspector.hasArtifact
+                                     && inspector.artifact.hasAcceptedRevision
+                revisionId: inspector.hasArtifact ? inspector.artifact.acceptedRevisionId : ""
+                parentRevisionIds: inspector.hasArtifact
+                                   ? inspector.artifact.acceptedParentRevisionIds : []
+                transformationId: inspector.hasArtifact
+                                  ? inspector.artifact.transformationId : ""
+                transformationKind: inspector.hasArtifact
+                                    ? inspector.artifact.transformationKindLabel : ""
+                transformationIntent: inspector.hasArtifact
+                                      ? inspector.artifact.transformationIntent : ""
+                inputRevisionIds: inspector.hasArtifact
+                                  ? inspector.artifact.transformationInputRevisionIds : []
+                constraintCount: inspector.hasArtifact ? inspector.artifact.constraintCount : 0
+                referenceCount: inspector.hasArtifact ? inspector.artifact.referenceCount : 0
+            }
+        }
+    }
+}

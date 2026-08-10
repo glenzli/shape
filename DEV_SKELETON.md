@@ -63,3 +63,8 @@ components keep ownership of their own visual regions. This split should be revi
 second settings domain or a second top-level workspace creates a concrete growth trigger.
 `TextCompareWorkspace.qml` separately owns accepted-versus-candidate presentation; the C++
 `DesktopBackend` remains a presentation facade and never becomes the draft or persistence owner.
+The graph-aware desktop information architecture adds `ProjectNavigator.qml` for project-level
+creative-object selection and `ContextInspector.qml` for Explore, Details, and Lineage modes.
+`ArtifactWorkspace.qml` remains the media-workspace owner. The bridge projects only lineage already
+proven by the current accepted revision and its persisted Transformation; cross-artifact graph edges
+remain deferred until a real derivation use case can create and consume them.

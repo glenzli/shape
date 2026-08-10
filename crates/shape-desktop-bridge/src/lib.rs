@@ -8,7 +8,7 @@
 mod session;
 
 use shape_core::ShapeProject;
-use shape_domain::{Artifact, ArtifactKind};
+use shape_domain::{Artifact, ArtifactKind, TransformationKind};
 
 use session::{DesktopSession, open_desktop_session};
 
@@ -34,6 +34,13 @@ mod ffi {
         kind_key: String,
         has_accepted_revision: bool,
         accepted_revision_id: String,
+        accepted_parent_revision_ids: Vec<String>,
+        transformation_id: String,
+        transformation_kind_key: String,
+        transformation_intent: String,
+        transformation_input_revision_ids: Vec<String>,
+        constraint_count: u64,
+        reference_count: u64,
         has_content: bool,
         content_digest: String,
         media_type: String,
@@ -119,6 +126,13 @@ fn project_artifact(
         kind_key: artifact_kind_key(artifact.kind).to_owned(),
         has_accepted_revision: false,
         accepted_revision_id: String::new(),
+        accepted_parent_revision_ids: Vec::new(),
+        transformation_id: String::new(),
+        transformation_kind_key: String::new(),
+        transformation_intent: String::new(),
+        transformation_input_revision_ids: Vec::new(),
+        constraint_count: 0,
+        reference_count: 0,
         has_content: false,
         content_digest: String::new(),
         media_type: String::new(),
@@ -128,8 +142,30 @@ fn project_artifact(
         text_preview: String::new(),
     };
     if let Some(content) = accepted {
+        let transformation = project
+            .transformation(content.revision.transformation_id)
+            .map_err(|error| error.to_string())?;
         wire.has_accepted_revision = true;
         wire.accepted_revision_id = content.revision.id.to_string();
+        wire.accepted_parent_revision_ids = content
+            .revision
+            .parents
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        wire.transformation_id = transformation.id.to_string();
+        transformation_kind_key(transformation.kind).clone_into(&mut wire.transformation_kind_key);
+        transformation
+            .intent
+            .as_str()
+            .clone_into(&mut wire.transformation_intent);
+        wire.transformation_input_revision_ids = transformation
+            .inputs
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        wire.constraint_count = transformation.constraints.len() as u64;
+        wire.reference_count = transformation.references.len() as u64;
         wire.has_content = true;
         wire.content_digest = content.revision.content.digest.to_string();
         wire.media_type = content.revision.content.media_type;
@@ -163,6 +199,17 @@ const fn artifact_kind_key(kind: ArtifactKind) -> &'static str {
         ArtifactKind::ImageRaster => "image_raster",
         ArtifactKind::ImageComposite => "image_composite",
         ArtifactKind::ReferenceSet => "reference_set",
+    }
+}
+
+const fn transformation_kind_key(kind: TransformationKind) -> &'static str {
+    match kind {
+        TransformationKind::Import => "import",
+        TransformationKind::TextRewrite => "text_rewrite",
+        TransformationKind::DeterministicEdit => "deterministic_edit",
+        TransformationKind::GenerativeEdit => "generative_edit",
+        TransformationKind::Composite => "composite",
+        TransformationKind::ExternalRoundTrip => "external_round_trip",
     }
 }
 

@@ -33,6 +33,44 @@ QString artifact_kind_label(const QString& key) {
     return DesktopBackend::tr("Unknown artifact");
 }
 
+QString transformation_kind_label(const QString& key) {
+    if (key == QStringLiteral("import")) {
+        return DesktopBackend::tr("Imported origin");
+    }
+    if (key == QStringLiteral("text_rewrite")) {
+        return DesktopBackend::tr("Text revision");
+    }
+    if (key == QStringLiteral("deterministic_edit")) {
+        return DesktopBackend::tr("Deterministic edit");
+    }
+    if (key == QStringLiteral("generative_edit")) {
+        return DesktopBackend::tr("Generative edit");
+    }
+    if (key == QStringLiteral("composite")) {
+        return DesktopBackend::tr("Composite");
+    }
+    if (key == QStringLiteral("external_round_trip")) {
+        return DesktopBackend::tr("External round trip");
+    }
+    return DesktopBackend::tr("Unknown transformation");
+}
+
+QString transformation_intent_label(const QString& intent) {
+    if (intent == QStringLiteral("Replace text with a user-authored draft")) {
+        return DesktopBackend::tr("Direct text edit");
+    }
+    return intent;
+}
+
+QVariantList string_list_projection(const rust::Vec<rust::String>& values) {
+    QVariantList projected;
+    projected.reserve(static_cast<qsizetype>(values.size()));
+    for (const auto& value : values) {
+        projected.append(from_rust(value));
+    }
+    return projected;
+}
+
 QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artifact) {
     const QString kind_key = from_rust(artifact.kind_key);
     QVariantMap projected;
@@ -44,6 +82,33 @@ QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artif
     projected.insert(
         QStringLiteral("acceptedRevisionId"),
         from_rust(artifact.accepted_revision_id)
+    );
+    projected.insert(
+        QStringLiteral("acceptedParentRevisionIds"),
+        string_list_projection(artifact.accepted_parent_revision_ids)
+    );
+    projected.insert(QStringLiteral("transformationId"), from_rust(artifact.transformation_id));
+    const QString transformation_kind_key = from_rust(artifact.transformation_kind_key);
+    projected.insert(QStringLiteral("transformationKindKey"), transformation_kind_key);
+    projected.insert(
+        QStringLiteral("transformationKindLabel"),
+        transformation_kind_label(transformation_kind_key)
+    );
+    projected.insert(
+        QStringLiteral("transformationIntent"),
+        transformation_intent_label(from_rust(artifact.transformation_intent))
+    );
+    projected.insert(
+        QStringLiteral("transformationInputRevisionIds"),
+        string_list_projection(artifact.transformation_input_revision_ids)
+    );
+    projected.insert(
+        QStringLiteral("constraintCount"),
+        static_cast<qulonglong>(artifact.constraint_count)
+    );
+    projected.insert(
+        QStringLiteral("referenceCount"),
+        static_cast<qulonglong>(artifact.reference_count)
     );
     projected.insert(QStringLiteral("hasContent"), artifact.has_content);
     projected.insert(QStringLiteral("contentDigest"), from_rust(artifact.content_digest));

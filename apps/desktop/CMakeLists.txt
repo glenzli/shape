@@ -99,9 +99,12 @@ qt_add_qml_module(shape-desktop
         qml/MainTitleBar.qml
         qml/ShapeSettingsDialog.qml
         qml/Theme.qml
+        qml/components/ArtifactDetailsPanel.qml
+        qml/components/ArtifactLineagePanel.qml
         qml/components/ArtifactWorkspace.qml
+        qml/components/ContextInspector.qml
         qml/components/IntentPanel.qml
-        qml/components/SemanticHistory.qml
+        qml/components/ProjectNavigator.qml
         qml/components/ShapeButton.qml
         qml/components/ShapeIcon.qml
         qml/components/ShapeIconButton.qml

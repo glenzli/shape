@@ -29,7 +29,7 @@ Rectangle {
             Layout.fillWidth: true
 
             Text {
-                text: qsTr("VARIANTS")
+                text: qsTr("EXPLORATION")
                 color: Theme.muted
                 font.pixelSize: Theme.fontMeta
                 font.weight: Font.DemiBold

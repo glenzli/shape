@@ -5,6 +5,7 @@ import Shape.Desktop
 Rectangle {
     id: workspace
 
+    property string projectName: ""
     property string artifactName: ""
     property string artifactKind: ""
     property string artifactText: ""
@@ -44,13 +45,32 @@ Rectangle {
                     elide: Text.ElideRight
                 }
 
-                Text {
+                RowLayout {
                     Layout.fillWidth: true
-                    text: workspace.artifactKind.length > 0
-                          ? workspace.artifactKind : qsTr("Creative workspace")
-                    color: Theme.muted
-                    font.pixelSize: 10
-                    elide: Text.ElideRight
+                    spacing: 5
+
+                    Text {
+                        text: workspace.projectName.length > 0
+                              ? workspace.projectName : qsTr("Creative workspace")
+                        color: Theme.muted
+                        font.pixelSize: 10
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        visible: workspace.projectName.length > 0
+                        text: "›"
+                        color: Theme.disabled
+                        font.pixelSize: 10
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: workspace.artifactKind
+                        color: Theme.muted
+                        font.pixelSize: 10
+                        elide: Text.ElideRight
+                    }
                 }
             }
 

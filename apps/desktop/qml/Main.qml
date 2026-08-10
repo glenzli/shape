@@ -70,156 +70,21 @@ ApplicationWindow {
         anchors.margins: 14
         spacing: 12
 
-        Rectangle {
-            Layout.minimumWidth: 224
-            Layout.preferredWidth: 224
-            Layout.maximumWidth: 224
+        ProjectNavigator {
+            Layout.minimumWidth: 232
+            Layout.preferredWidth: 232
+            Layout.maximumWidth: 232
             Layout.fillHeight: true
-            radius: Theme.radiusLarge
-            color: Theme.surface
-            border.color: Theme.border
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 10
-
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    Text {
-                        text: qsTr("ARTIFACTS")
-                        color: Theme.muted
-                        font.pixelSize: Theme.fontMeta
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 0.8
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Rectangle {
-                        Layout.preferredWidth: countLabel.implicitWidth + 14
-                        Layout.preferredHeight: 22
-                        radius: 11
-                        color: Theme.raised
-                        border.color: Theme.border
-
-                        Text {
-                            id: countLabel
-                            anchors.centerIn: parent
-                            text: window.backend.artifactCount
-                            color: Theme.muted
-                            font.pixelSize: 10
-                        }
-                    }
-                }
-
-                ListView {
-                    id: artifactList
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    spacing: 5
-                    model: window.backend.artifacts
-
-                    delegate: ItemDelegate {
-                        id: artifactDelegate
-                        required property int index
-                        required property var modelData
-
-                        width: ListView.view.width
-                        height: 58
-                        leftPadding: 12
-                        rightPadding: 10
-                        highlighted: window.selectedArtifactIndex === artifactDelegate.index
-                        onClicked: window.selectedArtifactIndex = artifactDelegate.index
-
-                        background: Rectangle {
-                            radius: Theme.radiusMedium
-                            color: artifactDelegate.highlighted
-                                   ? Theme.selected
-                                   : artifactDelegate.hovered ? Theme.raisedHover : "transparent"
-                            border.width: artifactDelegate.highlighted ? 1 : 0
-                            border.color: Theme.accent
-                        }
-
-                        contentItem: RowLayout {
-                            spacing: 10
-
-                            Rectangle {
-                                Layout.preferredWidth: 28
-                                Layout.preferredHeight: 28
-                                radius: 8
-                                color: artifactDelegate.highlighted ? Theme.accentSoft : Theme.raised
-                                border.color: Theme.border
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: artifactDelegate.modelData.kindLabel.length > 0
-                                          ? artifactDelegate.modelData.kindLabel.charAt(0).toUpperCase()
-                                          : "·"
-                                    color: artifactDelegate.highlighted ? Theme.accent : Theme.muted
-                                    font.pixelSize: 11
-                                    font.weight: Font.DemiBold
-                                }
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: artifactDelegate.modelData.name
-                                    color: Theme.text
-                                    font.pixelSize: 13
-                                    font.weight: artifactDelegate.highlighted
-                                                 ? Font.DemiBold : Font.Normal
-                                    elide: Text.ElideRight
-                                }
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: artifactDelegate.modelData.kindLabel
-                                    color: Theme.muted
-                                    font.pixelSize: 10
-                                    elide: Text.ElideRight
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Text {
-                    visible: window.backend.artifactCount === 0
-                    Layout.fillWidth: true
-                    text: window.backend.projectOpen
-                          ? qsTr("This project has no artifacts")
-                          : qsTr("No project loaded")
-                    color: Theme.muted
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: Theme.fontBody
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 1
-                    color: Theme.border
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("Stable identities\nImmutable accepted revisions")
-                    color: Theme.muted
-                    lineHeight: 1.35
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: 10
-                }
-            }
+            projectOpen: window.backend.projectOpen
+            artifacts: window.backend.artifacts
+            selectedIndex: window.selectedArtifactIndex
+            hasCandidate: window.backend.hasCandidate
+            candidateArtifactId: window.backend.candidateArtifactId
+            onArtifactSelected: index => window.selectedArtifactIndex = index
         }
 
         ColumnLayout {
-            Layout.minimumWidth: 520
+            Layout.minimumWidth: 500
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 12
@@ -227,6 +92,7 @@ ApplicationWindow {
             ArtifactWorkspace {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                projectName: window.backend.projectName
                 artifactName: window.hasSelectedArtifact
                               ? window.selectedArtifact.name
                               : qsTr("No artifact selected")
@@ -260,52 +126,33 @@ ApplicationWindow {
                 onCandidateRequested: (artifactId, replacementText) => {
                     if (window.backend.proposeTextCandidate(artifactId, replacementText)) {
                         window.compareMode = true
+                        contextInspector.currentPage = 0
                     }
                 }
             }
         }
 
-        ColumnLayout {
-            Layout.minimumWidth: 320
-            Layout.preferredWidth: 320
-            Layout.maximumWidth: 320
-            Layout.fillHeight: true
-            spacing: 12
+        ContextInspector {
+            id: contextInspector
 
-            VariantsPanel {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                artifactText: window.hasSelectedArtifact
-                              ? window.selectedArtifact.textPreview
-                              : ""
-                hasAcceptedRevision: window.hasSelectedArtifact
-                                     && window.selectedArtifact.hasAcceptedRevision
-                hasTextPreview: window.hasSelectedArtifact
-                                && window.selectedArtifact.hasTextPreview
-                hasCandidate: window.candidateForSelected
-                candidateText: window.candidateForSelected ? window.backend.candidateText : ""
-                candidateTextTruncated: window.candidateForSelected
-                                        && window.backend.candidateTextTruncated
-                onCompareRequested: window.compareMode = !window.compareMode
-                onDiscardRequested: {
-                    window.backend.discardCandidate()
+            Layout.minimumWidth: 328
+            Layout.preferredWidth: 328
+            Layout.maximumWidth: 328
+            Layout.fillHeight: true
+            artifact: window.selectedArtifact
+            hasCandidate: window.candidateForSelected
+            candidateText: window.candidateForSelected ? window.backend.candidateText : ""
+            candidateTextTruncated: window.candidateForSelected
+                                    && window.backend.candidateTextTruncated
+            onCompareRequested: window.compareMode = !window.compareMode
+            onDiscardRequested: {
+                window.backend.discardCandidate()
+                window.compareMode = false
+            }
+            onAcceptRequested: {
+                if (window.backend.acceptCandidate()) {
                     window.compareMode = false
                 }
-                onAcceptRequested: {
-                    if (window.backend.acceptCandidate()) {
-                        window.compareMode = false
-                    }
-                }
-            }
-
-            SemanticHistory {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 252
-                hasAcceptedRevision: window.hasSelectedArtifact
-                                     && window.selectedArtifact.hasAcceptedRevision
-                revisionId: window.hasSelectedArtifact
-                            ? window.selectedArtifact.acceptedRevisionId
-                            : ""
             }
         }
     }

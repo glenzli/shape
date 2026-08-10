@@ -4,7 +4,7 @@ use std::{fmt, path::Path};
 
 use shape_domain::{
     Artifact, ArtifactId, ArtifactKind, ArtifactRevision, Constraint, IntentSpec, RevisionId,
-    Transformation, TransformationKind,
+    Transformation, TransformationId, TransformationKind,
 };
 use shape_execution::{
     CapabilityId, ExecutedCandidate, ExecutionCoordinator, ExecutionFailure, ExecutionOutput,
@@ -126,6 +126,18 @@ impl ShapeProject {
     /// Returns an error for invalid durable project state.
     pub fn snapshot(&self) -> Result<ProjectSnapshot, CoreError> {
         Ok(self.store.snapshot()?)
+    }
+
+    /// Loads one accepted creative transformation for inspection and lineage projection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when durable transformation data is absent or invalid.
+    pub fn transformation(
+        &self,
+        transformation_id: TransformationId,
+    ) -> Result<Transformation, CoreError> {
+        Ok(self.store.transformation(transformation_id)?)
     }
 
     /// Executes a deterministic text proposal without changing durable history.

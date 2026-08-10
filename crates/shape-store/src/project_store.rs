@@ -12,7 +12,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use shape_domain::{
     Artifact, ArtifactId, ArtifactKind, ArtifactRevision, ContentRef, ProjectMetadata, RevisionId,
-    SHAPE_PROJECT_SCHEMA_REVISION, Transformation,
+    SHAPE_PROJECT_SCHEMA_REVISION, Transformation, TransformationId,
 };
 use shape_execution::{ExecutionOutcome, ExecutionReceipt};
 use uuid::Uuid;
@@ -258,6 +258,27 @@ impl ProjectStore {
             .accepted_revision
             .map(|revision_id| self.revision(revision_id))
             .transpose()
+    }
+
+    /// Loads one persisted creative transformation by stable identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the transformation is absent or its durable JSON is invalid.
+    pub fn transformation(
+        &self,
+        transformation_id: TransformationId,
+    ) -> Result<Transformation, StoreError> {
+        let transformation_json = self
+            .connection
+            .query_row(
+                "SELECT transformation_json FROM transformations WHERE id = ?1",
+                [transformation_id.to_string()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .ok_or(StoreError::UnknownTransformation(transformation_id))?;
+        Ok(serde_json::from_str(&transformation_json)?)
     }
 
     /// Reads and verifies exact accepted content bytes.

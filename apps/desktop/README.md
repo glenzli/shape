@@ -9,6 +9,13 @@ Chinese message identities. Language can switch at runtime between system, Engli
 Chinese. Appearance defaults to the system color scheme and can be pinned to light or dark; both
 preferences persist across launches.
 
+The shell is organized around a project navigator, a media-specific central workspace, and a
+context inspector with Explore, Details, and Lineage modes. Lineage is not placeholder UI: Rust
+loads the accepted revision's persisted parent identities and creative Transformation, while C++
+projects localized transformation labels. Candidates remain in Explore and outside durable
+lineage until acceptance. Full cross-artifact derivation edges are intentionally deferred until an
+implemented creation path can produce them.
+
 [`shape-desktop-bridge`](../../crates/shape-desktop-bridge/src/lib.rs) owns the generated CXX ABI.
 Rust's bounded `DesktopSession` validates SQLite and content objects, owns the open project plus at
 most one transient text candidate, and delegates acceptance to the existing atomic project use
@@ -22,7 +29,9 @@ The shared shell uses Qt's expanded client area and safe-area margins on every p
 Objective-C++ adapter only aligns native macOS traffic-light buttons with that shared toolbar.
 `DesktopBackend` is a presentation facade over the Rust session; project and candidate authority
 never enters QML or UI settings. `TextCompareWorkspace.qml` owns the side-by-side text comparison
-without taking persistence responsibility.
+without taking persistence responsibility. `ProjectNavigator.qml` owns project-level selection,
+`ContextInspector.qml` owns inspector navigation, and its details and lineage panels own their
+respective read-only projections. `Main.qml` remains an assembly root.
 
 Build and smoke-start:
 

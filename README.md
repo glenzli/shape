@@ -47,7 +47,8 @@ CMake output is written to the sibling `.shape-local-build` directory, not the s
 
 - Implemented: pure Creative Document contracts, durable project store, executor lifecycle,
   deterministic text acceptance, CLI, a bounded Rust/CXX desktop session, and a cross-platform
-  desktop flow for drafting, comparing, discarding, accepting, and reopening text revisions.
+  desktop flow for drafting, comparing, discarding, accepting, reopening, and inspecting the
+  persisted lineage of text revisions.
 - Deferred: richer multi-candidate desktop sessions, image buffers, preview renderer, Infer Runtime
   client, Shadow/Echo suite adapters, external executors, project imports/exports, and AI planning.
 - License: Shape source is licensed under the [`MIT License`](LICENSE). Shadow's GPL components

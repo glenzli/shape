@@ -48,9 +48,9 @@ fn project_reopens_with_verified_accepted_content() {
     let mut store = ProjectStore::create(&root, "Test Project").expect("project creates");
     let artifact = Artifact::new("Story", ArtifactKind::TextDocument).expect("artifact valid");
     store.insert_artifact(&artifact).expect("artifact inserts");
-    let revision = store
-        .accept(successful_commit(&artifact, None))
-        .expect("commit accepts");
+    let commit = successful_commit(&artifact, None);
+    let expected_transformation = commit.transformation.clone();
+    let revision = store.accept(commit).expect("commit accepts");
     drop(store);
 
     let reopened = ProjectStore::open(&root).expect("project reopens");
@@ -59,6 +59,12 @@ fn project_reopens_with_verified_accepted_content() {
         .expect("revision reads")
         .expect("accepted revision exists");
     assert_eq!(accepted.id, revision.id);
+    assert_eq!(
+        reopened
+            .transformation(accepted.transformation_id)
+            .expect("transformation reads"),
+        expected_transformation
+    );
     assert_eq!(
         reopened
             .read_content(&accepted.content)

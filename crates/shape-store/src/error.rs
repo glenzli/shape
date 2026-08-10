@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use shape_domain::{ArtifactId, RevisionId};
+use shape_domain::{ArtifactId, RevisionId, TransformationId};
 use thiserror::Error;
 
 /// A failure to create, validate, read, or atomically update a Shape project.
@@ -23,6 +23,8 @@ pub enum StoreError {
     UnknownArtifact(ArtifactId),
     #[error("artifact {0} already exists")]
     ArtifactAlreadyExists(ArtifactId),
+    #[error("transformation {0} does not exist")]
+    UnknownTransformation(TransformationId),
     #[error("accepted head changed: expected {expected:?}, actual {actual:?}")]
     RevisionConflict {
         expected: Option<RevisionId>,

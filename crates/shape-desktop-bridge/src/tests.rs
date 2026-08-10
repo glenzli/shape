@@ -44,6 +44,12 @@ fn bridge_preserves_presence_identity_and_verified_text() {
         .expect("story is projected");
     assert!(story_wire.has_accepted_revision);
     assert_eq!(story_wire.accepted_revision_id, accepted.id.to_string());
+    assert!(story_wire.accepted_parent_revision_ids.is_empty());
+    assert_eq!(story_wire.transformation_kind_key, "import");
+    assert_eq!(story_wire.transformation_intent, "Import the opening");
+    assert!(story_wire.transformation_input_revision_ids.is_empty());
+    assert_eq!(story_wire.constraint_count, 0);
+    assert_eq!(story_wire.reference_count, 0);
     assert!(story_wire.has_content);
     assert_eq!(story_wire.media_type, "text/plain; charset=utf-8");
     assert!(story_wire.has_text_preview);
