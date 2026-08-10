@@ -48,8 +48,10 @@ The first foundation intentionally keeps four Rust semantic owners:
 - `shape-store`: one atomic persistence owner spanning SQLite metadata and durable CAS publication;
 - `shape-core`: application use cases and built-in transformations.
 
-The first real desktop read path now owns one additional `shape-desktop-bridge`: it projects a
-validated current project snapshot through CXX and contains no UI policy. Mutable desktop sessions,
+The first real desktop edit path now owns one additional `shape-desktop-bridge`. Its
+`DesktopSession` keeps one `ShapeProject` and at most one transient text candidate, and projects
+validated snapshots through CXX without UI policy. Acceptance still crosses the existing
+`shape-core` use case and `shape-store` compare-and-swap commit boundary. Richer draft sessions,
 media bridges, an Infer client, capability registry, preview renderer, and project dependency
 resolver remain deferred until a real application path consumes them. Do not create empty crates
 for roadmap boxes.
@@ -59,3 +61,5 @@ project projection: `UiPreferences` owns persistent appearance/language lifecycl
 `MainTitleBar.qml` owns integrated window chrome and native safe areas. Individual workspace QML
 components keep ownership of their own visual regions. This split should be revisited when a
 second settings domain or a second top-level workspace creates a concrete growth trigger.
+`TextCompareWorkspace.qml` separately owns accepted-versus-candidate presentation; the C++
+`DesktopBackend` remains a presentation facade and never becomes the draft or persistence owner.

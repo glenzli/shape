@@ -14,6 +14,8 @@ ToolBar {
     required property var hostWindow
     required property bool projectOpen
     required property string projectName
+    required property bool compareAvailable
+    required property bool compareActive
 
     signal compareRequested()
     signal exportRequested()
@@ -128,7 +130,8 @@ ToolBar {
                 source: "qrc:/qt/qml/Shape/Desktop/icons/compare.svg"
                 toolTipText: qsTr("Compare")
                 accessibleName: toolTipText
-                enabled: false
+                enabled: titleBar.compareAvailable
+                selected: titleBar.compareActive
                 onClicked: titleBar.compareRequested()
             }
 

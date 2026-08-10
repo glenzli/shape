@@ -14,10 +14,17 @@ ApplicationWindow {
     required property UiPreferences uiPreferences
 
     property int selectedArtifactIndex: 0
+    property bool compareMode: false
     readonly property var selectedArtifact: window.backend.artifacts.length > selectedArtifactIndex
                                             ? window.backend.artifacts[selectedArtifactIndex]
                                             : null
     readonly property bool hasSelectedArtifact: selectedArtifact !== null
+    readonly property bool candidateForSelected: hasSelectedArtifact
+                                                  && window.backend.hasCandidate
+                                                  && window.backend.candidateArtifactId
+                                                     === selectedArtifact.id
+
+    onSelectedArtifactIndexChanged: compareMode = false
 
     width: 1440
     height: 900
@@ -52,6 +59,9 @@ ApplicationWindow {
         hostWindow: window
         projectOpen: window.backend.projectOpen
         projectName: window.backend.projectName
+        compareAvailable: window.candidateForSelected
+        compareActive: window.compareMode
+        onCompareRequested: window.compareMode = !window.compareMode
         onSettingsRequested: settingsDialog.open()
     }
 
@@ -232,11 +242,26 @@ ApplicationWindow {
                                 && window.selectedArtifact.hasTextPreview
                 textPreviewTruncated: window.hasSelectedArtifact
                                       && window.selectedArtifact.textPreviewTruncated
+                hasCandidate: window.candidateForSelected
+                candidateText: window.candidateForSelected ? window.backend.candidateText : ""
+                compareMode: window.compareMode
             }
 
             IntentPanel {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 188
+                artifactId: window.hasSelectedArtifact ? window.selectedArtifact.id : ""
+                artifactKindKey: window.hasSelectedArtifact
+                                 ? window.selectedArtifact.kindKey : ""
+                acceptedText: window.hasSelectedArtifact
+                              ? window.selectedArtifact.textPreview : ""
+                candidatePending: window.candidateForSelected
+                errorMessage: window.backend.lastError
+                onCandidateRequested: (artifactId, replacementText) => {
+                    if (window.backend.proposeTextCandidate(artifactId, replacementText)) {
+                        window.compareMode = true
+                    }
+                }
             }
         }
 
@@ -257,6 +282,20 @@ ApplicationWindow {
                                      && window.selectedArtifact.hasAcceptedRevision
                 hasTextPreview: window.hasSelectedArtifact
                                 && window.selectedArtifact.hasTextPreview
+                hasCandidate: window.candidateForSelected
+                candidateText: window.candidateForSelected ? window.backend.candidateText : ""
+                candidateTextTruncated: window.candidateForSelected
+                                        && window.backend.candidateTextTruncated
+                onCompareRequested: window.compareMode = !window.compareMode
+                onDiscardRequested: {
+                    window.backend.discardCandidate()
+                    window.compareMode = false
+                }
+                onAcceptRequested: {
+                    if (window.backend.acceptCandidate()) {
+                        window.compareMode = false
+                    }
+                }
             }
 
             SemanticHistory {
@@ -267,6 +306,16 @@ ApplicationWindow {
                 revisionId: window.hasSelectedArtifact
                             ? window.selectedArtifact.acceptedRevisionId
                             : ""
+            }
+        }
+    }
+
+    Connections {
+        target: window.backend
+
+        function onCandidateChanged() : void {
+            if (!window.candidateForSelected) {
+                window.compareMode = false
             }
         }
     }

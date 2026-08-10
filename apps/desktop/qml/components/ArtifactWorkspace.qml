@@ -11,6 +11,9 @@ Rectangle {
     property bool hasAcceptedRevision: false
     property bool hasTextPreview: false
     property bool textPreviewTruncated: false
+    property bool hasCandidate: false
+    property string candidateText: ""
+    property bool compareMode: false
 
     radius: Theme.radiusLarge
     color: Theme.surface
@@ -55,17 +58,25 @@ Rectangle {
                 Layout.preferredWidth: stateLabel.implicitWidth + 20
                 Layout.preferredHeight: 26
                 radius: 13
-                color: workspace.hasAcceptedRevision
+                color: workspace.compareMode && workspace.hasCandidate
+                       ? Theme.accentSoft
+                       : workspace.hasAcceptedRevision
                        ? (Theme.effectiveDark ? "#203126" : "#e2f0e4") : Theme.raised
-                border.color: workspace.hasAcceptedRevision
+                border.color: workspace.compareMode && workspace.hasCandidate
+                              ? Theme.accent
+                              : workspace.hasAcceptedRevision
                               ? (Theme.effectiveDark ? "#35553e" : "#bed8c3") : Theme.border
 
                 Text {
                     id: stateLabel
                     anchors.centerIn: parent
-                    text: workspace.hasAcceptedRevision ? qsTr("Accepted head")
-                                                        : qsTr("No accepted head")
-                    color: workspace.hasAcceptedRevision ? Theme.success : Theme.muted
+                    text: workspace.compareMode && workspace.hasCandidate
+                          ? qsTr("Comparing candidate")
+                          : workspace.hasAcceptedRevision ? qsTr("Accepted head")
+                                                          : qsTr("No accepted head")
+                    color: workspace.compareMode && workspace.hasCandidate
+                           ? Theme.accent
+                           : workspace.hasAcceptedRevision ? Theme.success : Theme.muted
                     font.pixelSize: 10
                     font.weight: Font.DemiBold
                 }
@@ -83,6 +94,7 @@ Rectangle {
             Layout.fillHeight: true
 
             Rectangle {
+                visible: !workspace.compareMode || !workspace.hasCandidate
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 72, 680)
                 height: Math.min(parent.height - 54, 360)
@@ -144,6 +156,14 @@ Rectangle {
 
                     Item { Layout.fillHeight: true }
                 }
+            }
+
+            TextCompareWorkspace {
+                anchors.fill: parent
+                anchors.margins: 24
+                visible: workspace.compareMode && workspace.hasCandidate
+                acceptedText: workspace.artifactText
+                candidateText: workspace.candidateText
             }
         }
     }

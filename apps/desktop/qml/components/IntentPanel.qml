@@ -4,6 +4,27 @@ import QtQuick.Layouts
 import Shape.Desktop
 
 Rectangle {
+    id: panel
+
+    property string artifactId: ""
+    property string artifactKindKey: ""
+    property string acceptedText: ""
+    property bool candidatePending: false
+    property string errorMessage: ""
+
+    readonly property bool canEditText: artifactId.length > 0
+                                         && artifactKindKey === "text_document"
+
+    signal candidateRequested(string artifactId, string replacementText)
+
+    function resetDraft() : void {
+        draftEditor.text = acceptedText
+    }
+
+    onArtifactIdChanged: resetDraft()
+    onAcceptedTextChanged: if (!candidatePending && !draftEditor.activeFocus) resetDraft()
+    onCandidatePendingChanged: if (!candidatePending) resetDraft()
+
     radius: Theme.radiusLarge
     color: Theme.surface
     border.color: Theme.border
@@ -17,7 +38,7 @@ Rectangle {
             Layout.fillWidth: true
 
             Text {
-                text: qsTr("CREATIVE INTENT")
+                text: qsTr("TEXT DRAFT")
                 color: Theme.muted
                 font.pixelSize: Theme.fontMeta
                 font.weight: Font.DemiBold
@@ -27,26 +48,32 @@ Rectangle {
             Item { Layout.fillWidth: true }
 
             Text {
-                text: qsTr("Describe change · protect invariants")
+                text: qsTr("Direct edit · candidate before commit")
                 color: Theme.muted
                 font.pixelSize: 10
             }
         }
 
         TextArea {
+            id: draftEditor
+
             Layout.fillWidth: true
             Layout.fillHeight: true
             leftPadding: 12
             rightPadding: 12
             topPadding: 10
             bottomPadding: 10
-            placeholderText: qsTr("Describe what should change and what must remain…")
+            enabled: panel.canEditText && !panel.candidatePending
+            placeholderText: panel.canEditText
+                             ? qsTr("Write the next text revision…")
+                             : qsTr("Select a text document to begin")
             color: Theme.text
             placeholderTextColor: Theme.muted
             selectionColor: Theme.accentSoft
             selectedTextColor: Theme.text
             wrapMode: TextEdit.Wrap
             font.pixelSize: Theme.fontBody
+            Accessible.name: qsTr("Text draft")
 
             background: Rectangle {
                 color: Theme.raised
@@ -57,22 +84,33 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: 10
 
             Text {
-                text: qsTr("Constraints will appear here")
-                color: Theme.accent
-                font.pixelSize: 11
+                Layout.fillWidth: true
+                text: panel.errorMessage.length > 0
+                      ? panel.errorMessage
+                      : panel.candidatePending
+                        ? qsTr("A candidate is ready. Compare, discard, or accept it.")
+                        : qsTr("Accepted history stays unchanged until you accept the candidate.")
+                color: panel.errorMessage.length > 0 ? Theme.danger
+                                                     : panel.candidatePending ? Theme.accent
+                                                                              : Theme.muted
+                font.pixelSize: 10
+                elide: Text.ElideRight
             }
 
-            Item { Layout.fillWidth: true }
-
             ShapeButton {
-                text: qsTr("Generate variants")
+                text: qsTr("Create candidate")
                 primary: true
-                enabled: false
-                ToolTip.text: qsTr("An executor bridge will enable this action")
-                ToolTip.visible: hovered
+                enabled: panel.canEditText
+                         && !panel.candidatePending
+                         && draftEditor.text.trim().length > 0
+                         && draftEditor.text !== panel.acceptedText
+                onClicked: panel.candidateRequested(panel.artifactId, draftEditor.text)
             }
         }
     }
+
+    Component.onCompleted: resetDraft()
 }

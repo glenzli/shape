@@ -28,14 +28,30 @@ endif()
 execute_process(
     COMMAND
         "${CMAKE_COMMAND}" -E env QT_QPA_PLATFORM=offscreen
-        "${SHAPE_DESKTOP_EXECUTABLE}" --project "${project_path}" --smoke-exit
+        "${SHAPE_DESKTOP_EXECUTABLE}" --project "${project_path}"
+        --smoke-text-cycle --smoke-exit
     RESULT_VARIABLE desktop_result
     OUTPUT_VARIABLE desktop_output
     ERROR_VARIABLE desktop_error
 )
-file(REMOVE_RECURSE "${project_path}")
 if(NOT desktop_result EQUAL 0)
+    file(REMOVE_RECURSE "${project_path}")
     message(FATAL_ERROR
-        "desktop failed to open a generated Shape project: ${desktop_error}"
+        "desktop failed its text candidate cycle: ${desktop_error}"
+    )
+endif()
+
+execute_process(
+    COMMAND
+        "${CMAKE_COMMAND}" -E env QT_QPA_PLATFORM=offscreen
+        "${SHAPE_DESKTOP_EXECUTABLE}" --project "${project_path}" --smoke-exit
+    RESULT_VARIABLE reopen_result
+    OUTPUT_VARIABLE reopen_output
+    ERROR_VARIABLE reopen_error
+)
+file(REMOVE_RECURSE "${project_path}")
+if(NOT reopen_result EQUAL 0)
+    message(FATAL_ERROR
+        "desktop failed to reopen its accepted text revision: ${reopen_error}"
     )
 endif()

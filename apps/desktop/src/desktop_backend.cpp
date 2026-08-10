@@ -1,5 +1,6 @@
 #include "desktop_backend.hpp"
 
+#include <QDebug>
 #include <QVariantMap>
 
 #include <cstdint>
@@ -9,6 +10,11 @@ namespace {
 
 QString from_rust(const rust::String& value) {
     return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
+}
+
+std::string to_utf8(const QString& value) {
+    const QByteArray bytes = value.toUtf8();
+    return std::string(bytes.constData(), static_cast<std::size_t>(bytes.size()));
 }
 
 QString artifact_kind_label(const QString& key) {
@@ -51,17 +57,21 @@ QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artif
 
 } // namespace
 
+struct DesktopBackend::SessionState {
+    explicit SessionState(rust::Box<shape::desktop::DesktopSession> value)
+        : session(std::move(value)) {}
+
+    rust::Box<shape::desktop::DesktopSession> session;
+};
+
 DesktopBackend::DesktopBackend(QObject* parent) : QObject(parent) {}
 
-DesktopBackend::DesktopBackend(shape::desktop::ProjectSnapshotWire snapshot, QObject* parent)
-    : QObject(parent), project_open_(true), project_id_(from_rust(snapshot.project_id)),
-      project_name_(from_rust(snapshot.project_name)),
-      schema_revision_(from_rust(snapshot.schema_revision)),
-      bundle_path_(from_rust(snapshot.bundle_path)) {
-    for (const auto& artifact : snapshot.artifacts) {
-        artifacts_.append(artifact_projection(artifact));
-    }
+DesktopBackend::DesktopBackend(rust::Box<shape::desktop::DesktopSession> session, QObject* parent)
+    : QObject(parent), session_(std::make_unique<SessionState>(std::move(session))) {
+    applySnapshot(session_->session->session_snapshot());
 }
+
+DesktopBackend::~DesktopBackend() = default;
 
 bool DesktopBackend::projectOpen() const {
     return project_open_;
@@ -89,4 +99,131 @@ int DesktopBackend::artifactCount() const {
 
 QVariantList DesktopBackend::artifacts() const {
     return artifacts_;
+}
+
+bool DesktopBackend::hasCandidate() const {
+    return has_candidate_;
+}
+
+QString DesktopBackend::candidateId() const {
+    return candidate_id_;
+}
+
+QString DesktopBackend::candidateArtifactId() const {
+    return candidate_artifact_id_;
+}
+
+QString DesktopBackend::candidateText() const {
+    return candidate_text_;
+}
+
+bool DesktopBackend::candidateTextTruncated() const {
+    return candidate_text_truncated_;
+}
+
+QString DesktopBackend::lastError() const {
+    return last_error_;
+}
+
+bool DesktopBackend::proposeTextCandidate(
+    const QString& artifactId,
+    const QString& replacementText
+) {
+    if (session_ == nullptr) {
+        setLastError(tr("Open a project before creating a candidate."));
+        return false;
+    }
+    try {
+        applyCandidate(
+            session_->session->session_propose_text(to_utf8(artifactId), to_utf8(replacementText))
+        );
+        setLastError(QString());
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create desktop candidate:" << error.what();
+        setLastError(tr("Could not create candidate."));
+        return false;
+    }
+}
+
+bool DesktopBackend::acceptCandidate() {
+    if (session_ == nullptr || !has_candidate_) {
+        setLastError(tr("There is no candidate to accept."));
+        return false;
+    }
+    try {
+        applySnapshot(session_->session->session_accept_text());
+        clearCandidate();
+        setLastError(QString());
+        emit projectChanged();
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not accept desktop candidate:" << error.what();
+        setLastError(tr("Could not accept candidate."));
+        return false;
+    }
+}
+
+void DesktopBackend::discardCandidate() {
+    if (session_ == nullptr || !has_candidate_) {
+        return;
+    }
+    session_->session->session_discard_text();
+    clearCandidate();
+    setLastError(QString());
+    emit candidateChanged();
+}
+
+void DesktopBackend::retranslate() {
+    if (session_ == nullptr) {
+        return;
+    }
+    try {
+        applySnapshot(session_->session->session_snapshot());
+        setLastError(QString());
+        emit projectChanged();
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not refresh desktop project:" << error.what();
+        setLastError(tr("Could not refresh project."));
+    }
+}
+
+void DesktopBackend::applySnapshot(shape::desktop::ProjectSnapshotWire snapshot) {
+    QVariantList artifacts;
+    artifacts.reserve(static_cast<qsizetype>(snapshot.artifacts.size()));
+    for (const auto& artifact : snapshot.artifacts) {
+        artifacts.append(artifact_projection(artifact));
+    }
+    project_open_ = true;
+    project_id_ = from_rust(snapshot.project_id);
+    project_name_ = from_rust(snapshot.project_name);
+    schema_revision_ = from_rust(snapshot.schema_revision);
+    bundle_path_ = from_rust(snapshot.bundle_path);
+    artifacts_ = std::move(artifacts);
+}
+
+void DesktopBackend::applyCandidate(shape::desktop::TextCandidateWire candidate) {
+    has_candidate_ = true;
+    candidate_id_ = from_rust(candidate.candidate_id);
+    candidate_artifact_id_ = from_rust(candidate.artifact_id);
+    candidate_text_ = from_rust(candidate.text_preview);
+    candidate_text_truncated_ = candidate.text_preview_truncated;
+}
+
+void DesktopBackend::clearCandidate() {
+    has_candidate_ = false;
+    candidate_id_.clear();
+    candidate_artifact_id_.clear();
+    candidate_text_.clear();
+    candidate_text_truncated_ = false;
+}
+
+void DesktopBackend::setLastError(const QString& message) {
+    if (message == last_error_) {
+        return;
+    }
+    last_error_ = message;
+    emit lastErrorChanged();
 }

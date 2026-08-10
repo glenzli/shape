@@ -24,6 +24,7 @@ pub struct ShapeProject {
 }
 
 /// Transient text candidate awaiting explicit user acceptance.
+#[derive(Clone)]
 pub struct TextCandidate {
     artifact_id: ArtifactId,
     expected_head: Option<RevisionId>,

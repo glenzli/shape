@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QVariant>
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -23,6 +24,7 @@ namespace {
 struct Arguments {
     std::optional<std::string> project_path;
     bool smoke_exit = false;
+    bool smoke_text_cycle = false;
 };
 
 std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
@@ -36,6 +38,8 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             arguments.project_path = std::string(argv[++index]);
         } else if (argument == "--smoke-exit") {
             arguments.smoke_exit = true;
+        } else if (argument == "--smoke-text-cycle") {
+            arguments.smoke_text_cycle = true;
         } else {
             return std::nullopt;
         }
@@ -43,12 +47,80 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
     return arguments;
 }
 
+bool run_smoke_text_cycle(DesktopBackend& backend) {
+    const QVariantList artifacts = backend.artifacts();
+    const auto text_artifact =
+        std::find_if(artifacts.cbegin(), artifacts.cend(), [](const QVariant& artifact) {
+            return artifact.toMap().value(QStringLiteral("kindKey")).toString()
+                   == QStringLiteral("text_document");
+        });
+    if (text_artifact == artifacts.cend()) {
+        std::cerr << "desktop text smoke found no text document" << std::endl;
+        return false;
+    }
+
+    const QVariantMap accepted = text_artifact->toMap();
+    const QString artifact_id = accepted.value(QStringLiteral("id")).toString();
+    const QString accepted_revision =
+        accepted.value(QStringLiteral("acceptedRevisionId")).toString();
+    const QString replacement = QStringLiteral("A desktop candidate accepted after review.");
+
+    if (!backend.proposeTextCandidate(artifact_id, replacement) || !backend.hasCandidate()) {
+        std::cerr << "desktop text smoke could not create candidate" << std::endl;
+        return false;
+    }
+
+    const QVariantList before_accept_artifacts = backend.artifacts();
+    const auto before_accept_artifact = std::find_if(
+        before_accept_artifacts.cbegin(),
+        before_accept_artifacts.cend(),
+        [&artifact_id](const QVariant& artifact) {
+            return artifact.toMap().value(QStringLiteral("id")).toString() == artifact_id;
+        }
+    );
+    if (before_accept_artifact == before_accept_artifacts.cend()
+        || before_accept_artifact->toMap().value(QStringLiteral("acceptedRevisionId")).toString()
+               != accepted_revision) {
+        std::cerr << "desktop candidate changed accepted history before acceptance" << std::endl;
+        return false;
+    }
+
+    if (!backend.acceptCandidate() || backend.hasCandidate()) {
+        std::cerr << "desktop text smoke could not accept candidate" << std::endl;
+        return false;
+    }
+
+    const QVariantList committed_artifacts = backend.artifacts();
+    const auto committed_artifact = std::find_if(
+        committed_artifacts.cbegin(),
+        committed_artifacts.cend(),
+        [&artifact_id](const QVariant& artifact) {
+            return artifact.toMap().value(QStringLiteral("id")).toString() == artifact_id;
+        }
+    );
+    if (committed_artifact == committed_artifacts.cend()) {
+        std::cerr << "desktop text smoke lost committed artifact" << std::endl;
+        return false;
+    }
+
+    const QVariantMap committed = committed_artifact->toMap();
+    if (committed.value(QStringLiteral("acceptedRevisionId")).toString() == accepted_revision
+        || committed.value(QStringLiteral("textPreview")).toString() != replacement) {
+        std::cerr << "desktop text smoke committed an unexpected revision" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
     const auto arguments = parse_arguments(argc, argv);
     if (!arguments.has_value()) {
-        std::cerr << "usage: shape-desktop [--project PROJECT.shape] [--smoke-exit]" << std::endl;
+        std::cerr << "usage: shape-desktop [--project PROJECT.shape] [--smoke-exit] "
+                     "[--smoke-text-cycle]"
+                  << std::endl;
         return 2;
     }
 
@@ -60,7 +132,7 @@ int main(int argc, char* argv[]) {
     try {
         if (arguments->project_path.has_value()) {
             backend = std::make_unique<DesktopBackend>(
-                shape::desktop::load_project_snapshot(*arguments->project_path)
+                shape::desktop::open_desktop_session(*arguments->project_path)
             );
         } else {
             backend = std::make_unique<DesktopBackend>();
@@ -71,6 +143,13 @@ int main(int argc, char* argv[]) {
     }
 
     UiPreferences ui_preferences(application);
+    QObject::connect(
+        &ui_preferences,
+        &UiPreferences::languageModeChanged,
+        backend.get(),
+        &DesktopBackend::retranslate
+    );
+    backend->retranslate();
     QQmlApplicationEngine engine;
     QObject::connect(
         &engine,
@@ -104,6 +183,9 @@ int main(int argc, char* argv[]) {
             && (!backend->projectOpen() || backend->artifactCount() == 0)) {
             std::cerr << "Shape project smoke loaded no artifacts" << std::endl;
             return 3;
+        }
+        if (arguments->smoke_text_cycle && !run_smoke_text_cycle(*backend)) {
+            return 4;
         }
         QTimer::singleShot(0, &application, &QCoreApplication::quit);
     }
