@@ -16,6 +16,7 @@ Rectangle {
     property int selectedIndex: 0
     property bool hasCandidate: false
     property string candidateArtifactId: ""
+    property bool graphActive: false
 
     readonly property int acceptedCount: {
         let count = 0
@@ -28,6 +29,7 @@ Rectangle {
     }
 
     signal artifactSelected(int index)
+    signal graphRequested()
 
     radius: Theme.radiusLarge
     color: Theme.surface
@@ -200,8 +202,9 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 82
             radius: Theme.radiusMedium
-            color: Theme.raised
-            border.color: Theme.border
+            color: navigator.graphActive ? Theme.accentSoft
+                                         : graphMouse.hovered ? Theme.raisedHover : Theme.raised
+            border.color: navigator.graphActive ? Theme.accent : Theme.border
 
             ColumnLayout {
                 anchors.fill: parent
@@ -236,6 +239,17 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     lineHeight: 1.25
                 }
+            }
+
+            MouseArea {
+                id: graphMouse
+
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                Accessible.name: qsTr("Open project graph")
+                Accessible.role: Accessible.Button
+                onClicked: navigator.graphRequested()
             }
         }
     }

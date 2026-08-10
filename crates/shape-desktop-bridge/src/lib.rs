@@ -24,6 +24,18 @@ mod ffi {
         schema_revision: String,
         bundle_path: String,
         artifacts: Vec<ArtifactSummaryWire>,
+        graph_edges: Vec<ProjectGraphEdgeWire>,
+    }
+
+    /// One accepted cross-artifact derivation in the current project graph.
+    #[derive(Debug)]
+    struct ProjectGraphEdgeWire {
+        source_artifact_id: String,
+        target_artifact_id: String,
+        source_revision_id: String,
+        target_revision_id: String,
+        transformation_id: String,
+        transformation_kind_key: String,
     }
 
     /// Explicit desktop projection of one current artifact head.
@@ -110,13 +122,49 @@ fn project_snapshot(
         .iter()
         .map(|artifact| project_artifact(project, artifact, &snapshot.artifacts))
         .collect::<Result<Vec<_>, _>>()?;
+    let graph_edges = project_graph_edges(&artifacts);
     Ok(ffi::ProjectSnapshotWire {
         project_id: snapshot.metadata.id.to_string(),
         project_name: snapshot.metadata.name,
         schema_revision: snapshot.metadata.schema_revision,
         bundle_path: project_path(path),
         artifacts,
+        graph_edges,
     })
+}
+
+fn project_graph_edges(artifacts: &[ffi::ArtifactSummaryWire]) -> Vec<ffi::ProjectGraphEdgeWire> {
+    let mut edges: Vec<ffi::ProjectGraphEdgeWire> = Vec::new();
+    for target in artifacts {
+        for (index, source_artifact_id) in
+            target.transformation_input_artifact_ids.iter().enumerate()
+        {
+            if source_artifact_id == &target.id {
+                continue;
+            }
+            let Some(source_revision_id) = target.transformation_input_revision_ids.get(index)
+            else {
+                continue;
+            };
+            let edge = ffi::ProjectGraphEdgeWire {
+                source_artifact_id: source_artifact_id.clone(),
+                target_artifact_id: target.id.clone(),
+                source_revision_id: source_revision_id.clone(),
+                target_revision_id: target.accepted_revision_id.clone(),
+                transformation_id: target.transformation_id.clone(),
+                transformation_kind_key: target.transformation_kind_key.clone(),
+            };
+            let already_projected = edges.iter().any(|existing| {
+                existing.source_revision_id == edge.source_revision_id
+                    && existing.target_revision_id == edge.target_revision_id
+                    && existing.transformation_id == edge.transformation_id
+            });
+            if !already_projected {
+                edges.push(edge);
+            }
+        }
+    }
+    edges
 }
 
 fn project_artifact(

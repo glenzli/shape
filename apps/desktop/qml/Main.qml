@@ -61,6 +61,7 @@ ApplicationWindow {
         onBranchCreated: {
             window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
             window.compareMode = false
+            workspaceSurface.showGraph()
             contextInspector.currentPage = 2
         }
     }
@@ -90,7 +91,9 @@ ApplicationWindow {
             selectedIndex: window.selectedArtifactIndex
             hasCandidate: window.backend.hasCandidate
             candidateArtifactId: window.backend.candidateArtifactId
+            graphActive: workspaceSurface.currentMode === 1
             onArtifactSelected: index => window.selectedArtifactIndex = index
+            onGraphRequested: workspaceSurface.showGraph()
         }
 
         ColumnLayout {
@@ -99,28 +102,22 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 12
 
-            ArtifactWorkspace {
+            WorkspaceSurface {
+                id: workspaceSurface
+
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 projectName: window.backend.projectName
-                artifactName: window.hasSelectedArtifact
-                              ? window.selectedArtifact.name
-                              : qsTr("No artifact selected")
-                artifactKind: window.hasSelectedArtifact
-                              ? window.selectedArtifact.kindLabel
-                              : ""
-                artifactText: window.hasSelectedArtifact
-                              ? window.selectedArtifact.textPreview
-                              : ""
-                hasAcceptedRevision: window.hasSelectedArtifact
-                                     && window.selectedArtifact.hasAcceptedRevision
-                hasTextPreview: window.hasSelectedArtifact
-                                && window.selectedArtifact.hasTextPreview
-                textPreviewTruncated: window.hasSelectedArtifact
-                                      && window.selectedArtifact.textPreviewTruncated
-                hasCandidate: window.candidateForSelected
-                candidateText: window.candidateForSelected ? window.backend.candidateText : ""
+                artifacts: window.backend.artifacts
+                graphEdges: window.backend.graphEdges
+                selectedArtifact: window.selectedArtifact
+                selectedIndex: window.selectedArtifactIndex
+                hasCandidate: window.backend.hasCandidate
+                candidateArtifactId: window.backend.candidateArtifactId
+                candidateText: window.backend.candidateText
+                candidateTextTruncated: window.backend.candidateTextTruncated
                 compareMode: window.compareMode
+                onArtifactSelected: index => window.selectedArtifactIndex = index
             }
 
             IntentPanel {
@@ -136,6 +133,7 @@ ApplicationWindow {
                 onCandidateRequested: (artifactId, replacementText) => {
                     if (window.backend.proposeTextCandidate(artifactId, replacementText)) {
                         window.compareMode = true
+                        workspaceSurface.showArtifact()
                         contextInspector.currentPage = 0
                     }
                 }

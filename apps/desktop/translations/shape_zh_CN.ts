@@ -224,17 +224,17 @@
         <translation>为这个备选对象命名</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="160"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="162"/>
         <source>The candidate becomes the first accepted revision of the new artifact. Its source remains visible in Lineage.</source>
         <translation>候选会成为新对象的首个已接受修订，来源关系会保留在沿袭中。</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="198"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="200"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="203"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="205"/>
         <source>Create branch</source>
         <translation>创建分支</translation>
     </message>
@@ -325,37 +325,37 @@
         <translation>直接文本编辑</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="206"/>
+        <location filename="../src/desktop_backend.cpp" line="226"/>
         <source>Open a project before creating a candidate.</source>
         <translation>请先打开项目，再创建候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="218"/>
+        <location filename="../src/desktop_backend.cpp" line="238"/>
         <source>Could not create candidate.</source>
         <translation>无法创建候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="237"/>
+        <location filename="../src/desktop_backend.cpp" line="257"/>
         <source>Could not accept candidate.</source>
         <translation>无法接受候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="244"/>
+        <location filename="../src/desktop_backend.cpp" line="264"/>
         <source>There is no candidate to branch.</source>
         <translation>没有可以派生的候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="256"/>
+        <location filename="../src/desktop_backend.cpp" line="276"/>
         <source>Could not branch candidate.</source>
         <translation>无法派生候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="281"/>
+        <location filename="../src/desktop_backend.cpp" line="301"/>
         <source>Could not refresh project.</source>
         <translation>无法刷新项目。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="225"/>
+        <location filename="../src/desktop_backend.cpp" line="245"/>
         <source>There is no candidate to accept.</source>
         <translation>没有可以接受的候选。</translation>
     </message>
@@ -415,11 +415,6 @@
         <source>Shape — No Project</source>
         <translation>Shape — 无项目</translation>
     </message>
-    <message>
-        <location filename="../qml/Main.qml" line="108"/>
-        <source>No artifact selected</source>
-        <translation>未选择创作对象</translation>
-    </message>
 </context>
 <context>
     <name>MainTitleBar</name>
@@ -460,61 +455,164 @@
     </message>
 </context>
 <context>
+    <name>ProjectGraphWorkspace</name>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="47"/>
+        <source>Unknown source</source>
+        <translation>未知来源</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="71"/>
+        <source>Derived</source>
+        <translation>派生对象</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="74"/>
+        <source>Revised</source>
+        <translation>已有修订</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="76"/>
+        <source>Origin</source>
+        <translation>起始对象</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="76"/>
+        <source>Awaiting revision</source>
+        <translation>等待首个修订</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="156"/>
+        <source>PROJECT GRAPH</source>
+        <translation>项目图谱</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="165"/>
+        <source>Creative relationships</source>
+        <translation>创作关系</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="182"/>
+        <source>%1 artifacts · %2 derivations</source>
+        <translation>%1 个对象 · %2 条派生关系</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="274"/>
+        <source>Open %1</source>
+        <translation>打开 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="407"/>
+        <source>Pending candidate</source>
+        <translation>待处理候选</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="416"/>
+        <source>From %1</source>
+        <translation>来自 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="426"/>
+        <source>Preview truncated</source>
+        <translation>预览已截断</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="426"/>
+        <source>Outside history</source>
+        <translation>尚未进入历史</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="437"/>
+        <source>Pending candidate from %1</source>
+        <translation>来自 %1 的待处理候选</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="456"/>
+        <source>No artifacts to graph</source>
+        <translation>没有可显示的创作对象</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="464"/>
+        <source>Accepted creative objects will appear here.</source>
+        <translation>已接受的创作对象会显示在这里。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="499"/>
+        <source>Accepted derivation</source>
+        <translation>已接受派生</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="511"/>
+        <source>Transient candidate</source>
+        <translation>临时候选</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="519"/>
+        <source>Click a node to inspect it</source>
+        <translation>点击节点即可检查</translation>
+    </message>
+</context>
+<context>
     <name>ProjectNavigator</name>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="45"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="47"/>
         <source>PROJECT</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="75"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="77"/>
         <source>CREATIVE OBJECTS</source>
         <translation>创作对象</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="85"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="87"/>
         <source>Current heads</source>
         <translation>当前版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="175"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="177"/>
         <source>Candidate pending</source>
         <translation>候选待处理</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="177"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="179"/>
         <source>Accepted head</source>
         <translation>已接受版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="178"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="180"/>
         <source>Awaiting first revision</source>
         <translation>等待首个修订</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="192"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="194"/>
         <source>This project has no creative objects</source>
         <translation>这个项目还没有创作对象</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="193"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="195"/>
         <source>No project loaded</source>
         <translation>尚未载入项目</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="215"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="218"/>
         <source>CREATIVE GRAPH</source>
         <translation>创作图谱</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="225"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="228"/>
         <source>%1 accepted</source>
         <translation>已接受 %1 个</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="233"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="236"/>
         <source>Candidates stay outside the graph until accepted.</source>
         <translation>候选只有在接受后才会进入图谱。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectNavigator.qml" line="250"/>
+        <source>Open project graph</source>
+        <translation>打开项目图谱</translation>
     </message>
 </context>
 <context>
@@ -665,6 +763,29 @@
         <location filename="../qml/components/VariantsPanel.qml" line="203"/>
         <source>Accept candidate</source>
         <translation>接受候选</translation>
+    </message>
+</context>
+<context>
+    <name>WorkspaceSurface</name>
+    <message>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="63"/>
+        <source>WORKSPACE</source>
+        <translation>工作区</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="75"/>
+        <source>Artifact</source>
+        <translation>作品</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="83"/>
+        <source>Project graph</source>
+        <translation>项目图谱</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="99"/>
+        <source>No artifact selected</source>
+        <translation>未选择创作对象</translation>
     </message>
 </context>
 </TS>

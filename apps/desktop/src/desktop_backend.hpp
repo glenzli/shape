@@ -9,8 +9,8 @@
 
 #include <memory>
 
-#include "shape-desktop-bridge/src/lib.rs.h"
 #include "rust/cxx.h"
+#include "shape-desktop-bridge/src/lib.rs.h"
 
 class DesktopBackend : public QObject {
     Q_OBJECT
@@ -23,6 +23,7 @@ class DesktopBackend : public QObject {
     Q_PROPERTY(QString bundlePath READ bundlePath NOTIFY projectChanged)
     Q_PROPERTY(int artifactCount READ artifactCount NOTIFY projectChanged)
     Q_PROPERTY(QVariantList artifacts READ artifacts NOTIFY projectChanged)
+    Q_PROPERTY(QVariantList graphEdges READ graphEdges NOTIFY projectChanged)
     Q_PROPERTY(bool hasCandidate READ hasCandidate NOTIFY candidateChanged)
     Q_PROPERTY(QString candidateId READ candidateId NOTIFY candidateChanged)
     Q_PROPERTY(QString candidateArtifactId READ candidateArtifactId NOTIFY candidateChanged)
@@ -45,6 +46,7 @@ class DesktopBackend : public QObject {
     [[nodiscard]] QString bundlePath() const;
     [[nodiscard]] int artifactCount() const;
     [[nodiscard]] QVariantList artifacts() const;
+    [[nodiscard]] QVariantList graphEdges() const;
 
     [[nodiscard]] bool hasCandidate() const;
     [[nodiscard]] QString candidateId() const;
@@ -82,6 +84,7 @@ class DesktopBackend : public QObject {
     QString schema_revision_;
     QString bundle_path_;
     QVariantList artifacts_;
+    QVariantList graph_edges_;
 
     bool has_candidate_ = false;
     QString candidate_id_;

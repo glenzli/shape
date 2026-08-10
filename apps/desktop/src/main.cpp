@@ -8,7 +8,9 @@
 #include "rust/cxx.h"
 
 #include <QGuiApplication>
+#include <QMetaObject>
 #include <QQmlApplicationEngine>
+#include <QQmlExpression>
 #include <QQuickWindow>
 #include <QTimer>
 #include <QVariant>
@@ -149,13 +151,48 @@ bool run_smoke_text_cycle(DesktopBackend& backend) {
     const QVariantMap branch_artifact = branch->toMap();
     const QVariantList branch_inputs =
         branch_artifact.value(QStringLiteral("transformationInputArtifactIds")).toList();
+    const QVariantList graph_edges = backend.graphEdges();
     if (branch_artifact.value(QStringLiteral("textPreview")).toString() != branch_replacement
         || !branch_artifact.value(QStringLiteral("acceptedParentRevisionIds")).toList().isEmpty()
-        || branch_inputs.size() != 1 || branch_inputs.first().toString() != artifact_id) {
+        || branch_inputs.size() != 1 || branch_inputs.first().toString() != artifact_id
+        || graph_edges.size() != 1
+        || graph_edges.first().toMap().value(QStringLiteral("sourceArtifactId")).toString()
+               != artifact_id
+        || graph_edges.first().toMap().value(QStringLiteral("targetArtifactId")).toString()
+               != branch_artifact.value(QStringLiteral("id")).toString()) {
         std::cerr << "desktop text smoke projected invalid branch lineage" << std::endl;
         return false;
     }
 
+    return true;
+}
+
+bool verify_project_graph_interaction(QObject& root_object) {
+    QObject* const workspace_surface =
+        root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
+    if (workspace_surface == nullptr
+        || !QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
+        std::cerr << "desktop graph smoke could not open project graph" << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+
+    QQmlExpression activation(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("activateArtifact(1)")
+    );
+    activation.evaluate();
+    if (activation.hasError()) {
+        std::cerr << "desktop graph smoke could not activate branch node: "
+                  << activation.error().toString().toStdString() << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    if (root_object.property("selectedArtifactIndex").toInt() != 1) {
+        std::cerr << "desktop graph smoke did not synchronize artifact selection" << std::endl;
+        return false;
+    }
     return true;
 }
 
@@ -216,8 +253,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-#if defined(Q_OS_MACOS)
     QObject* const root_object = engine.rootObjects().first();
+
+#if defined(Q_OS_MACOS)
     QObject* const title_toolbar = root_object->findChild<QObject*>(QStringLiteral("titleToolBar"));
     const int title_bar_height =
         title_toolbar == nullptr ? 44 : qRound(title_toolbar->property("height").toReal());
@@ -230,7 +268,9 @@ int main(int argc, char* argv[]) {
             std::cerr << "Shape project smoke loaded no artifacts" << std::endl;
             return 3;
         }
-        if (arguments->smoke_text_cycle && !run_smoke_text_cycle(*backend)) {
+        if (arguments->smoke_text_cycle
+            && (!run_smoke_text_cycle(*backend)
+                || !verify_project_graph_interaction(*root_object))) {
             return 4;
         }
         QTimer::singleShot(0, &application, &QCoreApplication::quit);

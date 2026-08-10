@@ -66,5 +66,8 @@ second settings domain or a second top-level workspace creates a concrete growth
 The graph-aware desktop information architecture adds `ProjectNavigator.qml` for project-level
 creative-object selection and `ContextInspector.qml` for Explore, Details, and Lineage modes.
 `ArtifactWorkspace.qml` remains the media-workspace owner. The bridge projects only lineage already
-proven by the current accepted revision and its persisted Transformation; cross-artifact graph edges
-remain deferred until a real derivation use case can create and consume them.
+proven by the current accepted revision and its persisted Transformation. Once the first real
+cross-artifact branch path became available, `ProjectGraphWorkspace.qml` became the presentation
+owner for accepted current-head topology and transient candidate ghosts; `WorkspaceSurface.qml`
+owns artifact/graph workspace navigation. Rust remains the semantic graph projection owner, and
+QML layout never becomes durable graph authority.

@@ -128,6 +128,22 @@ QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artif
     return projected;
 }
 
+QVariantMap graph_edge_projection(const shape::desktop::ProjectGraphEdgeWire& edge) {
+    const QString transformation_kind_key = from_rust(edge.transformation_kind_key);
+    QVariantMap projected;
+    projected.insert(QStringLiteral("sourceArtifactId"), from_rust(edge.source_artifact_id));
+    projected.insert(QStringLiteral("targetArtifactId"), from_rust(edge.target_artifact_id));
+    projected.insert(QStringLiteral("sourceRevisionId"), from_rust(edge.source_revision_id));
+    projected.insert(QStringLiteral("targetRevisionId"), from_rust(edge.target_revision_id));
+    projected.insert(QStringLiteral("transformationId"), from_rust(edge.transformation_id));
+    projected.insert(QStringLiteral("transformationKindKey"), transformation_kind_key);
+    projected.insert(
+        QStringLiteral("transformationKindLabel"),
+        transformation_kind_label(transformation_kind_key)
+    );
+    return projected;
+}
+
 } // namespace
 
 struct DesktopBackend::SessionState {
@@ -172,6 +188,10 @@ int DesktopBackend::artifactCount() const {
 
 QVariantList DesktopBackend::artifacts() const {
     return artifacts_;
+}
+
+QVariantList DesktopBackend::graphEdges() const {
+    return graph_edges_;
 }
 
 bool DesktopBackend::hasCandidate() const {
@@ -288,12 +308,18 @@ void DesktopBackend::applySnapshot(shape::desktop::ProjectSnapshotWire snapshot)
     for (const auto& artifact : snapshot.artifacts) {
         artifacts.append(artifact_projection(artifact));
     }
+    QVariantList graph_edges;
+    graph_edges.reserve(static_cast<qsizetype>(snapshot.graph_edges.size()));
+    for (const auto& edge : snapshot.graph_edges) {
+        graph_edges.append(graph_edge_projection(edge));
+    }
     project_open_ = true;
     project_id_ = from_rust(snapshot.project_id);
     project_name_ = from_rust(snapshot.project_name);
     schema_revision_ = from_rust(snapshot.schema_revision);
     bundle_path_ = from_rust(snapshot.bundle_path);
     artifacts_ = std::move(artifacts);
+    graph_edges_ = std::move(graph_edges);
 }
 
 void DesktopBackend::applyCandidate(shape::desktop::TextCandidateWire candidate) {

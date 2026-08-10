@@ -36,6 +36,7 @@ fn bridge_preserves_presence_identity_and_verified_text() {
         .expect("bridge snapshot loads");
     assert_eq!(snapshot.project_name, "Bridge Contract");
     assert_eq!(snapshot.artifacts.len(), 2);
+    assert!(snapshot.graph_edges.is_empty());
 
     let story_wire = snapshot
         .artifacts

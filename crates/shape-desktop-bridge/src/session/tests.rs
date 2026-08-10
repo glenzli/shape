@@ -58,6 +58,7 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     );
 
     let accepted = session.session_accept_text().expect("candidate accepts");
+    assert!(accepted.graph_edges.is_empty());
     assert_ne!(accepted.artifacts[0].accepted_revision_id, before_revision);
     assert_eq!(
         accepted.artifacts[0].accepted_parent_revision_ids,
@@ -141,7 +142,7 @@ fn pending_candidate_can_branch_as_a_new_artifact_with_a_source_edge() {
     assert!(branch.accepted_parent_revision_ids.is_empty());
     assert_eq!(
         branch.transformation_input_revision_ids,
-        vec![source_revision]
+        vec![source_revision.clone()]
     );
     assert_eq!(
         branch.transformation_input_artifact_ids,
@@ -149,6 +150,14 @@ fn pending_candidate_can_branch_as_a_new_artifact_with_a_source_edge() {
     );
     assert_eq!(branch.transformation_input_artifact_names, vec!["Story"]);
     assert_eq!(branch.text_preview, "A quiet summer afternoon.");
+    assert_eq!(branched.graph_edges.len(), 1);
+    let edge = &branched.graph_edges[0];
+    assert_eq!(edge.source_artifact_id, artifact_id.to_string());
+    assert_eq!(edge.target_artifact_id, branch.id);
+    assert_eq!(edge.source_revision_id, source_revision);
+    assert_eq!(edge.target_revision_id, branch.accepted_revision_id);
+    assert_eq!(edge.transformation_id, branch.transformation_id);
+    assert_eq!(edge.transformation_kind_key, "text_rewrite");
     drop(session);
 
     let reopened = open_desktop_session(path).expect("session reopens");

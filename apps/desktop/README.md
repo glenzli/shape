@@ -17,6 +17,13 @@ names. Candidates remain in Explore and outside durable lineage until acceptance
 the new artifact, its first revision, target-specific execution receipt, and cross-artifact input
 edge in one atomic persistence transaction without advancing the source artifact.
 
+The central workspace switches between the selected Artifact and a real current-head Project Graph.
+Rust projects accepted cross-artifact derivation edges from persisted Transformation inputs; QML
+lays out and draws those edges without becoming graph authority. Artifact selection is shared across
+the navigator, graph, workspace, and inspector. A pending candidate appears as a dashed ghost node
+connected to its source, but remains absent from the durable graph snapshot until explicit
+acceptance or branching.
+
 [`shape-desktop-bridge`](../../crates/shape-desktop-bridge/src/lib.rs) owns the generated CXX ABI.
 Rust's bounded `DesktopSession` validates SQLite and content objects, owns the open project plus at
 most one transient text candidate, and delegates in-place acceptance and new-artifact branching to
@@ -34,7 +41,8 @@ never enters QML or UI settings. `TextCompareWorkspace.qml` owns the side-by-sid
 without taking persistence responsibility. `ProjectNavigator.qml` owns project-level selection,
 `ContextInspector.qml` owns inspector navigation, and its details and lineage panels own their
 respective read-only projections. `BranchArtifactDialog.qml` owns branch naming and submission;
-`Main.qml` remains an assembly root.
+`ProjectGraphWorkspace.qml` owns graph layout and node interaction, while `WorkspaceSurface.qml`
+owns artifact/graph navigation. `Main.qml` remains an assembly root.
 
 Build and smoke-start:
 
@@ -47,7 +55,8 @@ ctest --preset desktop-dev
 After creating a demo through `shape-cli`, launch the platform executable with
 `--project /path/to/project.shape`. The `shape-desktop-project-smoke` test performs the entire
 create → link → open → propose → accept → propose → branch path automatically, including source
-head preservation and the projected cross-artifact input edge.
+head preservation, the projected cross-artifact input edge, packaged graph activation, and graph
+node selection synchronization.
 
 The shell requires Qt 6.9 or newer for the cross-platform expanded client area. Platform-specific
 code is isolated to native window-control alignment; QML layout, themes, and settings are shared.

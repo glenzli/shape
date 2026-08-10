@@ -105,12 +105,14 @@ qt_add_qml_module(shape-desktop
         qml/components/ArtifactWorkspace.qml
         qml/components/ContextInspector.qml
         qml/components/IntentPanel.qml
+        qml/components/ProjectGraphWorkspace.qml
         qml/components/ProjectNavigator.qml
         qml/components/ShapeButton.qml
         qml/components/ShapeIcon.qml
         qml/components/ShapeIconButton.qml
         qml/components/TextCompareWorkspace.qml
         qml/components/VariantsPanel.qml
+        qml/components/WorkspaceSurface.qml
     RESOURCES
         icons/compare.svg
         icons/export.svg
