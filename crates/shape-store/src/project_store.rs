@@ -33,6 +33,28 @@ pub struct AcceptedCommit {
     pub output_media_type: String,
 }
 
+/// Provenance and output to publish as the first accepted revision of a new artifact.
+pub struct NewArtifactCommit {
+    pub artifact: Artifact,
+    pub transformation: Transformation,
+    pub receipt: ExecutionReceipt,
+    pub output_bytes: Vec<u8>,
+    pub output_media_type: String,
+}
+
+impl fmt::Debug for NewArtifactCommit {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("NewArtifactCommit")
+            .field("artifact", &self.artifact)
+            .field("transformation_id", &self.transformation.id)
+            .field("receipt", &self.receipt)
+            .field("output_byte_length", &self.output_bytes.len())
+            .field("output_media_type", &self.output_media_type)
+            .finish()
+    }
+}
+
 impl fmt::Debug for AcceptedCommit {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -281,6 +303,24 @@ impl ProjectStore {
         Ok(serde_json::from_str(&transformation_json)?)
     }
 
+    /// Loads one immutable accepted revision by stable identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the revision is absent or its durable JSON is invalid.
+    pub fn revision(&self, revision_id: RevisionId) -> Result<ArtifactRevision, StoreError> {
+        let revision_json = self
+            .connection
+            .query_row(
+                "SELECT revision_json FROM artifact_revisions WHERE id = ?1",
+                [revision_id.to_string()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .ok_or(StoreError::UnknownRevision(revision_id))?;
+        Ok(serde_json::from_str(&revision_json)?)
+    }
+
     /// Reads and verifies exact accepted content bytes.
     ///
     /// # Errors
@@ -376,13 +416,94 @@ impl ProjectStore {
         Ok(revision)
     }
 
-    fn revision(&self, revision_id: RevisionId) -> Result<ArtifactRevision, StoreError> {
-        let revision_json: String = self.connection.query_row(
-            "SELECT revision_json FROM artifact_revisions WHERE id = ?1",
-            [revision_id.to_string()],
-            |row| row.get(0),
+    /// Publishes the first accepted revision while atomically creating its artifact.
+    ///
+    /// Content is durable before the transaction. Artifact identity, transformation,
+    /// receipt, revision, and accepted head become visible together or not at all.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for inconsistent provenance, missing inputs, duplicate
+    /// artifact identity, or durable write failure.
+    pub fn accept_new_artifact(
+        &mut self,
+        commit: NewArtifactCommit,
+    ) -> Result<ArtifactRevision, StoreError> {
+        validate_new_artifact_commit(&commit)?;
+        let content = self
+            .objects
+            .publish(&commit.output_bytes, commit.output_media_type)?;
+        let revision = ArtifactRevision::new(
+            commit.artifact.id,
+            Vec::new(),
+            content,
+            commit.transformation.id,
+            unix_time_ms()?,
         )?;
-        Ok(serde_json::from_str(&revision_json)?)
+        let kind_json = serde_json::to_string(&commit.artifact.kind)?;
+        let transformation_json = serde_json::to_string(&commit.transformation)?;
+        let receipt_json = serde_json::to_string(&commit.receipt)?;
+        let revision_json = serde_json::to_string(&revision)?;
+
+        let transaction = self.connection.transaction()?;
+        for input in &commit.transformation.inputs {
+            let exists = transaction
+                .query_row(
+                    "SELECT 1 FROM artifact_revisions WHERE id = ?1",
+                    [input.to_string()],
+                    |_| Ok(()),
+                )
+                .optional()?
+                .is_some();
+            if !exists {
+                return Err(StoreError::UnknownRevision(*input));
+            }
+        }
+        let inserted = transaction.execute(
+            "INSERT INTO artifacts (id, name, kind_json, accepted_revision) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                commit.artifact.id.to_string(),
+                commit.artifact.name,
+                kind_json,
+                revision.id.to_string(),
+            ],
+        );
+        match inserted {
+            Ok(_) => {}
+            Err(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                return Err(StoreError::ArtifactAlreadyExists(commit.artifact.id));
+            }
+            Err(error) => return Err(StoreError::Sqlite(error)),
+        }
+        transaction.execute(
+            "INSERT INTO transformations (id, artifact_id, transformation_json) VALUES (?1, ?2, ?3)",
+            params![
+                commit.transformation.id.to_string(),
+                commit.artifact.id.to_string(),
+                transformation_json,
+            ],
+        )?;
+        transaction.execute(
+            "INSERT INTO execution_receipts (attempt_id, transformation_id, receipt_json) VALUES (?1, ?2, ?3)",
+            params![
+                commit.receipt.attempt_id.to_string(),
+                commit.transformation.id.to_string(),
+                receipt_json,
+            ],
+        )?;
+        transaction.execute(
+            "INSERT INTO artifact_revisions (id, artifact_id, transformation_id, revision_json) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                revision.id.to_string(),
+                commit.artifact.id.to_string(),
+                commit.transformation.id.to_string(),
+                revision_json,
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(revision)
     }
 }
 
@@ -390,6 +511,30 @@ fn validate_commit(commit: &AcceptedCommit) -> Result<(), StoreError> {
     if commit.transformation.target_artifact_id != commit.artifact_id {
         return Err(StoreError::InvalidCommit(
             "transformation target does not match artifact",
+        ));
+    }
+    if commit.receipt.transformation_id != commit.transformation.id {
+        return Err(StoreError::InvalidCommit(
+            "receipt does not belong to transformation",
+        ));
+    }
+    if commit.receipt.outcome != ExecutionOutcome::Succeeded {
+        return Err(StoreError::InvalidCommit(
+            "only successful execution candidates may be accepted",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_new_artifact_commit(commit: &NewArtifactCommit) -> Result<(), StoreError> {
+    if commit.artifact.accepted_revision.is_some() {
+        return Err(StoreError::InvalidCommit(
+            "new artifact must not already have an accepted head",
+        ));
+    }
+    if commit.transformation.target_artifact_id != commit.artifact.id {
+        return Err(StoreError::InvalidCommit(
+            "transformation target does not match new artifact",
         ));
     }
     if commit.receipt.transformation_id != commit.transformation.id {

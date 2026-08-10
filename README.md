@@ -16,8 +16,8 @@ atomically accept immutable revisions, close the process, and inspect the accept
 | Creative contracts | [`shape-domain`](crates/shape-domain/src/lib.rs) | IDs, artifacts, immutable revisions, transformations, constraints, and validation |
 | Execution contracts | [`shape-execution`](crates/shape-execution/src/lib.rs) | Executor probes, job state, attempts, outputs, and provenance receipts |
 | Project persistence | [`shape-store`](crates/shape-store/src/lib.rs) | `.shape` bundle, SQLite ownership, durable BLAKE3 object store, and atomic accepted-head commits |
-| Use cases | [`shape-core`](crates/shape-core/src/lib.rs) | Project creation, artifact creation, built-in text transformation, acceptance, and inspection |
-| Desktop bridge | [`shape-desktop-bridge`](crates/shape-desktop-bridge/src/lib.rs) | Bounded CXX session for validated project snapshots and one transient text candidate |
+| Use cases | [`shape-core`](crates/shape-core/src/lib.rs) | Project creation, built-in text transformation, in-place acceptance, cross-artifact branching, and inspection |
+| Desktop bridge | [`shape-desktop-bridge`](crates/shape-desktop-bridge/src/lib.rs) | Bounded CXX session for validated project snapshots, lineage sources, and one transient text candidate |
 | Foundation CLI | [`shape-cli`](apps/shape-cli/src/main.rs) | Real public consumer used for end-to-end smoke and inspection |
 | Desktop shell | [`apps/desktop`](apps/desktop/README.md) | Cross-platform Qt/QML assembly that opens and displays real `.shape` projects |
 | Repository checks | [`xtask`](xtask/src/main.rs) | Formatting, lint, tests, CMake configuration, and prerequisite checks |
@@ -46,9 +46,9 @@ CMake output is written to the sibling `.shape-local-build` directory, not the s
 ## Current boundary
 
 - Implemented: pure Creative Document contracts, durable project store, executor lifecycle,
-  deterministic text acceptance, CLI, a bounded Rust/CXX desktop session, and a cross-platform
-  desktop flow for drafting, comparing, discarding, accepting, reopening, and inspecting the
-  persisted lineage of text revisions.
+  deterministic text acceptance and new-artifact branching, CLI, a bounded Rust/CXX desktop
+  session, and a cross-platform desktop flow for drafting, comparing, discarding, accepting,
+  branching, reopening, and inspecting persisted text lineage across artifacts.
 - Deferred: richer multi-candidate desktop sessions, image buffers, preview renderer, Infer Runtime
   client, Shadow/Echo suite adapters, external executors, project imports/exports, and AI planning.
 - License: Shape source is licensed under the [`MIT License`](LICENSE). Shadow's GPL components

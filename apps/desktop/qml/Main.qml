@@ -55,6 +55,16 @@ ApplicationWindow {
         uiPreferences: window.uiPreferences
     }
 
+    BranchArtifactDialog {
+        id: branchDialog
+        backend: window.backend
+        onBranchCreated: {
+            window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
+            window.compareMode = false
+            contextInspector.currentPage = 2
+        }
+    }
+
     header: MainTitleBar {
         hostWindow: window
         projectOpen: window.backend.projectOpen
@@ -154,6 +164,7 @@ ApplicationWindow {
                     window.compareMode = false
                 }
             }
+            onBranchRequested: branchDialog.openFor(window.selectedArtifact.name)
         }
     }
 

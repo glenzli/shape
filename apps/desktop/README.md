@@ -3,25 +3,27 @@
 This directory owns the cross-platform Qt 6/QML application assembly. It can open a real `.shape`
 bundle at startup, display its validated project metadata and artifact list, and render the bounded
 accepted text projection supplied by Rust. A text document can now be edited into one transient
-candidate, compared beside its accepted revision, discarded, or explicitly accepted. Navigation,
-draft, variants, compare, and semantic-history regions retain complete English and Simplified
-Chinese message identities. Language can switch at runtime between system, English, and Simplified
-Chinese. Appearance defaults to the system color scheme and can be pinned to light or dark; both
-preferences persist across launches.
+candidate, compared beside its accepted revision, discarded, explicitly accepted in place, or
+branched into a newly named artifact. Navigation, draft, variants, compare, and semantic-history
+regions retain complete English and Simplified Chinese message identities. Language can switch at
+runtime between system, English, and Simplified Chinese. Appearance defaults to the system color
+scheme and can be pinned to light or dark; both preferences persist across launches.
 
 The shell is organized around a project navigator, a media-specific central workspace, and a
 context inspector with Explore, Details, and Lineage modes. Lineage is not placeholder UI: Rust
 loads the accepted revision's persisted parent identities and creative Transformation, while C++
-projects localized transformation labels. Candidates remain in Explore and outside durable
-lineage until acceptance. Full cross-artifact derivation edges are intentionally deferred until an
-implemented creation path can produce them.
+projects localized transformation labels and resolves transformation inputs to source artifact
+names. Candidates remain in Explore and outside durable lineage until acceptance. Branching creates
+the new artifact, its first revision, target-specific execution receipt, and cross-artifact input
+edge in one atomic persistence transaction without advancing the source artifact.
 
 [`shape-desktop-bridge`](../../crates/shape-desktop-bridge/src/lib.rs) owns the generated CXX ABI.
 Rust's bounded `DesktopSession` validates SQLite and content objects, owns the open project plus at
-most one transient text candidate, and delegates acceptance to the existing atomic project use
-case. C++ maps explicit snapshots and commands into Qt presentation values; QML never reads or
-writes project files. Richer multi-candidate drafts, image buffers, Infer Runtime HTTP, Shadow/Echo
-interop, and third-party editor process control remain behind future capability adapters.
+most one transient text candidate, and delegates in-place acceptance and new-artifact branching to
+atomic project use cases. C++ maps explicit snapshots and commands into Qt presentation values; QML
+never reads or writes project files. Richer multi-candidate drafts, image buffers, Infer Runtime
+HTTP, Shadow/Echo interop, and third-party editor process control remain behind future capability
+adapters.
 
 `UiPreferences` is the process-level owner for appearance, effective system color scheme,
 translation lifecycle, and persistence. `MainTitleBar.qml` owns the fused toolbar/title region.
@@ -31,7 +33,8 @@ Objective-C++ adapter only aligns native macOS traffic-light buttons with that s
 never enters QML or UI settings. `TextCompareWorkspace.qml` owns the side-by-side text comparison
 without taking persistence responsibility. `ProjectNavigator.qml` owns project-level selection,
 `ContextInspector.qml` owns inspector navigation, and its details and lineage panels own their
-respective read-only projections. `Main.qml` remains an assembly root.
+respective read-only projections. `BranchArtifactDialog.qml` owns branch naming and submission;
+`Main.qml` remains an assembly root.
 
 Build and smoke-start:
 
@@ -42,9 +45,9 @@ ctest --preset desktop-dev
 ```
 
 After creating a demo through `shape-cli`, launch the platform executable with
-`--project /path/to/project.shape`. The `shape-desktop-project-smoke` test performs this entire
-create → link → open → propose candidate → verify accepted head is unchanged → accept → reopen path
-automatically.
+`--project /path/to/project.shape`. The `shape-desktop-project-smoke` test performs the entire
+create → link → open → propose → accept → propose → branch path automatically, including source
+head preservation and the projected cross-artifact input edge.
 
 The shell requires Qt 6.9 or newer for the cross-platform expanded client area. Platform-specific
 code is isolated to native window-control alignment; QML layout, themes, and settings are shared.

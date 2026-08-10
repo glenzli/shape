@@ -104,9 +104,55 @@ bool run_smoke_text_cycle(DesktopBackend& backend) {
     }
 
     const QVariantMap committed = committed_artifact->toMap();
-    if (committed.value(QStringLiteral("acceptedRevisionId")).toString() == accepted_revision
+    const QString committed_revision =
+        committed.value(QStringLiteral("acceptedRevisionId")).toString();
+    if (committed_revision == accepted_revision
         || committed.value(QStringLiteral("textPreview")).toString() != replacement) {
         std::cerr << "desktop text smoke committed an unexpected revision" << std::endl;
+        return false;
+    }
+
+    const QString branch_replacement =
+        QStringLiteral("A desktop candidate accepted as a separate artifact.");
+    if (!backend.proposeTextCandidate(artifact_id, branch_replacement) || !backend.hasCandidate()) {
+        std::cerr << "desktop text smoke could not create branch candidate" << std::endl;
+        return false;
+    }
+    const QString branch_name =
+        committed.value(QStringLiteral("name")).toString() + QStringLiteral(" — Branch");
+    if (!backend.branchCandidate(branch_name) || backend.hasCandidate()) {
+        std::cerr << "desktop text smoke could not branch candidate" << std::endl;
+        return false;
+    }
+
+    const QVariantList branched_artifacts = backend.artifacts();
+    const auto branched_source = std::find_if(
+        branched_artifacts.cbegin(),
+        branched_artifacts.cend(),
+        [&artifact_id](const QVariant& artifact) {
+            return artifact.toMap().value(QStringLiteral("id")).toString() == artifact_id;
+        }
+    );
+    const auto branch = std::find_if(
+        branched_artifacts.cbegin(),
+        branched_artifacts.cend(),
+        [&branch_name](const QVariant& artifact) {
+            return artifact.toMap().value(QStringLiteral("name")).toString() == branch_name;
+        }
+    );
+    if (branched_source == branched_artifacts.cend() || branch == branched_artifacts.cend()
+        || branched_source->toMap().value(QStringLiteral("acceptedRevisionId")).toString()
+               != committed_revision) {
+        std::cerr << "desktop text smoke changed or lost the branch source" << std::endl;
+        return false;
+    }
+    const QVariantMap branch_artifact = branch->toMap();
+    const QVariantList branch_inputs =
+        branch_artifact.value(QStringLiteral("transformationInputArtifactIds")).toList();
+    if (branch_artifact.value(QStringLiteral("textPreview")).toString() != branch_replacement
+        || !branch_artifact.value(QStringLiteral("acceptedParentRevisionIds")).toList().isEmpty()
+        || branch_inputs.size() != 1 || branch_inputs.first().toString() != artifact_id) {
+        std::cerr << "desktop text smoke projected invalid branch lineage" << std::endl;
         return false;
     }
 

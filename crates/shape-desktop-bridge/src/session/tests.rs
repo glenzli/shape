@@ -110,3 +110,55 @@ fn failed_reproposal_does_not_replace_a_valid_pending_candidate() {
     );
     fs::remove_dir_all(root).expect("test project removes");
 }
+
+#[test]
+fn pending_candidate_can_branch_as_a_new_artifact_with_a_source_edge() {
+    let root = test_root();
+    let artifact_id = seeded_project(&root);
+    let path = root.to_str().expect("portable path");
+    let mut session = open_desktop_session(path).expect("session opens");
+    let before = session.session_snapshot().expect("snapshot reads");
+    let source_revision = before.artifacts[0].accepted_revision_id.clone();
+    session
+        .session_propose_text(&artifact_id.to_string(), "A quiet summer afternoon.")
+        .expect("candidate executes");
+
+    let branched = session
+        .session_branch_text("Story — Quiet")
+        .expect("candidate branches");
+    assert_eq!(branched.artifacts.len(), 2);
+    let source = branched
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.id == artifact_id.to_string())
+        .expect("source remains");
+    assert_eq!(source.accepted_revision_id, source_revision);
+    let branch = branched
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.name == "Story — Quiet")
+        .expect("branch appears");
+    assert!(branch.accepted_parent_revision_ids.is_empty());
+    assert_eq!(
+        branch.transformation_input_revision_ids,
+        vec![source_revision]
+    );
+    assert_eq!(
+        branch.transformation_input_artifact_ids,
+        vec![artifact_id.to_string()]
+    );
+    assert_eq!(branch.transformation_input_artifact_names, vec!["Story"]);
+    assert_eq!(branch.text_preview, "A quiet summer afternoon.");
+    drop(session);
+
+    let reopened = open_desktop_session(path).expect("session reopens");
+    assert_eq!(
+        reopened
+            .session_snapshot()
+            .expect("snapshot reads")
+            .artifacts
+            .len(),
+        2
+    );
+    fs::remove_dir_all(root).expect("test project removes");
+}

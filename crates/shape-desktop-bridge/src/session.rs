@@ -105,6 +105,24 @@ impl DesktopSession {
         self.session_snapshot()
     }
 
+    /// Accepts the pending candidate as the first revision of a new artifact.
+    ///
+    /// Failed branching retains the candidate so the user can rename or retry.
+    pub fn session_branch_text(
+        &mut self,
+        artifact_name: &str,
+    ) -> Result<ffi::ProjectSnapshotWire, String> {
+        let candidate = self
+            .pending_text
+            .clone()
+            .ok_or_else(|| "there is no text candidate to branch".to_owned())?;
+        self.project
+            .branch_text_candidate(candidate, artifact_name)
+            .map_err(|error| error.to_string())?;
+        self.pending_text = None;
+        self.session_snapshot()
+    }
+
     /// Discards transient preview without touching durable history.
     pub fn session_discard_text(&mut self) {
         self.pending_text = None;

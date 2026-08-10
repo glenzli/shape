@@ -14,6 +14,7 @@ Rectangle {
     property string transformationKind: ""
     property string transformationIntent: ""
     property var inputRevisionIds: []
+    property var inputArtifactNames: []
     property double constraintCount: 0
     property double referenceCount: 0
 
@@ -169,6 +170,66 @@ Rectangle {
                             color: Theme.muted
                             font.pixelSize: 8
                         }
+                    }
+                }
+            }
+        }
+
+        Text {
+            visible: lineage.hasAcceptedRevision && lineage.inputArtifactNames.length > 0
+            text: qsTr("SOURCE ARTIFACTS")
+            color: Theme.muted
+            font.pixelSize: 9
+            font.weight: Font.DemiBold
+            font.letterSpacing: 0.5
+        }
+
+        Rectangle {
+            visible: lineage.hasAcceptedRevision && lineage.inputArtifactNames.length > 0
+            Layout.fillWidth: true
+            Layout.preferredHeight: 58
+            radius: Theme.radiusMedium
+            color: Theme.accentSoft
+            border.color: Theme.border
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 11
+                spacing: 9
+
+                Rectangle {
+                    Layout.preferredWidth: 26
+                    Layout.preferredHeight: 26
+                    radius: 13
+                    color: Theme.raised
+                    border.color: Theme.accent
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "↗"
+                        color: Theme.accent
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    Text {
+                        text: qsTr("Transformation input")
+                        color: Theme.muted
+                        font.pixelSize: 9
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: lineage.inputArtifactNames.join(", ")
+                        color: Theme.text
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
                     }
                 }
             }

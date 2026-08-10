@@ -18,6 +18,7 @@ Item {
     signal compareRequested()
     signal discardRequested()
     signal acceptRequested()
+    signal branchRequested()
 
     ColumnLayout {
         anchors.fill: parent
@@ -77,6 +78,7 @@ Item {
                 onCompareRequested: inspector.compareRequested()
                 onDiscardRequested: inspector.discardRequested()
                 onAcceptRequested: inspector.acceptRequested()
+                onBranchRequested: inspector.branchRequested()
             }
 
             ArtifactDetailsPanel {
@@ -105,6 +107,8 @@ Item {
                                       ? inspector.artifact.transformationIntent : ""
                 inputRevisionIds: inspector.hasArtifact
                                   ? inspector.artifact.transformationInputRevisionIds : []
+                inputArtifactNames: inspector.hasArtifact
+                                    ? inspector.artifact.transformationInputArtifactNames : []
                 constraintCount: inspector.hasArtifact ? inspector.artifact.constraintCount : 0
                 referenceCount: inspector.hasArtifact ? inspector.artifact.referenceCount : 0
             }

@@ -23,6 +23,8 @@ pub enum CoreError {
         artifact_id: ArtifactId,
         revision_id: RevisionId,
     },
+    #[error("artifact {artifact_id} needs an accepted source revision before it can branch")]
+    BranchRequiresAcceptedSource { artifact_id: ArtifactId },
     #[error("text executor returned bytes that are not valid UTF-8")]
     InvalidTextCandidate,
 }

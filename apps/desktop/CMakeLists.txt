@@ -96,6 +96,7 @@ qt_add_qml_module(shape-desktop
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/BranchArtifactDialog.qml
         qml/MainTitleBar.qml
         qml/ShapeSettingsDialog.qml
         qml/Theme.qml

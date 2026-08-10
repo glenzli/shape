@@ -48,6 +48,8 @@ fn bridge_preserves_presence_identity_and_verified_text() {
     assert_eq!(story_wire.transformation_kind_key, "import");
     assert_eq!(story_wire.transformation_intent, "Import the opening");
     assert!(story_wire.transformation_input_revision_ids.is_empty());
+    assert!(story_wire.transformation_input_artifact_ids.is_empty());
+    assert!(story_wire.transformation_input_artifact_names.is_empty());
     assert_eq!(story_wire.constraint_count, 0);
     assert_eq!(story_wire.reference_count, 0);
     assert!(story_wire.has_content);

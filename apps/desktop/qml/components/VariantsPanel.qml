@@ -15,6 +15,7 @@ Rectangle {
     signal compareRequested()
     signal discardRequested()
     signal acceptRequested()
+    signal branchRequested()
 
     radius: Theme.radiusLarge
     color: Theme.surface
@@ -175,23 +176,35 @@ Rectangle {
 
         Item { Layout.fillHeight: true }
 
-        RowLayout {
+        ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
 
             ShapeButton {
                 visible: variants.hasCandidate
                 Layout.fillWidth: true
-                text: qsTr("Discard")
-                onClicked: variants.discardRequested()
+                text: qsTr("Branch as new artifact")
+                onClicked: variants.branchRequested()
             }
 
-            ShapeButton {
+            RowLayout {
                 Layout.fillWidth: true
-                text: qsTr("Accept candidate")
-                primary: true
-                enabled: variants.hasCandidate
-                onClicked: variants.acceptRequested()
+                spacing: 8
+
+                ShapeButton {
+                    visible: variants.hasCandidate
+                    Layout.fillWidth: true
+                    text: qsTr("Discard")
+                    onClicked: variants.discardRequested()
+                }
+
+                ShapeButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Accept candidate")
+                    primary: true
+                    enabled: variants.hasCandidate
+                    onClicked: variants.acceptRequested()
+                }
             }
         }
     }

@@ -103,6 +103,14 @@ QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artif
         string_list_projection(artifact.transformation_input_revision_ids)
     );
     projected.insert(
+        QStringLiteral("transformationInputArtifactIds"),
+        string_list_projection(artifact.transformation_input_artifact_ids)
+    );
+    projected.insert(
+        QStringLiteral("transformationInputArtifactNames"),
+        string_list_projection(artifact.transformation_input_artifact_names)
+    );
+    projected.insert(
         QStringLiteral("constraintCount"),
         static_cast<qulonglong>(artifact.constraint_count)
     );
@@ -227,6 +235,25 @@ bool DesktopBackend::acceptCandidate() {
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not accept desktop candidate:" << error.what();
         setLastError(tr("Could not accept candidate."));
+        return false;
+    }
+}
+
+bool DesktopBackend::branchCandidate(const QString& artifactName) {
+    if (session_ == nullptr || !has_candidate_) {
+        setLastError(tr("There is no candidate to branch."));
+        return false;
+    }
+    try {
+        applySnapshot(session_->session->session_branch_text(to_utf8(artifactName)));
+        clearCandidate();
+        setLastError(QString());
+        emit projectChanged();
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not branch desktop candidate:" << error.what();
+        setLastError(tr("Could not branch candidate."));
         return false;
     }
 }

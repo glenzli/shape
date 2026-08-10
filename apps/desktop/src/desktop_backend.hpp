@@ -56,6 +56,7 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE bool
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);
     Q_INVOKABLE bool acceptCandidate();
+    Q_INVOKABLE bool branchCandidate(const QString& artifactName);
     Q_INVOKABLE void discardCandidate();
 
     /// Rebuilds translated presentation values after a runtime locale change.

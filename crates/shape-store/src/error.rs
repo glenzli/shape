@@ -25,6 +25,8 @@ pub enum StoreError {
     ArtifactAlreadyExists(ArtifactId),
     #[error("transformation {0} does not exist")]
     UnknownTransformation(TransformationId),
+    #[error("revision {0} does not exist")]
+    UnknownRevision(RevisionId),
     #[error("accepted head changed: expected {expected:?}, actual {actual:?}")]
     RevisionConflict {
         expected: Option<RevisionId>,

@@ -12,4 +12,4 @@ mod project_store;
 mod schema;
 
 pub use error::StoreError;
-pub use project_store::{AcceptedCommit, ProjectSnapshot, ProjectStore};
+pub use project_store::{AcceptedCommit, NewArtifactCommit, ProjectSnapshot, ProjectStore};

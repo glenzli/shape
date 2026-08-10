@@ -10,7 +10,7 @@ use shape_execution::{
     CapabilityId, ExecutedCandidate, ExecutionCoordinator, ExecutionFailure, ExecutionOutput,
     ExecutionReceipt, ExecutionRequest, Executor, ExecutorIdentity,
 };
-use shape_store::{AcceptedCommit, ProjectSnapshot, ProjectStore};
+use shape_store::{AcceptedCommit, NewArtifactCommit, ProjectSnapshot, ProjectStore};
 
 use crate::CoreError;
 
@@ -140,6 +140,15 @@ impl ShapeProject {
         Ok(self.store.transformation(transformation_id)?)
     }
 
+    /// Loads one immutable accepted revision for lineage resolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when durable revision data is absent or invalid.
+    pub fn revision(&self, revision_id: RevisionId) -> Result<ArtifactRevision, CoreError> {
+        Ok(self.store.revision(revision_id)?)
+    }
+
     /// Executes a deterministic text proposal without changing durable history.
     ///
     /// The candidate is tied to `expected_head`; callers must preview it and
@@ -222,6 +231,66 @@ impl ShapeProject {
             receipt: candidate.receipt,
             output_bytes: candidate.output_text.into_bytes(),
             output_media_type: candidate.output_media_type,
+        })?)
+    }
+
+    /// Accepts a deterministic text candidate as a newly named artifact.
+    ///
+    /// The source artifact head is left unchanged. The new artifact starts with
+    /// no same-artifact parent, while its transformation records the source
+    /// revision as an input. The exact candidate bytes are re-executed so the
+    /// new transformation receives truthful, target-specific execution evidence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the source has no accepted head, its head became
+    /// stale, the name is invalid, execution fails, or atomic publication fails.
+    pub fn branch_text_candidate(
+        &mut self,
+        candidate: TextCandidate,
+        artifact_name: impl Into<String>,
+    ) -> Result<ArtifactRevision, CoreError> {
+        let source_artifact = self.store.artifact(candidate.artifact_id)?.ok_or(
+            shape_store::StoreError::UnknownArtifact(candidate.artifact_id),
+        )?;
+        if source_artifact.accepted_revision != candidate.expected_head {
+            return Err(CoreError::StaleCandidate {
+                artifact_id: candidate.artifact_id,
+                expected: candidate.expected_head,
+                actual: source_artifact.accepted_revision,
+            });
+        }
+        let source_revision_id =
+            candidate
+                .expected_head
+                .ok_or(CoreError::BranchRequiresAcceptedSource {
+                    artifact_id: candidate.artifact_id,
+                })?;
+        let source_revision = self.store.revision(source_revision_id)?;
+        let target = Artifact::new(artifact_name, source_artifact.kind)?;
+        let transformation = Transformation::new(
+            TransformationKind::TextRewrite,
+            target.id,
+            vec![source_revision_id],
+            candidate.transformation.intent,
+            candidate.transformation.constraints,
+            candidate.transformation.references,
+        )?;
+        let request = ExecutionRequest::new(
+            transformation.id,
+            CapabilityId::new("text.literal")?,
+            vec![source_revision.content],
+            candidate.output_text.into_bytes(),
+            TEXT_MEDIA_TYPE,
+        )?;
+        let ExecutedCandidate { output, receipt } =
+            ExecutionCoordinator::execute(&LiteralTextExecutor::new()?, &request)?;
+        Ok(self.store.accept_new_artifact(NewArtifactCommit {
+            artifact: target,
+            transformation,
+            receipt,
+            output_bytes: output.bytes,
+            output_media_type: output.media_type,
         })?)
     }
 

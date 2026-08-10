@@ -39,6 +39,8 @@ mod ffi {
         transformation_kind_key: String,
         transformation_intent: String,
         transformation_input_revision_ids: Vec<String>,
+        transformation_input_artifact_ids: Vec<String>,
+        transformation_input_artifact_names: Vec<String>,
         constraint_count: u64,
         reference_count: u64,
         has_content: bool,
@@ -80,6 +82,10 @@ mod ffi {
             replacement_text: &str,
         ) -> Result<TextCandidateWire>;
         fn session_accept_text(self: &mut DesktopSession) -> Result<ProjectSnapshotWire>;
+        fn session_branch_text(
+            self: &mut DesktopSession,
+            artifact_name: &str,
+        ) -> Result<ProjectSnapshotWire>;
         fn session_discard_text(self: &mut DesktopSession);
     }
 }
@@ -102,7 +108,7 @@ fn project_snapshot(
     let artifacts = snapshot
         .artifacts
         .iter()
-        .map(|artifact| project_artifact(project, artifact))
+        .map(|artifact| project_artifact(project, artifact, &snapshot.artifacts))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(ffi::ProjectSnapshotWire {
         project_id: snapshot.metadata.id.to_string(),
@@ -116,6 +122,7 @@ fn project_snapshot(
 fn project_artifact(
     project: &ShapeProject,
     artifact: &Artifact,
+    project_artifacts: &[Artifact],
 ) -> Result<ffi::ArtifactSummaryWire, String> {
     let accepted = project
         .read_accepted(artifact.id)
@@ -131,6 +138,8 @@ fn project_artifact(
         transformation_kind_key: String::new(),
         transformation_intent: String::new(),
         transformation_input_revision_ids: Vec::new(),
+        transformation_input_artifact_ids: Vec::new(),
+        transformation_input_artifact_names: Vec::new(),
         constraint_count: 0,
         reference_count: 0,
         has_content: false,
@@ -164,6 +173,19 @@ fn project_artifact(
             .iter()
             .map(ToString::to_string)
             .collect();
+        for input in &transformation.inputs {
+            let input_revision = project
+                .revision(*input)
+                .map_err(|error| error.to_string())?;
+            let input_artifact = project_artifacts
+                .iter()
+                .find(|artifact| artifact.id == input_revision.artifact_id)
+                .ok_or_else(|| "transformation input artifact is missing".to_owned())?;
+            wire.transformation_input_artifact_ids
+                .push(input_artifact.id.to_string());
+            wire.transformation_input_artifact_names
+                .push(input_artifact.name.clone());
+        }
         wire.constraint_count = transformation.constraints.len() as u64;
         wire.reference_count = transformation.references.len() as u64;
         wire.has_content = true;
