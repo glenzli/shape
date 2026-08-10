@@ -17,11 +17,15 @@ Rectangle {
     property bool runtimeCompatible: false
     property string runtimeContractVersion: ""
     property string runtimeEndpointSource: ""
+    property bool generationRunning: false
+    property bool credentialConfigured: false
+    property string generationErrorCode: ""
 
     readonly property bool canEditText: artifactId.length > 0
                                          && artifactKindKey === "text_document"
 
     signal candidateRequested(string artifactId, string replacementText)
+    signal inferCandidateRequested(string artifactId, string prompt)
     signal runtimeRefreshRequested()
 
     function resetDraft() : void {
@@ -35,6 +39,24 @@ Rectangle {
             }
         }
         return false
+    }
+
+    function generationErrorText() : string {
+        switch (generationErrorCode) {
+        case "": return ""
+        case "credential_missing": return qsTr("Add the Shape credential from Infer Console in Settings.")
+        case "credential_invalid":
+        case "credential_unsafe": return qsTr("The saved Infer credential is invalid or unsafe.")
+        case "invalid_api_key": return qsTr("Infer rejected the Shape credential. Rotate it in Infer Console.")
+        case "intent_forbidden": return qsTr("Shape is not allowed to use assistant.general.")
+        case "policy_violation": return qsTr("Infer rejected Shape's local-only execution policy.")
+        case "no_candidate": return qsTr("No local model currently satisfies this request.")
+        case "provider_unavailable":
+        case "infer_unavailable": return qsTr("The local Infer provider is unavailable.")
+        case "stale_candidate": return qsTr("The accepted revision changed while AI was working. Try again.")
+        case "invalid_prompt": return qsTr("Enter a short creative instruction for AI.")
+        default: return qsTr("AI could not create a candidate.")
+        }
     }
 
     onArtifactIdChanged: resetDraft()
@@ -125,16 +147,61 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: 8
+
+            TextField {
+                id: generationPrompt
+
+                Layout.fillWidth: true
+                implicitHeight: 30
+                enabled: panel.canEditText && !panel.generationRunning
+                placeholderText: panel.credentialConfigured
+                                 ? qsTr("Ask AI how to transform this text…")
+                                 : qsTr("Add an Infer credential in Settings to use AI")
+                color: Theme.text
+                placeholderTextColor: Theme.muted
+                selectionColor: Theme.accentSoft
+                selectedTextColor: Theme.text
+                font.pixelSize: 11
+                Accessible.name: qsTr("AI creative instruction")
+
+                background: Rectangle {
+                    color: Theme.raised
+                    radius: Theme.radiusSmall
+                    border.color: parent.activeFocus ? Theme.accent : Theme.border
+                }
+            }
+
+            ShapeButton {
+                objectName: "inferGenerateButton"
+                implicitHeight: 30
+                text: panel.generationRunning ? qsTr("Generating…") : qsTr("Generate with AI")
+                selected: panel.generationRunning
+                enabled: panel.canEditText
+                         && panel.runtimeCompatible
+                         && panel.credentialConfigured
+                         && !panel.generationRunning
+                         && generationPrompt.text.trim().length > 0
+                onClicked: panel.inferCandidateRequested(
+                               panel.artifactId, generationPrompt.text.trim())
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
             spacing: 10
 
             Text {
                 Layout.fillWidth: true
-                text: panel.errorMessage.length > 0
+                text: panel.generationErrorText().length > 0
+                      ? panel.generationErrorText()
+                      : panel.errorMessage.length > 0
                       ? panel.errorMessage
                       : panel.candidatePending
                         ? qsTr("Keep editing to add another option, or review the shelf.")
                         : qsTr("Accepted history stays unchanged until you accept the candidate.")
-                color: panel.errorMessage.length > 0 ? Theme.danger
+                color: panel.generationErrorText().length > 0
+                       || panel.errorMessage.length > 0 ? Theme.danger
                                                      : panel.candidatePending ? Theme.accent
                                                                               : Theme.muted
                 font.pixelSize: 10

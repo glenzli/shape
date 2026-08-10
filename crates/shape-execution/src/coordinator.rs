@@ -39,7 +39,11 @@ impl ExecutionCoordinator {
         let attempt = job.start(executor.identity().clone(), unix_time_ms()?)?;
         match executor.execute(request) {
             Ok(output) => {
-                let receipt = job.succeed(attempt, unix_time_ms()?)?;
+                let receipt = job.succeed_with_executor_job(
+                    attempt,
+                    unix_time_ms()?,
+                    output.executor_job_id.clone(),
+                )?;
                 Ok(ExecutedCandidate { output, receipt })
             }
             Err(failure) => {

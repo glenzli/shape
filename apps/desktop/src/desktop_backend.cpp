@@ -328,6 +328,19 @@ bool DesktopBackend::discardCandidate(const QString& candidateId) {
     }
 }
 
+QString
+DesktopBackend::adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandidate> candidate) {
+    if (session_ == nullptr) {
+        return QString();
+    }
+    const auto adopted = session_->session->session_adopt_infer_text(std::move(candidate));
+    const QString candidate_id = from_rust(adopted.candidate_id);
+    applyCandidates(session_->session->session_text_candidates(), candidate_id);
+    setLastError(QString());
+    emit candidateChanged();
+    return candidate_id;
+}
+
 void DesktopBackend::retranslate() {
     if (session_ == nullptr) {
         return;

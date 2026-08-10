@@ -218,6 +218,84 @@ impl ShapeProject {
         })
     }
 
+    /// Executes a provider-backed text generation without changing durable
+    /// history. The accepted text, when present, is included as immutable
+    /// creative context; the returned bytes remain a transient candidate.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown or stale artifact, non-text accepted
+    /// content, invalid intent, or executor failure.
+    pub fn propose_generated_text(
+        &self,
+        artifact_id: ArtifactId,
+        expected_head: Option<RevisionId>,
+        prompt: &str,
+        intent: IntentSpec,
+        constraints: Vec<Constraint>,
+        executor: &dyn Executor,
+    ) -> Result<TextCandidate, CoreError> {
+        let artifact = self
+            .store
+            .artifact(artifact_id)?
+            .ok_or(shape_store::StoreError::UnknownArtifact(artifact_id))?;
+        if artifact.accepted_revision != expected_head {
+            return Err(CoreError::StaleCandidate {
+                artifact_id,
+                expected: expected_head,
+                actual: artifact.accepted_revision,
+            });
+        }
+
+        let (inputs, input_content, accepted_text) = match expected_head {
+            Some(revision_id) => {
+                let accepted =
+                    self.read_accepted(artifact_id)?
+                        .ok_or(CoreError::MissingAcceptedRevision {
+                            artifact_id,
+                            revision_id,
+                        })?;
+                debug_assert_eq!(accepted.revision.id, revision_id);
+                let text = String::from_utf8(accepted.bytes)
+                    .map_err(|_| CoreError::InvalidTextCandidate)?;
+                (
+                    vec![revision_id],
+                    vec![accepted.revision.content],
+                    Some(text),
+                )
+            }
+            None => (Vec::new(), Vec::new(), None),
+        };
+        let transformation = Transformation::new(
+            TransformationKind::GenerativeEdit,
+            artifact_id,
+            inputs,
+            intent,
+            constraints,
+            Vec::new(),
+        )?;
+        let instruction = generation_instruction(prompt, accepted_text.as_deref());
+        let request = ExecutionRequest::new(
+            transformation.id,
+            CapabilityId::new("text.generate")?,
+            input_content,
+            instruction.into_bytes(),
+            TEXT_MEDIA_TYPE,
+        )?;
+        let ExecutedCandidate { output, receipt } =
+            ExecutionCoordinator::execute(executor, &request)?;
+        let output_text =
+            String::from_utf8(output.bytes).map_err(|_| CoreError::InvalidTextCandidate)?;
+        Ok(TextCandidate {
+            artifact_id,
+            expected_head,
+            transformation,
+            receipt,
+            output_text,
+            output_media_type: output.media_type,
+        })
+    }
+
     /// Explicitly accepts a previously executed text candidate.
     ///
     /// # Errors
@@ -313,6 +391,17 @@ impl ShapeProject {
     }
 }
 
+fn generation_instruction(prompt: &str, accepted_text: Option<&str>) -> String {
+    match accepted_text {
+        Some(text) => format!(
+            "Return only the complete replacement text.\n\nCreative instruction:\n{prompt}\n\nCurrent accepted text:\n{text}"
+        ),
+        None => {
+            format!("Return only the complete text to create.\n\nCreative instruction:\n{prompt}")
+        }
+    }
+}
+
 #[derive(Debug)]
 struct LiteralTextExecutor {
     identity: ExecutorIdentity,
@@ -350,6 +439,10 @@ impl Executor for LiteralTextExecutor {
         Ok(ExecutionOutput {
             bytes: text.as_bytes().to_vec(),
             media_type: request.output_media_type.clone(),
+            executor_job_id: None,
         })
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -5,12 +5,17 @@
 //! receives explicit presence flags and presentation-safe values through one
 //! generated CXX contract. QML never reads or writes project files directly.
 
+mod infer_text;
 mod session;
 
 use shape_core::ShapeProject;
 use shape_domain::{Artifact, ArtifactKind, TransformationKind};
 use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_runtime_contract};
 
+use infer_text::{
+    InferTextCandidate, generate_infer_text_candidate, infer_runtime_credential_status,
+    install_infer_runtime_credential,
+};
 use session::{DesktopSession, open_desktop_session};
 
 const MAX_TEXT_PREVIEW_BYTES: usize = 32 * 1024;
@@ -91,8 +96,16 @@ mod ffi {
         runtime_generation: String,
     }
 
+    /// Non-secret readiness of Shape's managed Infer credential copy.
+    #[derive(Debug)]
+    struct InferRuntimeCredentialStatusWire {
+        configured: bool,
+        error_code: String,
+    }
+
     extern "Rust" {
         type DesktopSession;
+        type InferTextCandidate;
 
         /// Opens and validates one `.shape` bundle, then returns a bounded
         /// read-only snapshot for the desktop shell.
@@ -100,6 +113,21 @@ mod ffi {
 
         /// Probes only the unauthenticated public consumer contract endpoint.
         fn probe_infer_runtime(base_url: &str) -> InferRuntimeProbeWire;
+
+        /// Checks only owner/permission/format status; token bytes never cross.
+        fn infer_runtime_credential_status(path: &str) -> InferRuntimeCredentialStatusWire;
+
+        /// Atomically installs a one-time managed token in Shape's secret store.
+        fn install_infer_runtime_credential(path: &str, token: &str) -> Result<()>;
+
+        /// Runs authenticated generation outside the live desktop session.
+        fn generate_infer_text_candidate(
+            project_path: &str,
+            artifact_id: &str,
+            prompt: &str,
+            credential_path: &str,
+            explicit_override: &str,
+        ) -> Result<Box<InferTextCandidate>>;
 
         /// Opens one mutable desktop session. The session remains the sole
         /// owner of transient candidates and the underlying project.
@@ -122,6 +150,12 @@ mod ffi {
             artifact_name: &str,
         ) -> Result<ProjectSnapshotWire>;
         fn session_discard_text(self: &mut DesktopSession, candidate_id: &str) -> Result<()>;
+        /// Adopts one completed background result only if its target head is
+        /// still current and it is not already on the Candidate Shelf.
+        fn session_adopt_infer_text(
+            self: &mut DesktopSession,
+            candidate: Box<InferTextCandidate>,
+        ) -> Result<TextCandidateWire>;
     }
 }
 

@@ -8,6 +8,8 @@ use shape_domain::{ArtifactId, ArtifactKind, IntentSpec};
 use crate::{bounded_text_preview, ffi, project_snapshot};
 use candidate_shelf::CandidateShelf;
 
+use crate::infer_text::InferTextCandidate;
+
 const USER_AUTHORED_TEXT_INTENT: &str = "Replace text with a user-authored draft";
 
 /// One open desktop project and its transient text candidates.
@@ -140,6 +142,31 @@ impl DesktopSession {
     /// Discards one transient preview without touching durable history.
     pub fn session_discard_text(&mut self, candidate_id: &str) -> Result<(), String> {
         self.candidates.discard(candidate_id)
+    }
+
+    /// Adopts a completed Infer candidate after rechecking the live project
+    /// head and Candidate Shelf identity on the desktop thread.
+    pub fn session_adopt_infer_text(
+        &mut self,
+        candidate: Box<InferTextCandidate>,
+    ) -> Result<ffi::TextCandidateWire, String> {
+        let candidate = (*candidate).into_candidate();
+        let artifact_id = candidate.artifact_id();
+        let snapshot = self.project.snapshot().map_err(|_| "project_unavailable")?;
+        let artifact = snapshot
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.id == artifact_id)
+            .ok_or("invalid_artifact")?;
+        if artifact.accepted_revision != candidate.expected_head() {
+            return Err("stale_candidate".to_owned());
+        }
+        if self.candidates.contains_text(artifact_id, candidate.text()) {
+            return Err("duplicate_candidate".to_owned());
+        }
+        let wire = candidate_wire(&candidate);
+        self.candidates.push(candidate);
+        Ok(wire)
     }
 }
 

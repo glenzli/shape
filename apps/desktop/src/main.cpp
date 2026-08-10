@@ -1,5 +1,6 @@
 #include "desktop_backend.hpp"
 #include "infer_runtime_controller.hpp"
+#include "infer_text_controller.hpp"
 #include "ui_preferences.hpp"
 
 #if defined(Q_OS_MACOS)
@@ -8,11 +9,13 @@
 
 #include "rust/cxx.h"
 
+#include <QDir>
 #include <QGuiApplication>
 #include <QMetaObject>
 #include <QQmlApplicationEngine>
 #include <QQmlExpression>
 #include <QQuickWindow>
+#include <QStandardPaths>
 #include <QTimer>
 #include <QVariant>
 
@@ -286,8 +289,10 @@ bool verify_candidate_shelf_interaction(DesktopBackend& backend, QObject& root_o
 }
 
 bool verify_infer_runtime_surface(QObject& root_object) {
-    if (root_object.findChild<QObject*>(QStringLiteral("inferRuntimeStatusButton")) == nullptr) {
-        std::cerr << "desktop runtime smoke could not find packaged status control" << std::endl;
+    if (root_object.findChild<QObject*>(QStringLiteral("inferRuntimeStatusButton")) == nullptr
+        || root_object.findChild<QObject*>(QStringLiteral("inferGenerateButton")) == nullptr
+        || root_object.findChild<QObject*>(QStringLiteral("inferCredentialField")) == nullptr) {
+        std::cerr << "desktop runtime smoke could not find packaged access controls" << std::endl;
         return false;
     }
     return true;
@@ -323,6 +328,10 @@ int main(int argc, char* argv[]) {
     }
 
     InferRuntimeController infer_runtime(&application);
+    const QString infer_credential_path =
+        QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation))
+            .filePath(QStringLiteral("secrets/infer-runtime.token"));
+    InferTextController infer_text(*backend, infer_credential_path, &application);
     UiPreferences ui_preferences(application);
     QObject::connect(
         &ui_preferences,
@@ -343,6 +352,7 @@ int main(int argc, char* argv[]) {
     engine.setInitialProperties({
         {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
         {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
+        {QStringLiteral("inferText"), QVariant::fromValue(&infer_text)},
         {QStringLiteral("uiPreferences"), QVariant::fromValue(&ui_preferences)},
     });
     infer_runtime.refresh();

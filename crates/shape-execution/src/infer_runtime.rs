@@ -6,12 +6,18 @@ use reqwest::{Url, blocking::Client, redirect::Policy};
 use serde::Deserialize;
 use thiserror::Error;
 
+mod credential;
 mod discovery;
+mod responses;
 
+pub use credential::{
+    InferRuntimeCredential, InferRuntimeCredentialError, InferRuntimeCredentialStore,
+};
 pub use discovery::{
     INFER_RUNTIME_COMPATIBILITY_ENDPOINT, InferRuntimeEndpointResolver, InferRuntimeEndpointSource,
     ResolvedInferRuntimeEndpoint,
 };
+pub use responses::InferRuntimeExecutor;
 
 /// Infer Runtime wire contract implemented by this Shape build.
 pub const INFER_RUNTIME_CONTRACT_VERSION: &str = "0.1.0-candidate.2";

@@ -66,6 +66,11 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE bool branchCandidate(const QString& candidateId, const QString& artifactName);
     Q_INVOKABLE bool discardCandidate(const QString& candidateId);
 
+    /// Adopts one fully executed background Infer candidate on the UI thread.
+    /// Stale-head validation remains authoritative in the Rust session.
+    [[nodiscard]] QString
+    adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandidate> candidate);
+
     /// Rebuilds translated presentation values after a runtime locale change.
     void retranslate();
 

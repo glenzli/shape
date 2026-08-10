@@ -355,7 +355,7 @@
         <translation>无法丢弃候选方案。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="341"/>
+        <location filename="../src/desktop_backend.cpp" line="354"/>
         <source>Could not refresh project.</source>
         <translation>无法刷新项目。</translation>
     </message>
@@ -368,82 +368,157 @@
 <context>
     <name>IntentPanel</name>
     <message>
+        <location filename="../qml/components/IntentPanel.qml" line="47"/>
+        <source>Add the Shape credential from Infer Console in Settings.</source>
+        <translation>请先在设置中添加来自 Infer Console 的 Shape 凭据。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="49"/>
+        <source>The saved Infer credential is invalid or unsafe.</source>
+        <translation>保存的 Infer 凭据无效或不安全。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="50"/>
+        <source>Infer rejected the Shape credential. Rotate it in Infer Console.</source>
+        <translation>Infer 拒绝了 Shape 凭据，请在 Infer Console 中轮换凭据。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="51"/>
+        <source>Shape is not allowed to use assistant.general.</source>
+        <translation>Shape 无权使用 assistant.general。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="52"/>
+        <source>Infer rejected Shape&apos;s local-only execution policy.</source>
+        <translation>Infer 拒绝了 Shape 的仅本地执行策略。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="53"/>
+        <source>No local model currently satisfies this request.</source>
+        <translation>当前没有满足此请求的本地模型。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="55"/>
+        <source>The local Infer provider is unavailable.</source>
+        <translation>本地 Infer 提供方当前不可用。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="56"/>
+        <source>The accepted revision changed while AI was working. Try again.</source>
+        <translation>AI 工作期间已接受版本发生变化，请重试。</translation>
+    </message>
+    <message>
         <location filename="../qml/components/IntentPanel.qml" line="57"/>
+        <source>Enter a short creative instruction for AI.</source>
+        <translation>请输入一条简短的 AI 创作指令。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="58"/>
+        <source>AI could not create a candidate.</source>
+        <translation>AI 无法创建候选版本。</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="79"/>
         <source>TEXT DRAFT</source>
         <translation>文本草稿</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="67"/>
+        <location filename="../qml/components/IntentPanel.qml" line="89"/>
         <source>Direct edit · candidate before commit</source>
         <translation>直接编辑 · 提交前为候选</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="75"/>
+        <location filename="../qml/components/IntentPanel.qml" line="97"/>
         <source>Checking AI…</source>
         <translation>正在检查 AI…</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="76"/>
+        <location filename="../qml/components/IntentPanel.qml" line="98"/>
         <source>AI ready</source>
         <translation>AI 就绪</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="77"/>
+        <location filename="../qml/components/IntentPanel.qml" line="99"/>
         <source>AI contract mismatch</source>
         <translation>AI 契约不匹配</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="78"/>
+        <location filename="../qml/components/IntentPanel.qml" line="100"/>
         <source>AI offline</source>
         <translation>AI 离线</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="83"/>
+        <location filename="../qml/components/IntentPanel.qml" line="105"/>
         <source>Infer Runtime ready through Infra Discovery, contract %1</source>
         <translation>Infer Runtime 已通过 Infra Discovery 就绪，契约 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="86"/>
+        <location filename="../qml/components/IntentPanel.qml" line="108"/>
         <source>Infer Runtime ready through an explicit endpoint, contract %1</source>
         <translation>Infer Runtime 已通过显式端点就绪，契约 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="89"/>
+        <location filename="../qml/components/IntentPanel.qml" line="111"/>
         <source>Infer Runtime ready through the compatibility fallback, contract %1</source>
         <translation>Infer Runtime 已通过兼容回退就绪，契约 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="91"/>
+        <location filename="../qml/components/IntentPanel.qml" line="113"/>
         <source>Infer Runtime ready, contract %1</source>
         <translation>Infer Runtime 已就绪，契约 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="109"/>
+        <location filename="../qml/components/IntentPanel.qml" line="131"/>
         <source>Write the next text revision…</source>
         <translation>写下一个文本版本…</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="110"/>
+        <location filename="../qml/components/IntentPanel.qml" line="132"/>
         <source>Select a text document to begin</source>
         <translation>选择一个文本文档即可开始</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="117"/>
+        <location filename="../qml/components/IntentPanel.qml" line="139"/>
         <source>Text draft</source>
         <translation>文本草稿</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="135"/>
+        <location filename="../qml/components/IntentPanel.qml" line="159"/>
+        <source>Ask AI how to transform this text…</source>
+        <translation>告诉 AI 如何改写这段文字…</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="160"/>
+        <source>Add an Infer credential in Settings to use AI</source>
+        <translation>请先在设置中添加 Infer 凭据以使用 AI</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="166"/>
+        <source>AI creative instruction</source>
+        <translation>AI 创作指令</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="177"/>
+        <source>Generating…</source>
+        <translation>正在生成…</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="177"/>
+        <source>Generate with AI</source>
+        <translation>用 AI 生成</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="200"/>
         <source>Keep editing to add another option, or review the shelf.</source>
         <translation>继续编辑以添加其他方案，或在候选架中查看。</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="136"/>
+        <location filename="../qml/components/IntentPanel.qml" line="201"/>
         <source>Accepted history stays unchanged until you accept the candidate.</source>
         <translation>在你接受候选之前，已接受历史不会改变。</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="145"/>
+        <location filename="../qml/components/IntentPanel.qml" line="211"/>
         <source>Create candidate</source>
         <translation>创建候选</translation>
     </message>
@@ -451,12 +526,12 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/Main.qml" line="68"/>
+        <location filename="../qml/Main.qml" line="69"/>
         <source>Shape — %1</source>
         <translation>Shape — %1</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="69"/>
+        <location filename="../qml/Main.qml" line="70"/>
         <source>Shape — No Project</source>
         <translation>Shape — 无项目</translation>
     </message>
@@ -668,55 +743,95 @@
 <context>
     <name>ShapeSettingsDialog</name>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="91"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="94"/>
         <source>Shape settings</source>
         <translation>Shape 设置</translation>
     </message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="98"/>
-        <source>Appearance and language apply immediately</source>
-        <translation>外观与语言会立即生效</translation>
-    </message>
-    <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="228"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="312"/>
         <source>Done</source>
         <translation>完成</translation>
     </message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="119"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="122"/>
         <source>Appearance</source>
         <translation>外观</translation>
     </message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="126"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="101"/>
+        <source>Appearance, language, and local AI access</source>
+        <translation>外观、语言与本地 AI 访问</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="129"/>
         <source>Follow the system by default, or keep Shape light or dark.</source>
         <translation>默认跟随系统，也可以让 Shape 始终使用亮色或暗色。</translation>
     </message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="138"/>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="183"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="141"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="186"/>
         <source>System</source>
         <translation>跟随系统</translation>
     </message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="139"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="142"/>
         <source>Light</source>
         <translation>亮色</translation>
     </message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="140"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="143"/>
         <source>Dark</source>
         <translation>暗色</translation>
     </message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="164"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="167"/>
         <source>Language</source>
         <translation>语言</translation>
     </message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="171"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="174"/>
         <source>The default follows your system language.</source>
         <translation>默认跟随系统语言。</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="216"/>
+        <source>Infer Runtime access</source>
+        <translation>Infer Runtime 访问</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="226"/>
+        <source>Credential saved</source>
+        <translation>凭据已保存</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="226"/>
+        <source>Not configured</source>
+        <translation>尚未配置</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="235"/>
+        <source>Paste the one-time managed token for app “shape” from Infer Console. It stays outside projects and settings exports.</source>
+        <translation>粘贴 Infer Console 为应用“shape”显示的一次性 managed token。它不会进入项目或设置导出。</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="254"/>
+        <source>64-character managed token</source>
+        <translation>64 字符 managed token</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="259"/>
+        <source>Shape Infer managed credential</source>
+        <translation>Shape Infer managed 凭据</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="271"/>
+        <source>Replace</source>
+        <translation>替换</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="271"/>
+        <source>Save credential</source>
+        <translation>保存凭据</translation>
     </message>
 </context>
 <context>

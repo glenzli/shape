@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 //! makes geometry and focus deterministic with an expanded native title bar.
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
 import "components"
@@ -12,6 +13,7 @@ Item {
     id: overlay
 
     required property UiPreferences uiPreferences
+    required property InferTextController inferText
 
     anchors.fill: parent
     z: 1000
@@ -19,6 +21,7 @@ Item {
     focus: visible
 
     function open() : void {
+        inferText.refreshCredentialStatus()
         visible = true
         forceActiveFocus()
     }
@@ -44,8 +47,8 @@ Item {
 
     Rectangle {
         anchors.centerIn: parent
-        width: Math.min(560, overlay.width - 48)
-        height: Math.min(430, overlay.height - 48)
+        width: Math.min(620, overlay.width - 48)
+        height: Math.min(590, overlay.height - 48)
         radius: Theme.radiusLarge
         color: Theme.raised
         border.color: Theme.borderStrong
@@ -95,7 +98,7 @@ Item {
                     }
 
                     Text {
-                        text: qsTr("Appearance and language apply immediately")
+                        text: qsTr("Appearance, language, and local AI access")
                         color: Theme.muted
                         font.pixelSize: 11
                     }
@@ -191,6 +194,87 @@ Item {
                                 text: modelData.label
                                 selected: overlay.uiPreferences.languageMode === modelData.key
                                 onClicked: overlay.uiPreferences.languageMode = modelData.key
+                            }
+                        }
+                    }
+
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: Theme.border
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 5
+
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Text {
+                                text: qsTr("Infer Runtime access")
+                                color: Theme.text
+                                font.pixelSize: 13
+                                font.weight: Font.DemiBold
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Text {
+                                text: overlay.inferText.credentialConfigured
+                                      ? qsTr("Credential saved") : qsTr("Not configured")
+                                color: overlay.inferText.credentialConfigured
+                                       ? Theme.success : Theme.muted
+                                font.pixelSize: 10
+                            }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: qsTr("Paste the one-time managed token for app “shape” from Infer Console. It stays outside projects and settings exports.")
+                            color: Theme.muted
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        TextField {
+                            id: inferCredential
+                            objectName: "inferCredentialField"
+
+                            Layout.fillWidth: true
+                            implicitHeight: 32
+                            enabled: !overlay.inferText.running
+                            echoMode: TextInput.Password
+                            placeholderText: qsTr("64-character managed token")
+                            color: Theme.text
+                            placeholderTextColor: Theme.muted
+                            selectionColor: Theme.accentSoft
+                            selectedTextColor: Theme.text
+                            Accessible.name: qsTr("Shape Infer managed credential")
+
+                            background: Rectangle {
+                                color: Theme.surface
+                                radius: Theme.radiusSmall
+                                border.color: parent.activeFocus ? Theme.accent : Theme.border
+                            }
+                        }
+
+                        ShapeButton {
+                            implicitHeight: 32
+                            text: overlay.inferText.credentialConfigured
+                                  ? qsTr("Replace") : qsTr("Save credential")
+                            enabled: !overlay.inferText.running
+                                     && inferCredential.text.length > 0
+                            onClicked: {
+                                if (overlay.inferText.installCredential(inferCredential.text)) {
+                                    inferCredential.text = ""
+                                }
                             }
                         }
                     }

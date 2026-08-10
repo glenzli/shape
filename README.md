@@ -49,11 +49,14 @@ CMake output is written to the sibling `.shape-local-build` directory, not the s
   deterministic text acceptance and new-artifact branching, CLI, a bounded Rust/CXX desktop
   session, and a cross-platform desktop flow for keeping multiple text candidates, selecting,
   comparing, discarding, accepting, branching, reopening, and interactively inspecting persisted
-  text lineage as a project graph. The desktop also resolves Infer Runtime through a strict,
-  owner-only Infra Discovery registration and performs a bounded, credential-free public-contract
-  check. Offline, incompatible, and migration-fallback states never affect direct editing.
-- Deferred: pinned or durable explorations, image buffers, preview renderer, authenticated Infer
-  Runtime execution and credential provisioning, Shadow/Echo suite adapters, external executors,
+  text lineage as a project graph. The desktop resolves Infer Runtime through strict owner-only
+  Infra Discovery, imports a Shape-specific managed credential into an owner-only secret store,
+  and can execute one local-only `assistant.general` text generation as a transient candidate.
+  Runtime response identity is retained as physical provenance; accepted history changes only
+  after the ordinary explicit accept operation. Offline or unconfigured AI never affects direct
+  editing.
+- Deferred: Infer-side App provisioning, Job/explain provenance inspection, pinned or durable
+  explorations, image buffers, preview renderer, Shadow/Echo suite adapters, external executors,
   project imports/exports, and AI planning.
 - License: Shape source is licensed under the [`MIT License`](LICENSE). Shadow's GPL components
   remain behind independent-process or documented protocol boundaries so Shape's own distribution

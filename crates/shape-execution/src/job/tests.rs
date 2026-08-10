@@ -17,6 +17,31 @@ fn successful_attempt_produces_payload_free_receipt() {
     assert_eq!(receipt.outcome, ExecutionOutcome::Succeeded);
     assert_eq!(receipt.started_at_unix_ms, 10);
     assert_eq!(receipt.completed_at_unix_ms, 20);
+    assert!(receipt.executor_job_id.is_none());
+
+    let historical_json = serde_json::to_value(&receipt).expect("receipt serializes");
+    assert!(historical_json.get("executor_job_id").is_none());
+    let reopened: ExecutionReceipt =
+        serde_json::from_value(historical_json).expect("historical receipt reopens");
+    assert!(reopened.executor_job_id.is_none());
+}
+
+#[test]
+fn successful_attempt_can_link_executor_owned_provenance() {
+    let mut job = ExecutionJob::new(
+        TransformationId::new(),
+        CapabilityId::new("text.generate").expect("valid capability"),
+    );
+    let attempt = job.start(identity(), 10).expect("job starts");
+    let receipt = job
+        .succeed_with_executor_job(attempt, 20, Some("resp_test".to_owned()))
+        .expect("job succeeds");
+
+    assert_eq!(receipt.executor_job_id.as_deref(), Some("resp_test"));
+    assert_eq!(
+        serde_json::to_value(&receipt).expect("receipt serializes")["executor_job_id"],
+        "resp_test"
+    );
 }
 
 #[test]

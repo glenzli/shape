@@ -12,6 +12,7 @@ ApplicationWindow {
 
     required property DesktopBackend backend
     required property InferRuntimeController inferRuntime
+    required property InferTextController inferText
     required property UiPreferences uiPreferences
 
     property int selectedArtifactIndex: 0
@@ -85,6 +86,7 @@ ApplicationWindow {
     ShapeSettingsDialog {
         id: settingsDialog
         uiPreferences: window.uiPreferences
+        inferText: window.inferText
     }
 
     BranchArtifactDialog {
@@ -153,7 +155,7 @@ ApplicationWindow {
 
             IntentPanel {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 188
+                Layout.preferredHeight: 244
                 artifactId: window.hasSelectedArtifact ? window.selectedArtifact.id : ""
                 artifactKindKey: window.hasSelectedArtifact
                                  ? window.selectedArtifact.kindKey : ""
@@ -162,12 +164,19 @@ ApplicationWindow {
                 candidatePending: window.candidateForSelected
                 candidates: window.artifactCandidates
                 errorMessage: window.backend.lastError
+                generationRunning: window.inferText.running
+                credentialConfigured: window.inferText.credentialConfigured
+                generationErrorCode: window.inferText.errorCode
                 runtimeProbing: window.inferRuntime.probing
                 runtimeReachable: window.inferRuntime.reachable
                 runtimeCompatible: window.inferRuntime.compatible
                 runtimeContractVersion: window.inferRuntime.contractVersion
                 runtimeEndpointSource: window.inferRuntime.endpointSource
                 onRuntimeRefreshRequested: window.inferRuntime.refresh()
+                onInferCandidateRequested: (artifactId, prompt) => {
+                    window.inferText.generate(
+                        window.backend.bundlePath, artifactId, prompt)
+                }
                 onCandidateRequested: (artifactId, replacementText) => {
                     if (window.backend.proposeTextCandidate(artifactId, replacementText)) {
                         window.selectedCandidateId = window.backend.candidateId
@@ -220,6 +229,20 @@ ApplicationWindow {
             }
             if (!window.candidateForSelected) {
                 window.compareMode = false
+            }
+        }
+    }
+
+    Connections {
+        target: window.inferText
+
+        function onCandidateCreated(candidateId, artifactId) : void {
+            if (window.hasSelectedArtifact && window.selectedArtifact.id === artifactId) {
+                window.selectedCandidateId = candidateId
+                window.backend.selectCandidate(candidateId)
+                window.compareMode = true
+                workspaceSurface.showArtifact()
+                contextInspector.currentPage = 0
             }
         }
     }

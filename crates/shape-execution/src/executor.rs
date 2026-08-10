@@ -140,6 +140,9 @@ pub struct ExecutionOutput {
     pub bytes: Vec<u8>,
     /// Media type of the candidate payload.
     pub media_type: String,
+    /// Executor-owned job identity used to retrieve detailed physical
+    /// provenance. It must not contain payloads or credentials.
+    pub executor_job_id: Option<String>,
 }
 
 /// One implementation capable of physically executing a logical transformation.

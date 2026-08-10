@@ -84,6 +84,8 @@ qt_add_executable(shape-desktop
     src/desktop_backend.hpp
     src/infer_runtime_controller.cpp
     src/infer_runtime_controller.hpp
+    src/infer_text_controller.cpp
+    src/infer_text_controller.hpp
     src/ui_preferences.cpp
     src/ui_preferences.hpp
     src/mac_titlebar.hpp

@@ -59,11 +59,17 @@ Runtime consumer. Its `discovery` owner validates the owner-only
 `infra.discovery.registration@20260810.1` manifest, exact Consumer offer, lease, generation, and
 canonical numeric-loopback endpoint. The HTTP owner then performs a bounded, proxy-free,
 redirect-free public-contract probe. Explicit diagnostics override remains first; the fixed 8787
-origin is only a temporary final migration fallback. This boundary does not submit work or carry
-credentials. Pinned or durable explorations, media bridges, the authenticated Infer executor,
-capability registry, preview renderer, and project dependency resolver remain deferred until a real
-application path and Shape-specific credential boundary consume them. Do not create empty crates
-for roadmap boxes.
+origin is only a temporary final migration fallback. Its separate `credential` owner atomically
+loads and rotates only a managed 256-bit token from Shape's owner-only secret store. The `responses`
+owner implements the first real `text.generate` executor with a fixed `assistant.general`,
+local-first/local-only/offline/no-fallback/zero-cost request. Runtime response identity enters the
+payload-free execution receipt for later Job/explain lookup, but Runtime success remains only a
+Shape Candidate. `shape-core::propose_generated_text` owns the generative transformation and
+accepted-text context; `shape-desktop-bridge::infer_text` prepares a candidate outside the live
+session and `DesktopSession` revalidates its expected head before adopting it. Detailed provenance
+inspection, additional Intents, media bridges, capability registry, preview renderer, and project
+dependency resolver remain deferred until real product paths consume them. Do not create empty
+crates for roadmap boxes.
 
 The desktop visual foundation adds two deliberately separate owners rather than growing the
 project projection: `UiPreferences` owns persistent appearance/language lifecycle, while
@@ -77,6 +83,10 @@ only availability, compatibility, contract version, endpoint source, instance/ge
 and stable error identity to QML. Endpoint selection remains authoritative in Rust. The controller
 never enters `DesktopSession`, blocks the UI thread, edits Infer configuration, or makes accepted
 content dependent on runtime availability.
+The independent `InferTextController` owns credential readiness/import plus one background
+generation lifecycle. Its move-only Rust result stays private until `DesktopBackend` hands it to the
+session on the UI thread. It rejects concurrent generation, waits during destruction, carries a
+complete request generation and artifact identity, and exposes only stable localized failure codes.
 The graph-aware desktop information architecture adds `ProjectNavigator.qml` for project-level
 creative-object selection and `ContextInspector.qml` for Explore, Details, and Lineage modes.
 `ArtifactWorkspace.qml` remains the media-workspace owner. The bridge projects only lineage already

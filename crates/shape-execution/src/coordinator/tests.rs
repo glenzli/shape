@@ -30,6 +30,7 @@ impl Executor for LiteralExecutor {
         Ok(ExecutionOutput {
             bytes: request.instruction.clone(),
             media_type: request.output_media_type.clone(),
+            executor_job_id: None,
         })
     }
 }

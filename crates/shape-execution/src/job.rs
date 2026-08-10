@@ -44,6 +44,9 @@ pub struct ExecutionReceipt {
     pub executor: ExecutorIdentity,
     pub started_at_unix_ms: u64,
     pub completed_at_unix_ms: u64,
+    /// Optional executor-owned identity for later provenance lookup.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub executor_job_id: Option<String>,
     pub outcome: ExecutionOutcome,
 }
 
@@ -125,9 +128,25 @@ impl ExecutionJob {
         attempt_id: AttemptId,
         completed_at_unix_ms: u64,
     ) -> Result<ExecutionReceipt, ExecutionError> {
+        self.succeed_with_executor_job(attempt_id, completed_at_unix_ms, None)
+    }
+
+    /// Completes the active attempt and records an executor-owned provenance
+    /// identity without treating it as Shape acceptance authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid state or stale attempt identity.
+    pub fn succeed_with_executor_job(
+        &mut self,
+        attempt_id: AttemptId,
+        completed_at_unix_ms: u64,
+        executor_job_id: Option<String>,
+    ) -> Result<ExecutionReceipt, ExecutionError> {
         self.finish(
             attempt_id,
             completed_at_unix_ms,
+            executor_job_id,
             ExecutionOutcome::Succeeded,
             JobState::Succeeded,
         )
@@ -147,6 +166,7 @@ impl ExecutionJob {
         self.finish(
             attempt_id,
             completed_at_unix_ms,
+            None,
             ExecutionOutcome::Failed {
                 code: failure.code.clone(),
                 retryable: failure.retryable,
@@ -168,6 +188,7 @@ impl ExecutionJob {
         self.finish(
             attempt_id,
             completed_at_unix_ms,
+            None,
             ExecutionOutcome::Cancelled,
             JobState::Cancelled,
         )
@@ -177,6 +198,7 @@ impl ExecutionJob {
         &mut self,
         attempt_id: AttemptId,
         completed_at_unix_ms: u64,
+        executor_job_id: Option<String>,
         outcome: ExecutionOutcome,
         terminal_state: JobState,
     ) -> Result<ExecutionReceipt, ExecutionError> {
@@ -204,6 +226,7 @@ impl ExecutionJob {
             executor: active.executor.clone(),
             started_at_unix_ms: active.started_at_unix_ms,
             completed_at_unix_ms,
+            executor_job_id,
             outcome,
         };
         self.active_attempt = None;

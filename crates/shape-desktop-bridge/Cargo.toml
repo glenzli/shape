@@ -21,6 +21,7 @@ shape-execution.workspace = true
 cxx-build = "=1.0.198"
 
 [dev-dependencies]
+serde_json.workspace = true
 uuid.workspace = true
 
 # CXX generates the audited unsafe ABI shim in this crate. Product code still
