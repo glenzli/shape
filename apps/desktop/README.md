@@ -34,9 +34,10 @@ media workspace. Rust projects accepted Revision/Transformation history as
 QML lays out and draws that graph without becoming semantic authority. Scene selection is shared
 across the navigator, graph, workspace, and inspector. The graph provides real zoom/fit controls,
 a compact selection summary, and a searchable media-compatible Operator palette. Palette selection
-asks the Rust session to begin only type-compatible Operator drafts and immediately enters the
-dedicated Operator workspace. Those drafts are explicitly session-local,
-are discarded on reopen, and become Candidate ghosts only after a real execution path succeeds.
+uses a Rust-owned Operator catalog, asks the session to begin only type-compatible Operator drafts,
+and immediately enters the dedicated Operator workspace. Unexecuted drafts are stored in the
+project's mutable Working Graph, restore with the same identity on reopen, and remain outside
+accepted history. A successful execution removes the draft and creates a transient Candidate ghost.
 Pending candidates remain outside the durable accepted graph until explicit acceptance or branching.
 
 This foundation currently adapts each existing Artifact into a single-output Scene. That
@@ -46,7 +47,8 @@ Scene, named multi-output, or reusable GraphComponent persistence model already 
 [`shape-desktop-bridge`](../../crates/shape-desktop-bridge/src/lib.rs) owns the generated CXX ABI.
 Rust's bounded `DesktopSession` validates SQLite and content objects and owns the open project;
 `CandidateShelf` owns its in-memory, newest-first candidate collection and exact-ID mutations.
-`OperatorDrafts` owns the equally transient, typed authoring entries that precede execution.
+`OperatorDrafts` mirrors the project-backed, typed Working Graph entries that precede execution;
+the Rust store validates their exact accepted-head anchor before saving.
 In-place acceptance and new-artifact branching still delegate to atomic project use cases. C++ maps
 explicit snapshots and commands into Qt presentation values; QML never reads or writes project
 files. Ordinary snapshots carry raster/audio metadata rather than encoded payloads; selected
@@ -102,7 +104,8 @@ selection and review controls, and the details and lineage panels own their resp
 projections. `BranchArtifactDialog.qml` owns branch naming and submission;
 `SceneOperatorGraphWorkspace.qml` owns typed graph layout, zoom, single-selection, and open/review
 intent. `SceneGraphToolbar.qml` owns the scene breadcrumb, graph controls, and palette entry.
-`OperatorPalette.qml` owns presentation-only search and compatibility filtering, while
+`shape-desktop-bridge::operator_catalog` owns executable compatibility and routing descriptors;
+`OperatorPalette.qml` owns their localized labels and presentation-only search, while
 `GraphSelectionInspector.qml` owns the compact selected-node action summary without acquiring node
 or lifecycle authority. `ShapeButton.qml`, `ShapeIconButton.qml`, and the shared SVG resources keep
 toolbar action treatment consistent. `OperatorWorkspaceHost.qml` owns exact Operator routes,
@@ -147,7 +150,8 @@ runtime itself may remain offline during deterministic desktop smoke paths.
 
 The no-project packaged smoke additionally follows the user-visible entry path: it creates a new
 bundle, creates the first accepted Text Scene, begins and opens a compatible Text Edit draft,
-discards it, and verifies on reopen that the transient draft was never persisted.
+reopens the project to verify that the exact draft restores, then discards it and verifies the
+mutable Working Graph is empty.
 
 The shell requires Qt 6.9 or newer for the cross-platform expanded client area. Platform-specific
 code is isolated to native window-control alignment; QML layout, themes, and settings are shared.

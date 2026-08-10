@@ -1,115 +1,118 @@
-//! Session-local Operator drafts before a real Candidate exists.
+//! Project-backed Operator drafts before a real Candidate exists.
 //!
 //! A draft makes the graph authoring entry visible without pretending that an
 //! unexecuted Operator is already an accepted `SceneRevision`. The first real
 //! Candidate replaces the matching draft; acceptance continues through the
 //! existing immutable Artifact history boundary.
 
-use shape_domain::{Artifact, ArtifactId, ArtifactKind};
+use shape_domain::{
+    Artifact, ArtifactId, ArtifactWorkingGraph, OperatorDataTypeId, OperatorNodeId, OperatorTypeId,
+    WorkingOperatorDraft,
+};
 
-pub(crate) const AUDIO_SPEECH_OPERATOR: &str = "audio.speech_synthesize";
-pub(crate) const IMAGE_CROP_OPERATOR: &str = "image.crop";
-pub(crate) const TEXT_EDIT_OPERATOR: &str = "text.edit";
-pub(crate) const TEXT_TRANSFORM_OPERATOR: &str = "text.transform";
-
-const AUDIO_CLIP_DATA: &str = "audio.clip";
-const IMAGE_RASTER_DATA: &str = "image.raster";
-const TEXT_DOCUMENT_DATA: &str = "text.document";
-
-/// One validated, session-local creative Operator entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct OperatorDraft {
-    pub(crate) id: String,
-    pub(crate) context_artifact_id: ArtifactId,
-    pub(crate) operator_type: &'static str,
-    pub(crate) input_data_type: &'static str,
-    pub(crate) output_data_type: &'static str,
-}
+use crate::operator_catalog::OperatorDescriptor;
 
 /// Identity-addressed drafts owned by one open desktop session.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct OperatorDrafts {
-    next_identity: u64,
-    entries: Vec<OperatorDraft>,
+    graphs: Vec<ArtifactWorkingGraph>,
 }
 
 impl OperatorDrafts {
+    pub(crate) fn from_graphs(graphs: Vec<ArtifactWorkingGraph>) -> Result<Self, String> {
+        for graph in &graphs {
+            graph.validate().map_err(|error| error.to_string())?;
+        }
+        Ok(Self { graphs })
+    }
+
     /// Begins or reuses one compatible Operator draft.
     pub(crate) fn begin(
         &mut self,
         artifact: &Artifact,
-        operator_type: &str,
-    ) -> Result<OperatorDraft, String> {
-        if artifact.accepted_revision.is_none() {
-            return Err("an Operator draft requires an accepted source".to_owned());
-        }
-        let (input_data_type, output_data_type) =
-            compatible_contract(artifact.kind, operator_type)?;
-        if let Some(existing) = self.entries.iter().find(|draft| {
-            draft.context_artifact_id == artifact.id && draft.operator_type == operator_type
-        }) {
-            return Ok(existing.clone());
-        }
-        self.next_identity = self
-            .next_identity
-            .checked_add(1)
-            .ok_or_else(|| "Operator draft identity space is exhausted".to_owned())?;
-        let draft = OperatorDraft {
-            id: format!("draft.{}", self.next_identity),
-            context_artifact_id: artifact.id,
-            operator_type: canonical_operator(operator_type)
-                .expect("compatible contracts return canonical Operators"),
-            input_data_type,
-            output_data_type,
+        descriptor: &OperatorDescriptor,
+    ) -> Result<WorkingOperatorDraft, String> {
+        let expected_revision = artifact
+            .accepted_revision
+            .ok_or_else(|| "an Operator draft requires an accepted source".to_owned())?;
+        let graph = if let Some(index) = self
+            .graphs
+            .iter()
+            .position(|graph| graph.context_artifact_id() == artifact.id)
+        {
+            if self.graphs[index].expected_revision_id() != expected_revision {
+                return Err("the Working Graph is based on a stale accepted source".to_owned());
+            }
+            &mut self.graphs[index]
+        } else {
+            self.graphs
+                .push(ArtifactWorkingGraph::new(artifact.id, expected_revision));
+            self.graphs
+                .last_mut()
+                .expect("a just-pushed Working Graph exists")
         };
-        self.entries.push(draft.clone());
-        Ok(draft)
+        graph
+            .add_operator(
+                OperatorTypeId::new(descriptor.type_key).map_err(|error| error.to_string())?,
+                OperatorDataTypeId::new(descriptor.input_data_type)
+                    .map_err(|error| error.to_string())?,
+                OperatorDataTypeId::new(descriptor.output_data_type)
+                    .map_err(|error| error.to_string())?,
+            )
+            .map_err(|error| error.to_string())
     }
 
-    pub(crate) fn entries(&self) -> impl Iterator<Item = &OperatorDraft> {
-        self.entries.iter()
+    pub(crate) fn entries(&self) -> impl Iterator<Item = (ArtifactId, &WorkingOperatorDraft)> {
+        self.graphs.iter().flat_map(|graph| {
+            graph
+                .operators()
+                .iter()
+                .map(|operator| (graph.context_artifact_id(), operator))
+        })
     }
 
-    pub(crate) fn discard(&mut self, draft_id: &str) -> Result<(), String> {
-        let Some(index) = self.entries.iter().position(|draft| draft.id == draft_id) else {
+    pub(crate) fn graph(&self, artifact_id: ArtifactId) -> Option<&ArtifactWorkingGraph> {
+        self.graphs
+            .iter()
+            .find(|graph| graph.context_artifact_id() == artifact_id)
+    }
+
+    pub(crate) fn discard(&mut self, draft_id: &str) -> Result<ArtifactId, String> {
+        let draft_id = OperatorNodeId::new(draft_id).map_err(|error| error.to_string())?;
+        let Some(index) = self
+            .graphs
+            .iter_mut()
+            .position(|graph| graph.remove_operator(&draft_id))
+        else {
             return Err("Operator draft does not exist".to_owned());
         };
-        self.entries.remove(index);
-        Ok(())
+        let artifact_id = self.graphs[index].context_artifact_id();
+        if self.graphs[index].is_empty() {
+            self.graphs.remove(index);
+        }
+        Ok(artifact_id)
     }
 
-    pub(crate) fn finish(&mut self, artifact_id: ArtifactId, operator_type: &str) {
-        self.entries.retain(|draft| {
-            draft.context_artifact_id != artifact_id || draft.operator_type != operator_type
-        });
+    pub(crate) fn finish(&mut self, artifact_id: ArtifactId, operator_type: &str) -> bool {
+        let Some(index) = self
+            .graphs
+            .iter()
+            .position(|graph| graph.context_artifact_id() == artifact_id)
+        else {
+            return false;
+        };
+        let changed = self.graphs[index].remove_operator_type(operator_type);
+        if self.graphs[index].is_empty() {
+            self.graphs.remove(index);
+        }
+        changed
     }
-}
 
-fn compatible_contract(
-    artifact_kind: ArtifactKind,
-    operator_type: &str,
-) -> Result<(&'static str, &'static str), String> {
-    match (artifact_kind, operator_type) {
-        (ArtifactKind::TextDocument, TEXT_EDIT_OPERATOR | TEXT_TRANSFORM_OPERATOR) => {
-            Ok((TEXT_DOCUMENT_DATA, TEXT_DOCUMENT_DATA))
-        }
-        (ArtifactKind::TextDocument, AUDIO_SPEECH_OPERATOR) => {
-            Ok((TEXT_DOCUMENT_DATA, AUDIO_CLIP_DATA))
-        }
-        (ArtifactKind::ImageRaster, IMAGE_CROP_OPERATOR) => {
-            Ok((IMAGE_RASTER_DATA, IMAGE_RASTER_DATA))
-        }
-        _ => Err("this Operator is incompatible with the selected Scene source".to_owned()),
-    }
-}
-
-fn canonical_operator(value: &str) -> Option<&'static str> {
-    match value {
-        TEXT_EDIT_OPERATOR => Some(TEXT_EDIT_OPERATOR),
-        TEXT_TRANSFORM_OPERATOR => Some(TEXT_TRANSFORM_OPERATOR),
-        IMAGE_CROP_OPERATOR => Some(IMAGE_CROP_OPERATOR),
-        AUDIO_SPEECH_OPERATOR => Some(AUDIO_SPEECH_OPERATOR),
-        _ => None,
+    pub(crate) fn clear_artifact(&mut self, artifact_id: ArtifactId) -> bool {
+        let before = self.graphs.len();
+        self.graphs
+            .retain(|graph| graph.context_artifact_id() != artifact_id);
+        self.graphs.len() != before
     }
 }
 

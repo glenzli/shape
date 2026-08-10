@@ -1138,6 +1138,16 @@
         <translation>图像</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Compatible Operator</source>
+        <translation>兼容操作节点</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>OPERATOR</source>
+        <translation>操作节点</translation>
+    </message>
+    <message>
         <location line="+79"/>
         <source>ADD OPERATOR</source>
         <translation>添加操作节点</translation>

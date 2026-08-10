@@ -16,8 +16,8 @@ pub use text::{
 use std::path::Path;
 
 use shape_domain::{
-    Artifact, ArtifactId, ArtifactKind, ArtifactRevision, RevisionId, Transformation,
-    TransformationId,
+    Artifact, ArtifactId, ArtifactKind, ArtifactRevision, ArtifactWorkingGraph, RevisionId,
+    Transformation, TransformationId,
 };
 use shape_execution::{AttemptId, ExecutionReceipt};
 use shape_store::{ProjectSnapshot, ProjectStore};
@@ -82,6 +82,38 @@ impl ShapeProject {
     /// Returns an error for invalid durable project state.
     pub fn snapshot(&self) -> Result<ProjectSnapshot, CoreError> {
         Ok(self.store.snapshot()?)
+    }
+
+    /// Loads every mutable compatibility-Scene Working Graph.
+    ///
+    /// Working Graphs are project-backed editor state, not accepted creative history.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the project store cannot load or validate the graphs.
+    pub fn artifact_working_graphs(&self) -> Result<Vec<ArtifactWorkingGraph>, CoreError> {
+        Ok(self.store.artifact_working_graphs()?)
+    }
+
+    /// Saves one non-empty Working Graph against its exact accepted input head.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation, expected-head comparison, or storage fails.
+    pub fn save_artifact_working_graph(
+        &self,
+        graph: &ArtifactWorkingGraph,
+    ) -> Result<(), CoreError> {
+        Ok(self.store.save_artifact_working_graph(graph)?)
+    }
+
+    /// Deletes mutable editor state without changing accepted history.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the project store cannot delete the graph.
+    pub fn delete_artifact_working_graph(&self, artifact_id: ArtifactId) -> Result<(), CoreError> {
+        Ok(self.store.delete_artifact_working_graph(artifact_id)?)
     }
 
     /// Loads one accepted creative transformation for inspection and lineage projection.

@@ -15,11 +15,11 @@ Rectangle {
     property string projectName: ""
     property string sceneName: ""
     property string sceneKind: ""
-    property string sceneKindKey: ""
     property var nodes: []
     property var edges: []
     property var drafts: []
     property var candidates: []
+    property var operatorDescriptors: []
     property string selectedNodeId: ""
     property string selectedCandidateId: ""
     property real zoomLevel: 1.0
@@ -359,11 +359,11 @@ Rectangle {
             projectName: graph.projectName
             sceneName: graph.sceneName
             sceneKind: graph.sceneKind
-            sceneKindKey: graph.sceneKindKey
             nodeCount: graph.nodes.length
             operatorCount: graph.operatorCount
             draftCount: graph.drafts.length
             candidateCount: graph.candidates.length
+            operatorDescriptors: graph.operatorDescriptors
             zoomLevel: graph.zoomLevel
             minimumZoom: graph.minimumZoom
             maximumZoom: graph.maximumZoom

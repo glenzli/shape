@@ -184,6 +184,24 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
     return projected;
 }
 
+QVariantMap operator_descriptor_projection(
+    const shape::desktop::OperatorDescriptorWire& descriptor
+) {
+    QVariantMap projected;
+    projected.insert(QStringLiteral("typeKey"), from_rust(descriptor.operator_type));
+    projected.insert(
+        QStringLiteral("inputDataTypeKey"),
+        from_rust(descriptor.input_data_type)
+    );
+    projected.insert(
+        QStringLiteral("outputDataTypeKey"),
+        from_rust(descriptor.output_data_type)
+    );
+    projected.insert(QStringLiteral("categoryKey"), from_rust(descriptor.category));
+    projected.insert(QStringLiteral("iconKey"), from_rust(descriptor.icon));
+    return projected;
+}
+
 QString portable_project_directory_name(const QString& project_name) {
     QString result;
     result.reserve(project_name.size());
@@ -527,6 +545,25 @@ QString DesktopBackend::beginOperatorDraft(
         qWarning().noquote() << "could not begin Operator draft:" << error.what();
         setLastError(tr("This Operator cannot use the selected Scene source."));
         return QString();
+    }
+}
+
+QVariantList DesktopBackend::compatibleOperators(const QString& artifactId) {
+    if (session_ == nullptr || artifactId.isEmpty()) {
+        return {};
+    }
+    try {
+        const auto descriptors =
+            session_->session->session_operator_descriptors(to_utf8(artifactId));
+        QVariantList projected;
+        projected.reserve(static_cast<qsizetype>(descriptors.size()));
+        for (const auto& descriptor : descriptors) {
+            projected.append(operator_descriptor_projection(descriptor));
+        }
+        return projected;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not load compatible Operators:" << error.what();
+        return {};
     }
 }
 

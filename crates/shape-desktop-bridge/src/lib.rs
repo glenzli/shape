@@ -8,6 +8,7 @@
 mod infer_runtime_access;
 mod infer_speech;
 mod infer_text;
+mod operator_catalog;
 mod operator_graph;
 mod session;
 
@@ -89,6 +90,16 @@ mod ffi {
         operator_type_key: String,
         input_data_type_key: String,
         output_data_type_key: String,
+    }
+
+    /// One Rust-owned Operator descriptor compatible with an accepted source.
+    #[derive(Debug)]
+    struct OperatorDescriptorWire {
+        operator_type: String,
+        input_data_type: String,
+        output_data_type: String,
+        category: String,
+        icon: String,
     }
 
     /// Explicit desktop projection of one current artifact head.
@@ -249,6 +260,10 @@ mod ffi {
             operator_type: &str,
         ) -> Result<OperatorDraftWire>;
         fn session_operator_drafts(self: &DesktopSession) -> Vec<OperatorDraftWire>;
+        fn session_operator_descriptors(
+            self: &DesktopSession,
+            artifact_id: &str,
+        ) -> Result<Vec<OperatorDescriptorWire>>;
         fn session_discard_operator_draft(self: &mut DesktopSession, draft_id: &str) -> Result<()>;
         fn session_import_raster(
             self: &mut DesktopSession,

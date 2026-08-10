@@ -7,6 +7,7 @@ use crate::StoreError;
 
 pub(super) const INITIAL_SCHEMA_REVISION: &str = "20260810.1";
 pub(super) const SCENE_SCHEMA_REVISION: &str = "20260811.1";
+pub(super) const AUDIO_SCHEMA_REVISION: &str = "20260811.2";
 
 const SCENE_SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS scenes (
@@ -20,6 +21,13 @@ const SCENE_SCHEMA: &str = "
         scene_id TEXT NOT NULL REFERENCES scenes(id),
         parent_revision TEXT NULL,
         revision_json TEXT NOT NULL
+    );
+";
+
+const WORKING_GRAPH_SCHEMA: &str = "
+    CREATE TABLE IF NOT EXISTS artifact_working_graphs (
+        artifact_id TEXT PRIMARY KEY REFERENCES artifacts(id) ON DELETE CASCADE,
+        graph_json TEXT NOT NULL
     );
 ";
 
@@ -63,6 +71,7 @@ pub(super) fn initialize(connection: &Connection) -> Result<(), StoreError> {
         ",
     )?;
     connection.execute_batch(SCENE_SCHEMA)?;
+    connection.execute_batch(WORKING_GRAPH_SCHEMA)?;
     Ok(())
 }
 
@@ -81,7 +90,10 @@ pub(super) fn prepare_connection(connection: &Connection) -> Result<(), StoreErr
 pub(super) fn supports_migration(revision: &str) -> bool {
     matches!(
         revision,
-        INITIAL_SCHEMA_REVISION | SCENE_SCHEMA_REVISION | SHAPE_PROJECT_SCHEMA_REVISION
+        INITIAL_SCHEMA_REVISION
+            | SCENE_SCHEMA_REVISION
+            | AUDIO_SCHEMA_REVISION
+            | SHAPE_PROJECT_SCHEMA_REVISION
     )
 }
 
@@ -108,6 +120,7 @@ pub(super) fn migrate_to_current_schema(
 
     let transaction = connection.transaction()?;
     transaction.execute_batch(SCENE_SCHEMA)?;
+    transaction.execute_batch(WORKING_GRAPH_SCHEMA)?;
     if metadata.schema_revision != SHAPE_PROJECT_SCHEMA_REVISION {
         SHAPE_PROJECT_SCHEMA_REVISION.clone_into(&mut metadata.schema_revision);
         transaction.execute(

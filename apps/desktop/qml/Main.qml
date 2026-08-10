@@ -261,6 +261,9 @@ ApplicationWindow {
                 selectedArtifact: window.selectedArtifact
                 candidates: window.artifactCandidates
                 operatorDrafts: window.artifactDrafts
+                operatorDescriptors: window.hasSelectedArtifact
+                                     ? window.backend.compatibleOperators(
+                                           window.selectedArtifact.id) : []
                 selectedCandidate: window.selectedCandidate
                 selectedCandidateId: window.selectedCandidateId
                 compareMode: window.compareMode

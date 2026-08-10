@@ -12,6 +12,7 @@
 //! - [`scene`] owns stable Scene identity, immutable accepted graph revisions,
 //!   and named output publication;
 //! - [`transformation`] owns creative meaning, constraints, and references;
+//! - [`working_graph`] owns durable mutable Operator entries outside accepted history;
 //! - [`project`] owns project identity and schema revision.
 //!
 //! Filesystem, `SQLite`, Qt, C++, provider, and network types do not belong here.
@@ -27,6 +28,7 @@ mod operator_graph;
 mod project;
 mod scene;
 mod transformation;
+mod working_graph;
 
 pub use artifact::{Artifact, ArtifactContentContract, ArtifactKind, ArtifactRevision};
 pub use audio::{
@@ -58,3 +60,4 @@ pub use transformation::{
     Constraint, ConstraintKind, ConstraintStrength, IntentSpec, ReferenceBinding, ReferenceRole,
     Transformation, TransformationKind, TransformationOperation,
 };
+pub use working_graph::{ArtifactWorkingGraph, WorkingOperatorDraft};

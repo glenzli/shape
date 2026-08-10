@@ -9,11 +9,14 @@ use shape_execution::{CapabilityId, ExecutionJob, ExecutorIdentity};
 
 use super::*;
 
-fn test_root(label: &str) -> PathBuf {
+pub(super) fn test_root(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!("shape-project-{label}-{}", Uuid::now_v7()))
 }
 
-fn successful_commit(artifact: &Artifact, expected_head: Option<RevisionId>) -> AcceptedCommit {
+pub(super) fn successful_commit(
+    artifact: &Artifact,
+    expected_head: Option<RevisionId>,
+) -> AcceptedCommit {
     let transformation = Transformation::new(
         if expected_head.is_some() {
             TransformationKind::TextRewrite
@@ -333,7 +336,9 @@ fn initial_schema_is_additively_migrated_when_project_reopens() {
     metadata.schema_revision = schema::INITIAL_SCHEMA_REVISION.to_owned();
     let connection = Connection::open(root.join(DATABASE_FILE)).expect("database opens");
     connection
-        .execute_batch("DROP TABLE scene_revisions; DROP TABLE scenes;")
+        .execute_batch(
+            "DROP TABLE artifact_working_graphs; DROP TABLE scene_revisions; DROP TABLE scenes;",
+        )
         .expect("scene tables drop");
     connection
         .execute(
@@ -358,7 +363,7 @@ fn initial_schema_is_additively_migrated_when_project_reopens() {
 }
 
 #[test]
-fn scene_schema_upgrades_to_audio_revision_without_changing_existing_heads() {
+fn scene_schema_upgrades_to_current_without_changing_existing_heads() {
     let root = test_root("audio-schema-migration");
     let mut store = ProjectStore::create(&root, "Migration Project").expect("project creates");
     let artifact = Artifact::new("Story", ArtifactKind::TextDocument).unwrap();
@@ -374,6 +379,9 @@ fn scene_schema_upgrades_to_audio_revision_without_changing_existing_heads() {
 
     metadata.schema_revision = schema::SCENE_SCHEMA_REVISION.to_owned();
     let connection = Connection::open(root.join(DATABASE_FILE)).unwrap();
+    connection
+        .execute_batch("DROP TABLE artifact_working_graphs;")
+        .unwrap();
     connection
         .execute(
             "UPDATE project_singleton SET metadata_json = ?1 WHERE singleton = 1",
@@ -408,5 +416,46 @@ fn scene_schema_upgrades_to_audio_revision_without_changing_existing_heads() {
             &artifact_revision,
         ))
         .expect("Scene CAS still works after audio schema upgrade");
+    fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn audio_schema_adds_working_graph_storage_without_changing_artifact_heads() {
+    let root = test_root("working-graph-schema-migration");
+    let mut store = ProjectStore::create(&root, "Migration Project").expect("project creates");
+    let artifact = Artifact::new("Story", ArtifactKind::TextDocument).unwrap();
+    store.insert_artifact(&artifact).unwrap();
+    let accepted = store.accept(successful_commit(&artifact, None)).unwrap();
+    let mut metadata = store.metadata().clone();
+    drop(store);
+
+    metadata.schema_revision = schema::AUDIO_SCHEMA_REVISION.to_owned();
+    let connection = Connection::open(root.join(DATABASE_FILE)).unwrap();
+    connection
+        .execute_batch("DROP TABLE artifact_working_graphs;")
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE project_singleton SET metadata_json = ?1 WHERE singleton = 1",
+            [serde_json::to_string(&metadata).unwrap()],
+        )
+        .unwrap();
+    drop(connection);
+    write_manifest(&root, &metadata).unwrap();
+
+    let reopened = ProjectStore::open(&root).expect("audio schema upgrades");
+    assert_eq!(
+        reopened.metadata().schema_revision,
+        SHAPE_PROJECT_SCHEMA_REVISION
+    );
+    assert_eq!(
+        reopened
+            .artifact(artifact.id)
+            .unwrap()
+            .unwrap()
+            .accepted_revision,
+        Some(accepted.id)
+    );
+    assert!(reopened.artifact_working_graphs().unwrap().is_empty());
     fs::remove_dir_all(&root).unwrap();
 }

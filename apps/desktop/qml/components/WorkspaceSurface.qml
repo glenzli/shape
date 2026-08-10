@@ -16,6 +16,7 @@ Item {
     property var selectedArtifact: null
     property var candidates: []
     property var operatorDrafts: []
+    property var operatorDescriptors: []
     property var selectedCandidate: null
     property string selectedCandidateId: ""
     property bool compareMode: false
@@ -365,12 +366,11 @@ Item {
                 sceneName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
                 sceneKind: surface.hasSelectedArtifact
                            ? surface.selectedArtifact.kindLabel : ""
-                sceneKindKey: surface.hasSelectedArtifact
-                              ? surface.selectedArtifact.kindKey : ""
                 nodes: surface.graphNodes
                 edges: surface.graphEdges
                 candidates: surface.candidates
                 drafts: surface.operatorDrafts
+                operatorDescriptors: surface.operatorDescriptors
                 selectedNodeId: surface.selectedNodeId
                 selectedCandidateId: surface.selectedCandidateId
                 onNodeSelected: nodeId => surface.selectNode(nodeId)

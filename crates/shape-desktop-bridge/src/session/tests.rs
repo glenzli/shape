@@ -201,6 +201,20 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
         .session_begin_operator_draft(&artifact.id, "text.edit")
         .expect("draft reuses");
     assert_eq!(repeated.draft_id, draft.draft_id);
+    assert_eq!(
+        session
+            .session_operator_descriptors(&artifact.id)
+            .expect("catalog projects")
+            .len(),
+        3
+    );
+
+    drop(session);
+    let mut session = open_desktop_session(path).expect("project reopens with Working Graph");
+    let restored = session.session_operator_drafts();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].draft_id, draft.draft_id);
+    assert_eq!(restored[0].operator_type_key, "text.edit");
 
     session
         .session_propose_text(&artifact.id, "A revised first line.")
@@ -232,6 +246,9 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     let before = session.session_snapshot().expect("snapshot reads");
     let before_artifact = before.artifacts.first().expect("artifact projected");
     let before_revision = before_artifact.accepted_revision_id.clone();
+    session
+        .session_begin_operator_draft(&artifact_id.to_string(), "audio.speech_synthesize")
+        .expect("parallel speech draft begins");
 
     let candidate = session
         .session_propose_text(&artifact_id.to_string(), "A quiet summer afternoon.")
@@ -239,6 +256,7 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     assert_eq!(candidate.artifact_id, artifact_id.to_string());
     assert_eq!(candidate.text_preview, "A quiet summer afternoon.");
     assert!(!candidate.text_preview_truncated);
+    assert_eq!(session.session_operator_drafts().len(), 1);
 
     let still_accepted = session
         .session_snapshot()
@@ -275,6 +293,7 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     );
     assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
     assert_eq!(accepted.artifacts[0].operator_graph_edges.len(), 2);
+    assert!(session.session_operator_drafts().is_empty());
     assert_eq!(
         accepted.artifacts[0].operator_graph_nodes[1].operator_type_key,
         "text.edit"
@@ -282,6 +301,12 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     drop(session);
 
     let reopened = ShapeProject::open(&root).expect("project reopens");
+    assert!(
+        reopened
+            .artifact_working_graphs()
+            .expect("Working Graphs load")
+            .is_empty()
+    );
     let content = reopened
         .read_accepted(artifact_id)
         .expect("accepted head reads")

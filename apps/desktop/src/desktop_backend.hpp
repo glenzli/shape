@@ -84,6 +84,7 @@ class DesktopBackend : public QObject {
     createTextScene(const QString& sceneName, const QString& initialText);
     Q_INVOKABLE QString
     beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey);
+    Q_INVOKABLE QVariantList compatibleOperators(const QString& artifactId);
     Q_INVOKABLE bool discardOperatorDraft(const QString& draftId);
     Q_INVOKABLE bool
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);

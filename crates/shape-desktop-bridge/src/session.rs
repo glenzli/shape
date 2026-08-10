@@ -8,9 +8,11 @@ use shape_domain::{ArtifactContentContract, ArtifactId, ArtifactKind, IntentSpec
 
 use crate::{audio_origin_key, bounded_text_preview, ffi, project_snapshot};
 use candidate_shelf::{Candidate, CandidateShelf};
-use operator_drafts::{
-    AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, OperatorDraft, OperatorDrafts, TEXT_EDIT_OPERATOR,
-    TEXT_TRANSFORM_OPERATOR,
+use operator_drafts::OperatorDrafts;
+
+use crate::operator_catalog::{
+    AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, TEXT_EDIT_OPERATOR, TEXT_TRANSFORM_OPERATOR,
+    compatible_descriptors, descriptor_for,
 };
 
 use crate::infer_speech::InferSpeechCandidate;
@@ -38,7 +40,7 @@ pub struct DesktopSession {
 /// Returns a user-safe message when the bundle cannot be created.
 pub fn create_desktop_project(path: &str, name: &str) -> Result<Box<DesktopSession>, String> {
     let project = ShapeProject::create(path, name).map_err(|error| error.to_string())?;
-    Ok(desktop_session(project, path))
+    desktop_session(project, path)
 }
 
 /// Opens a validated project for mutable desktop use.
@@ -48,16 +50,21 @@ pub fn create_desktop_project(path: &str, name: &str) -> Result<Box<DesktopSessi
 /// Returns a user-safe message when the project cannot be opened.
 pub fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>, String> {
     let project = ShapeProject::open(path).map_err(|error| error.to_string())?;
-    Ok(desktop_session(project, path))
+    desktop_session(project, path)
 }
 
-fn desktop_session(project: ShapeProject, path: &str) -> Box<DesktopSession> {
-    Box::new(DesktopSession {
+fn desktop_session(project: ShapeProject, path: &str) -> Result<Box<DesktopSession>, String> {
+    let operator_drafts = OperatorDrafts::from_graphs(
+        project
+            .artifact_working_graphs()
+            .map_err(|error| error.to_string())?,
+    )?;
+    Ok(Box::new(DesktopSession {
         project,
         bundle_path: super::project_path(path),
         candidates: CandidateShelf::default(),
-        operator_drafts: OperatorDrafts::default(),
-    })
+        operator_drafts,
+    }))
 }
 
 impl DesktopSession {
@@ -93,21 +100,59 @@ impl DesktopSession {
             .into_iter()
             .find(|artifact| artifact.id == artifact_id)
             .ok_or_else(|| "artifact does not exist in this project".to_owned())?;
-        let draft = self.operator_drafts.begin(&artifact, operator_type)?;
-        Ok(operator_draft_wire(&draft))
+        let descriptor = descriptor_for(artifact.kind, operator_type)?;
+        let previous = self.operator_drafts.clone();
+        let draft = self.operator_drafts.begin(&artifact, descriptor)?;
+        if let Err(error) = self.persist_operator_drafts(artifact.id) {
+            self.operator_drafts = previous;
+            return Err(error);
+        }
+        Ok(operator_draft_wire(artifact.id, &draft))
+    }
+
+    /// Returns the Rust-owned Operator catalog compatible with one accepted source.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Artifact identity or project snapshot is invalid.
+    pub fn session_operator_descriptors(
+        &self,
+        artifact_id: &str,
+    ) -> Result<Vec<ffi::OperatorDescriptorWire>, String> {
+        let artifact_id = parse_artifact_id(artifact_id)?;
+        let artifact = self
+            .project
+            .snapshot()
+            .map_err(|error| error.to_string())?
+            .artifacts
+            .into_iter()
+            .find(|artifact| artifact.id == artifact_id)
+            .ok_or_else(|| "artifact does not exist in this project".to_owned())?;
+        if artifact.accepted_revision.is_none() {
+            return Ok(Vec::new());
+        }
+        Ok(compatible_descriptors(artifact.kind)
+            .map(operator_descriptor_wire)
+            .collect())
     }
 
     /// Returns all current session-local Operator drafts.
     pub fn session_operator_drafts(&self) -> Vec<ffi::OperatorDraftWire> {
         self.operator_drafts
             .entries()
-            .map(operator_draft_wire)
+            .map(|(artifact_id, draft)| operator_draft_wire(artifact_id, draft))
             .collect()
     }
 
     /// Discards one Operator draft without changing accepted history.
     pub fn session_discard_operator_draft(&mut self, draft_id: &str) -> Result<(), String> {
-        self.operator_drafts.discard(draft_id)
+        let previous = self.operator_drafts.clone();
+        let artifact_id = self.operator_drafts.discard(draft_id)?;
+        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+            self.operator_drafts = previous;
+            return Err(error);
+        }
+        Ok(())
     }
 
     /// Imports one user-selected PNG/JPEG as an atomic accepted raster origin.
@@ -153,6 +198,7 @@ impl DesktopSession {
         let expected_head = artifact
             .accepted_revision
             .ok_or_else(|| "text edit requires an accepted text.document input".to_owned())?;
+        self.validate_operator_draft_head(artifact_id, TEXT_EDIT_OPERATOR, expected_head)?;
         let candidate = self
             .project
             .propose_text_edit(
@@ -164,8 +210,8 @@ impl DesktopSession {
             )
             .map_err(|error| error.to_string())?;
         let wire = text_candidate_wire(&candidate);
+        self.finish_operator_draft(artifact_id, TEXT_EDIT_OPERATOR)?;
         self.candidates.push(Candidate::Text(candidate));
-        self.operator_drafts.finish(artifact_id, TEXT_EDIT_OPERATOR);
         Ok(wire)
     }
 
@@ -193,6 +239,7 @@ impl DesktopSession {
         let expected_head = artifact
             .accepted_revision
             .ok_or_else(|| "raster artifact has no accepted revision".to_owned())?;
+        self.validate_operator_draft_head(artifact_id, IMAGE_CROP_OPERATOR, expected_head)?;
         let revision = self
             .project
             .revision(expected_head)
@@ -210,9 +257,8 @@ impl DesktopSession {
             .propose_raster_crop(artifact_id, expected_head, crop)
             .map_err(|error| error.to_string())?;
         let wire = image_candidate_wire(&candidate);
+        self.finish_operator_draft(artifact_id, IMAGE_CROP_OPERATOR)?;
         self.candidates.push(Candidate::Image(candidate));
-        self.operator_drafts
-            .finish(artifact_id, IMAGE_CROP_OPERATOR);
         Ok(wire)
     }
 
@@ -243,6 +289,12 @@ impl DesktopSession {
                 .map_err(|error| error.to_string())?,
         };
         self.candidates.discard_artifact(artifact_id);
+        if self.operator_drafts.clear_artifact(artifact_id) {
+            // Acceptance already crossed the immutable commit boundary. A cleanup
+            // failure must not report that accepted history failed; stale mutable
+            // graphs are also excluded when the project next opens.
+            let _ = self.project.delete_artifact_working_graph(artifact_id);
+        }
         self.session_snapshot()
     }
 
@@ -368,10 +420,11 @@ impl DesktopSession {
         if self.candidates.contains_text(artifact_id, candidate.text()) {
             return Err("duplicate_candidate".to_owned());
         }
+        let expected_head = candidate.expected_head().ok_or("invalid_candidate")?;
+        self.validate_operator_draft_head(artifact_id, TEXT_TRANSFORM_OPERATOR, expected_head)?;
         let wire = text_candidate_wire(&candidate);
+        self.finish_operator_draft(artifact_id, TEXT_TRANSFORM_OPERATOR)?;
         self.candidates.push(Candidate::Text(candidate));
-        self.operator_drafts
-            .finish(artifact_id, TEXT_TRANSFORM_OPERATOR);
         Ok(wire)
     }
 
@@ -398,21 +451,88 @@ impl DesktopSession {
         {
             return Err("duplicate_candidate".to_owned());
         }
+        self.validate_operator_draft_head(
+            source_artifact_id,
+            AUDIO_SPEECH_OPERATOR,
+            candidate.expected_source_head(),
+        )?;
         let wire = audio_candidate_wire(&candidate);
+        self.finish_operator_draft(source_artifact_id, AUDIO_SPEECH_OPERATOR)?;
         self.candidates.push(Candidate::Audio(candidate));
-        self.operator_drafts
-            .finish(source_artifact_id, AUDIO_SPEECH_OPERATOR);
         Ok(wire)
+    }
+
+    fn validate_operator_draft_head(
+        &self,
+        artifact_id: ArtifactId,
+        operator_type: &str,
+        current_head: shape_domain::RevisionId,
+    ) -> Result<(), String> {
+        let Some(graph) = self.operator_drafts.graph(artifact_id) else {
+            return Ok(());
+        };
+        if graph
+            .operators()
+            .iter()
+            .any(|draft| draft.operator_type().as_str() == operator_type)
+            && graph.expected_revision_id() != current_head
+        {
+            return Err("the Working Graph is based on a stale accepted source".to_owned());
+        }
+        Ok(())
+    }
+
+    fn finish_operator_draft(
+        &mut self,
+        artifact_id: ArtifactId,
+        operator_type: &str,
+    ) -> Result<(), String> {
+        let previous = self.operator_drafts.clone();
+        if !self.operator_drafts.finish(artifact_id, operator_type) {
+            return Ok(());
+        }
+        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+            self.operator_drafts = previous;
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    fn persist_operator_drafts(&self, artifact_id: ArtifactId) -> Result<(), String> {
+        if let Some(graph) = self.operator_drafts.graph(artifact_id) {
+            self.project
+                .save_artifact_working_graph(graph)
+                .map_err(|error| error.to_string())
+        } else {
+            self.project
+                .delete_artifact_working_graph(artifact_id)
+                .map_err(|error| error.to_string())
+        }
     }
 }
 
-fn operator_draft_wire(draft: &OperatorDraft) -> ffi::OperatorDraftWire {
+fn operator_draft_wire(
+    context_artifact_id: ArtifactId,
+    draft: &shape_domain::WorkingOperatorDraft,
+) -> ffi::OperatorDraftWire {
     ffi::OperatorDraftWire {
-        draft_id: draft.id.clone(),
-        context_artifact_id: draft.context_artifact_id.to_string(),
-        operator_type_key: draft.operator_type.to_owned(),
-        input_data_type_key: draft.input_data_type.to_owned(),
-        output_data_type_key: draft.output_data_type.to_owned(),
+        draft_id: draft.id().to_string(),
+        context_artifact_id: context_artifact_id.to_string(),
+        operator_type_key: draft.operator_type().to_string(),
+        input_data_type_key: draft.input_data_type().to_string(),
+        output_data_type_key: draft.output_data_type().to_string(),
+    }
+}
+
+fn operator_descriptor_wire(
+    descriptor: &crate::operator_catalog::OperatorDescriptor,
+) -> ffi::OperatorDescriptorWire {
+    ffi::OperatorDescriptorWire {
+        operator_type: descriptor.type_key.to_owned(),
+        input_data_type: descriptor.input_data_type.to_owned(),
+        output_data_type: descriptor.output_data_type.to_owned(),
+        category: descriptor.category_key.to_owned(),
+        icon: descriptor.icon_key.to_owned(),
     }
 }
 

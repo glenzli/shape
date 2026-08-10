@@ -9,6 +9,7 @@
 #include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
+#include <QUrl>
 #include <QVariant>
 
 #include <algorithm>
@@ -516,6 +517,32 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         )
         == nullptr) {
         std::cerr << "desktop authoring smoke did not render the Operator draft" << std::endl;
+        return false;
+    }
+    const QString bundle_path = backend.bundlePath();
+    if (!backend.openProject(QUrl::fromLocalFile(bundle_path))) {
+        std::cerr << "desktop authoring smoke could not reopen the draft project" << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    const QVariantList reopened_drafts = backend.operatorDrafts();
+    if (reopened_drafts.size() != 1
+        || reopened_drafts.first().toMap().value(QStringLiteral("id")).toString() != draft_id) {
+        std::cerr << "desktop authoring smoke did not restore the exact Operator draft"
+                  << std::endl;
+        return false;
+    }
+    if (!QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
+        return false;
+    }
+    QCoreApplication::processEvents();
+    if (find_quick_item(
+            qobject_cast<QQuickItem*>(workspace_surface),
+            QStringLiteral("draftGraphNode-0")
+        )
+        == nullptr) {
+        std::cerr << "desktop authoring smoke did not redraw the restored Operator draft"
+                  << std::endl;
         return false;
     }
     return backend.discardOperatorDraft(draft_id) && backend.operatorDrafts().isEmpty();

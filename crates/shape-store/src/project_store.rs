@@ -1,6 +1,7 @@
 //! Project bundle lifecycle and atomic Artifact/Scene accepted-head transactions.
 
 mod audio;
+mod working_graph;
 
 use std::{
     fmt,

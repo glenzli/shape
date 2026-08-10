@@ -64,9 +64,10 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   previews in durable history. Selected accepted/candidate image bytes are verified and loaded on
   demand into a bounded native preview cache; ordinary project snapshots carry only raster
   metadata. The cross-platform desktop can create or open a project, atomically create its first
-  accepted Text Scene, and begin compatible session-local Operator drafts from the graph. A draft
-  remains transient until execution produces a Candidate and explicit acceptance publishes durable
-  history. The desktop keeps text and image candidates on one typed shelf while each medium owns
+  accepted Text Scene, and begin compatible project-backed Operator drafts from the graph. An
+  unexecuted draft restores on reopen without entering immutable accepted history; execution turns
+  it into a transient Candidate, and only explicit acceptance publishes durable history. The
+  desktop keeps text and image candidates on one typed shelf while each medium owns
   its central workspace. It resolves Infer Runtime through strict owner-only
   Infra Discovery, imports a Shape-specific managed credential into an owner-only secret store,
   and can execute one local-only `assistant.general` text generation as a transient candidate.
@@ -75,8 +76,9 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   auditioned from an in-memory WAV device and becomes a new `audio.clip` only after explicit
   acceptance. Shape re-parses exact PCM S16 LE WAV bytes,
   requires preset voice/disclosure and local-only no-fallback Runtime provenance, and atomically
-  rejects a stale text source. Schema `20260811.2` additively upgrades both initial and Scene-era
-  projects without changing existing heads. Offline or unconfigured AI never affects direct editing.
+  rejects a stale text source. Schema `20260811.3` additively upgrades initial, Scene-era, and
+  audio-era projects with mutable Working Graph storage without changing existing accepted heads.
+  Offline or unconfigured AI never affects direct editing.
 - Deferred: desktop editing of the new persistent Scene graph, GraphComponent instances, Infer-side
   App provisioning, Job/explain provenance inspection, pinned or durable explorations,
   composite/layer image structure, waveform editing, recording, Voice Reference execution,

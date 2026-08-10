@@ -15,11 +15,11 @@ Item {
     property string projectName: ""
     property string sceneName: ""
     property string sceneKind: ""
-    property string sceneKindKey: ""
     property int nodeCount: 0
     property int operatorCount: 0
     property int draftCount: 0
     property int candidateCount: 0
+    property var operatorDescriptors: []
     property real zoomLevel: 1.0
     property real minimumZoom: 0.65
     property real maximumZoom: 1.5
@@ -135,7 +135,7 @@ Item {
 
     OperatorPalette {
         id: operatorPalette
-        sceneKindKey: toolbar.sceneKindKey
+        operators: toolbar.operatorDescriptors
         onOperatorRequested: operatorTypeKey => toolbar.operatorRequested(operatorTypeKey)
     }
 }

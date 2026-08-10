@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
-//! Searchable, type-compatible Operator chooser. It owns presentation-only
-//! filtering; the Rust session remains authoritative when a draft is requested.
+//! Searchable, type-compatible Operator chooser. Rust supplies compatible
+//! machine descriptors; this owner adds localized presentation and search.
 
 import QtQuick
 import QtQuick.Controls
@@ -12,62 +12,95 @@ Popup {
     id: palette
     objectName: "operatorPalette"
 
-    property string sceneKindKey: ""
+    property var operators: []
     readonly property var filteredOperators: filterOperators(searchField.text)
     readonly property int compatibleOperatorCount: filterOperators("").length
     readonly property int visibleOperatorCount: filteredOperators.length
 
     signal operatorRequested(string operatorTypeKey)
 
+    function labelFor(typeKey) : string {
+        switch (typeKey) {
+        case "text.edit": return qsTr("Text edit")
+        case "text.transform": return qsTr("AI text transform")
+        case "audio.speech_synthesize": return qsTr("Speech synthesis")
+        case "image.crop": return qsTr("Crop image")
+        default: return typeKey
+        }
+    }
+
+    function descriptionFor(typeKey) : string {
+        switch (typeKey) {
+        case "text.edit":
+            return qsTr("Revise exact text while preserving accepted history.")
+        case "text.transform":
+            return qsTr("Rewrite, expand, or polish through Infer Runtime.")
+        case "audio.speech_synthesize":
+            return qsTr("Create a local voice Candidate from accepted text.")
+        case "image.crop":
+            return qsTr("Frame a non-destructive raster crop Candidate.")
+        default:
+            return qsTr("Compatible Operator")
+        }
+    }
+
+    function categoryFor(categoryKey) : string {
+        switch (categoryKey) {
+        case "text": return qsTr("TEXT")
+        case "ai_text": return qsTr("AI · TEXT")
+        case "ai_audio": return qsTr("AI · AUDIO")
+        case "image": return qsTr("IMAGE")
+        default: return qsTr("OPERATOR")
+        }
+    }
+
+    function keywordsFor(typeKey) : string {
+        switch (typeKey) {
+        case "text.edit": return "text edit revise copy"
+        case "text.transform": return "ai text transform rewrite expand polish llm"
+        case "audio.speech_synthesize": return "ai audio speech synthesize voice tts"
+        case "image.crop": return "image raster crop frame"
+        default: return ""
+        }
+    }
+
+    function objectNameFor(typeKey) : string {
+        switch (typeKey) {
+        case "text.edit": return "addTextEditOperatorAction"
+        case "text.transform": return "addTextTransformOperatorAction"
+        case "audio.speech_synthesize": return "addSpeechOperatorAction"
+        case "image.crop": return "addCropOperatorAction"
+        default: return "compatibleOperatorAction"
+        }
+    }
+
+    function iconFor(iconKey) : string {
+        switch (iconKey) {
+        case "edit": return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
+        case "sparkle": return "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
+        case "waveform": return "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
+        case "crop": return "qrc:/qt/qml/Shape/Desktop/icons/crop.svg"
+        default: return "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
+        }
+    }
+
     function catalog() : var {
-        return [
-            {
-                "typeKey": "text.edit",
-                "objectName": "addTextEditOperatorAction",
-                "sceneKindKey": "text_document",
-                "label": qsTr("Text edit"),
-                "description": qsTr("Revise exact text while preserving accepted history."),
-                "category": qsTr("TEXT"),
-                "keywords": "text edit revise copy",
-                "icon": "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
-            },
-            {
-                "typeKey": "text.transform",
-                "objectName": "addTextTransformOperatorAction",
-                "sceneKindKey": "text_document",
-                "label": qsTr("AI text transform"),
-                "description": qsTr("Rewrite, expand, or polish through Infer Runtime."),
-                "category": qsTr("AI · TEXT"),
-                "keywords": "ai text transform rewrite expand polish llm",
-                "icon": "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
-            },
-            {
-                "typeKey": "audio.speech_synthesize",
-                "objectName": "addSpeechOperatorAction",
-                "sceneKindKey": "text_document",
-                "label": qsTr("Speech synthesis"),
-                "description": qsTr("Create a local voice Candidate from accepted text."),
-                "category": qsTr("AI · AUDIO"),
-                "keywords": "ai audio speech synthesize voice tts",
-                "icon": "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
-            },
-            {
-                "typeKey": "image.crop",
-                "objectName": "addCropOperatorAction",
-                "sceneKindKey": "image_raster",
-                "label": qsTr("Crop image"),
-                "description": qsTr("Frame a non-destructive raster crop Candidate."),
-                "category": qsTr("IMAGE"),
-                "keywords": "image raster crop frame",
-                "icon": "qrc:/qt/qml/Shape/Desktop/icons/crop.svg"
-            }
-        ]
+        return palette.operators.map(descriptor => ({
+            "typeKey": descriptor.typeKey,
+            "objectName": palette.objectNameFor(descriptor.typeKey),
+            "label": palette.labelFor(descriptor.typeKey),
+            "description": palette.descriptionFor(descriptor.typeKey),
+            "category": palette.categoryFor(descriptor.categoryKey),
+            "keywords": palette.keywordsFor(descriptor.typeKey),
+            "icon": palette.iconFor(descriptor.iconKey),
+            "inputDataTypeKey": descriptor.inputDataTypeKey,
+            "outputDataTypeKey": descriptor.outputDataTypeKey
+        }))
     }
 
     function filterOperators(query) : var {
         const normalized = query.trim().toLowerCase()
         return catalog().filter(operator => {
-            if (operator.sceneKindKey !== palette.sceneKindKey) return false
             if (normalized.length === 0) return true
             const haystack = (operator.label + " " + operator.description + " "
                               + operator.typeKey + " " + operator.keywords).toLowerCase()
