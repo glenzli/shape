@@ -1,81 +1,33 @@
-//! Project lifecycle and the deterministic text/raster foundation slices.
+//! Project bundle facade and routing to media-specific creative use cases.
 
+mod audio;
 mod image;
+mod scene;
+mod text;
 
+pub use audio::AudioCandidate;
 pub use image::ImageCandidate;
+pub use scene::SceneGraphCandidate;
+pub use text::{
+    TEXT_DOCUMENT_DATA_TYPE, TEXT_EDIT_OPERATOR_TYPE, TEXT_TRANSFORM_OPERATOR_TYPE, TextCandidate,
+    TextEditParameters, TextTransformMode, TextTransformParameters,
+};
 
-use std::{fmt, path::Path};
+use std::path::Path;
 
 use shape_domain::{
-    Artifact, ArtifactId, ArtifactKind, ArtifactRevision, Constraint, IntentSpec, RevisionId,
-    Transformation, TransformationId, TransformationKind,
+    Artifact, ArtifactId, ArtifactKind, ArtifactRevision, RevisionId, Transformation,
+    TransformationId,
 };
-use shape_execution::{
-    CapabilityId, ExecutedCandidate, ExecutionCoordinator, ExecutionFailure, ExecutionOutput,
-    ExecutionReceipt, ExecutionRequest, Executor, ExecutorIdentity,
-};
-use shape_store::{AcceptedCommit, NewArtifactCommit, ProjectSnapshot, ProjectStore};
+use shape_execution::{AttemptId, ExecutionReceipt};
+use shape_store::{ProjectSnapshot, ProjectStore};
 
 use crate::CoreError;
-
-const TEXT_MEDIA_TYPE: &str = "text/plain; charset=utf-8";
-const BUILTIN_CONTRACT_REVISION: &str = "20260810.1";
 
 /// Open application facade for one Shape project bundle.
 #[derive(Debug)]
 pub struct ShapeProject {
     store: ProjectStore,
-}
-
-/// Transient text candidate awaiting explicit user acceptance.
-#[derive(Clone)]
-pub struct TextCandidate {
-    artifact_id: ArtifactId,
-    expected_head: Option<RevisionId>,
-    transformation: Transformation,
-    receipt: ExecutionReceipt,
-    output_text: String,
-    output_media_type: String,
-}
-
-impl fmt::Debug for TextCandidate {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("TextCandidate")
-            .field("artifact_id", &self.artifact_id)
-            .field("expected_head", &self.expected_head)
-            .field("transformation_id", &self.transformation.id)
-            .field("receipt", &self.receipt)
-            .field("output_byte_length", &self.output_text.len())
-            .field("output_media_type", &self.output_media_type)
-            .finish()
-    }
-}
-
-impl TextCandidate {
-    /// Returns the target artifact identity.
-    #[must_use]
-    pub const fn artifact_id(&self) -> ArtifactId {
-        self.artifact_id
-    }
-
-    /// Returns the head against which this candidate was prepared.
-    #[must_use]
-    pub const fn expected_head(&self) -> Option<RevisionId> {
-        self.expected_head
-    }
-
-    /// Returns candidate text for preview. It is not durable history yet.
-    #[must_use]
-    pub fn text(&self) -> &str {
-        &self.output_text
-    }
-
-    /// Returns payload-free physical provenance.
-    #[must_use]
-    pub const fn receipt(&self) -> &ExecutionReceipt {
-        &self.receipt
-    }
 }
 
 /// Verified accepted content loaded from durable history.
@@ -144,6 +96,15 @@ impl ShapeProject {
         Ok(self.store.transformation(transformation_id)?)
     }
 
+    /// Loads one accepted payload-free execution receipt for provenance inspection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the receipt is absent or invalid.
+    pub fn execution_receipt(&self, attempt_id: AttemptId) -> Result<ExecutionReceipt, CoreError> {
+        Ok(self.store.execution_receipt(attempt_id)?)
+    }
+
     /// Loads one immutable accepted revision for lineage resolution.
     ///
     /// # Errors
@@ -151,231 +112,6 @@ impl ShapeProject {
     /// Returns an error when durable revision data is absent or invalid.
     pub fn revision(&self, revision_id: RevisionId) -> Result<ArtifactRevision, CoreError> {
         Ok(self.store.revision(revision_id)?)
-    }
-
-    /// Executes a deterministic text proposal without changing durable history.
-    ///
-    /// The candidate is tied to `expected_head`; callers must preview it and
-    /// separately invoke [`Self::accept_text`] to advance the artifact.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for an unknown/stale artifact, invalid intent, or execution failure.
-    pub fn propose_text(
-        &self,
-        artifact_id: ArtifactId,
-        expected_head: Option<RevisionId>,
-        text: impl Into<String>,
-        intent: IntentSpec,
-        constraints: Vec<Constraint>,
-    ) -> Result<TextCandidate, CoreError> {
-        let artifact = self
-            .store
-            .artifact(artifact_id)?
-            .ok_or(shape_store::StoreError::UnknownArtifact(artifact_id))?;
-        if artifact.accepted_revision != expected_head {
-            return Err(CoreError::StaleCandidate {
-                artifact_id,
-                expected: expected_head,
-                actual: artifact.accepted_revision,
-            });
-        }
-
-        let (kind, inputs, input_content) = match expected_head {
-            Some(revision_id) => {
-                let revision = self.store.accepted_revision(artifact_id)?.ok_or(
-                    CoreError::MissingAcceptedRevision {
-                        artifact_id,
-                        revision_id,
-                    },
-                )?;
-                debug_assert_eq!(revision.id, revision_id);
-                (
-                    TransformationKind::TextRewrite,
-                    vec![revision_id],
-                    vec![revision.content],
-                )
-            }
-            None => (TransformationKind::Import, Vec::new(), Vec::new()),
-        };
-        let transformation =
-            Transformation::new(kind, artifact_id, inputs, intent, constraints, Vec::new())?;
-        let capability = CapabilityId::new("text.literal")?;
-        let request = ExecutionRequest::new(
-            transformation.id,
-            capability,
-            input_content,
-            text.into().into_bytes(),
-            TEXT_MEDIA_TYPE,
-        )?;
-        let ExecutedCandidate { output, receipt } =
-            ExecutionCoordinator::execute(&LiteralTextExecutor::new()?, &request)?;
-        let output_text =
-            String::from_utf8(output.bytes).map_err(|_| CoreError::InvalidTextCandidate)?;
-        Ok(TextCandidate {
-            artifact_id,
-            expected_head,
-            transformation,
-            receipt,
-            output_text,
-            output_media_type: output.media_type,
-        })
-    }
-
-    /// Executes a provider-backed text generation without changing durable
-    /// history. The accepted text, when present, is included as immutable
-    /// creative context; the returned bytes remain a transient candidate.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for an unknown or stale artifact, non-text accepted
-    /// content, invalid intent, or executor failure.
-    pub fn propose_generated_text(
-        &self,
-        artifact_id: ArtifactId,
-        expected_head: Option<RevisionId>,
-        prompt: &str,
-        intent: IntentSpec,
-        constraints: Vec<Constraint>,
-        executor: &dyn Executor,
-    ) -> Result<TextCandidate, CoreError> {
-        let artifact = self
-            .store
-            .artifact(artifact_id)?
-            .ok_or(shape_store::StoreError::UnknownArtifact(artifact_id))?;
-        if artifact.accepted_revision != expected_head {
-            return Err(CoreError::StaleCandidate {
-                artifact_id,
-                expected: expected_head,
-                actual: artifact.accepted_revision,
-            });
-        }
-
-        let (inputs, input_content, accepted_text) = match expected_head {
-            Some(revision_id) => {
-                let accepted =
-                    self.read_accepted(artifact_id)?
-                        .ok_or(CoreError::MissingAcceptedRevision {
-                            artifact_id,
-                            revision_id,
-                        })?;
-                debug_assert_eq!(accepted.revision.id, revision_id);
-                let text = String::from_utf8(accepted.bytes)
-                    .map_err(|_| CoreError::InvalidTextCandidate)?;
-                (
-                    vec![revision_id],
-                    vec![accepted.revision.content],
-                    Some(text),
-                )
-            }
-            None => (Vec::new(), Vec::new(), None),
-        };
-        let transformation = Transformation::new(
-            TransformationKind::GenerativeEdit,
-            artifact_id,
-            inputs,
-            intent,
-            constraints,
-            Vec::new(),
-        )?;
-        let instruction = generation_instruction(prompt, accepted_text.as_deref());
-        let request = ExecutionRequest::new(
-            transformation.id,
-            CapabilityId::new("text.generate")?,
-            input_content,
-            instruction.into_bytes(),
-            TEXT_MEDIA_TYPE,
-        )?;
-        let ExecutedCandidate { output, receipt } =
-            ExecutionCoordinator::execute(executor, &request)?;
-        let output_text =
-            String::from_utf8(output.bytes).map_err(|_| CoreError::InvalidTextCandidate)?;
-        Ok(TextCandidate {
-            artifact_id,
-            expected_head,
-            transformation,
-            receipt,
-            output_text,
-            output_media_type: output.media_type,
-        })
-    }
-
-    /// Explicitly accepts a previously executed text candidate.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when its expected head is stale or durable publication fails.
-    pub fn accept_text(&mut self, candidate: TextCandidate) -> Result<ArtifactRevision, CoreError> {
-        Ok(self.store.accept(AcceptedCommit {
-            artifact_id: candidate.artifact_id,
-            expected_head: candidate.expected_head,
-            transformation: candidate.transformation,
-            receipt: candidate.receipt,
-            output_bytes: candidate.output_text.into_bytes().into(),
-            output_media_type: candidate.output_media_type,
-            content_contract: None,
-        })?)
-    }
-
-    /// Accepts a deterministic text candidate as a newly named artifact.
-    ///
-    /// The source artifact head is left unchanged. The new artifact starts with
-    /// no same-artifact parent, while its transformation records the source
-    /// revision as an input. The exact candidate bytes are re-executed so the
-    /// new transformation receives truthful, target-specific execution evidence.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the source has no accepted head, its head became
-    /// stale, the name is invalid, execution fails, or atomic publication fails.
-    pub fn branch_text_candidate(
-        &mut self,
-        candidate: TextCandidate,
-        artifact_name: impl Into<String>,
-    ) -> Result<ArtifactRevision, CoreError> {
-        let source_artifact = self.store.artifact(candidate.artifact_id)?.ok_or(
-            shape_store::StoreError::UnknownArtifact(candidate.artifact_id),
-        )?;
-        if source_artifact.accepted_revision != candidate.expected_head {
-            return Err(CoreError::StaleCandidate {
-                artifact_id: candidate.artifact_id,
-                expected: candidate.expected_head,
-                actual: source_artifact.accepted_revision,
-            });
-        }
-        let source_revision_id =
-            candidate
-                .expected_head
-                .ok_or(CoreError::BranchRequiresAcceptedSource {
-                    artifact_id: candidate.artifact_id,
-                })?;
-        let source_revision = self.store.revision(source_revision_id)?;
-        let target = Artifact::new(artifact_name, source_artifact.kind)?;
-        let transformation = Transformation::new(
-            TransformationKind::TextRewrite,
-            target.id,
-            vec![source_revision_id],
-            candidate.transformation.intent,
-            candidate.transformation.constraints,
-            candidate.transformation.references,
-        )?;
-        let request = ExecutionRequest::new(
-            transformation.id,
-            CapabilityId::new("text.literal")?,
-            vec![source_revision.content],
-            candidate.output_text.into_bytes(),
-            TEXT_MEDIA_TYPE,
-        )?;
-        let ExecutedCandidate { output, receipt } =
-            ExecutionCoordinator::execute(&LiteralTextExecutor::new()?, &request)?;
-        Ok(self.store.accept_new_artifact(NewArtifactCommit {
-            artifact: target,
-            transformation,
-            receipt,
-            output_bytes: output.bytes.into(),
-            output_media_type: output.media_type,
-            content_contract: None,
-        })?)
     }
 
     /// Loads the current accepted revision and verifies its exact content object.
@@ -396,60 +132,3 @@ impl ShapeProject {
             .transpose()
     }
 }
-
-fn generation_instruction(prompt: &str, accepted_text: Option<&str>) -> String {
-    match accepted_text {
-        Some(text) => format!(
-            "Return only the complete replacement text.\n\nCreative instruction:\n{prompt}\n\nCurrent accepted text:\n{text}"
-        ),
-        None => {
-            format!("Return only the complete text to create.\n\nCreative instruction:\n{prompt}")
-        }
-    }
-}
-
-#[derive(Debug)]
-struct LiteralTextExecutor {
-    identity: ExecutorIdentity,
-}
-
-impl LiteralTextExecutor {
-    fn new() -> Result<Self, shape_execution::ExecutionError> {
-        Ok(Self {
-            identity: ExecutorIdentity::new(
-                "shape.builtin.literal-text",
-                env!("CARGO_PKG_VERSION"),
-                BUILTIN_CONTRACT_REVISION,
-            )?,
-        })
-    }
-}
-
-impl Executor for LiteralTextExecutor {
-    fn identity(&self) -> &ExecutorIdentity {
-        &self.identity
-    }
-
-    fn supports(&self, capability: &CapabilityId) -> bool {
-        capability.as_str() == "text.literal"
-    }
-
-    fn execute(&self, request: &ExecutionRequest) -> Result<ExecutionOutput, ExecutionFailure> {
-        let text = std::str::from_utf8(&request.instruction).map_err(|_| {
-            ExecutionFailure::new(
-                "invalid_utf8",
-                "text candidate instruction is not valid UTF-8",
-                false,
-            )
-        })?;
-        Ok(ExecutionOutput {
-            bytes: text.as_bytes().to_vec(),
-            media_type: request.output_media_type.clone(),
-            executor_job_id: None,
-            content_contract: None,
-        })
-    }
-}
-
-#[cfg(test)]
-mod tests;

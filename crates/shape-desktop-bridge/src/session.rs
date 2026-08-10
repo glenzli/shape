@@ -2,15 +2,16 @@
 
 mod candidate_shelf;
 
-use shape_core::{ImageCandidate, ShapeProject, TextCandidate};
+use shape_core::{AudioCandidate, ImageCandidate, ShapeProject, TextCandidate, TextEditParameters};
 use shape_domain::{ArtifactContentContract, ArtifactId, ArtifactKind, IntentSpec, RasterCrop};
 
-use crate::{bounded_text_preview, ffi, project_snapshot};
+use crate::{audio_origin_key, bounded_text_preview, ffi, project_snapshot};
 use candidate_shelf::{Candidate, CandidateShelf};
 
+use crate::infer_speech::InferSpeechCandidate;
 use crate::infer_text::InferTextCandidate;
 
-const USER_AUTHORED_TEXT_INTENT: &str = "Replace text with a user-authored draft";
+const USER_AUTHORED_TEXT_INTENT: &str = "Calibrate text with a user-authored replacement";
 
 /// One open desktop project and its transient cross-media candidates.
 ///
@@ -84,12 +85,15 @@ impl DesktopSession {
             return Err("candidate text already exists on the shelf".to_owned());
         }
 
+        let expected_head = artifact
+            .accepted_revision
+            .ok_or_else(|| "text edit requires an accepted text.document input".to_owned())?;
         let candidate = self
             .project
-            .propose_text(
+            .propose_text_edit(
                 artifact_id,
-                artifact.accepted_revision,
-                replacement_text,
+                expected_head,
+                TextEditParameters::new(replacement_text),
                 IntentSpec::new(USER_AUTHORED_TEXT_INTENT).map_err(|error| error.to_string())?,
                 Vec::new(),
             )
@@ -165,6 +169,10 @@ impl DesktopSession {
                 .project
                 .accept_raster_crop(candidate)
                 .map_err(|error| error.to_string())?,
+            Candidate::Audio(candidate) => self
+                .project
+                .accept_speech_synthesis(candidate)
+                .map_err(|error| error.to_string())?,
         };
         self.candidates.discard_artifact(artifact_id);
         self.session_snapshot()
@@ -232,6 +240,47 @@ impl DesktopSession {
         })
     }
 
+    /// Returns exact WAV bytes only for one selected accepted `AudioClip` or
+    /// transient speech Candidate. Ordinary snapshots remain payload-free.
+    pub fn session_audio_preview(
+        &self,
+        artifact_id: &str,
+        candidate_id: &str,
+    ) -> Result<ffi::AudioPreviewWire, String> {
+        let artifact_id = parse_artifact_id(artifact_id)?;
+        if !candidate_id.is_empty() {
+            let Candidate::Audio(candidate) = self.candidates.candidate(candidate_id)? else {
+                return Err("candidate is not an audio preview".to_owned());
+            };
+            if candidate.source_artifact_id() != artifact_id {
+                return Err("candidate does not belong to the selected review context".to_owned());
+            }
+            return Ok(ffi::AudioPreviewWire {
+                identity: candidate_id.to_owned(),
+                duration_millis: candidate.contract().duration_millis(),
+                sample_rate_hz: candidate.contract().sample_rate_hz,
+                channels: candidate.contract().channels,
+                wav_bytes: candidate.bytes().to_vec(),
+            });
+        }
+        let accepted = self
+            .project
+            .read_accepted(artifact_id)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "audio artifact has no accepted revision".to_owned())?;
+        let Some(ArtifactContentContract::AudioClip(contract)) = accepted.revision.content_contract
+        else {
+            return Err("accepted content is not an audio clip".to_owned());
+        };
+        Ok(ffi::AudioPreviewWire {
+            identity: accepted.revision.id.to_string(),
+            duration_millis: contract.duration_millis(),
+            sample_rate_hz: contract.sample_rate_hz,
+            channels: contract.channels,
+            wav_bytes: accepted.bytes,
+        })
+    }
+
     /// Adopts a completed Infer text candidate after rechecking the live head.
     pub fn session_adopt_infer_text(
         &mut self,
@@ -255,6 +304,34 @@ impl DesktopSession {
         self.candidates.push(Candidate::Text(candidate));
         Ok(wire)
     }
+
+    /// Adopts a completed speech Candidate after rechecking its text source head.
+    pub fn session_adopt_infer_speech(
+        &mut self,
+        candidate: Box<InferSpeechCandidate>,
+    ) -> Result<ffi::CandidateWire, String> {
+        let candidate = (*candidate).into_candidate();
+        let source_artifact_id = candidate.source_artifact_id();
+        let snapshot = self.project.snapshot().map_err(|_| "project_unavailable")?;
+        let source = snapshot
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.id == source_artifact_id)
+            .ok_or("invalid_artifact")?;
+        if source.accepted_revision != Some(candidate.expected_source_head()) {
+            return Err("stale_candidate".to_owned());
+        }
+        if snapshot
+            .artifacts
+            .iter()
+            .any(|artifact| artifact.id == candidate.artifact_id())
+        {
+            return Err("duplicate_candidate".to_owned());
+        }
+        let wire = audio_candidate_wire(&candidate);
+        self.candidates.push(Candidate::Audio(candidate));
+        Ok(wire)
+    }
 }
 
 fn parse_artifact_id(value: &str) -> Result<ArtifactId, String> {
@@ -267,6 +344,7 @@ fn candidate_wire(candidate: &Candidate) -> ffi::CandidateWire {
     match candidate {
         Candidate::Text(candidate) => text_candidate_wire(candidate),
         Candidate::Image(candidate) => image_candidate_wire(candidate),
+        Candidate::Audio(candidate) => audio_candidate_wire(candidate),
     }
 }
 
@@ -277,6 +355,8 @@ fn text_candidate_wire(candidate: &TextCandidate) -> ffi::CandidateWire {
     ffi::CandidateWire {
         candidate_id: candidate.receipt().attempt_id.to_string(),
         artifact_id: candidate.artifact_id().to_string(),
+        context_artifact_id: candidate.artifact_id().to_string(),
+        artifact_name: String::new(),
         kind_key: "text_document".to_owned(),
         has_expected_head: expected_head.is_some(),
         expected_head: expected_head.map_or_else(String::new, |head| head.to_string()),
@@ -287,6 +367,11 @@ fn text_candidate_wire(candidate: &TextCandidate) -> ffi::CandidateWire {
         has_image_preview: false,
         image_width: 0,
         image_height: 0,
+        has_audio_preview: false,
+        audio_duration_millis: 0,
+        audio_sample_rate_hz: 0,
+        audio_channels: 0,
+        audio_origin_key: String::new(),
     }
 }
 
@@ -294,6 +379,8 @@ fn image_candidate_wire(candidate: &ImageCandidate) -> ffi::CandidateWire {
     ffi::CandidateWire {
         candidate_id: candidate.receipt().attempt_id.to_string(),
         artifact_id: candidate.artifact_id().to_string(),
+        context_artifact_id: candidate.artifact_id().to_string(),
+        artifact_name: String::new(),
         kind_key: "image_raster".to_owned(),
         has_expected_head: true,
         expected_head: candidate.expected_head().to_string(),
@@ -304,6 +391,35 @@ fn image_candidate_wire(candidate: &ImageCandidate) -> ffi::CandidateWire {
         has_image_preview: true,
         image_width: candidate.contract().width,
         image_height: candidate.contract().height,
+        has_audio_preview: false,
+        audio_duration_millis: 0,
+        audio_sample_rate_hz: 0,
+        audio_channels: 0,
+        audio_origin_key: String::new(),
+    }
+}
+
+fn audio_candidate_wire(candidate: &AudioCandidate) -> ffi::CandidateWire {
+    ffi::CandidateWire {
+        candidate_id: candidate.receipt().attempt_id.to_string(),
+        artifact_id: candidate.artifact_id().to_string(),
+        context_artifact_id: candidate.source_artifact_id().to_string(),
+        artifact_name: candidate.artifact_name().to_owned(),
+        kind_key: "audio_clip".to_owned(),
+        has_expected_head: true,
+        expected_head: candidate.expected_source_head().to_string(),
+        can_branch: false,
+        has_text_preview: false,
+        text_preview_truncated: false,
+        text_preview: String::new(),
+        has_image_preview: false,
+        image_width: 0,
+        image_height: 0,
+        has_audio_preview: true,
+        audio_duration_millis: candidate.contract().duration_millis(),
+        audio_sample_rate_hz: candidate.contract().sample_rate_hz,
+        audio_channels: candidate.contract().channels,
+        audio_origin_key: audio_origin_key(candidate.contract().origin).to_owned(),
     }
 }
 

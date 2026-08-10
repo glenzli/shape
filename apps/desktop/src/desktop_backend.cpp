@@ -38,6 +38,9 @@ QString artifact_kind_label(const QString& key) {
     if (key == QStringLiteral("reference_set")) {
         return DesktopBackend::tr("Reference set");
     }
+    if (key == QStringLiteral("audio_clip")) {
+        return DesktopBackend::tr("Audio clip");
+    }
     return DesktopBackend::tr("Unknown artifact");
 }
 
@@ -64,10 +67,58 @@ QString transformation_kind_label(const QString& key) {
 }
 
 QString transformation_intent_label(const QString& intent) {
-    if (intent == QStringLiteral("Replace text with a user-authored draft")) {
-        return DesktopBackend::tr("Direct text edit");
+    if (intent == QStringLiteral("Replace text with a user-authored draft")
+        || intent == QStringLiteral("Calibrate text with a user-authored replacement")) {
+        return DesktopBackend::tr("Deterministic text calibration");
     }
     return intent;
+}
+
+QString operator_role_label(const QString& key) {
+    if (key == QStringLiteral("source")) {
+        return DesktopBackend::tr("Source");
+    }
+    if (key == QStringLiteral("operator")) {
+        return DesktopBackend::tr("Operator");
+    }
+    if (key == QStringLiteral("output")) {
+        return DesktopBackend::tr("Output");
+    }
+    return DesktopBackend::tr("Unknown node");
+}
+
+QString operator_type_label(const QString& key) {
+    if (key.startsWith(QStringLiteral("source."))) {
+        return DesktopBackend::tr("Source input");
+    }
+    if (key == QStringLiteral("image.crop")) {
+        return DesktopBackend::tr("Crop");
+    }
+    if (key == QStringLiteral("text.edit")) {
+        return DesktopBackend::tr("Text calibration");
+    }
+    if (key == QStringLiteral("text.transform")) {
+        return DesktopBackend::tr("AI text transform");
+    }
+    if (key == QStringLiteral("audio.speech_synthesize")) {
+        return DesktopBackend::tr("Speech synthesis");
+    }
+    if (key == QStringLiteral("creative.generate")) {
+        return DesktopBackend::tr("Generative edit");
+    }
+    if (key == QStringLiteral("creative.deterministic_edit")) {
+        return DesktopBackend::tr("Deterministic edit");
+    }
+    if (key == QStringLiteral("creative.composite")) {
+        return DesktopBackend::tr("Composite");
+    }
+    if (key == QStringLiteral("external.round_trip")) {
+        return DesktopBackend::tr("External round trip");
+    }
+    if (key.startsWith(QStringLiteral("output."))) {
+        return DesktopBackend::tr("Scene output");
+    }
+    return DesktopBackend::tr("Unknown operator");
 }
 
 QVariantList string_list_projection(const rust::Vec<rust::String>& values) {
@@ -76,6 +127,47 @@ QVariantList string_list_projection(const rust::Vec<rust::String>& values) {
     for (const auto& value : values) {
         projected.append(from_rust(value));
     }
+    return projected;
+}
+
+QVariantList operator_port_projection(const rust::Vec<shape::desktop::OperatorPortWire>& ports) {
+    QVariantList projected;
+    projected.reserve(static_cast<qsizetype>(ports.size()));
+    for (const auto& port : ports) {
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), from_rust(port.port_id));
+        item.insert(QStringLiteral("dataTypeKey"), from_rust(port.data_type_key));
+        projected.append(item);
+    }
+    return projected;
+}
+
+QVariantMap operator_node_projection(const shape::desktop::OperatorGraphNodeWire& node) {
+    const QString role_key = from_rust(node.role_key);
+    const QString operator_type_key = from_rust(node.operator_type_key);
+    QVariantMap projected;
+    projected.insert(QStringLiteral("id"), from_rust(node.node_id));
+    projected.insert(QStringLiteral("roleKey"), role_key);
+    projected.insert(QStringLiteral("roleLabel"), operator_role_label(role_key));
+    projected.insert(QStringLiteral("operatorTypeKey"), operator_type_key);
+    projected.insert(QStringLiteral("operatorTypeLabel"), operator_type_label(operator_type_key));
+    projected.insert(QStringLiteral("artifactId"), from_rust(node.artifact_id));
+    projected.insert(QStringLiteral("artifactName"), from_rust(node.artifact_name));
+    projected.insert(QStringLiteral("revisionId"), from_rust(node.revision_id));
+    projected.insert(QStringLiteral("transformationId"), from_rust(node.transformation_id));
+    projected.insert(QStringLiteral("intent"), transformation_intent_label(from_rust(node.intent)));
+    projected.insert(QStringLiteral("inputPorts"), operator_port_projection(node.input_ports));
+    projected.insert(QStringLiteral("outputPorts"), operator_port_projection(node.output_ports));
+    return projected;
+}
+
+QVariantMap operator_edge_projection(const shape::desktop::OperatorGraphEdgeWire& edge) {
+    QVariantMap projected;
+    projected.insert(QStringLiteral("sourceNodeId"), from_rust(edge.source_node_id));
+    projected.insert(QStringLiteral("sourcePortId"), from_rust(edge.source_port_id));
+    projected.insert(QStringLiteral("targetNodeId"), from_rust(edge.target_node_id));
+    projected.insert(QStringLiteral("targetPortId"), from_rust(edge.target_port_id));
+    projected.insert(QStringLiteral("dataTypeKey"), from_rust(edge.data_type_key));
     return projected;
 }
 
@@ -136,6 +228,29 @@ QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artif
     projected.insert(QStringLiteral("hasImagePreview"), artifact.has_image_preview);
     projected.insert(QStringLiteral("imageWidth"), static_cast<qulonglong>(artifact.image_width));
     projected.insert(QStringLiteral("imageHeight"), static_cast<qulonglong>(artifact.image_height));
+    projected.insert(QStringLiteral("hasAudioPreview"), artifact.has_audio_preview);
+    projected.insert(
+        QStringLiteral("audioDurationMillis"),
+        static_cast<qulonglong>(artifact.audio_duration_millis)
+    );
+    projected.insert(
+        QStringLiteral("audioSampleRateHz"),
+        static_cast<qulonglong>(artifact.audio_sample_rate_hz)
+    );
+    projected.insert(QStringLiteral("audioChannels"), artifact.audio_channels);
+    projected.insert(QStringLiteral("audioOriginKey"), from_rust(artifact.audio_origin_key));
+    QVariantList operator_nodes;
+    operator_nodes.reserve(static_cast<qsizetype>(artifact.operator_graph_nodes.size()));
+    for (const auto& node : artifact.operator_graph_nodes) {
+        operator_nodes.append(operator_node_projection(node));
+    }
+    QVariantList operator_edges;
+    operator_edges.reserve(static_cast<qsizetype>(artifact.operator_graph_edges.size()));
+    for (const auto& edge : artifact.operator_graph_edges) {
+        operator_edges.append(operator_edge_projection(edge));
+    }
+    projected.insert(QStringLiteral("operatorNodes"), operator_nodes);
+    projected.insert(QStringLiteral("operatorEdges"), operator_edges);
     return projected;
 }
 
@@ -159,6 +274,8 @@ QVariantMap candidate_projection(const shape::desktop::CandidateWire& candidate)
     QVariantMap projected;
     projected.insert(QStringLiteral("id"), from_rust(candidate.candidate_id));
     projected.insert(QStringLiteral("artifactId"), from_rust(candidate.artifact_id));
+    projected.insert(QStringLiteral("contextArtifactId"), from_rust(candidate.context_artifact_id));
+    projected.insert(QStringLiteral("artifactName"), from_rust(candidate.artifact_name));
     projected.insert(QStringLiteral("kindKey"), from_rust(candidate.kind_key));
     projected.insert(QStringLiteral("hasExpectedHead"), candidate.has_expected_head);
     projected.insert(QStringLiteral("expectedHead"), from_rust(candidate.expected_head));
@@ -172,6 +289,17 @@ QVariantMap candidate_projection(const shape::desktop::CandidateWire& candidate)
         QStringLiteral("imageHeight"),
         static_cast<qulonglong>(candidate.image_height)
     );
+    projected.insert(QStringLiteral("hasAudioPreview"), candidate.has_audio_preview);
+    projected.insert(
+        QStringLiteral("audioDurationMillis"),
+        static_cast<qulonglong>(candidate.audio_duration_millis)
+    );
+    projected.insert(
+        QStringLiteral("audioSampleRateHz"),
+        static_cast<qulonglong>(candidate.audio_sample_rate_hz)
+    );
+    projected.insert(QStringLiteral("audioChannels"), candidate.audio_channels);
+    projected.insert(QStringLiteral("audioOriginKey"), from_rust(candidate.audio_origin_key));
     return projected;
 }
 
@@ -463,6 +591,47 @@ DesktopBackend::adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandi
     setLastError(QString());
     emit candidateChanged();
     return candidate_id;
+}
+
+QString DesktopBackend::adoptInferSpeechCandidate(
+    rust::Box<shape::desktop::InferSpeechCandidate> candidate
+) {
+    if (session_ == nullptr) {
+        return QString();
+    }
+    const auto adopted = session_->session->session_adopt_infer_speech(std::move(candidate));
+    const QString candidate_id = from_rust(adopted.candidate_id);
+    applyCandidates(session_->session->session_candidates(), candidate_id);
+    setLastError(QString());
+    emit candidateChanged();
+    return candidate_id;
+}
+
+std::optional<AudioPreviewData>
+DesktopBackend::audioPreview(const QString& artifactId, const QString& candidateId) {
+    if (session_ == nullptr || artifactId.isEmpty()) {
+        setLastError(tr("Open a project before previewing audio."));
+        return std::nullopt;
+    }
+    try {
+        auto preview =
+            session_->session->session_audio_preview(to_utf8(artifactId), to_utf8(candidateId));
+        AudioPreviewData projected;
+        projected.identity = from_rust(preview.identity);
+        projected.wav_bytes = QByteArray(
+            reinterpret_cast<const char*>(preview.wav_bytes.data()),
+            static_cast<qsizetype>(preview.wav_bytes.size())
+        );
+        projected.duration_millis = static_cast<qint64>(preview.duration_millis);
+        projected.sample_rate_hz = static_cast<int>(preview.sample_rate_hz);
+        projected.channels = static_cast<int>(preview.channels);
+        setLastError(QString());
+        return projected;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not prepare audio preview:" << error.what();
+        setLastError(tr("Could not load the verified audio preview."));
+        return std::nullopt;
+    }
 }
 
 void DesktopBackend::retranslate() {

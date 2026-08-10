@@ -1,6 +1,6 @@
 //! Transient cross-media candidate collection with exact identity mutation.
 
-use shape_core::{ImageCandidate, TextCandidate};
+use shape_core::{AudioCandidate, ImageCandidate, TextCandidate};
 use shape_domain::ArtifactId;
 
 /// One executed payload awaiting explicit user acceptance.
@@ -8,6 +8,7 @@ use shape_domain::ArtifactId;
 pub(super) enum Candidate {
     Text(TextCandidate),
     Image(ImageCandidate),
+    Audio(AudioCandidate),
 }
 
 impl Candidate {
@@ -15,6 +16,7 @@ impl Candidate {
         match self {
             Self::Text(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Image(candidate) => candidate.receipt().attempt_id.to_string(),
+            Self::Audio(candidate) => candidate.receipt().attempt_id.to_string(),
         }
     }
 
@@ -22,6 +24,7 @@ impl Candidate {
         match self {
             Self::Text(candidate) => candidate.artifact_id(),
             Self::Image(candidate) => candidate.artifact_id(),
+            Self::Audio(candidate) => candidate.artifact_id(),
         }
     }
 }

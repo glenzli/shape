@@ -1,36 +1,18 @@
 #include "infer_text_controller.hpp"
 
 #include "desktop_backend.hpp"
+#include "infer_controller_support.hpp"
 
 #include <QMutexLocker>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
-#include <cstddef>
 #include <optional>
 #include <string>
 #include <utility>
 
-namespace {
-
-std::string to_utf8(const QString& value) {
-    const QByteArray bytes = value.toUtf8();
-    return std::string(bytes.constData(), static_cast<std::size_t>(bytes.size()));
-}
-
-QString stable_error_code(const rust::Error& error) {
-    const QString code = QString::fromUtf8(error.what());
-    for (const QChar character : code) {
-        const char16_t value = character.unicode();
-        if (!((value >= u'a' && value <= u'z') || (value >= u'0' && value <= u'9')
-              || value == u'_')) {
-            return QStringLiteral("generation_failed");
-        }
-    }
-    return code.isEmpty() || code.size() > 96 ? QStringLiteral("generation_failed") : code;
-}
-
-} // namespace
+using infer_controller_support::stableErrorCode;
+using infer_controller_support::toUtf8;
 
 struct InferTextController::GenerationResult {
     quint64 generation = 0;
@@ -112,15 +94,15 @@ void InferTextController::generate(
             try {
                 result.candidate.emplace(
                     shape::desktop::generate_infer_text_candidate(
-                        to_utf8(projectPath),
-                        to_utf8(artifactId),
-                        to_utf8(prompt),
-                        to_utf8(credential_path),
-                        to_utf8(explicit_override)
+                        toUtf8(projectPath),
+                        toUtf8(artifactId),
+                        toUtf8(prompt),
+                        toUtf8(credential_path),
+                        toUtf8(explicit_override)
                     )
                 );
             } catch (const rust::Error& error) {
-                result.error_code = stable_error_code(error);
+                result.error_code = stableErrorCode(error);
             }
             const QMutexLocker lock(&result_mutex_);
             pending_result_ = std::make_unique<GenerationResult>(std::move(result));
@@ -138,7 +120,7 @@ bool InferTextController::installCredential(const QString& token) {
     QByteArray token_bytes = token.toUtf8();
     std::string token_utf8(token_bytes.constData(), static_cast<std::size_t>(token_bytes.size()));
     try {
-        shape::desktop::install_infer_runtime_credential(to_utf8(credential_path_), token_utf8);
+        shape::desktop::install_infer_runtime_credential(toUtf8(credential_path_), token_utf8);
         std::fill(token_utf8.begin(), token_utf8.end(), '\0');
         token_bytes.fill('\0');
         credential_configured_ = true;
@@ -149,14 +131,14 @@ bool InferTextController::installCredential(const QString& token) {
         std::fill(token_utf8.begin(), token_utf8.end(), '\0');
         token_bytes.fill('\0');
         credential_configured_ = false;
-        setErrorCode(stable_error_code(error));
+        setErrorCode(stableErrorCode(error));
         return false;
     }
 }
 
 void InferTextController::refreshCredentialStatus() {
     const shape::desktop::InferRuntimeCredentialStatusWire status =
-        shape::desktop::infer_runtime_credential_status(to_utf8(credential_path_));
+        shape::desktop::infer_runtime_credential_status(toUtf8(credential_path_));
     credential_configured_ = status.configured;
     error_code_ = QString::fromUtf8(
         status.error_code.data(),
@@ -196,7 +178,7 @@ void InferTextController::finishGeneration() {
         emit statusChanged();
         emit candidateCreated(candidate_id, result->artifact_id);
     } catch (const rust::Error& error) {
-        setErrorCode(stable_error_code(error));
+        setErrorCode(stableErrorCode(error));
     }
 }
 

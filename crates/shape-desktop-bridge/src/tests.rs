@@ -118,6 +118,14 @@ fn bridge_preserves_presence_identity_and_verified_text() {
     assert!(story_wire.has_text_preview);
     assert!(!story_wire.text_preview_truncated);
     assert_eq!(story_wire.text_preview, "A quiet summer afternoon.");
+    assert_eq!(story_wire.operator_graph_nodes.len(), 2);
+    assert_eq!(story_wire.operator_graph_edges.len(), 1);
+    assert_eq!(story_wire.operator_graph_nodes[0].role_key, "source");
+    assert_eq!(story_wire.operator_graph_nodes[1].role_key, "output");
+    assert_eq!(
+        story_wire.operator_graph_edges[0].data_type_key,
+        "text.document"
+    );
 
     let reference_wire = snapshot
         .artifacts
@@ -127,5 +135,6 @@ fn bridge_preserves_presence_identity_and_verified_text() {
     assert!(!reference_wire.has_accepted_revision);
     assert!(!reference_wire.has_content);
     assert!(!reference_wire.has_text_preview);
+    assert!(reference_wire.operator_graph_nodes.is_empty());
     fs::remove_dir_all(root).expect("test project removes");
 }

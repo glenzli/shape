@@ -14,6 +14,8 @@ ApplicationWindow {
     required property DesktopBackend backend
     required property InferRuntimeController inferRuntime
     required property InferTextController inferText
+    required property InferSpeechController inferSpeech
+    required property AudioPreviewController audioPreview
     required property UiPreferences uiPreferences
 
     property int selectedArtifactIndex: 0
@@ -38,16 +40,44 @@ ApplicationWindow {
     function candidatesForArtifact(artifactId) : var {
         const matches = []
         for (let index = 0; index < backend.candidates.length; ++index) {
-            if (backend.candidates[index].artifactId === artifactId) {
+            if (backend.candidates[index].contextArtifactId === artifactId) {
                 matches.push(backend.candidates[index])
             }
         }
         return matches
     }
 
-    function activateCandidate(candidateId) : void {
+    function artifactIndex(artifactId) : int {
+        for (let index = 0; index < backend.artifacts.length; ++index) {
+            if (backend.artifacts[index].id === artifactId) return index
+        }
+        return -1
+    }
+
+    function activateCandidate(candidateId) : bool {
         if (backend.selectCandidate(candidateId)) {
             selectedCandidateId = candidateId
+            return true
+        }
+        return false
+    }
+
+    function reviewCandidate(candidateId) : void {
+        if (activateCandidate(candidateId)) {
+            compareMode = true
+            workspaceSurface.showArtifact()
+            contextInspector.currentPage = 0
+        }
+    }
+
+    function toggleComparison() : void {
+        if (!candidateForSelected) {
+            return
+        }
+        compareMode = !compareMode
+        if (compareMode) {
+            workspaceSurface.showArtifact()
+            contextInspector.currentPage = 0
         }
     }
 
@@ -69,6 +99,7 @@ ApplicationWindow {
         if (selectedCandidateId.length > 0) {
             backend.selectCandidate(selectedCandidateId)
         }
+        Qt.callLater(workspaceSurface.synchronizeNodeSelection)
         Qt.callLater(window.refreshSelectedImage)
     }
 
@@ -115,7 +146,7 @@ ApplicationWindow {
             if (window.backend.importRaster(selectedFile)) {
                 window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
                 window.compareMode = false
-                workspaceSurface.showArtifact()
+                workspaceSurface.showGraph()
                 Qt.callLater(window.refreshSelectedImage)
             }
         }
@@ -138,7 +169,7 @@ ApplicationWindow {
         projectName: window.backend.projectName
         compareAvailable: window.candidateForSelected
         compareActive: window.compareMode
-        onCompareRequested: window.compareMode = !window.compareMode
+        onCompareRequested: window.toggleComparison()
         onSettingsRequested: settingsDialog.open()
     }
 
@@ -156,8 +187,9 @@ ApplicationWindow {
             artifacts: window.backend.artifacts
             selectedIndex: window.selectedArtifactIndex
             candidates: window.backend.candidates
-            graphActive: workspaceSurface.currentMode === 1
-            onArtifactSelected: index => window.selectedArtifactIndex = index
+            graphActive: workspaceSurface.graphActive
+            onArtifactSelected: index => workspaceSurface.activateScene(index)
+            onArtifactOpened: index => workspaceSurface.activateScene(index)
             onGraphRequested: workspaceSurface.showGraph()
             onImportImageRequested: imageImportDialog.open()
         }
@@ -174,18 +206,21 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 projectName: window.backend.projectName
-                artifacts: window.backend.artifacts
-                graphEdges: window.backend.graphEdges
+                allArtifacts: window.backend.artifacts
                 selectedArtifact: window.selectedArtifact
-                selectedIndex: window.selectedArtifactIndex
-                candidates: window.backend.candidates
+                candidates: window.artifactCandidates
                 selectedCandidate: window.selectedCandidate
                 selectedCandidateId: window.selectedCandidateId
                 compareMode: window.compareMode
                 acceptedImageSource: window.backend.acceptedImageSource
                 candidateImageSource: window.backend.candidateImageSource
-                onArtifactSelected: index => window.selectedArtifactIndex = index
+                inferSpeech: window.inferSpeech
+                audioPreview: window.audioPreview
+                projectPath: window.backend.bundlePath
+                inferCredentialConfigured: window.inferText.credentialConfigured
+                onSceneSelected: index => window.selectedArtifactIndex = index
                 onCandidateSelected: candidateId => window.activateCandidate(candidateId)
+                onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
                 onCropRequested: (artifactId, x, y, width, height) => {
                     if (window.backend.proposeRasterCrop(
                             artifactId, x, y, width, height)) {
@@ -196,16 +231,24 @@ ApplicationWindow {
                         contextInspector.currentPage = 0
                     }
                 }
+                onSpeechSynthesisRequested: (sourceArtifactId, artifactName, speedMilli) => {
+                    window.inferSpeech.generate(
+                        window.backend.bundlePath, sourceArtifactId,
+                        artifactName, speedMilli)
+                }
             }
 
             IntentPanel {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 244
+                Layout.preferredHeight: visible ? 244 : 0
+                visible: workspaceSurface.intentWorkspaceActive
                 artifactId: window.hasSelectedArtifact ? window.selectedArtifact.id : ""
                 artifactKindKey: window.hasSelectedArtifact
                                  ? window.selectedArtifact.kindKey : ""
                 acceptedText: window.hasSelectedArtifact
                               ? window.selectedArtifact.textPreview : ""
+                hasAcceptedRevision: window.hasSelectedArtifact
+                                     && window.selectedArtifact.hasAcceptedRevision
                 candidatePending: window.candidateForSelected
                 candidates: window.artifactCandidates
                 errorMessage: window.backend.lastError
@@ -244,7 +287,7 @@ ApplicationWindow {
             candidates: window.artifactCandidates
             selectedCandidateId: window.selectedCandidate !== null
                                  ? window.selectedCandidate.id : ""
-            onCompareRequested: window.compareMode = !window.compareMode
+            onCompareRequested: window.toggleComparison()
             onCandidateSelected: candidateId => window.activateCandidate(candidateId)
             onDiscardRequested: candidateId => {
                 if (window.backend.discardCandidate(candidateId)) {
@@ -252,8 +295,20 @@ ApplicationWindow {
                 }
             }
             onAcceptRequested: candidateId => {
+                const targetArtifactId = window.selectedCandidate !== null
+                                         ? window.selectedCandidate.artifactId : ""
+                const contextArtifactId = window.selectedCandidate !== null
+                                          ? window.selectedCandidate.contextArtifactId : ""
                 if (window.backend.acceptCandidate(candidateId)) {
                     window.compareMode = false
+                    if (targetArtifactId.length > 0
+                            && targetArtifactId !== contextArtifactId) {
+                        const acceptedIndex = window.artifactIndex(targetArtifactId)
+                        if (acceptedIndex >= 0) {
+                            window.selectedArtifactIndex = acceptedIndex
+                            workspaceSurface.showGraph()
+                        }
+                    }
                 }
             }
             onBranchRequested: candidateId => branchDialog.openFor(
@@ -288,10 +343,20 @@ ApplicationWindow {
 
         function onCandidateCreated(candidateId, artifactId) : void {
             if (window.hasSelectedArtifact && window.selectedArtifact.id === artifactId) {
-                window.selectedCandidateId = candidateId
-                window.backend.selectCandidate(candidateId)
+                window.reviewCandidate(candidateId)
+            }
+        }
+    }
+
+    Connections {
+        target: window.inferSpeech
+
+        function onCandidateCreated(candidateId, sourceArtifactId) : void {
+            if (window.hasSelectedArtifact
+                    && window.selectedArtifact.id === sourceArtifactId
+                    && window.activateCandidate(candidateId)) {
                 window.compareMode = true
-                workspaceSurface.showArtifact()
+                workspaceSurface.openSpeechWorkspace()
                 contextInspector.currentPage = 0
             }
         }

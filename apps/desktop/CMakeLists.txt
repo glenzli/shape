@@ -1,4 +1,4 @@
-find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Quick QuickControls2 LinguistTools)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Multimedia Quick QuickControls2 LinguistTools)
 find_package(Threads REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.9 I18N_TRANSLATED_LANGUAGES zh_CN)
@@ -86,11 +86,18 @@ qt_add_executable(shape-desktop
     src/infer_runtime_controller.hpp
     src/infer_text_controller.cpp
     src/infer_text_controller.hpp
+    src/infer_speech_controller.cpp
+    src/infer_speech_controller.hpp
+    src/infer_controller_support.hpp
+    src/audio_preview_controller.cpp
+    src/audio_preview_controller.hpp
     src/image_preview_provider.cpp
     src/image_preview_provider.hpp
     src/ui_preferences.cpp
     src/ui_preferences.hpp
     src/mac_titlebar.hpp
+    tests/workspace_host_smoke.cpp
+    tests/workspace_host_smoke.hpp
 )
 if(APPLE)
     target_sources(shape-desktop PRIVATE src/mac_titlebar.mm)
@@ -108,17 +115,20 @@ qt_add_qml_module(shape-desktop
         qml/Theme.qml
         qml/components/ArtifactDetailsPanel.qml
         qml/components/ArtifactLineagePanel.qml
-        qml/components/ArtifactWorkspace.qml
+        qml/components/AudioSpeechOperatorWorkspace.qml
         qml/components/ImageCompareWorkspace.qml
-        qml/components/ImageRasterWorkspace.qml
         qml/components/ContextInspector.qml
         qml/components/IntentPanel.qml
-        qml/components/ProjectGraphWorkspace.qml
+        qml/components/OperatorWorkspaceHost.qml
+        qml/components/RasterCropOperatorWorkspace.qml
+        qml/components/SceneOperatorGraphWorkspace.qml
         qml/components/ProjectNavigator.qml
+        qml/components/ReadOnlyNodeWorkspace.qml
         qml/components/ShapeButton.qml
         qml/components/ShapeIcon.qml
         qml/components/ShapeIconButton.qml
         qml/components/TextCompareWorkspace.qml
+        qml/components/TextOperatorWorkspace.qml
         qml/components/VariantsPanel.qml
         qml/components/WorkspaceSurface.qml
     RESOURCES
@@ -140,6 +150,7 @@ target_compile_features(shape-desktop PRIVATE cxx_std_20)
 target_include_directories(shape-desktop
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests"
         "${SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY}"
 )
 
@@ -148,6 +159,7 @@ target_link_libraries(shape-desktop
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::Concurrent
+        Qt6::Multimedia
         shape-desktop-rust
         Threads::Threads
         ${CMAKE_DL_LIBS}

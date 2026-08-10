@@ -5,17 +5,22 @@
 //! receives explicit presence flags and presentation-safe values through one
 //! generated CXX contract. QML never reads or writes project files directly.
 
+mod infer_runtime_access;
+mod infer_speech;
 mod infer_text;
+mod operator_graph;
 mod session;
 
 use shape_core::ShapeProject;
-use shape_domain::{Artifact, ArtifactContentContract, ArtifactKind, TransformationKind};
+use shape_domain::{
+    Artifact, ArtifactContentContract, ArtifactKind, AudioOriginDisclosure, TransformationKind,
+};
 use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_runtime_contract};
 
-use infer_text::{
-    InferTextCandidate, generate_infer_text_candidate, infer_runtime_credential_status,
-    install_infer_runtime_credential,
-};
+use infer_runtime_access::{infer_runtime_credential_status, install_infer_runtime_credential};
+use infer_speech::{InferSpeechCandidate, generate_infer_speech_candidate};
+use infer_text::{InferTextCandidate, generate_infer_text_candidate};
+use operator_graph::project_operator_graph;
 use session::{DesktopSession, open_desktop_session};
 
 const MAX_TEXT_PREVIEW_BYTES: usize = 32 * 1024;
@@ -42,6 +47,38 @@ mod ffi {
         target_revision_id: String,
         transformation_id: String,
         transformation_kind_key: String,
+    }
+
+    /// One typed input or output port in the user-visible Operator Graph.
+    #[derive(Debug)]
+    struct OperatorPortWire {
+        port_id: String,
+        data_type_key: String,
+    }
+
+    /// One accepted Source, Operator, or Output node in a scene-compatible graph.
+    #[derive(Debug)]
+    struct OperatorGraphNodeWire {
+        node_id: String,
+        role_key: String,
+        operator_type_key: String,
+        artifact_id: String,
+        artifact_name: String,
+        revision_id: String,
+        transformation_id: String,
+        intent: String,
+        input_ports: Vec<OperatorPortWire>,
+        output_ports: Vec<OperatorPortWire>,
+    }
+
+    /// One exact typed connection between visible Operator Graph ports.
+    #[derive(Debug)]
+    struct OperatorGraphEdgeWire {
+        source_node_id: String,
+        source_port_id: String,
+        target_node_id: String,
+        target_port_id: String,
+        data_type_key: String,
     }
 
     /// Explicit desktop projection of one current artifact head.
@@ -71,6 +108,13 @@ mod ffi {
         has_image_preview: bool,
         image_width: u32,
         image_height: u32,
+        has_audio_preview: bool,
+        audio_duration_millis: u64,
+        audio_sample_rate_hz: u32,
+        audio_channels: u16,
+        audio_origin_key: String,
+        operator_graph_nodes: Vec<OperatorGraphNodeWire>,
+        operator_graph_edges: Vec<OperatorGraphEdgeWire>,
     }
 
     /// Transient cross-media candidate projection. Large image bytes are
@@ -79,6 +123,8 @@ mod ffi {
     struct CandidateWire {
         candidate_id: String,
         artifact_id: String,
+        context_artifact_id: String,
+        artifact_name: String,
         kind_key: String,
         has_expected_head: bool,
         expected_head: String,
@@ -89,6 +135,11 @@ mod ffi {
         has_image_preview: bool,
         image_width: u32,
         image_height: u32,
+        has_audio_preview: bool,
+        audio_duration_millis: u64,
+        audio_sample_rate_hz: u32,
+        audio_channels: u16,
+        audio_origin_key: String,
     }
 
     /// One on-demand selected raster preview. Bytes never enter QML strings.
@@ -98,6 +149,17 @@ mod ffi {
         width: u32,
         height: u32,
         png_bytes: Vec<u8>,
+    }
+
+    /// One on-demand selected audio preview. Exact WAV bytes cross only for
+    /// the accepted clip or transient Candidate currently being auditioned.
+    #[derive(Debug)]
+    struct AudioPreviewWire {
+        identity: String,
+        duration_millis: u64,
+        sample_rate_hz: u32,
+        channels: u16,
+        wav_bytes: Vec<u8>,
     }
 
     /// Public Infer Runtime contract availability. Error codes are stable and
@@ -123,6 +185,7 @@ mod ffi {
 
     extern "Rust" {
         type DesktopSession;
+        type InferSpeechCandidate;
         type InferTextCandidate;
 
         /// Opens and validates one `.shape` bundle, then returns a bounded
@@ -146,6 +209,16 @@ mod ffi {
             credential_path: &str,
             explicit_override: &str,
         ) -> Result<Box<InferTextCandidate>>;
+
+        /// Runs preset-only speech synthesis outside the live desktop session.
+        fn generate_infer_speech_candidate(
+            project_path: &str,
+            source_artifact_id: &str,
+            artifact_name: &str,
+            speed_milli: u16,
+            credential_path: &str,
+            explicit_override: &str,
+        ) -> Result<Box<InferSpeechCandidate>>;
 
         /// Opens one mutable desktop session. The session remains the sole
         /// owner of transient candidates and the underlying project.
@@ -186,11 +259,21 @@ mod ffi {
             artifact_id: &str,
             candidate_id: &str,
         ) -> Result<ImagePreviewWire>;
+        fn session_audio_preview(
+            self: &DesktopSession,
+            artifact_id: &str,
+            candidate_id: &str,
+        ) -> Result<AudioPreviewWire>;
         /// Adopts one completed background result only if its target head is
         /// still current and it is not already on the Candidate Shelf.
         fn session_adopt_infer_text(
             self: &mut DesktopSession,
             candidate: Box<InferTextCandidate>,
+        ) -> Result<CandidateWire>;
+        /// Adopts one completed speech result only if its source head remains current.
+        fn session_adopt_infer_speech(
+            self: &mut DesktopSession,
+            candidate: Box<InferSpeechCandidate>,
         ) -> Result<CandidateWire>;
     }
 }
@@ -347,6 +430,13 @@ fn project_artifact(
         has_image_preview: false,
         image_width: 0,
         image_height: 0,
+        has_audio_preview: false,
+        audio_duration_millis: 0,
+        audio_sample_rate_hz: 0,
+        audio_channels: 0,
+        audio_origin_key: String::new(),
+        operator_graph_nodes: Vec::new(),
+        operator_graph_edges: Vec::new(),
     };
     if let Some(revision_id) = artifact.accepted_revision {
         let revision = project
@@ -400,13 +490,33 @@ fn project_artifact(
                 wire.text_preview = preview;
             }
         }
-        if let Some(ArtifactContentContract::ImageRaster(contract)) = revision.content_contract {
+        project_content_contract(&mut wire, revision.content_contract.as_ref());
+        let graph = project_operator_graph(project, artifact, project_artifacts)?;
+        wire.operator_graph_nodes = graph.nodes;
+        wire.operator_graph_edges = graph.edges;
+    }
+    Ok(wire)
+}
+
+fn project_content_contract(
+    wire: &mut ffi::ArtifactSummaryWire,
+    contract: Option<&ArtifactContentContract>,
+) {
+    match contract {
+        Some(ArtifactContentContract::ImageRaster(contract)) => {
             wire.has_image_preview = true;
             wire.image_width = contract.width;
             wire.image_height = contract.height;
         }
+        Some(ArtifactContentContract::AudioClip(contract)) => {
+            wire.has_audio_preview = true;
+            wire.audio_duration_millis = contract.duration_millis();
+            wire.audio_sample_rate_hz = contract.sample_rate_hz;
+            wire.audio_channels = contract.channels;
+            audio_origin_key(contract.origin).clone_into(&mut wire.audio_origin_key);
+        }
+        None => {}
     }
-    Ok(wire)
 }
 
 fn bounded_text_preview(bytes: &[u8]) -> Option<(String, bool)> {
@@ -427,6 +537,7 @@ const fn artifact_kind_key(kind: ArtifactKind) -> &'static str {
         ArtifactKind::ImageRaster => "image_raster",
         ArtifactKind::ImageComposite => "image_composite",
         ArtifactKind::ReferenceSet => "reference_set",
+        ArtifactKind::AudioClip => "audio_clip",
     }
 }
 
@@ -438,6 +549,15 @@ const fn transformation_kind_key(kind: TransformationKind) -> &'static str {
         TransformationKind::GenerativeEdit => "generative_edit",
         TransformationKind::Composite => "composite",
         TransformationKind::ExternalRoundTrip => "external_round_trip",
+    }
+}
+
+const fn audio_origin_key(origin: AudioOriginDisclosure) -> &'static str {
+    match origin {
+        AudioOriginDisclosure::RecordedSource => "recorded_source",
+        AudioOriginDisclosure::SyntheticSpeech => "synthetic_speech",
+        AudioOriginDisclosure::SyntheticSound => "synthetic_sound",
+        AudioOriginDisclosure::TransformedAudio => "transformed_audio",
     }
 }
 

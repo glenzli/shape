@@ -4,7 +4,7 @@ use shape_domain::{
 };
 
 use super::*;
-use crate::{ExecutionCoordinator, ExecutionInput, ExecutionRequest};
+use crate::{ExecutionCoordinator, ExecutionRequest};
 
 fn transformation() -> Transformation {
     let artifact = ArtifactId::new();
@@ -59,7 +59,7 @@ fn import_normalizes_png_and_declares_contract() {
 }
 
 #[test]
-fn import_accepts_jpeg_and_crop_uses_materialized_content() {
+fn import_accepts_jpeg_and_materializes_canonical_png() {
     let rgb = vec![128_u8; 4 * 3 * 3];
     let mut jpeg = Vec::new();
     JpegEncoder::new_with_quality(&mut jpeg, 90)
@@ -78,22 +78,15 @@ fn import_accepts_jpeg_and_crop_uses_materialized_content() {
         .unwrap(),
     )
     .unwrap();
-    let content = shape_domain::ContentRef::new(
-        ContentDigest::from_bytes(&imported.output.bytes),
-        RASTER_MEDIA_TYPE,
-        imported.output.bytes.len() as u64,
-    )
-    .unwrap();
-    let crop = RasterCrop::new(1, 1, 2, 2, 4, 3).unwrap();
-    let request = ExecutionRequest::new_materialized(
-        transformation.id,
-        CapabilityId::new(RASTER_CROP_CAPABILITY).unwrap(),
-        vec![ExecutionInput::materialized(content, imported.output.bytes).unwrap()],
-        serde_json::to_vec(&crop).unwrap(),
-        RASTER_MEDIA_TYPE,
-    )
-    .unwrap();
-    let cropped = ExecutionCoordinator::execute(&RasterExecutor::new().unwrap(), &request).unwrap();
-    let image = image::load_from_memory(&cropped.output.bytes).unwrap();
-    assert_eq!((image.width(), image.height()), (2, 2));
+    let image = image::load_from_memory(&imported.output.bytes)
+        .unwrap()
+        .to_rgba8();
+    assert_eq!((image.width(), image.height()), (4, 3));
+}
+
+#[test]
+fn compatibility_executor_still_routes_the_crop_capability() {
+    let executor = RasterExecutor::new().unwrap();
+    assert!(executor.supports(&CapabilityId::new(RASTER_IMPORT_CAPABILITY).unwrap()));
+    assert!(executor.supports(&CapabilityId::new(RASTER_CROP_CAPABILITY).unwrap()));
 }

@@ -1,13 +1,15 @@
-//! Bounded PNG/JPEG normalization and deterministic raster cropping.
+//! Bounded PNG/JPEG normalization and canonical raster materialization.
+
+mod crop;
 
 use std::io::Cursor;
 
 use image::{
     ColorType, DynamicImage, ImageDecoder, ImageEncoder, ImageFormat, ImageReader, Limits,
-    RgbaImage, codecs::png::PngEncoder,
+    RgbaImage, codecs::png::PngEncoder, metadata::Orientation,
 };
 use shape_domain::{
-    ArtifactContentContract, ContentDigest, ImageColorProfile, ImageRasterContract, RasterCrop,
+    ArtifactContentContract, ContentDigest, ImageColorProfile, ImageRasterContract,
 };
 
 use crate::{
@@ -15,8 +17,9 @@ use crate::{
     ExecutorIdentity,
 };
 
+pub use crop::{RASTER_CROP_CAPABILITY, RasterCropExecutor};
+
 pub const RASTER_IMPORT_CAPABILITY: &str = "image.raster.import";
-pub const RASTER_CROP_CAPABILITY: &str = "image.raster.crop";
 const RASTER_MEDIA_TYPE: &str = "image/png";
 const RASTER_CONTRACT_REVISION: &str = "20260811.1";
 const MAX_ENCODED_BYTES: usize = 128 * 1024 * 1024;
@@ -26,7 +29,7 @@ const MAX_PIXELS: u64 = 64 * 1024 * 1024;
 const MAX_DECODE_ALLOC: u64 = 320 * 1024 * 1024;
 const MAX_ICC_BYTES: usize = 4 * 1024 * 1024;
 
-/// Portable built-in executor for the first deterministic raster slice.
+/// Portable import executor and compatibility entry for the raster slice.
 #[derive(Debug)]
 pub struct RasterExecutor {
     identity: ExecutorIdentity,
@@ -64,7 +67,7 @@ impl Executor for RasterExecutor {
     fn execute(&self, request: &ExecutionRequest) -> Result<ExecutionOutput, ExecutionFailure> {
         match request.capability.as_str() {
             RASTER_IMPORT_CAPABILITY => execute_import(request),
-            RASTER_CROP_CAPABILITY => execute_crop(request),
+            RASTER_CROP_CAPABILITY => crop::execute_crop(request),
             _ => Err(failure(
                 "unsupported_raster_capability",
                 "built-in raster executor does not support this capability",
@@ -102,62 +105,11 @@ fn execute_import(request: &ExecutionRequest) -> Result<ExecutionOutput, Executi
     Ok(output(bytes, contract))
 }
 
-fn execute_crop(request: &ExecutionRequest) -> Result<ExecutionOutput, ExecutionFailure> {
-    let [input] = request.inputs.as_slice() else {
-        return Err(failure(
-            "invalid_crop_input",
-            "raster crop requires exactly one materialized input",
-        ));
-    };
-    let Some(bytes) = input.bytes() else {
-        return Err(failure(
-            "invalid_crop_input",
-            "raster crop input is not materialized",
-        ));
-    };
-    if input.content().media_type != RASTER_MEDIA_TYPE {
-        return Err(failure(
-            "invalid_crop_input",
-            "raster crop input is not a canonical Shape PNG",
-        ));
-    }
-    let crop: RasterCrop = serde_json::from_slice(&request.instruction).map_err(|_| {
-        failure(
-            "invalid_crop_parameters",
-            "raster crop parameters are invalid",
-        )
-    })?;
-    let decoded = decode(bytes, ImageFormat::Png)?;
-    let source_contract = contract(
-        decoded.image.width(),
-        decoded.image.height(),
-        decoded.icc.as_deref(),
-    )?;
-    RasterCrop::new(
-        crop.x,
-        crop.y,
-        crop.width,
-        crop.height,
-        source_contract.width,
-        source_contract.height,
-    )
-    .map_err(|_| {
-        failure(
-            "crop_out_of_bounds",
-            "raster crop exceeds the accepted source image",
-        )
-    })?;
-    let cropped =
-        image::imageops::crop_imm(&decoded.image, crop.x, crop.y, crop.width, crop.height)
-            .to_image();
-    let output_contract = contract(crop.width, crop.height, decoded.icc.as_deref())?;
-    let bytes = encode_png(&cropped, decoded.icc.as_deref())?;
-    Ok(output(bytes, output_contract))
-}
-
 struct DecodedRaster {
     image: RgbaImage,
     icc: Option<Vec<u8>>,
+    source_color_type: ColorType,
+    source_orientation: Orientation,
 }
 
 fn decode(bytes: &[u8], format: ImageFormat) -> Result<DecodedRaster, ExecutionFailure> {
@@ -187,8 +139,9 @@ fn decode(bytes: &[u8], format: ImageFormat) -> Result<DecodedRaster, ExecutionF
             "image pixel count exceeds the local import limit",
         ));
     }
+    let source_color_type = decoder.color_type();
     if !matches!(
-        decoder.color_type(),
+        source_color_type,
         ColorType::L8 | ColorType::La8 | ColorType::Rgb8 | ColorType::Rgba8
     ) {
         return Err(failure(
@@ -220,6 +173,8 @@ fn decode(bytes: &[u8], format: ImageFormat) -> Result<DecodedRaster, ExecutionF
     Ok(DecodedRaster {
         image: image.to_rgba8(),
         icc,
+        source_color_type,
+        source_orientation: orientation,
     })
 }
 
@@ -274,6 +229,7 @@ fn output(bytes: Vec<u8>, contract: ImageRasterContract) -> ExecutionOutput {
         bytes,
         media_type: RASTER_MEDIA_TYPE.to_owned(),
         executor_job_id: None,
+        external_provenance: None,
         content_contract: Some(ArtifactContentContract::ImageRaster(contract)),
     }
 }

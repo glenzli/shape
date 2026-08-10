@@ -76,6 +76,12 @@ Item {
                 artifactKindKey: inspector.hasArtifact ? inspector.artifact.kindKey : ""
                 imageWidth: inspector.hasArtifact ? inspector.artifact.imageWidth : 0
                 imageHeight: inspector.hasArtifact ? inspector.artifact.imageHeight : 0
+                audioDurationMillis: inspector.hasArtifact
+                                     ? inspector.artifact.audioDurationMillis : 0
+                audioSampleRateHz: inspector.hasArtifact
+                                   ? inspector.artifact.audioSampleRateHz : 0
+                audioChannels: inspector.hasArtifact ? inspector.artifact.audioChannels : 0
+                audioOriginKey: inspector.hasArtifact ? inspector.artifact.audioOriginKey : ""
                 acceptedRevisionId: inspector.hasArtifact
                                     ? inspector.artifact.acceptedRevisionId : ""
                 candidates: inspector.candidates

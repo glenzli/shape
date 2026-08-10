@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
-//! Central workspace navigation and composition. Media presentation remains in
-//! ArtifactWorkspace; accepted project topology belongs to ProjectGraphWorkspace.
+//! Scene-graph-first navigation assembly. OperatorWorkspaceHost owns the
+//! focused lifecycle and routing; graph and media owners keep their own state.
 
 import QtQuick
 import QtQuick.Layouts
@@ -12,38 +12,256 @@ Item {
     objectName: "workspaceSurface"
 
     property string projectName: ""
-    property var artifacts: []
-    property var graphEdges: []
+    property var allArtifacts: []
     property var selectedArtifact: null
-    property int selectedIndex: 0
     property var candidates: []
     property var selectedCandidate: null
     property string selectedCandidateId: ""
     property bool compareMode: false
     property string acceptedImageSource: ""
     property string candidateImageSource: ""
+    required property InferSpeechController inferSpeech
+    required property AudioPreviewController audioPreview
+    property string projectPath: ""
+    property bool inferCredentialConfigured: false
     property int currentMode: 0
+    property string selectedNodeId: ""
 
     readonly property bool hasSelectedArtifact: selectedArtifact !== null
+    readonly property var graphNodes: hasSelectedArtifact
+                                      ? selectedArtifact.operatorNodes : []
+    readonly property var graphEdges: hasSelectedArtifact
+                                      ? selectedArtifact.operatorEdges : []
+    readonly property bool graphActive: currentMode === 0
+    readonly property bool focusActive: currentMode === 1
+    readonly property bool editWorkspaceActive: focusActive
+                                                && operatorWorkspaceHost.openedRoleKey
+                                                   === "operator"
+                                                && operatorWorkspaceHost
+                                                   .hasRegisteredOperatorWorkspace
+    readonly property bool intentWorkspaceActive: editWorkspaceActive
+                                                  && (workspaceRouteKey === "operator.text.edit"
+                                                      || workspaceRouteKey
+                                                         === "operator.text.transform"
+                                                      || workspaceRouteKey
+                                                         === "operator.image.crop")
+    readonly property string workspaceRouteKey: operatorWorkspaceHost.routeKey
+    readonly property string loadedWorkspaceObjectName: operatorWorkspaceHost
+                                                         .loadedWorkspaceObjectName
     readonly property bool candidateForSelected: hasSelectedArtifact
                                                   && selectedCandidate !== null
-                                                  && selectedCandidate.artifactId
+                                                  && selectedCandidate.contextArtifactId
                                                      === selectedArtifact.id
+    readonly property var selectedNode: {
+        for (let index = 0; index < graphNodes.length; ++index) {
+            if (graphNodes[index].id === selectedNodeId) return graphNodes[index]
+        }
+        return null
+    }
 
-    signal artifactSelected(int index)
+    signal sceneSelected(int index)
     signal candidateSelected(string candidateId)
+    signal candidateReviewRequested(string candidateId)
     signal cropRequested(string artifactId, int x, int y, int width, int height)
+    signal speechSynthesisRequested(string sourceArtifactId, string artifactName, int speedMilli)
 
-    function showArtifact() : void {
-        currentMode = 0
+    function showArtifact() : bool {
+        if (selectedCandidate !== null && selectedCandidate.hasAudioPreview) {
+            return openSpeechWorkspace()
+        }
+        synchronizeNodeSelection()
+        if (selectedNode !== null && selectedNode.roleKey === "operator") {
+            return openNode(selectedNode.id)
+        }
+        for (let index = graphNodes.length - 1; index >= 0; --index) {
+            if (graphNodes[index].roleKey === "operator") {
+                return openNode(graphNodes[index].id)
+            }
+        }
+        return false
+    }
+
+    function artifactForId(artifactId) : var {
+        for (let index = 0; index < allArtifacts.length; ++index) {
+            if (allArtifacts[index].id === artifactId) return allArtifacts[index]
+        }
+        return null
+    }
+
+    function openSpeechWorkspace() : bool {
+        if (!hasSelectedArtifact || selectedArtifact.kindKey !== "text_document"
+                || !selectedArtifact.hasAcceptedRevision) {
+            return false
+        }
+        if (!operatorWorkspaceHost.openWorkspace(
+                "draft.audio.speech." + selectedArtifact.id,
+                "operator", "audio.speech_synthesize", selectedArtifact.id,
+                selectedArtifact.acceptedRevisionId, "")) {
+            return false
+        }
+        currentMode = 1
+        return true
     }
 
     function showGraph() : void {
-        currentMode = 1
+        operatorWorkspaceHost.closeWorkspace()
+        currentMode = 0
     }
 
-    function activateArtifact(index) : void {
-        artifactSelected(index)
+    function activateScene(index) : void {
+        sceneSelected(index)
+        showGraph()
+    }
+
+    function selectNode(nodeId) : void {
+        selectedNodeId = nodeId
+    }
+
+    function nodeForId(nodeId) : var {
+        for (let index = 0; index < graphNodes.length; ++index) {
+            if (graphNodes[index].id === nodeId) return graphNodes[index]
+        }
+        return null
+    }
+
+    function openNode(nodeId) : bool {
+        const node = nodeForId(nodeId)
+        if (node === null) return false
+        selectedNodeId = nodeId
+        if (!operatorWorkspaceHost.openWorkspace(
+                node.id, node.roleKey, node.operatorTypeKey,
+                node.artifactId, node.revisionId, node.transformationId)) {
+            return false
+        }
+        currentMode = 1
+        return true
+    }
+
+    function synchronizeNodeSelection() : void {
+        for (let index = 0; index < graphNodes.length; ++index) {
+            if (graphNodes[index].id === selectedNodeId) return
+        }
+        selectedNodeId = ""
+        for (let index = 0; index < graphNodes.length; ++index) {
+            if (graphNodes[index].roleKey === "output") {
+                selectedNodeId = graphNodes[index].id
+                return
+            }
+        }
+        if (graphNodes.length > 0) selectedNodeId = graphNodes[0].id
+    }
+
+    onSelectedArtifactChanged: synchronizeNodeSelection()
+    onGraphNodesChanged: synchronizeNodeSelection()
+
+    Component {
+        id: textEditOperatorWorkspace
+
+        TextOperatorWorkspace {
+            objectName: "textEditOperatorWorkspace"
+            property string nodeId: operatorWorkspaceHost.openedNodeId
+            property string artifactId: operatorWorkspaceHost.openedArtifactId
+            property string revisionId: operatorWorkspaceHost.openedRevisionId
+            property string transformationId: operatorWorkspaceHost.openedTransformationId
+            property string candidateId: operatorWorkspaceHost.selectedCandidateId
+
+            acceptedText: surface.hasSelectedArtifact
+                          ? surface.selectedArtifact.textPreview : ""
+            candidateText: surface.candidateForSelected
+                           ? surface.selectedCandidate.text : ""
+            hasAcceptedRevision: surface.hasSelectedArtifact
+                                 && surface.selectedArtifact.hasAcceptedRevision
+            hasTextPreview: surface.hasSelectedArtifact
+                            && surface.selectedArtifact.hasTextPreview
+            textPreviewTruncated: surface.hasSelectedArtifact
+                                  && surface.selectedArtifact.textPreviewTruncated
+            hasCandidate: surface.candidateForSelected
+            compareMode: surface.compareMode
+            onSpeechWorkspaceRequested: surface.openSpeechWorkspace()
+        }
+    }
+
+    Component {
+        id: imageCropOperatorWorkspace
+
+        Item {
+            objectName: "imageCropOperatorWorkspace"
+            property string nodeId: operatorWorkspaceHost.openedNodeId
+            property string artifactId: operatorWorkspaceHost.openedArtifactId
+            property string revisionId: operatorWorkspaceHost.openedRevisionId
+            property string transformationId: operatorWorkspaceHost.openedTransformationId
+            property string candidateId: operatorWorkspaceHost.selectedCandidateId
+
+            RasterCropOperatorWorkspace {
+                anchors.fill: parent
+                anchors.margins: 24
+                visible: !surface.compareMode || !surface.candidateForSelected
+                artifactId: operatorWorkspaceHost.openedArtifactId
+                source: surface.acceptedImageSource
+                sourceWidth: surface.hasSelectedArtifact
+                             ? surface.selectedArtifact.imageWidth : 0
+                sourceHeight: surface.hasSelectedArtifact
+                              ? surface.selectedArtifact.imageHeight : 0
+                onCropRequested: (x, y, width, height) => {
+                    if (surface.hasSelectedArtifact) {
+                        surface.cropRequested(operatorWorkspaceHost.openedArtifactId,
+                                              x, y, width, height)
+                    }
+                }
+            }
+
+            ImageCompareWorkspace {
+                anchors.fill: parent
+                anchors.margins: 24
+                visible: surface.compareMode && surface.candidateForSelected
+                acceptedSource: surface.acceptedImageSource
+                candidateSource: surface.candidateImageSource
+            }
+        }
+    }
+
+    Component {
+        id: audioSpeechOperatorWorkspace
+
+        AudioSpeechOperatorWorkspace {
+            property bool selectedIsAcceptedAudio: surface.hasSelectedArtifact
+                                                   && surface.selectedArtifact.kindKey
+                                                      === "audio_clip"
+            property string sourceId: selectedIsAcceptedAudio
+                                      && surface.selectedArtifact
+                                                .transformationInputArtifactIds.length > 0
+                                      ? surface.selectedArtifact
+                                          .transformationInputArtifactIds[0]
+                                      : operatorWorkspaceHost.openedArtifactId
+            property var sourceArtifact: surface.artifactForId(sourceId)
+
+            inferSpeech: surface.inferSpeech
+            audioPreview: surface.audioPreview
+            projectPath: surface.projectPath
+            sourceArtifactId: sourceId
+            sourceName: sourceArtifact !== null ? sourceArtifact.name : ""
+            sourceText: sourceArtifact !== null && sourceArtifact.hasTextPreview
+                        ? sourceArtifact.textPreview : ""
+            canGenerate: !selectedIsAcceptedAudio && sourceArtifact !== null
+                         && sourceArtifact.kindKey === "text_document"
+            credentialConfigured: surface.inferCredentialConfigured
+            acceptedAudioArtifactId: selectedIsAcceptedAudio
+                                     ? surface.selectedArtifact.id : ""
+            acceptedDurationMillis: selectedIsAcceptedAudio
+                                    ? surface.selectedArtifact.audioDurationMillis : 0
+            acceptedSampleRateHz: selectedIsAcceptedAudio
+                                  ? surface.selectedArtifact.audioSampleRateHz : 0
+            acceptedChannels: selectedIsAcceptedAudio
+                              ? surface.selectedArtifact.audioChannels : 0
+            acceptedOriginKey: selectedIsAcceptedAudio
+                               ? surface.selectedArtifact.audioOriginKey : ""
+            candidate: surface.candidateForSelected
+                       && surface.selectedCandidate.hasAudioPreview
+                       ? surface.selectedCandidate : null
+            onSynthesizeRequested: (sourceArtifactId, artifactName, speedMilli) =>
+                                      surface.speechSynthesisRequested(
+                                          sourceArtifactId, artifactName, speedMilli)
+        }
     }
 
     ColumnLayout {
@@ -51,8 +269,9 @@ Item {
         spacing: 8
 
         Rectangle {
+            visible: surface.graphActive
             Layout.fillWidth: true
-            Layout.preferredHeight: 44
+            Layout.preferredHeight: visible ? 46 : 0
             radius: Theme.radiusMedium
             color: Theme.surface
             border.color: Theme.border
@@ -62,31 +281,47 @@ Item {
                 anchors.margins: 5
                 spacing: 5
 
-                Text {
+                ColumnLayout {
                     Layout.leftMargin: 8
-                    text: qsTr("WORKSPACE")
-                    color: Theme.muted
-                    font.pixelSize: Theme.fontMeta
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 0.7
+                    Layout.fillWidth: true
+                    spacing: 1
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("SCENE GRAPH")
+                        color: Theme.text
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 0.7
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Connect Sources, Operators, and named Outputs.")
+                        color: Theme.muted
+                        font.pixelSize: 9
+                        elide: Text.ElideRight
+                    }
                 }
 
-                Item { Layout.fillWidth: true }
+                Rectangle {
+                    Layout.rightMargin: 4
+                    Layout.preferredWidth: primaryViewLabel.implicitWidth + 18
+                    Layout.preferredHeight: 26
+                    radius: 13
+                    color: Theme.accentSoft
+                    border.color: Theme.accent
 
-                ShapeButton {
-                    implicitHeight: 32
-                    implicitWidth: 106
-                    text: qsTr("Artifact")
-                    selected: surface.currentMode === 0
-                    onClicked: surface.showArtifact()
-                }
-
-                ShapeButton {
-                    implicitHeight: 32
-                    implicitWidth: 106
-                    text: qsTr("Project graph")
-                    selected: surface.currentMode === 1
-                    onClicked: surface.showGraph()
+                    Text {
+                        id: primaryViewLabel
+                        anchors.centerIn: parent
+                        text: qsTr("SCENE HOME")
+                        color: Theme.accent
+                        font.pixelSize: 9
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 0.4
+                    }
                 }
             }
         }
@@ -96,52 +331,33 @@ Item {
             Layout.fillHeight: true
             currentIndex: surface.currentMode
 
-            ArtifactWorkspace {
+            SceneOperatorGraphWorkspace {
                 projectName: surface.projectName
-                artifactName: surface.hasSelectedArtifact
-                              ? surface.selectedArtifact.name
-                              : qsTr("No artifact selected")
-                artifactKind: surface.hasSelectedArtifact
-                              ? surface.selectedArtifact.kindLabel : ""
-                artifactKindKey: surface.hasSelectedArtifact
-                                 ? surface.selectedArtifact.kindKey : ""
-                artifactId: surface.hasSelectedArtifact
-                            ? surface.selectedArtifact.id : ""
-                artifactText: surface.hasSelectedArtifact
-                              ? surface.selectedArtifact.textPreview : ""
-                hasAcceptedRevision: surface.hasSelectedArtifact
-                                     && surface.selectedArtifact.hasAcceptedRevision
-                hasTextPreview: surface.hasSelectedArtifact
-                                && surface.selectedArtifact.hasTextPreview
-                textPreviewTruncated: surface.hasSelectedArtifact
-                                      && surface.selectedArtifact.textPreviewTruncated
-                hasCandidate: surface.candidateForSelected
-                candidateText: surface.candidateForSelected
-                               ? surface.selectedCandidate.text : ""
-                compareMode: surface.compareMode
-                acceptedImageSource: surface.acceptedImageSource
-                candidateImageSource: surface.candidateImageSource
-                imageWidth: surface.hasSelectedArtifact
-                            ? surface.selectedArtifact.imageWidth : 0
-                imageHeight: surface.hasSelectedArtifact
-                             ? surface.selectedArtifact.imageHeight : 0
-                onCropRequested: (x, y, width, height) => {
-                    if (surface.hasSelectedArtifact) {
-                        surface.cropRequested(surface.selectedArtifact.id,
-                                              x, y, width, height)
-                    }
-                }
+                sceneName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
+                sceneKind: surface.hasSelectedArtifact
+                           ? surface.selectedArtifact.kindLabel : ""
+                nodes: surface.graphNodes
+                edges: surface.graphEdges
+                candidates: surface.candidates
+                selectedNodeId: surface.selectedNodeId
+                selectedCandidateId: surface.selectedCandidateId
+                onNodeSelected: nodeId => surface.selectNode(nodeId)
+                onNodeOpened: nodeId => surface.openNode(nodeId)
+                onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
+                onCandidateReviewRequested: candidateId => surface.candidateReviewRequested(
+                                                candidateId)
             }
 
-            ProjectGraphWorkspace {
-                projectName: surface.projectName
-                artifacts: surface.artifacts
-                edges: surface.graphEdges
-                selectedIndex: surface.selectedIndex
-                candidates: surface.candidates
+            OperatorWorkspaceHost {
+                id: operatorWorkspaceHost
                 selectedCandidateId: surface.selectedCandidateId
-                onArtifactSelected: index => surface.activateArtifact(index)
-                onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
+                operatorWorkspaces: ({
+                    "text.edit": textEditOperatorWorkspace,
+                    "text.transform": textEditOperatorWorkspace,
+                    "image.crop": imageCropOperatorWorkspace,
+                    "audio.speech_synthesize": audioSpeechOperatorWorkspace
+                })
+                onReturnRequested: surface.showGraph()
             }
         }
     }

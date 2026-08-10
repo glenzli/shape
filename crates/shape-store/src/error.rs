@@ -2,7 +2,8 @@
 
 use std::path::PathBuf;
 
-use shape_domain::{ArtifactId, RevisionId, TransformationId};
+use shape_domain::{ArtifactId, RevisionId, SceneId, SceneRevisionId, TransformationId};
+use shape_execution::AttemptId;
 use thiserror::Error;
 
 /// A failure to create, validate, read, or atomically update a Shape project.
@@ -23,14 +24,27 @@ pub enum StoreError {
     UnknownArtifact(ArtifactId),
     #[error("artifact {0} already exists")]
     ArtifactAlreadyExists(ArtifactId),
+    #[error("scene {0} does not exist")]
+    UnknownScene(SceneId),
+    #[error("scene {0} already exists")]
+    SceneAlreadyExists(SceneId),
+    #[error("scene revision {0} does not exist")]
+    UnknownSceneRevision(SceneRevisionId),
     #[error("transformation {0} does not exist")]
     UnknownTransformation(TransformationId),
     #[error("revision {0} does not exist")]
     UnknownRevision(RevisionId),
+    #[error("execution receipt {0} does not exist")]
+    UnknownExecutionReceipt(AttemptId),
     #[error("accepted head changed: expected {expected:?}, actual {actual:?}")]
     RevisionConflict {
         expected: Option<RevisionId>,
         actual: Option<RevisionId>,
+    },
+    #[error("accepted scene head changed: expected {expected:?}, actual {actual:?}")]
+    SceneRevisionConflict {
+        expected: Option<SceneRevisionId>,
+        actual: Option<SceneRevisionId>,
     },
     #[error("invalid accepted commit: {0}")]
     InvalidCommit(&'static str),

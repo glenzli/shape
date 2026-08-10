@@ -1,4 +1,4 @@
-//! Portable flattened-raster metadata and deterministic crop semantics.
+//! Portable flattened-raster metadata and validation.
 
 use serde::{Deserialize, Serialize};
 
@@ -122,54 +122,6 @@ impl ImageRasterContract {
             color_profile,
             light_reference: ImageLightReference::DisplayReferred,
             premultiplied: false,
-        })
-    }
-}
-
-/// Pixel-space crop authored against one accepted raster revision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RasterCrop {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
-}
-
-impl RasterCrop {
-    /// Validates a crop against the exact source dimensions.
-    ///
-    /// # Errors
-    ///
-    /// Rejects empty, overflowing, or out-of-bounds rectangles.
-    pub fn new(
-        x: u32,
-        y: u32,
-        width: u32,
-        height: u32,
-        source_width: u32,
-        source_height: u32,
-    ) -> Result<Self, DomainError> {
-        let right = x.checked_add(width);
-        let bottom = y.checked_add(height);
-        if width == 0
-            || height == 0
-            || right.is_none_or(|value| value > source_width)
-            || bottom.is_none_or(|value| value > source_height)
-        {
-            return Err(DomainError::InvalidRasterCrop {
-                x,
-                y,
-                width,
-                height,
-                source_width,
-                source_height,
-            });
-        }
-        Ok(Self {
-            x,
-            y,
-            width,
-            height,
         })
     }
 }

@@ -57,6 +57,11 @@ macro_rules! persistent_id {
 }
 
 persistent_id!(ProjectId, "Identifies one portable Shape project.");
+persistent_id!(SceneId, "Identifies one stable creative scene.");
+persistent_id!(
+    SceneRevisionId,
+    "Identifies one immutable accepted scene graph state."
+);
 persistent_id!(ArtifactId, "Identifies one stable creative artifact.");
 persistent_id!(
     RevisionId,

@@ -4,7 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use shape_domain::TransformationId;
 
-use crate::{AttemptId, CapabilityId, ExecutionError, ExecutionFailure, ExecutorIdentity, JobId};
+use crate::{
+    AttemptId, CapabilityId, ExecutionError, ExecutionFailure, ExecutorIdentity,
+    ExternalExecutionProvenance, JobId,
+};
+
+const MAX_EXECUTOR_JOB_ID_BYTES: usize = 160;
 
 /// Observable state of one Shape-side execution job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,6 +52,9 @@ pub struct ExecutionReceipt {
     /// Optional executor-owned identity for later provenance lookup.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub executor_job_id: Option<String>,
+    /// Optional fixed-schema physical facts copied from an external runtime.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_provenance: Option<ExternalExecutionProvenance>,
     pub outcome: ExecutionOutcome,
 }
 
@@ -143,10 +151,43 @@ impl ExecutionJob {
         completed_at_unix_ms: u64,
         executor_job_id: Option<String>,
     ) -> Result<ExecutionReceipt, ExecutionError> {
+        self.succeed_with_external_provenance(
+            attempt_id,
+            completed_at_unix_ms,
+            executor_job_id,
+            None,
+        )
+    }
+
+    /// Completes the attempt with a bounded external Job identity and provenance snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Rejects invalid lifecycle state, stale attempt identity, unsafe Job identity,
+    /// or unbounded external provenance.
+    pub fn succeed_with_external_provenance(
+        &mut self,
+        attempt_id: AttemptId,
+        completed_at_unix_ms: u64,
+        executor_job_id: Option<String>,
+        external_provenance: Option<ExternalExecutionProvenance>,
+    ) -> Result<ExecutionReceipt, ExecutionError> {
+        if executor_job_id.as_deref().is_some_and(|value| {
+            value.is_empty() || value.len() > MAX_EXECUTOR_JOB_ID_BYTES || !value.is_ascii()
+        }) {
+            return Err(ExecutionError::InvalidExecutorJobId);
+        }
+        if external_provenance
+            .as_ref()
+            .is_some_and(|provenance| !provenance.is_bounded())
+        {
+            return Err(ExecutionError::InvalidExternalProvenance);
+        }
         self.finish(
             attempt_id,
             completed_at_unix_ms,
             executor_job_id,
+            external_provenance,
             ExecutionOutcome::Succeeded,
             JobState::Succeeded,
         )
@@ -166,6 +207,7 @@ impl ExecutionJob {
         self.finish(
             attempt_id,
             completed_at_unix_ms,
+            None,
             None,
             ExecutionOutcome::Failed {
                 code: failure.code.clone(),
@@ -189,6 +231,7 @@ impl ExecutionJob {
             attempt_id,
             completed_at_unix_ms,
             None,
+            None,
             ExecutionOutcome::Cancelled,
             JobState::Cancelled,
         )
@@ -199,6 +242,7 @@ impl ExecutionJob {
         attempt_id: AttemptId,
         completed_at_unix_ms: u64,
         executor_job_id: Option<String>,
+        external_provenance: Option<ExternalExecutionProvenance>,
         outcome: ExecutionOutcome,
         terminal_state: JobState,
     ) -> Result<ExecutionReceipt, ExecutionError> {
@@ -227,6 +271,7 @@ impl ExecutionJob {
             started_at_unix_ms: active.started_at_unix_ms,
             completed_at_unix_ms,
             executor_job_id,
+            external_provenance,
             outcome,
         };
         self.active_attempt = None;

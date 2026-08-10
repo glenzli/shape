@@ -18,8 +18,10 @@
 
 - Shape is intent-anchored: accepted creative intent may transform source material, but imported
   Shadow/Echo originals remain read-only references.
-- `Artifact` is a stable creative identity; `ArtifactRevision` is an immutable accepted state;
-  media-internal components do not automatically become Creative Graph nodes.
+- `Scene` is the user-authored creative orchestration boundary. Its typed Operator Graph connects
+  pure Sources through creative Operators to one or more named Outputs. `Artifact` remains the
+  stable identity of a creative value and `ArtifactRevision` remains an immutable accepted state;
+  media-internal components do not automatically become Scene Operator nodes.
 - `Transformation` owns creative meaning. Execution plans and receipts own physical implementation
   facts. Neither may impersonate the other.
 - A successful executor result is only a candidate. User acceptance is the sole authority that
@@ -32,12 +34,16 @@
 ## Entry hints
 
 - Creative identities and invariants: `crates/shape-domain/src/lib.rs`.
+- Typed Source/Operator/Output contracts: `crates/shape-domain/src/operator_graph.rs`.
+- Portable audio and voice-authorization contracts: `crates/shape-domain/src/audio.rs`.
 - Executor lifecycle and provenance: `crates/shape-execution/src/lib.rs`.
 - Project bundle, SQLite, and content-addressed objects: `crates/shape-store/src/lib.rs`.
 - Product use-case orchestration: `crates/shape-core/src/lib.rs`.
 - Bounded Rust/CXX desktop projection: `crates/shape-desktop-bridge/src/lib.rs`.
 - Runnable foundation slice: `apps/shape-cli/src/main.rs`.
 - Qt/QML desktop assembly: `apps/desktop/README.md`.
+- Canonical local debug build and launch lifecycle: `scripts/build_and_promote_debug.sh` and
+  `scripts/run_debug.sh`.
 
 ## Growth review baseline
 
@@ -72,19 +78,39 @@ remain deferred until real product paths consume them. Do not create empty crate
 boxes.
 
 The first raster path extends those existing owners instead of introducing a media-kernel crate.
-`shape-domain::image_raster` owns the platform-independent RGBA8, alpha, orientation, color, ICC,
-and crop contracts. `shape-execution::raster` owns bounded PNG/JPEG decode, EXIF normalization,
-canonical PNG materialization, and deterministic crop execution. `shape-core::project::image` owns
+`shape-domain::image_raster` owns the platform-independent RGBA8, alpha, orientation, color, and
+ICC contracts; `shape-domain::image_crop` separately owns the typed `image.crop` rectangle contract.
+`shape-execution::raster` owns bounded PNG/JPEG decode, EXIF normalization and canonical PNG
+materialization, while its `crop` owner executes exact deterministic pixels. `shape-core::project::image` owns
 the atomic import-origin commit and image Candidate/Accept use cases. The desktop shelf is now a
 typed text-or-image collection with the same identity, expected-head, discard, and sibling
 invalidation rules. Image-candidate clones share one immutable byte allocation, so exact-ID
 acceptance does not duplicate the full encoded payload. Ordinary bridge snapshots project only
 image dimensions and immutable content identity; selected accepted or candidate PNG bytes cross
 the Rust/CXX boundary only on demand and are decoded into a display-scaled, byte-bounded native
-cache. `ImageRasterWorkspace.qml` owns direct crop gestures, while `ImageCompareWorkspace.qml`
+cache. `RasterCropOperatorWorkspace.qml` owns direct crop gestures, while `ImageCompareWorkspace.qml`
 owns accepted-versus-candidate presentation. Image branching, composites, masks, color adjustment,
 external editors, and model-backed image operations remain
 deferred until a concrete consumer freezes each contract.
+
+The first audio foundation continues those same dependency directions without introducing a media
+kernel. `shape-domain::audio` owns `audio.generate`,
+`audio.speech_synthesize`, and `audio.transform` port contracts, exact accepted WAV interpretation,
+versioned preset aliases, and the local-only consent/disclosure boundary for Voice References.
+`shape-execution::audio` validates exact PCM S16 LE WAV bytes; `infer_runtime::speech` is the first
+real preset-only `speech.synthesize` consumer and returns bounded payload-free Job/routing/Attempt
+facts. `shape-core::project::audio` keeps synthesized bytes transient and creates a new AudioClip
+only through `shape-store` acceptance. Schema `20260811.2` re-parses bytes, persists provenance in
+the immutable receipt, and transactionally verifies that the accepted text input is still current.
+`shape-desktop-bridge::infer_speech` prepares the move-only result outside the live session;
+`infer_runtime_access` owns shared credential access; the session rechecks the text head and keeps
+target Audio Artifact identity separate from source review context. Ordinary snapshots project only
+duration/sample/channel/origin metadata. `AudioPreviewController` fetches exact WAV bytes only for
+the selected Candidate or accepted clip, and owns the in-memory `QBuffer`/Qt Multimedia playback
+lifecycle. `AudioSpeechOperatorWorkspace.qml` owns preset, pace, disclosure, generation, and
+audition presentation. Recording, waveform editing, authorized-voice execution, general sound
+generation, audio transforms, and Echo asset resolution remain deferred. The required Infer alias
+and Shape speech ACL are locally validated but not yet published by Infer.
 
 The desktop visual foundation adds two deliberately separate owners rather than growing the
 project projection: `UiPreferences` owns persistent appearance/language lifecycle, while
@@ -102,12 +128,40 @@ The independent `InferTextController` owns credential readiness/import plus one 
 generation lifecycle. Its move-only Rust result stays private until `DesktopBackend` hands it to the
 session on the UI thread. It rejects concurrent generation, waits during destruction, carries a
 complete request generation and artifact identity, and exposes only stable localized failure codes.
-The graph-aware desktop information architecture adds `ProjectNavigator.qml` for project-level
-creative-object selection and `ContextInspector.qml` for Explore, Details, and Lineage modes.
-`ArtifactWorkspace.qml` remains the media-workspace owner. The bridge projects only lineage already
-proven by the current accepted revision and its persisted Transformation. Once the first real
-cross-artifact branch path became available, `ProjectGraphWorkspace.qml` became the presentation
-owner for accepted current-head topology and transient candidate ghosts; `WorkspaceSurface.qml`
-owns artifact/graph workspace navigation. `VariantsPanel.qml` owns artifact-scoped Candidate Shelf
-selection and review controls, while candidate identity and mutation remain in Rust. Rust remains
-the semantic graph projection owner, and QML layout never becomes durable graph authority.
+`InferSpeechController` owns the analogous but separate speech lifecycle because its admission,
+parameters, result type, and failure policy evolve independently from Text.
+The graph-aware desktop information architecture adds `ProjectNavigator.qml` for Scene selection
+and `ContextInspector.qml` for Explore, Details, and Lineage modes. `OperatorWorkspaceHost.qml`
+owns focused-workspace routing and lifecycle; Text and Raster Crop remain separate semantic owners.
+`shape-domain::operator_graph` now owns the platform-independent typed
+DAG contract: explicit Source, Operator, and Output roles; typed ports; multiple outputs; unique
+input binding; and cycle rejection. `shape-desktop-bridge::operator_graph` projects persisted
+accepted Revision/Transformation history into that contract. It stops cross-Artifact history at a
+pure Source boundary, so executor steps and media-internal structure never leak into the Scene.
+`SceneOperatorGraphWorkspace.qml` owns graph layout and interaction; `WorkspaceSurface.qml` owns
+Scene-graph-first navigation and the explicit node-focused workspace boundary. Selection only
+updates shared context, while explicit open/review intent enters the media-specific workspace.
+`TextOperatorWorkspace.qml` serves deterministic `text.edit` and Infer-backed `text.transform`;
+`RasterCropOperatorWorkspace.qml` serves `image.crop`;
+`AudioSpeechOperatorWorkspace.qml` serves preset-only `audio.speech_synthesize`; Source, Output,
+future family fallbacks and unknown Operators use `ReadOnlyNodeWorkspace.qml` without acquiring edit
+authority.
+`VariantsPanel.qml` owns artifact-scoped Candidate Shelf selection and review controls, while
+candidate identity and mutation remain in Rust. QML never becomes durable graph authority.
+
+The desktop compatibility slice still treats every existing Artifact as one single-output Scene
+and derives its graph from immutable accepted history. Behind that projection,
+`shape-domain::scene` now owns stable Scene identity, immutable `SceneRevision`, and the requirement
+that every accepted Output node has one unique portable name. `shape-store` persists Scene heads and
+graph revisions with expected-head compare-and-swap, verifies that every durable node binding
+resolves to a real Artifact Revision or Transformation, and additively migrates initial and
+Scene-era schemas to the current audio-capable revision.
+`shape-core::project::scene` keeps graph candidates transient until explicit acceptance. Two Scenes
+can therefore evolve and reopen independently without sharing draft state. Desktop graph mutation,
+editable Operator parameters, a real multi-output Operator/UI flow, and reusable GraphComponent
+instances remain deferred until their real UI and Operator consumers freeze those contracts.
+
+Developer launch lifecycle is a separate repository-tooling owner under `scripts/`. A validated
+candidate app is copied into an immutable revision-stamped release, then a product-side lock guards
+the atomic `current-debug` symlink advance. The stable launcher never points at an agent-specific
+candidate build and never overwrites a running application bundle.

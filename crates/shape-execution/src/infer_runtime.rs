@@ -9,6 +9,7 @@ use thiserror::Error;
 mod credential;
 mod discovery;
 mod responses;
+mod speech;
 
 pub use credential::{
     InferRuntimeCredential, InferRuntimeCredentialError, InferRuntimeCredentialStore,
@@ -18,6 +19,11 @@ pub use discovery::{
     ResolvedInferRuntimeEndpoint,
 };
 pub use responses::InferRuntimeExecutor;
+pub use speech::{
+    AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+    InferRuntimeSpeechExecutor,
+};
 
 /// Infer Runtime wire contract implemented by this Shape build.
 pub const INFER_RUNTIME_CONTRACT_VERSION: &str = "0.1.0-candidate.2";
@@ -121,6 +127,15 @@ impl InferRuntimeClient {
     ///
     /// Returns a stable discovery error without including response payloads.
     pub fn probe_contract(&self) -> Result<InferRuntimeContract, InferRuntimeClientError> {
+        self.probe_contract_for_route("POST", "/v1/responses")
+    }
+
+    /// Validates the exact runtime revision and one required Consumer route.
+    pub(crate) fn probe_contract_for_route(
+        &self,
+        method: &str,
+        path: &str,
+    ) -> Result<InferRuntimeContract, InferRuntimeClientError> {
         let endpoint = self
             .base_url
             .join(CONTRACT_PATH)
@@ -153,10 +168,11 @@ impl InferRuntimeClient {
                 actual: manifest.contract_version,
             });
         }
-        let has_text_responses = manifest.consumer_routes.iter().any(|route| {
-            route.method.eq_ignore_ascii_case("POST") && route.path == "/v1/responses"
-        });
-        if !has_text_responses {
+        let has_required_route = manifest
+            .consumer_routes
+            .iter()
+            .any(|route| route.method.eq_ignore_ascii_case(method) && route.path == path);
+        if !has_required_route {
             return Err(InferRuntimeClientError::InvalidContract);
         }
         Ok(InferRuntimeContract {

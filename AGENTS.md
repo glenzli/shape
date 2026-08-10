@@ -44,6 +44,10 @@ but no domain, execution, store, or core owner may depend back on the bridge.
 - Platform-specific UI or media behavior lives behind a platform shim or capability adapter.
 - Cargo/CMake build products, model files, project bundles, previews, and media fixtures stay out
   of the worktree. CMake presets write to the sibling `.shape-local-build` directory.
+- The canonical debug application is the shared `build:shape-canonical-debug` resource and uses
+  the coordination pseudo-path `@external/shape-canonical-debug`. Only one release steward may
+  promote it at a time through `scripts/build_and_promote_debug.sh`; `scripts/run_debug.sh` only
+  consumes the atomically advanced `current-debug` application.
 - Rust uses `rustfmt.toml`; C/C++ uses `.clang-format`.
 
 ## Localization

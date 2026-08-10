@@ -18,6 +18,10 @@ Rectangle {
     property string artifactKindKey: ""
     property int imageWidth: 0
     property int imageHeight: 0
+    property int audioDurationMillis: 0
+    property int audioSampleRateHz: 0
+    property int audioChannels: 0
+    property string audioOriginKey: ""
     property string acceptedRevisionId: ""
     property var candidates: []
     property string selectedCandidateId: ""
@@ -40,6 +44,13 @@ Rectangle {
 
     function select(candidateId) : void {
         candidateSelected(candidateId)
+    }
+
+    function formatDuration(milliseconds) : string {
+        const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000))
+        const minutes = Math.floor(totalSeconds / 60)
+        const seconds = totalSeconds % 60
+        return minutes + ":" + (seconds < 10 ? "0" : "") + seconds
     }
 
     radius: Theme.radiusLarge
@@ -130,6 +141,11 @@ Rectangle {
                           : variants.artifactKindKey === "image_raster"
                             ? qsTr("Raster image · %1 × %2").arg(
                                   variants.imageWidth).arg(variants.imageHeight)
+                          : variants.artifactKindKey === "audio_clip"
+                            ? qsTr("Audio clip · %1 · %2 Hz · %3 channel(s)")
+                              .arg(variants.formatDuration(variants.audioDurationMillis))
+                              .arg(variants.audioSampleRateHz)
+                              .arg(variants.audioChannels)
                                                   : qsTr("Accepted non-text content")
                     color: Theme.textSoft
                     font.pixelSize: 12
@@ -155,7 +171,9 @@ Rectangle {
 
             ShapeButton {
                 implicitHeight: 26
-                text: qsTr("Compare")
+                text: variants.selectedCandidate !== null
+                      && variants.selectedCandidate.hasAudioPreview
+                      ? qsTr("Review") : qsTr("Compare")
                 onClicked: variants.compareRequested()
             }
         }
@@ -237,6 +255,11 @@ Rectangle {
                               ? qsTr("Crop preview · %1 × %2").arg(
                                     candidateDelegate.modelData.imageWidth).arg(
                                     candidateDelegate.modelData.imageHeight)
+                              : candidateDelegate.modelData.hasAudioPreview
+                                ? qsTr("Speech preview · %1 · %2 Hz")
+                                  .arg(variants.formatDuration(
+                                      candidateDelegate.modelData.audioDurationMillis))
+                                  .arg(candidateDelegate.modelData.audioSampleRateHz)
                               : candidateDelegate.modelData.text
                         color: Theme.text
                         font.pixelSize: 12
@@ -280,6 +303,8 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     text: variants.artifactKindKey === "image_raster"
                           ? qsTr("Adjust the crop frame to create an option")
+                          : variants.artifactKindKey === "audio_clip"
+                            ? qsTr("Accepted audio is ready for playback")
                           : qsTr("Edit the text draft to create an option")
                     color: Theme.muted
                     font.pixelSize: 10

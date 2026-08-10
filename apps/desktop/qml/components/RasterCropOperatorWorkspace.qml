@@ -1,4 +1,4 @@
-//! Direct raster presentation and one bounded crop gesture lifecycle.
+//! Direct manipulation workspace for the deterministic image.crop calibration Operator.
 
 import QtQuick
 import QtQuick.Layouts
@@ -6,7 +6,9 @@ import Shape.Desktop
 
 Item {
     id: raster
-    objectName: "imageRasterWorkspace"
+    objectName: "rasterCropOperatorWorkspace"
+
+    readonly property string operatorTypeKey: "image.crop"
 
     property string artifactId: ""
     property string source: ""

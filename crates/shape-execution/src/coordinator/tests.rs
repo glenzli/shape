@@ -31,6 +31,7 @@ impl Executor for LiteralExecutor {
             bytes: request.instruction.clone(),
             media_type: request.output_media_type.clone(),
             executor_job_id: None,
+            external_provenance: None,
             content_contract: None,
         })
     }

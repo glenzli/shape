@@ -4,7 +4,9 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactId, DomainError, RasterCrop, RevisionId, TransformationId};
+use crate::{
+    ArtifactId, DomainError, RasterCrop, RevisionId, SpeechSynthesisOperation, TransformationId,
+};
 
 const MAX_INTENT_BYTES: usize = 4_096;
 const MAX_CONSTRAINT_BYTES: usize = 1_024;
@@ -35,6 +37,7 @@ pub enum TransformationKind {
 #[serde(tag = "operation", content = "parameters", rename_all = "snake_case")]
 pub enum TransformationOperation {
     RasterCrop(RasterCrop),
+    AudioSpeechSynthesis(SpeechSynthesisOperation),
 }
 
 /// Bounded human-authored creative intent.
@@ -240,7 +243,16 @@ impl Transformation {
         if unique_inputs.len() != inputs.len() {
             return Err(DomainError::DuplicateTransformationInput);
         }
-        if operation.is_some() && kind != TransformationKind::DeterministicEdit {
+        let operation_matches_kind = match &operation {
+            None => true,
+            Some(TransformationOperation::RasterCrop(_)) => {
+                kind == TransformationKind::DeterministicEdit
+            }
+            Some(TransformationOperation::AudioSpeechSynthesis(_)) => {
+                kind == TransformationKind::GenerativeEdit
+            }
+        };
+        if !operation_matches_kind {
             return Err(DomainError::InvalidTransformationOperation);
         }
         Ok(Self {

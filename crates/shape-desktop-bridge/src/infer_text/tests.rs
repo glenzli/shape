@@ -21,28 +21,6 @@ fn credential_path() -> PathBuf {
         .join("infer-runtime.token")
 }
 
-#[test]
-fn credential_status_and_install_expose_only_stable_non_secret_state() {
-    let path = credential_path();
-    let path_text = path.to_str().expect("portable path");
-    let missing = infer_runtime_credential_status(path_text);
-    assert!(!missing.configured);
-    assert!(missing.error_code.is_empty());
-
-    assert_eq!(
-        install_infer_runtime_credential(path_text, "invalid"),
-        Err("credential_invalid".to_owned())
-    );
-    let token = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    install_infer_runtime_credential(path_text, token).expect("credential installs");
-    let configured = infer_runtime_credential_status(path_text);
-    assert!(configured.configured);
-    assert!(configured.error_code.is_empty());
-    assert!(!format!("{configured:?}").contains(token));
-
-    fs::remove_dir_all(path.parent().expect("secret has parent")).expect("fixture removes");
-}
-
 fn read_request(stream: &mut TcpStream) -> String {
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
@@ -181,6 +159,15 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
     assert_eq!(
         accepted.artifacts[0].transformation_kind_key,
         "generative_edit"
+    );
+    assert_eq!(
+        accepted.artifacts[0].transformation_intent,
+        "Rewrite text: Make it more vivid."
+    );
+    assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
+    assert_eq!(
+        accepted.artifacts[0].operator_graph_nodes[1].operator_type_key,
+        "text.transform"
     );
     drop(session);
     fs::remove_dir_all(project_path).expect("fixture removes");

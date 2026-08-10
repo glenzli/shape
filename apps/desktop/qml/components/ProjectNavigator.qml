@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
-//! Project-level artifact navigation. Creative relationships remain summarized here;
-//! media-internal structure belongs to the selected workspace.
+//! Project-level Scene selection over the current single-output compatibility
+//! model. Operator and media-internal structure belong to the central workspace.
 
 import QtQuick
 import QtQuick.Controls
@@ -30,7 +30,7 @@ Rectangle {
     function candidateCount(artifactId) : int {
         let count = 0
         for (let index = 0; index < candidates.length; ++index) {
-            if (candidates[index].artifactId === artifactId) {
+            if (candidates[index].contextArtifactId === artifactId) {
                 ++count
             }
         }
@@ -38,6 +38,7 @@ Rectangle {
     }
 
     signal artifactSelected(int index)
+    signal artifactOpened(int index)
     signal graphRequested()
     signal importImageRequested()
 
@@ -80,6 +81,64 @@ Rectangle {
             }
         }
 
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 82
+            radius: Theme.radiusMedium
+            color: navigator.graphActive ? Theme.accentSoft
+                                         : graphMouse.containsMouse ? Theme.raisedHover : Theme.raised
+            border.color: navigator.graphActive ? Theme.accent : Theme.border
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 11
+                spacing: 4
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Text {
+                        text: qsTr("SCENE GRAPH")
+                        color: navigator.graphActive ? Theme.accent : Theme.textSoft
+                        font.pixelSize: 10
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 0.5
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Text {
+                        text: navigator.graphActive ? qsTr("CURRENT")
+                                                    : qsTr("%1 accepted").arg(
+                                                          navigator.acceptedCount)
+                        color: navigator.graphActive ? Theme.accent : Theme.success
+                        font.pixelSize: 9
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Build the selected Scene from Sources, Operators, and Outputs.")
+                    color: Theme.muted
+                    font.pixelSize: 9
+                    wrapMode: Text.WordWrap
+                    lineHeight: 1.25
+                }
+            }
+
+            MouseArea {
+                id: graphMouse
+
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                Accessible.name: qsTr("Open current scene graph")
+                Accessible.role: Accessible.Button
+                onClicked: navigator.graphRequested()
+            }
+        }
+
         ShapeButton {
             Layout.fillWidth: true
             text: qsTr("Import image…")
@@ -91,7 +150,7 @@ Rectangle {
             Layout.fillWidth: true
 
             Text {
-                text: qsTr("CREATIVE OBJECTS")
+                text: qsTr("SCENES")
                 color: Theme.textSoft
                 font.pixelSize: 10
                 font.weight: Font.DemiBold
@@ -101,7 +160,7 @@ Rectangle {
             Item { Layout.fillWidth: true }
 
             Text {
-                text: qsTr("Current heads")
+                text: qsTr("Select to open graph")
                 color: Theme.muted
                 font.pixelSize: 9
             }
@@ -130,6 +189,7 @@ Rectangle {
                 rightPadding: 10
                 highlighted: navigator.selectedIndex === index
                 onClicked: navigator.artifactSelected(index)
+                onDoubleClicked: navigator.artifactOpened(index)
 
                 background: Rectangle {
                     radius: Theme.radiusMedium
@@ -195,7 +255,7 @@ Rectangle {
                                       : artifactDelegate.candidatePending
                                         ? qsTr("Candidate pending")
                                       : artifactDelegate.modelData.hasAcceptedRevision
-                                        ? qsTr("Accepted head")
+                                        ? qsTr("Scene output ready")
                                         : qsTr("Awaiting first revision")
                                 color: artifactDelegate.candidatePending ? Theme.accent : Theme.muted
                                 font.pixelSize: 9
@@ -210,66 +270,12 @@ Rectangle {
         Text {
             visible: navigator.artifacts.length === 0
             Layout.fillWidth: true
-            text: navigator.projectOpen ? qsTr("This project has no creative objects")
+            text: navigator.projectOpen ? qsTr("This project has no Scenes")
                                         : qsTr("No project loaded")
             color: Theme.muted
             wrapMode: Text.WordWrap
             font.pixelSize: Theme.fontBody
         }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 82
-            radius: Theme.radiusMedium
-            color: navigator.graphActive ? Theme.accentSoft
-                                         : graphMouse.containsMouse ? Theme.raisedHover : Theme.raised
-            border.color: navigator.graphActive ? Theme.accent : Theme.border
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 11
-                spacing: 4
-
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    Text {
-                        text: qsTr("CREATIVE GRAPH")
-                        color: Theme.muted
-                        font.pixelSize: 9
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 0.5
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Text {
-                        text: qsTr("%1 accepted").arg(navigator.acceptedCount)
-                        color: Theme.success
-                        font.pixelSize: 9
-                    }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("Candidates stay outside the graph until accepted.")
-                    color: Theme.muted
-                    font.pixelSize: 9
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.25
-                }
-            }
-
-            MouseArea {
-                id: graphMouse
-
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                Accessible.name: qsTr("Open project graph")
-                Accessible.role: Accessible.Button
-                onClicked: navigator.graphRequested()
-            }
-        }
     }
 }

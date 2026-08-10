@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use shape_domain::{ArtifactContentContract, ContentDigest, ContentRef, TransformationId};
 
-use crate::{ExecutionError, ExecutionFailure};
+use crate::{ExecutionError, ExecutionFailure, ExternalExecutionProvenance};
 
 const MAX_CAPABILITY_ID_BYTES: usize = 160;
 const MAX_EXECUTOR_IDENTITY_BYTES: usize = 160;
@@ -216,6 +216,8 @@ pub struct ExecutionOutput {
     /// Executor-owned job identity used to retrieve detailed physical
     /// provenance. It must not contain payloads or credentials.
     pub executor_job_id: Option<String>,
+    /// Bounded payload-free physical facts read back from an external runtime.
+    pub external_provenance: Option<ExternalExecutionProvenance>,
     /// Typed media interpretation for the candidate payload, when applicable.
     pub content_contract: Option<ArtifactContentContract>,
 }

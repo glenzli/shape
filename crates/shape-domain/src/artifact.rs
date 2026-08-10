@@ -3,7 +3,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArtifactId, ContentRef, DomainError, ImageRasterContract, RevisionId, TransformationId,
+    ArtifactId, AudioValueContract, ContentRef, DomainError, ImageRasterContract, RevisionId,
+    TransformationId,
 };
 
 const MAX_ARTIFACT_NAME_BYTES: usize = 120;
@@ -21,6 +22,8 @@ pub enum ArtifactKind {
     ImageComposite,
     /// A named set of typed creative references.
     ReferenceSet,
+    /// One immutable materialized audio value.
+    AudioClip,
 }
 
 /// Media-specific contract carried by one immutable accepted revision.
@@ -31,6 +34,7 @@ pub enum ArtifactKind {
 #[serde(tag = "kind", content = "contract", rename_all = "snake_case")]
 pub enum ArtifactContentContract {
     ImageRaster(ImageRasterContract),
+    AudioClip(AudioValueContract),
 }
 
 /// One stable user-recognizable creative object.

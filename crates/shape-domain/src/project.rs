@@ -7,7 +7,7 @@ use crate::{DomainError, ProjectId};
 const MAX_PROJECT_NAME_BYTES: usize = 160;
 
 /// Current independently versioned Shape project schema.
-pub const SHAPE_PROJECT_SCHEMA_REVISION: &str = "20260810.1";
+pub const SHAPE_PROJECT_SCHEMA_REVISION: &str = "20260811.2";
 
 /// Durable identity and display metadata for one project bundle.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

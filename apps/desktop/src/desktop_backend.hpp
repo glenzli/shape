@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <QByteArray>
 #include <QObject>
 #include <QString>
 #include <QUrl>
@@ -9,11 +10,20 @@
 #include <QtQml/qqmlregistration.h>
 
 #include <memory>
+#include <optional>
 
 #include "rust/cxx.h"
 #include "shape-desktop-bridge/src/lib.rs.h"
 
 class ImagePreviewStore;
+
+struct AudioPreviewData {
+    QString identity;
+    QByteArray wav_bytes;
+    qint64 duration_millis = 0;
+    int sample_rate_hz = 0;
+    int channels = 0;
+};
 
 class DesktopBackend : public QObject {
     Q_OBJECT
@@ -82,6 +92,13 @@ class DesktopBackend : public QObject {
     /// Stale-head validation remains authoritative in the Rust session.
     [[nodiscard]] QString
     adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandidate> candidate);
+    /// Adopts one background speech result on the UI thread after Rust revalidates its source.
+    [[nodiscard]] QString
+    adoptInferSpeechCandidate(rust::Box<shape::desktop::InferSpeechCandidate> candidate);
+
+    /// Fetches exact WAV bytes only for the preview selected by the audio controller.
+    [[nodiscard]] std::optional<AudioPreviewData>
+    audioPreview(const QString& artifactId, const QString& candidateId = QString());
 
     /// Rebuilds translated presentation values after a runtime locale change.
     void retranslate();

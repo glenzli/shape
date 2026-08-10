@@ -1,4 +1,6 @@
-//! Project bundle lifecycle and atomic accepted-head transactions.
+//! Project bundle lifecycle and atomic Artifact/Scene accepted-head transactions.
+
+mod audio;
 
 use std::{
     fmt,
@@ -13,9 +15,11 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use shape_domain::{
     Artifact, ArtifactContentContract, ArtifactId, ArtifactKind, ArtifactRevision, ContentRef,
-    ProjectMetadata, RevisionId, SHAPE_PROJECT_SCHEMA_REVISION, Transformation, TransformationId,
+    NamedSceneOutput, OperatorGraph, OperatorNodeBinding, ProjectMetadata, RevisionId,
+    SHAPE_PROJECT_SCHEMA_REVISION, Scene, SceneId, SceneRevision, SceneRevisionId, Transformation,
+    TransformationId,
 };
-use shape_execution::{ExecutionOutcome, ExecutionReceipt};
+use shape_execution::{AttemptId, ExecutionOutcome, ExecutionReceipt};
 use uuid::Uuid;
 
 use crate::{StoreError, objects::ObjectStore, schema};
@@ -38,6 +42,8 @@ pub struct AcceptedCommit {
 /// Provenance and output to publish as the first accepted revision of a new artifact.
 pub struct NewArtifactCommit {
     pub artifact: Artifact,
+    /// Accepted input heads that must still be current when this artifact publishes.
+    pub expected_input_heads: Vec<(ArtifactId, RevisionId)>,
     pub transformation: Transformation,
     pub receipt: ExecutionReceipt,
     pub output_bytes: Arc<[u8]>,
@@ -45,11 +51,21 @@ pub struct NewArtifactCommit {
     pub content_contract: Option<ArtifactContentContract>,
 }
 
+/// A validated graph draft to publish as one accepted Scene revision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AcceptedSceneRevisionCommit {
+    pub scene_id: SceneId,
+    pub expected_head: Option<SceneRevisionId>,
+    pub graph: OperatorGraph,
+    pub outputs: Vec<NamedSceneOutput>,
+}
+
 impl fmt::Debug for NewArtifactCommit {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("NewArtifactCommit")
             .field("artifact", &self.artifact)
+            .field("expected_input_heads", &self.expected_input_heads)
             .field("transformation_id", &self.transformation.id)
             .field("receipt", &self.receipt)
             .field("output_byte_length", &self.output_bytes.len())
@@ -78,6 +94,7 @@ impl fmt::Debug for AcceptedCommit {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectSnapshot {
     pub metadata: ProjectMetadata,
+    pub scenes: Vec<Scene>,
     pub artifacts: Vec<Artifact>,
 }
 
@@ -140,24 +157,27 @@ impl ProjectStore {
         }
         let manifest: BundleManifest =
             serde_json::from_slice(&fs::read(root.join(MANIFEST_FILE))?)?;
-        if manifest.schema != MANIFEST_SCHEMA
-            || manifest.metadata.schema_revision != SHAPE_PROJECT_SCHEMA_REVISION
-        {
+        if manifest.schema != MANIFEST_SCHEMA {
             return Err(StoreError::SchemaMismatch {
                 actual: manifest.metadata.schema_revision,
                 required: SHAPE_PROJECT_SCHEMA_REVISION,
             });
         }
-        let connection = Connection::open(root.join(DATABASE_FILE))?;
+        let mut connection = Connection::open(root.join(DATABASE_FILE))?;
         schema::prepare_connection(&connection)?;
-        let metadata_json: String = connection.query_row(
-            "SELECT metadata_json FROM project_singleton WHERE singleton = 1",
-            [],
-            |row| row.get(0),
-        )?;
-        let metadata: ProjectMetadata = serde_json::from_str(&metadata_json)?;
-        if metadata != manifest.metadata {
+        let manifest_metadata = manifest.metadata;
+        if !schema::supports_migration(&manifest_metadata.schema_revision) {
+            return Err(StoreError::SchemaMismatch {
+                actual: manifest_metadata.schema_revision,
+                required: SHAPE_PROJECT_SCHEMA_REVISION,
+            });
+        }
+        let metadata = schema::migrate_to_current_schema(&mut connection)?;
+        if manifest_metadata.id != metadata.id || manifest_metadata.name != metadata.name {
             return Err(StoreError::MetadataMismatch);
+        }
+        if manifest_metadata != metadata {
+            write_manifest(&root, &metadata)?;
         }
         let objects = ObjectStore::open(&root)?;
         Ok(Self {
@@ -178,6 +198,190 @@ impl ProjectStore {
     #[must_use]
     pub const fn metadata(&self) -> &ProjectMetadata {
         &self.metadata
+    }
+
+    /// Inserts one stable Scene without an accepted graph head.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Scene already has a head, its identity exists,
+    /// or persistence fails.
+    pub fn insert_scene(&self, scene: &Scene) -> Result<(), StoreError> {
+        if scene.accepted_revision.is_some() {
+            return Err(StoreError::InvalidCommit(
+                "new scene must not already have an accepted head",
+            ));
+        }
+        let result = self.connection.execute(
+            "INSERT INTO scenes (id, name, accepted_revision) VALUES (?1, ?2, NULL)",
+            params![scene.id.to_string(), scene.name],
+        );
+        match result {
+            Ok(_) => Ok(()),
+            Err(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                Err(StoreError::SceneAlreadyExists(scene.id))
+            }
+            Err(error) => Err(StoreError::Sqlite(error)),
+        }
+    }
+
+    /// Returns one Scene and its current accepted graph head.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid durable identity data or `SQLite` failure.
+    pub fn scene(&self, scene_id: SceneId) -> Result<Option<Scene>, StoreError> {
+        self.connection
+            .query_row(
+                "SELECT name, accepted_revision FROM scenes WHERE id = ?1",
+                [scene_id.to_string()],
+                |row| {
+                    let name: String = row.get(0)?;
+                    let accepted_revision: Option<String> = row.get(1)?;
+                    Ok((name, accepted_revision))
+                },
+            )
+            .optional()?
+            .map(|(name, accepted_revision)| {
+                let accepted_revision = accepted_revision
+                    .map(|value| value.parse())
+                    .transpose()
+                    .map_err(|_| {
+                        StoreError::InvalidCommit("stored scene revision id is invalid")
+                    })?;
+                Ok(Scene {
+                    id: scene_id,
+                    name,
+                    accepted_revision,
+                })
+            })
+            .transpose()
+    }
+
+    /// Returns all Scenes in stable identity order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid durable data or `SQLite` failure.
+    pub fn scenes(&self) -> Result<Vec<Scene>, StoreError> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT id FROM scenes ORDER BY id")?;
+        statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .map(|row| {
+                let value = row?;
+                let scene_id = value
+                    .parse()
+                    .map_err(|_| StoreError::InvalidCommit("stored scene id is invalid"))?;
+                self.scene(scene_id)?
+                    .ok_or(StoreError::UnknownScene(scene_id))
+            })
+            .collect()
+    }
+
+    /// Loads one immutable accepted Scene graph revision.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the revision is absent or its durable JSON is invalid.
+    pub fn scene_revision(
+        &self,
+        revision_id: SceneRevisionId,
+    ) -> Result<SceneRevision, StoreError> {
+        let revision_json = self
+            .connection
+            .query_row(
+                "SELECT revision_json FROM scene_revisions WHERE id = ?1",
+                [revision_id.to_string()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .ok_or(StoreError::UnknownSceneRevision(revision_id))?;
+        let revision: SceneRevision = serde_json::from_str(&revision_json)?;
+        if revision.id != revision_id {
+            return Err(StoreError::InvalidCommit(
+                "stored scene revision identity does not match its row",
+            ));
+        }
+        Ok(revision)
+    }
+
+    /// Publishes an immutable Scene graph and atomically advances its accepted head.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown Scene, invalid named outputs, a stale
+    /// expected head, or durable write failure.
+    pub fn accept_scene_revision(
+        &mut self,
+        commit: AcceptedSceneRevisionCommit,
+    ) -> Result<SceneRevision, StoreError> {
+        let scene = self
+            .scene(commit.scene_id)?
+            .ok_or(StoreError::UnknownScene(commit.scene_id))?;
+        if scene.accepted_revision != commit.expected_head {
+            return Err(StoreError::SceneRevisionConflict {
+                expected: commit.expected_head,
+                actual: scene.accepted_revision,
+            });
+        }
+        let revision = SceneRevision::new(
+            commit.scene_id,
+            commit.expected_head,
+            commit.graph,
+            commit.outputs,
+            unix_time_ms()?,
+        )?;
+        let revision_json = serde_json::to_string(&revision)?;
+
+        let transaction = self.connection.transaction()?;
+        let actual_head: Option<String> = transaction
+            .query_row(
+                "SELECT accepted_revision FROM scenes WHERE id = ?1",
+                [commit.scene_id.to_string()],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or(StoreError::UnknownScene(commit.scene_id))?;
+        let actual_head = actual_head
+            .map(|value| value.parse())
+            .transpose()
+            .map_err(|_| StoreError::InvalidCommit("stored scene revision id is invalid"))?;
+        if actual_head != commit.expected_head {
+            return Err(StoreError::SceneRevisionConflict {
+                expected: commit.expected_head,
+                actual: actual_head,
+            });
+        }
+        validate_scene_graph_bindings(&transaction, &revision.graph)?;
+        transaction.execute(
+            "INSERT INTO scene_revisions (id, scene_id, parent_revision, revision_json) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                revision.id.to_string(),
+                commit.scene_id.to_string(),
+                commit.expected_head.map(|head| head.to_string()),
+                revision_json,
+            ],
+        )?;
+        let changed = transaction.execute(
+            "UPDATE scenes SET accepted_revision = ?1 WHERE id = ?2 AND accepted_revision IS ?3",
+            params![
+                revision.id.to_string(),
+                commit.scene_id.to_string(),
+                commit.expected_head.map(|head| head.to_string()),
+            ],
+        )?;
+        if changed != 1 {
+            return Err(StoreError::SceneRevisionConflict {
+                expected: commit.expected_head,
+                actual: actual_head,
+            });
+        }
+        transaction.commit()?;
+        Ok(revision)
     }
 
     /// Inserts a new stable artifact without accepted content.
@@ -247,6 +451,7 @@ impl ProjectStore {
     ///
     /// Returns an error for invalid durable data or `SQLite` failure.
     pub fn snapshot(&self) -> Result<ProjectSnapshot, StoreError> {
+        let scenes = self.scenes()?;
         let mut statement = self
             .connection
             .prepare("SELECT id FROM artifacts ORDER BY id")?;
@@ -265,6 +470,7 @@ impl ProjectStore {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(ProjectSnapshot {
             metadata: self.metadata.clone(),
+            scenes,
             artifacts,
         })
     }
@@ -306,6 +512,39 @@ impl ProjectStore {
             .optional()?
             .ok_or(StoreError::UnknownTransformation(transformation_id))?;
         Ok(serde_json::from_str(&transformation_json)?)
+    }
+
+    /// Loads one immutable execution receipt by physical attempt identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the receipt is absent, malformed, or disagrees with its row.
+    pub fn execution_receipt(&self, attempt_id: AttemptId) -> Result<ExecutionReceipt, StoreError> {
+        let (transformation_id, receipt_json) = self
+            .connection
+            .query_row(
+                "SELECT transformation_id, receipt_json FROM execution_receipts WHERE attempt_id = ?1",
+                [attempt_id.to_string()],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()?
+            .ok_or(StoreError::UnknownExecutionReceipt(attempt_id))?;
+        let receipt: ExecutionReceipt = serde_json::from_str(&receipt_json)?;
+        let stored_transformation_id = transformation_id.parse().map_err(|_| {
+            StoreError::InvalidCommit("stored receipt transformation id is invalid")
+        })?;
+        if receipt.attempt_id != attempt_id
+            || receipt.transformation_id != stored_transformation_id
+            || receipt
+                .external_provenance
+                .as_ref()
+                .is_some_and(|provenance| !provenance.is_bounded())
+        {
+            return Err(StoreError::InvalidCommit(
+                "stored execution receipt is inconsistent or unbounded",
+            ));
+        }
+        Ok(receipt)
     }
 
     /// Loads one immutable accepted revision by stable identity.
@@ -352,6 +591,7 @@ impl ProjectStore {
             artifact.kind,
             &commit.output_media_type,
             commit.content_contract.as_ref(),
+            &commit.output_bytes,
         )?;
         let content = self
             .objects
@@ -448,6 +688,7 @@ impl ProjectStore {
             commit.artifact.kind,
             &commit.output_media_type,
             commit.content_contract.as_ref(),
+            &commit.output_bytes,
         )?;
         let content = self
             .objects
@@ -466,19 +707,12 @@ impl ProjectStore {
         let revision_json = serde_json::to_string(&revision)?;
 
         let transaction = self.connection.transaction()?;
-        for input in &commit.transformation.inputs {
-            let exists = transaction
-                .query_row(
-                    "SELECT 1 FROM artifact_revisions WHERE id = ?1",
-                    [input.to_string()],
-                    |_| Ok(()),
-                )
-                .optional()?
-                .is_some();
-            if !exists {
-                return Err(StoreError::UnknownRevision(*input));
-            }
-        }
+        validate_expected_input_heads(
+            &transaction,
+            commit.artifact.kind,
+            &commit.expected_input_heads,
+        )?;
+        validate_transformation_inputs(&transaction, &commit.transformation)?;
         let inserted = transaction.execute(
             "INSERT INTO artifacts (id, name, kind_json, accepted_revision) VALUES (?1, ?2, ?3, ?4)",
             params![
@@ -527,6 +761,114 @@ impl ProjectStore {
     }
 }
 
+fn validate_expected_input_heads(
+    transaction: &rusqlite::Transaction<'_>,
+    output_kind: ArtifactKind,
+    expected_input_heads: &[(ArtifactId, RevisionId)],
+) -> Result<(), StoreError> {
+    for (artifact_id, expected_head) in expected_input_heads {
+        let (kind_json, actual_head): (String, Option<String>) = transaction
+            .query_row(
+                "SELECT kind_json, accepted_revision FROM artifacts WHERE id = ?1",
+                [artifact_id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?
+            .ok_or(StoreError::UnknownArtifact(*artifact_id))?;
+        let input_kind: ArtifactKind = serde_json::from_str(&kind_json)?;
+        let actual_head = actual_head
+            .map(|value| value.parse())
+            .transpose()
+            .map_err(|_| StoreError::InvalidCommit("stored revision id is invalid"))?;
+        if actual_head != Some(*expected_head) {
+            return Err(StoreError::RevisionConflict {
+                expected: Some(*expected_head),
+                actual: actual_head,
+            });
+        }
+        let revision_owner: String = transaction
+            .query_row(
+                "SELECT artifact_id FROM artifact_revisions WHERE id = ?1",
+                [expected_head.to_string()],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or(StoreError::UnknownRevision(*expected_head))?;
+        if revision_owner != artifact_id.to_string()
+            || (output_kind == ArtifactKind::AudioClip && input_kind != ArtifactKind::TextDocument)
+        {
+            return Err(StoreError::InvalidCommit(
+                "expected input head does not belong to the required source artifact",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_transformation_inputs(
+    transaction: &rusqlite::Transaction<'_>,
+    transformation: &Transformation,
+) -> Result<(), StoreError> {
+    for input in &transformation.inputs {
+        let exists = transaction
+            .query_row(
+                "SELECT 1 FROM artifact_revisions WHERE id = ?1",
+                [input.to_string()],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        if !exists {
+            return Err(StoreError::UnknownRevision(*input));
+        }
+    }
+    Ok(())
+}
+
+fn validate_scene_graph_bindings(
+    transaction: &rusqlite::Transaction<'_>,
+    graph: &OperatorGraph,
+) -> Result<(), StoreError> {
+    for node in &graph.nodes {
+        match &node.binding {
+            OperatorNodeBinding::Source {
+                artifact_id,
+                revision_id,
+            }
+            | OperatorNodeBinding::Output {
+                artifact_id,
+                revision_id,
+            } => {
+                let exists = transaction
+                    .query_row(
+                        "SELECT 1 FROM artifact_revisions WHERE id = ?1 AND artifact_id = ?2",
+                        params![revision_id.to_string(), artifact_id.to_string()],
+                        |_| Ok(()),
+                    )
+                    .optional()?
+                    .is_some();
+                if !exists {
+                    return Err(StoreError::UnknownRevision(*revision_id));
+                }
+            }
+            OperatorNodeBinding::Transformation { transformation_id } => {
+                let exists = transaction
+                    .query_row(
+                        "SELECT 1 FROM transformations WHERE id = ?1",
+                        [transformation_id.to_string()],
+                        |_| Ok(()),
+                    )
+                    .optional()?
+                    .is_some();
+                if !exists {
+                    return Err(StoreError::UnknownTransformation(*transformation_id));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate_commit(commit: &AcceptedCommit) -> Result<(), StoreError> {
     if commit.transformation.target_artifact_id != commit.artifact_id {
         return Err(StoreError::InvalidCommit(
@@ -567,6 +909,22 @@ fn validate_new_artifact_commit(commit: &NewArtifactCommit) -> Result<(), StoreE
             "only successful execution candidates may be accepted",
         ));
     }
+    let mut expected_heads = commit.expected_input_heads.clone();
+    expected_heads.sort_unstable();
+    expected_heads.dedup();
+    if expected_heads.len() != commit.expected_input_heads.len()
+        || commit
+            .expected_input_heads
+            .iter()
+            .any(|(_, revision_id)| !commit.transformation.inputs.contains(revision_id))
+    {
+        return Err(StoreError::InvalidCommit(
+            "expected input heads must be unique transformation inputs",
+        ));
+    }
+    if commit.artifact.kind == ArtifactKind::AudioClip {
+        audio::validate_speech_synthesis_commit(commit)?;
+    }
     Ok(())
 }
 
@@ -574,6 +932,7 @@ fn validate_content_contract(
     artifact_kind: ArtifactKind,
     media_type: &str,
     contract: Option<&ArtifactContentContract>,
+    output_bytes: &[u8],
 ) -> Result<(), StoreError> {
     match (artifact_kind, contract) {
         (ArtifactKind::ImageRaster, Some(ArtifactContentContract::ImageRaster(_)))
@@ -584,6 +943,9 @@ fn validate_content_contract(
         (ArtifactKind::ImageRaster, _) => Err(StoreError::InvalidCommit(
             "raster revisions require an image.raster contract and canonical image/png bytes",
         )),
+        (ArtifactKind::AudioClip, contract) => {
+            audio::validate_audio_content(media_type, contract, output_bytes)
+        }
         (_, Some(_)) => Err(StoreError::InvalidCommit(
             "media content contract does not match artifact kind",
         )),

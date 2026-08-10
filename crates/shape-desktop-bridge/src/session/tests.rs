@@ -1,10 +1,152 @@
 use std::{fs, path::PathBuf};
 
 use shape_core::ShapeProject;
-use shape_domain::{ArtifactKind, IntentSpec};
+use shape_domain::{
+    ArtifactContentContract, ArtifactKind, AudioOriginDisclosure, AudioValueContract, IntentSpec,
+    PresetVoiceAlias, PresetVoiceSelection, SpeechSynthesisOperation, SpeechVoiceSelection,
+};
+use shape_execution::{
+    AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, CapabilityId, ExecutionFailure, ExecutionOutput,
+    ExecutionRequest, Executor, ExecutorIdentity, ExternalAttemptProvenance,
+    ExternalExecutionProvenance, ExternalRoutingCandidate, INFER_RUNTIME_CONTRACT_VERSION,
+    INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+};
 use uuid::Uuid;
 
 use super::open_desktop_session;
+use crate::infer_speech::InferSpeechCandidate;
+
+#[derive(Debug)]
+struct BridgeSpeechExecutor {
+    identity: ExecutorIdentity,
+}
+
+impl BridgeSpeechExecutor {
+    fn new() -> Self {
+        Self {
+            identity: ExecutorIdentity::new(
+                "shape.bridge.test.speech",
+                "1",
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
+            .expect("executor identity is valid"),
+        }
+    }
+}
+
+impl Executor for BridgeSpeechExecutor {
+    fn identity(&self) -> &ExecutorIdentity {
+        &self.identity
+    }
+
+    fn supports(&self, capability: &CapabilityId) -> bool {
+        capability.as_str() == AUDIO_SPEECH_SYNTHESIZE_CAPABILITY
+    }
+
+    fn execute(&self, _request: &ExecutionRequest) -> Result<ExecutionOutput, ExecutionFailure> {
+        Ok(ExecutionOutput {
+            bytes: bridge_wav(),
+            media_type: "audio/wav".to_owned(),
+            executor_job_id: Some("job_shape_audio_bridge_1".to_owned()),
+            external_provenance: Some(bridge_provenance()),
+            content_contract: Some(ArtifactContentContract::AudioClip(
+                AudioValueContract::pcm_s16le_wav(
+                    24_000,
+                    1,
+                    24_000,
+                    AudioOriginDisclosure::SyntheticSpeech,
+                )
+                .expect("audio contract is valid"),
+            )),
+        })
+    }
+}
+
+fn bridge_wav() -> Vec<u8> {
+    let sample_rate_hz = 24_000_u32;
+    let channels = 1_u16;
+    let frames = 24_000_u32;
+    let block_align = channels * 2;
+    let data_size = frames * u32::from(block_align);
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"RIFF");
+    bytes.extend_from_slice(&(36 + data_size).to_le_bytes());
+    bytes.extend_from_slice(b"WAVEfmt ");
+    bytes.extend_from_slice(&16_u32.to_le_bytes());
+    bytes.extend_from_slice(&1_u16.to_le_bytes());
+    bytes.extend_from_slice(&channels.to_le_bytes());
+    bytes.extend_from_slice(&sample_rate_hz.to_le_bytes());
+    bytes.extend_from_slice(&(sample_rate_hz * u32::from(block_align)).to_le_bytes());
+    bytes.extend_from_slice(&block_align.to_le_bytes());
+    bytes.extend_from_slice(&16_u16.to_le_bytes());
+    bytes.extend_from_slice(b"data");
+    bytes.extend_from_slice(&data_size.to_le_bytes());
+    bytes.resize(bytes.len() + data_size as usize, 0);
+    bytes
+}
+
+fn bridge_speech_operation() -> SpeechSynthesisOperation {
+    SpeechSynthesisOperation::new(
+        INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+        SpeechVoiceSelection::Preset(
+            PresetVoiceSelection::new(
+                PresetVoiceAlias::new(INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1)
+                    .expect("voice alias is valid"),
+                INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
+            )
+            .expect("voice selection is valid"),
+        ),
+        1_000,
+        true,
+    )
+    .expect("speech operation is valid")
+}
+
+fn bridge_provenance() -> ExternalExecutionProvenance {
+    ExternalExecutionProvenance {
+        contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
+        app_id: "shape".to_owned(),
+        intent: "speech.synthesize".to_owned(),
+        provider: "mlx-audio-local".to_owned(),
+        deployment: "mlx_qwen3_tts_custom_voice_1_7b".to_owned(),
+        model_profile: "qwen3_tts_custom_voice_1_7b".to_owned(),
+        model_build: "qwen3_tts_custom_voice_1_7b_8bit".to_owned(),
+        physical_model: "qwen3-tts-custom-voice".to_owned(),
+        placement: "local".to_owned(),
+        quality_grade: "general".to_owned(),
+        rating_status: "provisional".to_owned(),
+        resource_class: "standard".to_owned(),
+        policy: "local-first".to_owned(),
+        priority: "interactive".to_owned(),
+        requested_policy: "local-first".to_owned(),
+        requested_priority: "interactive".to_owned(),
+        requested_provider_access_class: None,
+        requested_placement: "local_only".to_owned(),
+        requested_preference: "local".to_owned(),
+        offline_required: true,
+        requested_latency: Some("interactive".to_owned()),
+        fallback: "none".to_owned(),
+        requested_deadline_ms: None,
+        max_cost_microusd: 0,
+        quality_floor: "general".to_owned(),
+        routing_candidates: vec![ExternalRoutingCandidate {
+            provider: "mlx-audio-local".to_owned(),
+            deployment: "mlx_qwen3_tts_custom_voice_1_7b".to_owned(),
+            status: "eligible".to_owned(),
+            rank: Some(1),
+            reason_codes: Vec::new(),
+        }],
+        attempts: vec![ExternalAttemptProvenance {
+            number: 1,
+            provider: "mlx-audio-local".to_owned(),
+            deployment: "mlx_qwen3_tts_custom_voice_1_7b".to_owned(),
+            outcome: "succeeded".to_owned(),
+            trigger: "initial".to_owned(),
+            error_kind: None,
+        }],
+    }
+}
 
 fn test_root() -> PathBuf {
     std::env::temp_dir().join(format!("shape-desktop-session-{}", Uuid::now_v7()))
@@ -77,6 +219,12 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     assert_eq!(
         accepted.artifacts[0].text_preview,
         "A quiet summer afternoon."
+    );
+    assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
+    assert_eq!(accepted.artifacts[0].operator_graph_edges.len(), 2);
+    assert_eq!(
+        accepted.artifacts[0].operator_graph_nodes[1].operator_type_key,
+        "text.edit"
     );
     drop(session);
 
@@ -276,6 +424,11 @@ fn raster_import_crop_candidate_accept_and_reopen_cross_the_desktop_bridge() {
         ),
         (4, 3)
     );
+    assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
+    assert_eq!(
+        accepted.artifacts[0].operator_graph_nodes[1].operator_type_key,
+        "image.crop"
+    );
     drop(session);
 
     let reopened = open_desktop_session(path).unwrap();
@@ -285,4 +438,78 @@ fn raster_import_crop_candidate_accept_and_reopen_cross_the_desktop_bridge() {
     assert_eq!((preview.width, preview.height), (4, 3));
     fs::remove_file(source).unwrap();
     fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn speech_candidate_stays_source_scoped_until_acceptance_then_reopens_as_audio() {
+    let root = test_root();
+    let source_id = seeded_project(&root);
+    let project = ShapeProject::open(&root).expect("project opens for background execution");
+    let source_head = project.snapshot().expect("snapshot reads").artifacts[0]
+        .accepted_revision
+        .expect("source has accepted text");
+    let speech = project
+        .propose_speech_synthesis(
+            source_id,
+            source_head,
+            "Mandarin narration",
+            &bridge_speech_operation(),
+            Vec::new(),
+            &BridgeSpeechExecutor::new(),
+        )
+        .expect("speech candidate executes");
+    let audio_id = speech.artifact_id();
+    let expected_bytes = speech.bytes().to_vec();
+    drop(project);
+
+    let path = root.to_str().expect("portable path");
+    let mut session = open_desktop_session(path).expect("session opens");
+    let adopted = session
+        .session_adopt_infer_speech(Box::new(InferSpeechCandidate::new(speech)))
+        .expect("speech candidate adopts");
+    assert_eq!(adopted.artifact_id, audio_id.to_string());
+    assert_eq!(adopted.context_artifact_id, source_id.to_string());
+    assert_eq!(adopted.artifact_name, "Mandarin narration");
+    assert!(adopted.has_audio_preview);
+    assert_eq!(adopted.audio_duration_millis, 1_000);
+    assert_eq!(adopted.audio_sample_rate_hz, 24_000);
+    assert_eq!(adopted.audio_channels, 1);
+    assert_eq!(adopted.audio_origin_key, "synthetic_speech");
+    assert_eq!(session.session_snapshot().unwrap().artifacts.len(), 1);
+
+    let transient = session
+        .session_audio_preview(&source_id.to_string(), &adopted.candidate_id)
+        .expect("selected transient WAV loads");
+    assert_eq!(transient.wav_bytes, expected_bytes);
+    assert_eq!(transient.duration_millis, 1_000);
+
+    let accepted = session
+        .session_accept_candidate(&adopted.candidate_id)
+        .expect("speech candidate accepts");
+    assert_eq!(accepted.artifacts.len(), 2);
+    let audio = accepted
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.id == audio_id.to_string())
+        .expect("accepted audio appears");
+    assert!(audio.has_audio_preview);
+    assert_eq!(audio.audio_duration_millis, 1_000);
+    assert_eq!(audio.audio_origin_key, "synthetic_speech");
+    assert_eq!(audio.operator_graph_nodes.len(), 3);
+    assert_eq!(
+        audio.operator_graph_nodes[1].operator_type_key,
+        "audio.speech_synthesize"
+    );
+    let durable = session
+        .session_audio_preview(&audio.id, "")
+        .expect("accepted WAV loads");
+    assert_eq!(durable.wav_bytes, expected_bytes);
+    drop(session);
+
+    let reopened = open_desktop_session(path).expect("session reopens");
+    let reopened_audio = reopened
+        .session_audio_preview(&audio_id.to_string(), "")
+        .expect("reopened WAV loads");
+    assert_eq!(reopened_audio.wav_bytes, expected_bytes);
+    fs::remove_dir_all(root).expect("fixture removes");
 }

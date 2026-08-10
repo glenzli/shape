@@ -8,6 +8,15 @@ pub enum DomainError {
     /// A project name is empty or exceeds the portable limit.
     #[error("project name must contain 1..={max_bytes} UTF-8 bytes")]
     InvalidProjectName { max_bytes: usize },
+    /// A scene name is empty or exceeds the portable limit.
+    #[error("scene name must contain 1..={max_bytes} UTF-8 bytes")]
+    InvalidSceneName { max_bytes: usize },
+    /// A named Scene output is not a bounded portable token.
+    #[error("scene output name must be a portable ASCII token within {max_bytes} bytes")]
+    InvalidSceneOutputName { max_bytes: usize },
+    /// An accepted Scene revision has no named output or an inconsistent output mapping.
+    #[error("accepted scene revisions must name every output node exactly once")]
+    InvalidSceneOutputs,
     /// An artifact name is empty or exceeds the portable limit.
     #[error("artifact name must contain 1..={max_bytes} UTF-8 bytes")]
     InvalidArtifactName { max_bytes: usize },
@@ -56,6 +65,50 @@ pub enum DomainError {
         source_height: u32,
     },
     /// A typed operation was attached to an incompatible transformation family.
-    #[error("typed operation requires a deterministic edit transformation")]
+    #[error("typed operation is incompatible with its transformation family")]
     InvalidTransformationOperation,
+    /// An Operator Graph identifier is not a bounded namespaced ASCII token.
+    #[error("{field} id must be a namespaced ASCII value within {max_bytes} bytes")]
+    InvalidOperatorIdentifier {
+        field: &'static str,
+        max_bytes: usize,
+    },
+    /// A node role, durable binding, or port direction is inconsistent.
+    #[error("operator node role, binding, and port directions are inconsistent")]
+    InvalidOperatorNode,
+    /// Two nodes share one identity.
+    #[error("operator graph node identities must be unique")]
+    DuplicateOperatorNode,
+    /// Two ports in one direction share one identity.
+    #[error("{collection} must have unique identities")]
+    DuplicateOperatorPort { collection: &'static str },
+    /// An edge endpoint or port is missing, duplicated, or self-referential.
+    #[error("operator graph edge is invalid")]
+    InvalidOperatorEdge,
+    /// Connected ports declare different data contracts.
+    #[error("operator graph ports must have exactly matching data types")]
+    OperatorPortTypeMismatch,
+    /// One input port has more than one upstream binding.
+    #[error("operator input port is already bound")]
+    OperatorInputAlreadyBound,
+    /// The first graph contract permits only acyclic creative dependencies.
+    #[error("operator graph must be acyclic")]
+    OperatorGraphCycle,
+    /// An accepted audio value has an impossible or empty sample contract.
+    #[error("audio value contract must declare bounded non-empty PCM audio")]
+    InvalidAudioValueContract,
+    /// A runtime-owned preset voice alias is malformed.
+    #[error("preset voice alias must be lowercase ASCII within {max_bytes} bytes")]
+    InvalidPresetVoiceAlias { max_bytes: usize },
+    /// A preset voice catalog revision is missing or not portable.
+    #[error("preset voice catalog revision must contain 1..={max_bytes} ASCII bytes")]
+    InvalidVoiceCatalogRevision { max_bytes: usize },
+    /// A real-voice reference lacks explicit local-only consent or disclosure.
+    #[error("voice authorization must be bounded, local-only, and require synthetic disclosure")]
+    InvalidVoiceAuthorization { max_bytes: usize },
+    /// Speech synthesis parameters are outside the portable creative contract.
+    #[error(
+        "speech synthesis requires a bounded language tag, 0.25x-4.0x speed, and disclosure (language limit {max_language_bytes} bytes)"
+    )]
+    InvalidSpeechSynthesisOperation { max_language_bytes: usize },
 }

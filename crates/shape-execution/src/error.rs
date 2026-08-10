@@ -37,6 +37,12 @@ pub enum ExecutionError {
     /// An executor identity field was empty, non-ASCII, or oversized.
     #[error("executor identity fields must be bounded non-empty ASCII strings")]
     InvalidExecutorIdentity,
+    /// An executor-owned Job identity was empty, non-ASCII, or oversized.
+    #[error("executor job id must be bounded non-empty ASCII")]
+    InvalidExecutorJobId,
+    /// External runtime provenance exceeded its fixed payload-free contract.
+    #[error("external execution provenance is invalid or unbounded")]
+    InvalidExternalProvenance,
     /// The request media type was not a portable media type.
     #[error("output media type must be bounded ASCII and contain a slash")]
     InvalidMediaType,

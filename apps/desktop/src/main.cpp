@@ -1,8 +1,11 @@
+#include "audio_preview_controller.hpp"
 #include "desktop_backend.hpp"
 #include "image_preview_provider.hpp"
 #include "infer_runtime_controller.hpp"
+#include "infer_speech_controller.hpp"
 #include "infer_text_controller.hpp"
 #include "ui_preferences.hpp"
+#include "workspace_host_smoke.hpp"
 
 #if defined(Q_OS_MACOS)
 #include "mac_titlebar.hpp"
@@ -14,7 +17,6 @@
 #include <QDir>
 #include <QGuiApplication>
 #include <QImage>
-#include <QMetaObject>
 #include <QQmlApplicationEngine>
 #include <QQmlExpression>
 #include <QQuickWindow>
@@ -107,8 +109,7 @@ bool run_smoke_raster_cycle(
     QCoreApplication::processEvents();
     if (imported_artifact.value(QStringLiteral("imageWidth")).toInt() != 8
         || imported_artifact.value(QStringLiteral("imageHeight")).toInt() != 6
-        || !backend.prepareImagePreviews(artifact_id) || backend.acceptedImageSource().isEmpty()
-        || root_object.findChild<QObject*>(QStringLiteral("imageRasterWorkspace")) == nullptr) {
+        || !backend.prepareImagePreviews(artifact_id) || backend.acceptedImageSource().isEmpty()) {
         std::cerr << "desktop raster smoke could not present accepted image" << std::endl;
         return false;
     }
@@ -130,20 +131,37 @@ bool run_smoke_raster_cycle(
     }
     root_object.setProperty("compareMode", true);
     QCoreApplication::processEvents();
-    if (root_object.findChild<QObject*>(QStringLiteral("imageCompareWorkspace")) == nullptr) {
-        std::cerr << "desktop raster smoke could not find packaged comparison" << std::endl;
-        return false;
-    }
 
     if (!backend.acceptCandidate(candidate_id) || backend.hasCandidate()) {
         std::cerr << "desktop raster smoke could not accept crop candidate" << std::endl;
         return false;
     }
     const QVariantMap accepted = backend.artifacts()[artifact_index].toMap();
+    const QVariantList operator_nodes = accepted.value(QStringLiteral("operatorNodes")).toList();
+    const bool has_crop_operator =
+        std::any_of(operator_nodes.cbegin(), operator_nodes.cend(), [](const QVariant& node) {
+            const QVariantMap projected = node.toMap();
+            return projected.value(QStringLiteral("roleKey")).toString()
+                       == QStringLiteral("operator")
+                   && projected.value(QStringLiteral("operatorTypeKey")).toString()
+                          == QStringLiteral("image.crop");
+        });
     if (accepted.value(QStringLiteral("acceptedRevisionId")).toString() == imported_head
         || accepted.value(QStringLiteral("imageWidth")).toInt() != 4
-        || accepted.value(QStringLiteral("imageHeight")).toInt() != 3) {
+        || accepted.value(QStringLiteral("imageHeight")).toInt() != 3 || !has_crop_operator) {
         std::cerr << "desktop raster smoke committed an unexpected crop" << std::endl;
+        return false;
+    }
+    root_object.setProperty("compareMode", false);
+    QCoreApplication::processEvents();
+    if (!backend.prepareImagePreviews(artifact_id)
+        || !workspace_host_smoke::verifyOperatorRoute(
+            root_object,
+            QStringLiteral("image.crop"),
+            QStringLiteral("operator.image.crop"),
+            QStringLiteral("imageCropOperatorWorkspace")
+        )) {
+        std::cerr << "desktop raster smoke did not route image.crop" << std::endl;
         return false;
     }
 
@@ -315,35 +333,6 @@ bool run_smoke_text_cycle(DesktopBackend& backend) {
     return true;
 }
 
-bool verify_project_graph_interaction(QObject& root_object) {
-    QObject* const workspace_surface =
-        root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
-    if (workspace_surface == nullptr
-        || !QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
-        std::cerr << "desktop graph smoke could not open project graph" << std::endl;
-        return false;
-    }
-    QCoreApplication::processEvents();
-
-    QQmlExpression activation(
-        QQmlEngine::contextForObject(workspace_surface),
-        workspace_surface,
-        QStringLiteral("activateArtifact(1)")
-    );
-    activation.evaluate();
-    if (activation.hasError()) {
-        std::cerr << "desktop graph smoke could not activate branch node: "
-                  << activation.error().toString().toStdString() << std::endl;
-        return false;
-    }
-    QCoreApplication::processEvents();
-    if (root_object.property("selectedArtifactIndex").toInt() != 1) {
-        std::cerr << "desktop graph smoke did not synchronize artifact selection" << std::endl;
-        return false;
-    }
-    return true;
-}
-
 bool verify_candidate_shelf_interaction(DesktopBackend& backend, QObject& root_object) {
     const int selected_index = root_object.property("selectedArtifactIndex").toInt();
     const QVariantList artifacts = backend.artifacts();
@@ -385,6 +374,17 @@ bool verify_candidate_shelf_interaction(DesktopBackend& backend, QObject& root_o
     if (backend.candidateId() != first_candidate_id
         || root_object.property("selectedCandidateId").toString() != first_candidate_id) {
         std::cerr << "desktop shelf smoke did not synchronize candidate selection" << std::endl;
+        return false;
+    }
+    if (!workspace_host_smoke::verifyOperatorRoute(
+            root_object,
+            QStringLiteral("text.edit"),
+            QStringLiteral("operator.text.edit"),
+            QStringLiteral("textEditOperatorWorkspace"),
+            first_candidate_id
+        )) {
+        std::cerr << "desktop shelf smoke did not pass Candidate selection into the Host"
+                  << std::endl;
         return false;
     }
     if (!backend.discardCandidate(second_candidate_id)
@@ -439,6 +439,8 @@ int main(int argc, char* argv[]) {
         QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation))
             .filePath(QStringLiteral("secrets/infer-runtime.token"));
     InferTextController infer_text(*backend, infer_credential_path, &application);
+    InferSpeechController infer_speech(*backend, infer_credential_path, &application);
+    AudioPreviewController audio_preview(*backend, &application);
     UiPreferences ui_preferences(application);
     QObject::connect(
         &ui_preferences,
@@ -464,6 +466,8 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
         {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
         {QStringLiteral("inferText"), QVariant::fromValue(&infer_text)},
+        {QStringLiteral("inferSpeech"), QVariant::fromValue(&infer_speech)},
+        {QStringLiteral("audioPreview"), QVariant::fromValue(&audio_preview)},
         {QStringLiteral("uiPreferences"), QVariant::fromValue(&ui_preferences)},
     });
     infer_runtime.refresh();
@@ -484,7 +488,8 @@ int main(int argc, char* argv[]) {
 #endif
 
     if (arguments->smoke_exit) {
-        if (!verify_infer_runtime_surface(*root_object)) {
+        if (!verify_infer_runtime_surface(*root_object)
+            || !workspace_host_smoke::verifyLocalization(*root_object, ui_preferences)) {
             return 3;
         }
         if (arguments->project_path.has_value()
@@ -493,7 +498,8 @@ int main(int argc, char* argv[]) {
             return 3;
         }
         if (arguments->smoke_text_cycle
-            && (!run_smoke_text_cycle(*backend) || !verify_project_graph_interaction(*root_object)
+            && (!run_smoke_text_cycle(*backend)
+                || !workspace_host_smoke::verifySceneGraphRoutes(*root_object)
                 || !verify_candidate_shelf_interaction(*backend, *root_object))) {
             return 4;
         }

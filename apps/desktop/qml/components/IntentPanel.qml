@@ -5,10 +5,12 @@ import Shape.Desktop
 
 Rectangle {
     id: panel
+    objectName: "intentPanel"
 
     property string artifactId: ""
     property string artifactKindKey: ""
     property string acceptedText: ""
+    property bool hasAcceptedRevision: false
     property bool candidatePending: false
     property var candidates: []
     property string errorMessage: ""
@@ -21,8 +23,9 @@ Rectangle {
     property bool credentialConfigured: false
     property string generationErrorCode: ""
 
-    readonly property bool canEditText: artifactId.length > 0
-                                         && artifactKindKey === "text_document"
+    readonly property bool selectedTextDocument: artifactId.length > 0
+                                                && artifactKindKey === "text_document"
+    readonly property bool canEditText: selectedTextDocument && hasAcceptedRevision
 
     signal candidateRequested(string artifactId, string replacementText)
     signal inferCandidateRequested(string artifactId, string prompt)
@@ -77,7 +80,7 @@ Rectangle {
 
             Text {
                 text: panel.artifactKindKey === "image_raster"
-                      ? qsTr("IMAGE CROP") : qsTr("TEXT DRAFT")
+                      ? qsTr("IMAGE CROP") : qsTr("TEXT OPERATOR")
                 color: Theme.muted
                 font.pixelSize: Theme.fontMeta
                 font.weight: Font.DemiBold
@@ -89,7 +92,7 @@ Rectangle {
             Text {
                 text: panel.artifactKindKey === "image_raster"
                       ? qsTr("Direct manipulation · candidate before commit")
-                      : qsTr("Direct edit · candidate before commit")
+                      : qsTr("Deterministic calibration · candidate before accept")
                 color: Theme.muted
                 font.pixelSize: 10
             }
@@ -133,7 +136,9 @@ Rectangle {
             enabled: panel.canEditText
             placeholderText: panel.canEditText
                              ? qsTr("Write the next text revision…")
-                             : qsTr("Select a text document to begin")
+                             : panel.selectedTextDocument
+                               ? qsTr("This text document needs an accepted origin")
+                               : qsTr("Select a text document to begin")
             color: Theme.text
             placeholderTextColor: Theme.muted
             selectionColor: Theme.accentSoft
@@ -161,14 +166,14 @@ Rectangle {
                 implicitHeight: 30
                 enabled: panel.canEditText && !panel.generationRunning
                 placeholderText: panel.credentialConfigured
-                                 ? qsTr("Ask AI how to transform this text…")
+                                 ? qsTr("Describe how AI should rewrite this text…")
                                  : qsTr("Add an Infer credential in Settings to use AI")
                 color: Theme.text
                 placeholderTextColor: Theme.muted
                 selectionColor: Theme.accentSoft
                 selectedTextColor: Theme.text
                 font.pixelSize: 11
-                Accessible.name: qsTr("AI creative instruction")
+                Accessible.name: qsTr("AI rewrite instruction")
 
                 background: Rectangle {
                     color: Theme.raised
@@ -180,7 +185,7 @@ Rectangle {
             ShapeButton {
                 objectName: "inferGenerateButton"
                 implicitHeight: 30
-                text: panel.generationRunning ? qsTr("Generating…") : qsTr("Generate with AI")
+                text: panel.generationRunning ? qsTr("Transforming…") : qsTr("Rewrite with AI")
                 selected: panel.generationRunning
                 enabled: panel.canEditText
                          && panel.runtimeCompatible
@@ -215,7 +220,7 @@ Rectangle {
             }
 
             ShapeButton {
-                text: qsTr("Create candidate")
+                text: qsTr("Preview calibration")
                 primary: true
                 enabled: panel.canEditText
                          && draftEditor.text.trim().length > 0
