@@ -15,6 +15,7 @@ crate-type = ["rlib", "staticlib"]
 cxx.workspace = true
 shape-core.workspace = true
 shape-domain.workspace = true
+shape-execution.workspace = true
 
 [build-dependencies]
 cxx-build = "=1.0.198"

@@ -1,21 +1,43 @@
+pragma ComponentBehavior: Bound
+
+//! Artifact-scoped Candidate Shelf. Candidate identity and bytes come from the
+//! Rust session; this component owns only selection and review interaction.
+
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
 
 Rectangle {
     id: variants
+    objectName: "candidateShelf"
 
     property string artifactText: ""
     property bool hasAcceptedRevision: false
     property bool hasTextPreview: false
-    property bool hasCandidate: false
-    property string candidateText: ""
-    property bool candidateTextTruncated: false
+    property string acceptedRevisionId: ""
+    property var candidates: []
+    property string selectedCandidateId: ""
+
+    readonly property var selectedCandidate: {
+        for (let index = 0; index < candidates.length; ++index) {
+            if (candidates[index].id === selectedCandidateId) {
+                return candidates[index]
+            }
+        }
+        return candidates.length > 0 ? candidates[0] : null
+    }
+    readonly property bool hasCandidate: selectedCandidate !== null
 
     signal compareRequested()
-    signal discardRequested()
-    signal acceptRequested()
-    signal branchRequested()
+    signal candidateSelected(string candidateId)
+    signal discardRequested(string candidateId)
+    signal acceptRequested(string candidateId)
+    signal branchRequested(string candidateId)
+
+    function select(candidateId) : void {
+        candidateSelected(candidateId)
+    }
 
     radius: Theme.radiusLarge
     color: Theme.surface
@@ -24,32 +46,41 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 14
-        spacing: 12
+        spacing: 10
 
         RowLayout {
             Layout.fillWidth: true
 
-            Text {
-                text: qsTr("EXPLORATION")
-                color: Theme.muted
-                font.pixelSize: Theme.fontMeta
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.7
-            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 1
 
-            Item { Layout.fillWidth: true }
+                Text {
+                    text: qsTr("CANDIDATE SHELF")
+                    color: Theme.muted
+                    font.pixelSize: Theme.fontMeta
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 0.7
+                }
+
+                Text {
+                    text: qsTr("Explore before committing history")
+                    color: Theme.disabled
+                    font.pixelSize: 9
+                }
+            }
 
             Rectangle {
                 Layout.preferredWidth: queueLabel.implicitWidth + 14
                 Layout.preferredHeight: 22
                 radius: 11
-                color: Theme.raised
-                border.color: Theme.border
+                color: variants.hasCandidate ? Theme.accentSoft : Theme.raised
+                border.color: variants.hasCandidate ? Theme.accent : Theme.border
 
                 Text {
                     id: queueLabel
                     anchors.centerIn: parent
-                    text: variants.hasCandidate ? qsTr("1 pending") : qsTr("0 pending")
+                    text: qsTr("%1 pending").arg(variants.candidates.length)
                     color: variants.hasCandidate ? Theme.accent : Theme.muted
                     font.pixelSize: 10
                 }
@@ -58,7 +89,7 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 104
+            Layout.preferredHeight: 90
             visible: variants.hasAcceptedRevision
             radius: Theme.radiusMedium
             color: Theme.raised
@@ -66,87 +97,157 @@ Rectangle {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 13
-                spacing: 5
-
-                Text {
-                    text: qsTr("CURRENT ACCEPTED")
-                    color: Theme.muted
-                    font.pixelSize: 10
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 0.6
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: variants.hasTextPreview ? variants.artifactText
-                                                  : qsTr("Accepted non-text content")
-                    color: Theme.text
-                    font.pixelSize: 13
-                    elide: Text.ElideRight
-                }
-
-                Item { Layout.fillHeight: true }
-
-                Text { text: qsTr("Durable · verified"); color: Theme.success; font.pixelSize: 10 }
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 116
-            visible: variants.hasCandidate
-            radius: Theme.radiusMedium
-            color: Theme.accentSoft
-            border.color: Theme.accent
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 13
-                spacing: 5
+                anchors.margins: 12
+                spacing: 4
 
                 RowLayout {
                     Layout.fillWidth: true
 
                     Text {
-                        text: qsTr("TEXT CANDIDATE")
-                        color: Theme.accent
-                        font.pixelSize: 10
+                        text: qsTr("CURRENT ACCEPTED")
+                        color: Theme.muted
+                        font.pixelSize: 9
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.6
                     }
 
                     Item { Layout.fillWidth: true }
 
-                    ShapeButton {
-                        implicitHeight: 26
-                        text: qsTr("Compare")
-                        onClicked: variants.compareRequested()
+                    Text {
+                        text: qsTr("Durable · verified")
+                        color: Theme.success
+                        font.pixelSize: 9
                     }
                 }
 
                 Text {
                     Layout.fillWidth: true
-                    text: variants.candidateText
-                    color: Theme.text
-                    font.pixelSize: 13
+                    Layout.fillHeight: true
+                    text: variants.hasTextPreview ? variants.artifactText
+                                                  : qsTr("Accepted non-text content")
+                    color: Theme.textSoft
+                    font.pixelSize: 12
                     elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: variants.hasCandidate
+
+            Text {
+                text: qsTr("TRANSIENT OPTIONS")
+                color: Theme.textSoft
+                font.pixelSize: 9
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.5
+            }
+
+            Item { Layout.fillWidth: true }
+
+            ShapeButton {
+                implicitHeight: 26
+                text: qsTr("Compare")
+                onClicked: variants.compareRequested()
+            }
+        }
+
+        ListView {
+            id: candidateList
+
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: variants.hasCandidate
+            clip: true
+            spacing: 7
+            model: variants.candidates
+
+            ScrollBar.vertical: ScrollBar {
+                policy: candidateList.contentHeight > candidateList.height
+                        ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+            }
+
+            delegate: ItemDelegate {
+                id: candidateDelegate
+
+                required property int index
+                required property var modelData
+                readonly property bool selected: variants.selectedCandidate !== null
+                                                 && variants.selectedCandidate.id === modelData.id
+                readonly property bool currentHead: modelData.hasExpectedHead
+                                                    ? modelData.expectedHead
+                                                      === variants.acceptedRevisionId
+                                                    : variants.acceptedRevisionId.length === 0
+
+                width: ListView.view.width
+                height: 86
+                leftPadding: 11
+                rightPadding: 11
+                topPadding: 9
+                bottomPadding: 9
+                highlighted: selected
+                Accessible.name: qsTr("Select candidate %1").arg(index + 1)
+                onClicked: variants.select(modelData.id)
+
+                background: Rectangle {
+                    radius: Theme.radiusMedium
+                    color: candidateDelegate.selected ? Theme.accentSoft
+                                                      : candidateDelegate.hovered
+                                                        ? Theme.raisedHover : Theme.raised
+                    border.width: candidateDelegate.selected ? 2 : 1
+                    border.color: candidateDelegate.selected ? Theme.accent : Theme.border
                 }
 
-                Item { Layout.fillHeight: true }
+                contentItem: ColumnLayout {
+                    spacing: 4
 
-                Text {
-                    text: variants.candidateTextTruncated ? qsTr("Preview truncated")
-                                                          : qsTr("Transient · not in history")
-                    color: Theme.muted
-                    font.pixelSize: 10
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Text {
+                            text: qsTr("OPTION %1").arg(candidateDelegate.index + 1)
+                            color: candidateDelegate.selected ? Theme.accent : Theme.muted
+                            font.pixelSize: 9
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 0.5
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Text {
+                            text: candidateDelegate.currentHead
+                                  ? qsTr("Ready to accept") : qsTr("Earlier revision")
+                            color: candidateDelegate.currentHead ? Theme.success : Theme.danger
+                            font.pixelSize: 9
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        text: candidateDelegate.modelData.text
+                        color: Theme.text
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: candidateDelegate.modelData.textTruncated
+                              ? qsTr("Preview truncated") : qsTr("Transient · not in history")
+                        color: Theme.disabled
+                        font.pixelSize: 8
+                    }
                 }
             }
         }
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 112
+            Layout.fillHeight: true
             visible: !variants.hasCandidate
             radius: Theme.radiusMedium
             color: Theme.raised
@@ -167,24 +268,22 @@ Rectangle {
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: qsTr("Edit the text draft to create a candidate")
+                    text: qsTr("Edit the text draft to create an option")
                     color: Theme.muted
                     font.pixelSize: 10
                 }
             }
         }
 
-        Item { Layout.fillHeight: true }
-
         ColumnLayout {
             Layout.fillWidth: true
+            visible: variants.hasCandidate
             spacing: 8
 
             ShapeButton {
-                visible: variants.hasCandidate
                 Layout.fillWidth: true
-                text: qsTr("Branch as new artifact")
-                onClicked: variants.branchRequested()
+                text: qsTr("Branch selected option")
+                onClicked: variants.branchRequested(variants.selectedCandidate.id)
             }
 
             RowLayout {
@@ -192,18 +291,16 @@ Rectangle {
                 spacing: 8
 
                 ShapeButton {
-                    visible: variants.hasCandidate
                     Layout.fillWidth: true
                     text: qsTr("Discard")
-                    onClicked: variants.discardRequested()
+                    onClicked: variants.discardRequested(variants.selectedCandidate.id)
                 }
 
                 ShapeButton {
                     Layout.fillWidth: true
-                    text: qsTr("Accept candidate")
+                    text: qsTr("Accept selected")
                     primary: true
-                    enabled: variants.hasCandidate
-                    onClicked: variants.acceptRequested()
+                    onClicked: variants.acceptRequested(variants.selectedCandidate.id)
                 }
             }
         }

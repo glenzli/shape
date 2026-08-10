@@ -11,20 +11,52 @@ ApplicationWindow {
     id: window
 
     required property DesktopBackend backend
+    required property InferRuntimeController inferRuntime
     required property UiPreferences uiPreferences
 
     property int selectedArtifactIndex: 0
+    property string selectedCandidateId: ""
     property bool compareMode: false
     readonly property var selectedArtifact: window.backend.artifacts.length > selectedArtifactIndex
                                             ? window.backend.artifacts[selectedArtifactIndex]
                                             : null
     readonly property bool hasSelectedArtifact: selectedArtifact !== null
-    readonly property bool candidateForSelected: hasSelectedArtifact
-                                                  && window.backend.hasCandidate
-                                                  && window.backend.candidateArtifactId
-                                                     === selectedArtifact.id
+    readonly property var artifactCandidates: hasSelectedArtifact
+                                              ? candidatesForArtifact(selectedArtifact.id) : []
+    readonly property var selectedCandidate: {
+        for (let index = 0; index < artifactCandidates.length; ++index) {
+            if (artifactCandidates[index].id === selectedCandidateId) {
+                return artifactCandidates[index]
+            }
+        }
+        return artifactCandidates.length > 0 ? artifactCandidates[0] : null
+    }
+    readonly property bool candidateForSelected: selectedCandidate !== null
 
-    onSelectedArtifactIndexChanged: compareMode = false
+    function candidatesForArtifact(artifactId) : var {
+        const matches = []
+        for (let index = 0; index < backend.candidates.length; ++index) {
+            if (backend.candidates[index].artifactId === artifactId) {
+                matches.push(backend.candidates[index])
+            }
+        }
+        return matches
+    }
+
+    function activateCandidate(candidateId) : void {
+        if (backend.selectCandidate(candidateId)) {
+            selectedCandidateId = candidateId
+        }
+    }
+
+    onSelectedArtifactIndexChanged: {
+        compareMode = false
+        const candidates = hasSelectedArtifact ? candidatesForArtifact(selectedArtifact.id) : []
+        selectedCandidateId = candidates.length > 0 ? candidates[0].id : ""
+        if (selectedCandidateId.length > 0) {
+            backend.selectCandidate(selectedCandidateId)
+        }
+    }
 
     width: 1440
     height: 900
@@ -89,8 +121,7 @@ ApplicationWindow {
             projectOpen: window.backend.projectOpen
             artifacts: window.backend.artifacts
             selectedIndex: window.selectedArtifactIndex
-            hasCandidate: window.backend.hasCandidate
-            candidateArtifactId: window.backend.candidateArtifactId
+            candidates: window.backend.candidates
             graphActive: workspaceSurface.currentMode === 1
             onArtifactSelected: index => window.selectedArtifactIndex = index
             onGraphRequested: workspaceSurface.showGraph()
@@ -112,12 +143,12 @@ ApplicationWindow {
                 graphEdges: window.backend.graphEdges
                 selectedArtifact: window.selectedArtifact
                 selectedIndex: window.selectedArtifactIndex
-                hasCandidate: window.backend.hasCandidate
-                candidateArtifactId: window.backend.candidateArtifactId
-                candidateText: window.backend.candidateText
-                candidateTextTruncated: window.backend.candidateTextTruncated
+                candidates: window.backend.candidates
+                selectedCandidate: window.selectedCandidate
+                selectedCandidateId: window.selectedCandidateId
                 compareMode: window.compareMode
                 onArtifactSelected: index => window.selectedArtifactIndex = index
+                onCandidateSelected: candidateId => window.activateCandidate(candidateId)
             }
 
             IntentPanel {
@@ -129,9 +160,16 @@ ApplicationWindow {
                 acceptedText: window.hasSelectedArtifact
                               ? window.selectedArtifact.textPreview : ""
                 candidatePending: window.candidateForSelected
+                candidates: window.artifactCandidates
                 errorMessage: window.backend.lastError
+                runtimeProbing: window.inferRuntime.probing
+                runtimeReachable: window.inferRuntime.reachable
+                runtimeCompatible: window.inferRuntime.compatible
+                runtimeContractVersion: window.inferRuntime.contractVersion
+                onRuntimeRefreshRequested: window.inferRuntime.refresh()
                 onCandidateRequested: (artifactId, replacementText) => {
                     if (window.backend.proposeTextCandidate(artifactId, replacementText)) {
+                        window.selectedCandidateId = window.backend.candidateId
                         window.compareMode = true
                         workspaceSurface.showArtifact()
                         contextInspector.currentPage = 0
@@ -148,21 +186,23 @@ ApplicationWindow {
             Layout.maximumWidth: 328
             Layout.fillHeight: true
             artifact: window.selectedArtifact
-            hasCandidate: window.candidateForSelected
-            candidateText: window.candidateForSelected ? window.backend.candidateText : ""
-            candidateTextTruncated: window.candidateForSelected
-                                    && window.backend.candidateTextTruncated
+            candidates: window.artifactCandidates
+            selectedCandidateId: window.selectedCandidate !== null
+                                 ? window.selectedCandidate.id : ""
             onCompareRequested: window.compareMode = !window.compareMode
-            onDiscardRequested: {
-                window.backend.discardCandidate()
-                window.compareMode = false
-            }
-            onAcceptRequested: {
-                if (window.backend.acceptCandidate()) {
+            onCandidateSelected: candidateId => window.activateCandidate(candidateId)
+            onDiscardRequested: candidateId => {
+                if (window.backend.discardCandidate(candidateId)) {
                     window.compareMode = false
                 }
             }
-            onBranchRequested: branchDialog.openFor(window.selectedArtifact.name)
+            onAcceptRequested: candidateId => {
+                if (window.backend.acceptCandidate(candidateId)) {
+                    window.compareMode = false
+                }
+            }
+            onBranchRequested: candidateId => branchDialog.openFor(
+                                   window.selectedArtifact.name, candidateId)
         }
     }
 
@@ -170,6 +210,13 @@ ApplicationWindow {
         target: window.backend
 
         function onCandidateChanged() : void {
+            if (window.selectedCandidate !== null
+                    && window.selectedCandidateId !== window.selectedCandidate.id) {
+                window.selectedCandidateId = window.selectedCandidate.id
+            } else if (window.selectedCandidate === null
+                       && window.selectedCandidateId.length > 0) {
+                window.selectedCandidateId = ""
+            }
             if (!window.candidateForSelected) {
                 window.compareMode = false
             }

@@ -1,7 +1,7 @@
 //! Bounded desktop session and projection over a real Shape project.
 //!
 //! Rust owns project validation, `SQLite`, object verification, and domain
-//! interpretation. The session owns one transient candidate at a time; C++
+//! interpretation. The session owns a transient candidate shelf; C++
 //! receives explicit presence flags and presentation-safe values through one
 //! generated CXX contract. QML never reads or writes project files directly.
 
@@ -9,6 +9,7 @@ mod session;
 
 use shape_core::ShapeProject;
 use shape_domain::{Artifact, ArtifactKind, TransformationKind};
+use shape_execution::{InferRuntimeClient, InferRuntimeClientError, InferRuntimeContract};
 
 use session::{DesktopSession, open_desktop_session};
 
@@ -76,6 +77,16 @@ mod ffi {
         text_preview: String,
     }
 
+    /// Public Infer Runtime contract availability. Error codes are stable and
+    /// language-neutral; credentials and response payloads never cross here.
+    #[derive(Debug)]
+    struct InferRuntimeProbeWire {
+        reachable: bool,
+        compatible: bool,
+        contract_version: String,
+        error_code: String,
+    }
+
     extern "Rust" {
         type DesktopSession;
 
@@ -83,8 +94,11 @@ mod ffi {
         /// read-only snapshot for the desktop shell.
         fn load_project_snapshot(path: &str) -> Result<ProjectSnapshotWire>;
 
+        /// Probes only the unauthenticated public consumer contract endpoint.
+        fn probe_infer_runtime(base_url: &str) -> InferRuntimeProbeWire;
+
         /// Opens one mutable desktop session. The session remains the sole
-        /// owner of any transient candidate and the underlying project.
+        /// owner of transient candidates and the underlying project.
         fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>>;
 
         fn session_snapshot(self: &DesktopSession) -> Result<ProjectSnapshotWire>;
@@ -93,12 +107,51 @@ mod ffi {
             artifact_id: &str,
             replacement_text: &str,
         ) -> Result<TextCandidateWire>;
-        fn session_accept_text(self: &mut DesktopSession) -> Result<ProjectSnapshotWire>;
+        fn session_text_candidates(self: &DesktopSession) -> Vec<TextCandidateWire>;
+        fn session_accept_text(
+            self: &mut DesktopSession,
+            candidate_id: &str,
+        ) -> Result<ProjectSnapshotWire>;
         fn session_branch_text(
             self: &mut DesktopSession,
+            candidate_id: &str,
             artifact_name: &str,
         ) -> Result<ProjectSnapshotWire>;
-        fn session_discard_text(self: &mut DesktopSession);
+        fn session_discard_text(self: &mut DesktopSession, candidate_id: &str) -> Result<()>;
+    }
+}
+
+fn probe_infer_runtime(base_url: &str) -> ffi::InferRuntimeProbeWire {
+    let result = InferRuntimeClient::new(base_url).and_then(|client| client.probe_contract());
+    infer_runtime_probe_wire(result)
+}
+
+fn infer_runtime_probe_wire(
+    result: Result<InferRuntimeContract, InferRuntimeClientError>,
+) -> ffi::InferRuntimeProbeWire {
+    match result {
+        Ok(contract) => ffi::InferRuntimeProbeWire {
+            reachable: true,
+            compatible: true,
+            contract_version: contract.contract_version,
+            error_code: String::new(),
+        },
+        Err(error) => {
+            let reachable = !matches!(
+                error,
+                InferRuntimeClientError::InvalidEndpoint | InferRuntimeClientError::Unavailable
+            );
+            let contract_version = match &error {
+                InferRuntimeClientError::IncompatibleContract { actual } => actual.clone(),
+                _ => String::new(),
+            };
+            ffi::InferRuntimeProbeWire {
+                reachable,
+                compatible: false,
+                contract_version,
+                error_code: error.code().to_owned(),
+            }
+        }
     }
 }
 

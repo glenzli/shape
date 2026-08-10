@@ -8,17 +8,18 @@ Item {
     id: inspector
 
     property var artifact: null
-    property bool hasCandidate: false
-    property string candidateText: ""
-    property bool candidateTextTruncated: false
+    property var candidates: []
+    property string selectedCandidateId: ""
     property int currentPage: 0
 
     readonly property bool hasArtifact: artifact !== null
+    readonly property bool hasCandidate: candidates.length > 0
 
     signal compareRequested()
-    signal discardRequested()
-    signal acceptRequested()
-    signal branchRequested()
+    signal candidateSelected(string candidateId)
+    signal discardRequested(string candidateId)
+    signal acceptRequested(string candidateId)
+    signal branchRequested(string candidateId)
 
     ColumnLayout {
         anchors.fill: parent
@@ -72,13 +73,15 @@ Item {
                 hasAcceptedRevision: inspector.hasArtifact
                                      && inspector.artifact.hasAcceptedRevision
                 hasTextPreview: inspector.hasArtifact && inspector.artifact.hasTextPreview
-                hasCandidate: inspector.hasCandidate
-                candidateText: inspector.candidateText
-                candidateTextTruncated: inspector.candidateTextTruncated
+                acceptedRevisionId: inspector.hasArtifact
+                                    ? inspector.artifact.acceptedRevisionId : ""
+                candidates: inspector.candidates
+                selectedCandidateId: inspector.selectedCandidateId
                 onCompareRequested: inspector.compareRequested()
-                onDiscardRequested: inspector.discardRequested()
-                onAcceptRequested: inspector.acceptRequested()
-                onBranchRequested: inspector.branchRequested()
+                onCandidateSelected: candidateId => inspector.candidateSelected(candidateId)
+                onDiscardRequested: candidateId => inspector.discardRequested(candidateId)
+                onAcceptRequested: candidateId => inspector.acceptRequested(candidateId)
+                onBranchRequested: candidateId => inspector.branchRequested(candidateId)
             }
 
             ArtifactDetailsPanel {

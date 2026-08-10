@@ -24,6 +24,8 @@ class DesktopBackend : public QObject {
     Q_PROPERTY(int artifactCount READ artifactCount NOTIFY projectChanged)
     Q_PROPERTY(QVariantList artifacts READ artifacts NOTIFY projectChanged)
     Q_PROPERTY(QVariantList graphEdges READ graphEdges NOTIFY projectChanged)
+    Q_PROPERTY(int candidateCount READ candidateCount NOTIFY candidateChanged)
+    Q_PROPERTY(QVariantList candidates READ candidates NOTIFY candidateChanged)
     Q_PROPERTY(bool hasCandidate READ hasCandidate NOTIFY candidateChanged)
     Q_PROPERTY(QString candidateId READ candidateId NOTIFY candidateChanged)
     Q_PROPERTY(QString candidateArtifactId READ candidateArtifactId NOTIFY candidateChanged)
@@ -48,6 +50,8 @@ class DesktopBackend : public QObject {
     [[nodiscard]] QVariantList artifacts() const;
     [[nodiscard]] QVariantList graphEdges() const;
 
+    [[nodiscard]] int candidateCount() const;
+    [[nodiscard]] QVariantList candidates() const;
     [[nodiscard]] bool hasCandidate() const;
     [[nodiscard]] QString candidateId() const;
     [[nodiscard]] QString candidateArtifactId() const;
@@ -57,9 +61,10 @@ class DesktopBackend : public QObject {
 
     Q_INVOKABLE bool
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);
-    Q_INVOKABLE bool acceptCandidate();
-    Q_INVOKABLE bool branchCandidate(const QString& artifactName);
-    Q_INVOKABLE void discardCandidate();
+    Q_INVOKABLE bool selectCandidate(const QString& candidateId);
+    Q_INVOKABLE bool acceptCandidate(const QString& candidateId);
+    Q_INVOKABLE bool branchCandidate(const QString& candidateId, const QString& artifactName);
+    Q_INVOKABLE bool discardCandidate(const QString& candidateId);
 
     /// Rebuilds translated presentation values after a runtime locale change.
     void retranslate();
@@ -73,8 +78,12 @@ class DesktopBackend : public QObject {
     struct SessionState;
 
     void applySnapshot(shape::desktop::ProjectSnapshotWire snapshot);
-    void applyCandidate(shape::desktop::TextCandidateWire candidate);
-    void clearCandidate();
+    void applyCandidates(
+        rust::Vec<shape::desktop::TextCandidateWire> candidates,
+        const QString& preferredCandidateId = QString()
+    );
+    bool applyCandidateSelection(const QString& candidateId);
+    void clearCandidateSelection();
     void setLastError(const QString& message);
 
     std::unique_ptr<SessionState> session_;
@@ -85,6 +94,7 @@ class DesktopBackend : public QObject {
     QString bundle_path_;
     QVariantList artifacts_;
     QVariantList graph_edges_;
+    QVariantList candidates_;
 
     bool has_candidate_ = false;
     QString candidate_id_;

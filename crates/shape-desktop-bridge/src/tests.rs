@@ -2,12 +2,41 @@ use std::{fs, path::PathBuf};
 
 use shape_core::ShapeProject;
 use shape_domain::{ArtifactKind, IntentSpec};
+use shape_execution::{
+    INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClientError, InferRuntimeContract,
+};
 use uuid::Uuid;
 
-use super::load_project_snapshot;
+use super::{infer_runtime_probe_wire, load_project_snapshot};
 
 fn test_root() -> PathBuf {
     std::env::temp_dir().join(format!("shape-desktop-bridge-{}", Uuid::now_v7()))
+}
+
+#[test]
+fn infer_probe_wire_preserves_compatibility_without_diagnostics_payloads() {
+    let compatible = infer_runtime_probe_wire(Ok(InferRuntimeContract {
+        contract_version: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
+    }));
+    assert!(compatible.reachable);
+    assert!(compatible.compatible);
+    assert_eq!(compatible.contract_version, INFER_RUNTIME_CONTRACT_VERSION);
+    assert!(compatible.error_code.is_empty());
+
+    let incompatible =
+        infer_runtime_probe_wire(Err(InferRuntimeClientError::IncompatibleContract {
+            actual: "0.1.0-candidate.99".to_owned(),
+        }));
+    assert!(incompatible.reachable);
+    assert!(!incompatible.compatible);
+    assert_eq!(incompatible.contract_version, "0.1.0-candidate.99");
+    assert_eq!(incompatible.error_code, "incompatible_contract");
+
+    let unavailable = infer_runtime_probe_wire(Err(InferRuntimeClientError::Unavailable));
+    assert!(!unavailable.reachable);
+    assert!(!unavailable.compatible);
+    assert!(unavailable.contract_version.is_empty());
+    assert_eq!(unavailable.error_code, "unavailable");
 }
 
 #[test]

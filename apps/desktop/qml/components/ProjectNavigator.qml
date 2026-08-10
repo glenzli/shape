@@ -14,14 +14,23 @@ Rectangle {
     property bool projectOpen: false
     property var artifacts: []
     property int selectedIndex: 0
-    property bool hasCandidate: false
-    property string candidateArtifactId: ""
+    property var candidates: []
     property bool graphActive: false
 
     readonly property int acceptedCount: {
         let count = 0
         for (let index = 0; index < artifacts.length; ++index) {
             if (artifacts[index].hasAcceptedRevision) {
+                ++count
+            }
+        }
+        return count
+    }
+
+    function candidateCount(artifactId) : int {
+        let count = 0
+        for (let index = 0; index < candidates.length; ++index) {
+            if (candidates[index].artifactId === artifactId) {
                 ++count
             }
         }
@@ -104,9 +113,8 @@ Rectangle {
 
                 required property int index
                 required property var modelData
-                readonly property bool candidatePending: navigator.hasCandidate
-                                                         && navigator.candidateArtifactId
-                                                            === modelData.id
+                readonly property int pendingCount: navigator.candidateCount(modelData.id)
+                readonly property bool candidatePending: pendingCount > 0
 
                 width: ListView.view.width
                 height: 68
@@ -173,8 +181,11 @@ Rectangle {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: artifactDelegate.candidatePending
-                                      ? qsTr("Candidate pending")
+                                text: artifactDelegate.pendingCount > 1
+                                      ? qsTr("%1 candidates pending").arg(
+                                            artifactDelegate.pendingCount)
+                                      : artifactDelegate.candidatePending
+                                        ? qsTr("Candidate pending")
                                       : artifactDelegate.modelData.hasAcceptedRevision
                                         ? qsTr("Accepted head")
                                         : qsTr("Awaiting first revision")

@@ -16,19 +16,20 @@ Item {
     property var graphEdges: []
     property var selectedArtifact: null
     property int selectedIndex: 0
-    property bool hasCandidate: false
-    property string candidateArtifactId: ""
-    property string candidateText: ""
-    property bool candidateTextTruncated: false
+    property var candidates: []
+    property var selectedCandidate: null
+    property string selectedCandidateId: ""
     property bool compareMode: false
     property int currentMode: 0
 
     readonly property bool hasSelectedArtifact: selectedArtifact !== null
     readonly property bool candidateForSelected: hasSelectedArtifact
-                                                  && hasCandidate
-                                                  && candidateArtifactId === selectedArtifact.id
+                                                  && selectedCandidate !== null
+                                                  && selectedCandidate.artifactId
+                                                     === selectedArtifact.id
 
     signal artifactSelected(int index)
+    signal candidateSelected(string candidateId)
 
     function showArtifact() : void {
         currentMode = 0
@@ -108,7 +109,8 @@ Item {
                 textPreviewTruncated: surface.hasSelectedArtifact
                                       && surface.selectedArtifact.textPreviewTruncated
                 hasCandidate: surface.candidateForSelected
-                candidateText: surface.candidateForSelected ? surface.candidateText : ""
+                candidateText: surface.candidateForSelected
+                               ? surface.selectedCandidate.text : ""
                 compareMode: surface.compareMode
             }
 
@@ -117,10 +119,10 @@ Item {
                 artifacts: surface.artifacts
                 edges: surface.graphEdges
                 selectedIndex: surface.selectedIndex
-                hasCandidate: surface.hasCandidate
-                candidateArtifactId: surface.candidateArtifactId
-                candidateTextTruncated: surface.candidateTextTruncated
+                candidates: surface.candidates
+                selectedCandidateId: surface.selectedCandidateId
                 onArtifactSelected: index => surface.activateArtifact(index)
+                onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
             }
         }
     }

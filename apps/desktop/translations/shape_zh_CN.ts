@@ -198,43 +198,43 @@
 <context>
     <name>BranchArtifactDialog</name>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="26"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="28"/>
         <source>%1 — Branch</source>
         <translation>%1 — 分支</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="108"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="110"/>
         <source>Branch as new artifact</source>
         <translation>派生为新对象</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="115"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="117"/>
         <source>Keep the current artifact unchanged and create a connected alternative.</source>
         <translation>保留当前对象不变，并创建一个与其相连的备选对象。</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="129"/>
-        <location filename="../qml/BranchArtifactDialog.qml" line="148"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="131"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="150"/>
         <source>Artifact name</source>
         <translation>对象名称</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="143"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="145"/>
         <source>Name this alternative</source>
         <translation>为这个备选对象命名</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="162"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="164"/>
         <source>The candidate becomes the first accepted revision of the new artifact. Its source remains visible in Lineage.</source>
         <translation>候选会成为新对象的首个已接受修订，来源关系会保留在沿袭中。</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="200"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="202"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="205"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="207"/>
         <source>Create branch</source>
         <translation>创建分支</translation>
     </message>
@@ -242,17 +242,17 @@
 <context>
     <name>ContextInspector</name>
     <message>
-        <location filename="../qml/components/ContextInspector.qml" line="42"/>
+        <location filename="../qml/components/ContextInspector.qml" line="43"/>
         <source>Explore</source>
         <translation>探索</translation>
     </message>
     <message>
-        <location filename="../qml/components/ContextInspector.qml" line="50"/>
+        <location filename="../qml/components/ContextInspector.qml" line="51"/>
         <source>Details</source>
         <translation>详情</translation>
     </message>
     <message>
-        <location filename="../qml/components/ContextInspector.qml" line="58"/>
+        <location filename="../qml/components/ContextInspector.qml" line="59"/>
         <source>Lineage</source>
         <translation>沿袭</translation>
     </message>
@@ -260,102 +260,107 @@
 <context>
     <name>DesktopBackend</name>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="22"/>
+        <location filename="../src/desktop_backend.cpp" line="23"/>
         <source>Text document</source>
         <translation>文本文档</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="25"/>
+        <location filename="../src/desktop_backend.cpp" line="26"/>
         <source>Raster image</source>
         <translation>栅格图像</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="28"/>
+        <location filename="../src/desktop_backend.cpp" line="29"/>
         <source>Image composition</source>
         <translation>图像合成</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="31"/>
+        <location filename="../src/desktop_backend.cpp" line="32"/>
         <source>Reference set</source>
         <translation>参考集</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="33"/>
+        <location filename="../src/desktop_backend.cpp" line="34"/>
         <source>Unknown artifact</source>
         <translation>未知创作对象</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="38"/>
+        <location filename="../src/desktop_backend.cpp" line="39"/>
         <source>Imported origin</source>
         <translation>导入起点</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="41"/>
+        <location filename="../src/desktop_backend.cpp" line="42"/>
         <source>Text revision</source>
         <translation>文本修订</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="44"/>
+        <location filename="../src/desktop_backend.cpp" line="45"/>
         <source>Deterministic edit</source>
         <translation>确定性编辑</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="47"/>
+        <location filename="../src/desktop_backend.cpp" line="48"/>
         <source>Generative edit</source>
         <translation>生成式编辑</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="50"/>
+        <location filename="../src/desktop_backend.cpp" line="51"/>
         <source>Composite</source>
         <translation>合成</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="53"/>
+        <location filename="../src/desktop_backend.cpp" line="54"/>
         <source>External round trip</source>
         <translation>外部往返编辑</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="55"/>
+        <location filename="../src/desktop_backend.cpp" line="56"/>
         <source>Unknown transformation</source>
         <translation>未知变换</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="60"/>
+        <location filename="../src/desktop_backend.cpp" line="61"/>
         <source>Direct text edit</source>
         <translation>直接文本编辑</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="226"/>
+        <location filename="../src/desktop_backend.cpp" line="247"/>
         <source>Open a project before creating a candidate.</source>
         <translation>请先打开项目，再创建候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="238"/>
+        <location filename="../src/desktop_backend.cpp" line="260"/>
         <source>Could not create candidate.</source>
         <translation>无法创建候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="257"/>
+        <location filename="../src/desktop_backend.cpp" line="288"/>
         <source>Could not accept candidate.</source>
         <translation>无法接受候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="264"/>
+        <location filename="../src/desktop_backend.cpp" line="295"/>
         <source>There is no candidate to branch.</source>
         <translation>没有可以派生的候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="276"/>
+        <location filename="../src/desktop_backend.cpp" line="309"/>
         <source>Could not branch candidate.</source>
         <translation>无法派生候选。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="301"/>
+        <location filename="../src/desktop_backend.cpp" line="326"/>
+        <source>Could not discard candidate.</source>
+        <translation>无法丢弃候选方案。</translation>
+    </message>
+    <message>
+        <location filename="../src/desktop_backend.cpp" line="341"/>
         <source>Could not refresh project.</source>
         <translation>无法刷新项目。</translation>
     </message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="245"/>
+        <location filename="../src/desktop_backend.cpp" line="276"/>
         <source>There is no candidate to accept.</source>
         <translation>没有可以接受的候选。</translation>
     </message>
@@ -363,42 +368,67 @@
 <context>
     <name>IntentPanel</name>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="41"/>
+        <location filename="../qml/components/IntentPanel.qml" line="56"/>
         <source>TEXT DRAFT</source>
         <translation>文本草稿</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="51"/>
+        <location filename="../qml/components/IntentPanel.qml" line="66"/>
         <source>Direct edit · candidate before commit</source>
         <translation>直接编辑 · 提交前为候选</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="68"/>
+        <location filename="../qml/components/IntentPanel.qml" line="74"/>
+        <source>Checking AI…</source>
+        <translation>正在检查 AI…</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="75"/>
+        <source>AI ready</source>
+        <translation>AI 就绪</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="76"/>
+        <source>AI contract mismatch</source>
+        <translation>AI 契约不匹配</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="77"/>
+        <source>AI offline</source>
+        <translation>AI 离线</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="81"/>
+        <source>Infer Runtime ready, contract %1</source>
+        <translation>Infer Runtime 已就绪，契约 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/IntentPanel.qml" line="99"/>
         <source>Write the next text revision…</source>
         <translation>写下一个文本版本…</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="69"/>
+        <location filename="../qml/components/IntentPanel.qml" line="100"/>
         <source>Select a text document to begin</source>
         <translation>选择一个文本文档即可开始</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="76"/>
+        <location filename="../qml/components/IntentPanel.qml" line="107"/>
         <source>Text draft</source>
         <translation>文本草稿</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="94"/>
-        <source>A candidate is ready. Compare, discard, or accept it.</source>
-        <translation>候选已就绪。你可以对比、丢弃或接受它。</translation>
+        <location filename="../qml/components/IntentPanel.qml" line="125"/>
+        <source>Keep editing to add another option, or review the shelf.</source>
+        <translation>继续编辑以添加其他方案，或在候选架中查看。</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="95"/>
+        <location filename="../qml/components/IntentPanel.qml" line="126"/>
         <source>Accepted history stays unchanged until you accept the candidate.</source>
         <translation>在你接受候选之前，已接受历史不会改变。</translation>
     </message>
     <message>
-        <location filename="../qml/components/IntentPanel.qml" line="104"/>
+        <location filename="../qml/components/IntentPanel.qml" line="135"/>
         <source>Create candidate</source>
         <translation>创建候选</translation>
     </message>
@@ -406,12 +436,12 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/Main.qml" line="36"/>
+        <location filename="../qml/Main.qml" line="68"/>
         <source>Shape — %1</source>
         <translation>Shape — %1</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="37"/>
+        <location filename="../qml/Main.qml" line="69"/>
         <source>Shape — No Project</source>
         <translation>Shape — 无项目</translation>
     </message>
@@ -482,72 +512,72 @@
         <translation>等待首个修订</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="156"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="168"/>
         <source>PROJECT GRAPH</source>
         <translation>项目图谱</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="165"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="177"/>
         <source>Creative relationships</source>
         <translation>创作关系</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="182"/>
-        <source>%1 artifacts · %2 derivations</source>
-        <translation>%1 个对象 · %2 条派生关系</translation>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="194"/>
+        <source>%1 artifacts · %2 derivations · %3 candidates</source>
+        <translation>%1 个创作对象 · %2 条派生关系 · %3 个候选方案</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="274"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="434"/>
+        <source>Pending option %1</source>
+        <translation>待定方案 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="464"/>
+        <source>Pending option from %1</source>
+        <translation>来自 %1 的待定方案</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="287"/>
         <source>Open %1</source>
         <translation>打开 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="407"/>
-        <source>Pending candidate</source>
-        <translation>待处理候选</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="416"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="443"/>
         <source>From %1</source>
         <translation>来自 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="426"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="453"/>
         <source>Preview truncated</source>
         <translation>预览已截断</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="426"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="453"/>
         <source>Outside history</source>
         <translation>尚未进入历史</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="437"/>
-        <source>Pending candidate from %1</source>
-        <translation>来自 %1 的待处理候选</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="456"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="487"/>
         <source>No artifacts to graph</source>
         <translation>没有可显示的创作对象</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="464"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="495"/>
         <source>Accepted creative objects will appear here.</source>
         <translation>已接受的创作对象会显示在这里。</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="499"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="530"/>
         <source>Accepted derivation</source>
         <translation>已接受派生</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="511"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="542"/>
         <source>Transient candidate</source>
         <translation>临时候选</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="519"/>
+        <location filename="../qml/components/ProjectGraphWorkspace.qml" line="550"/>
         <source>Click a node to inspect it</source>
         <translation>点击节点即可检查</translation>
     </message>
@@ -555,62 +585,67 @@
 <context>
     <name>ProjectNavigator</name>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="47"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="56"/>
         <source>PROJECT</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="77"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="86"/>
         <source>CREATIVE OBJECTS</source>
         <translation>创作对象</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="87"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="96"/>
         <source>Current heads</source>
         <translation>当前版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="177"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="185"/>
+        <source>%1 candidates pending</source>
+        <translation>%1 个候选方案待处理</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ProjectNavigator.qml" line="188"/>
         <source>Candidate pending</source>
         <translation>候选待处理</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="179"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="190"/>
         <source>Accepted head</source>
         <translation>已接受版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="180"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="191"/>
         <source>Awaiting first revision</source>
         <translation>等待首个修订</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="194"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="205"/>
         <source>This project has no creative objects</source>
         <translation>这个项目还没有创作对象</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="195"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="206"/>
         <source>No project loaded</source>
         <translation>尚未载入项目</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="218"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="229"/>
         <source>CREATIVE GRAPH</source>
         <translation>创作图谱</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="228"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="239"/>
         <source>%1 accepted</source>
         <translation>已接受 %1 个</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="236"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="247"/>
         <source>Candidates stay outside the graph until accepted.</source>
         <translation>候选只有在接受后才会进入图谱。</translation>
     </message>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="250"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="261"/>
         <source>Open project graph</source>
         <translation>打开项目图谱</translation>
     </message>
@@ -685,105 +720,125 @@
 <context>
     <name>VariantsPanel</name>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="33"/>
-        <source>EXPLORATION</source>
-        <translation>探索</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="52"/>
-        <source>0 pending</source>
-        <translation>0 个待处理</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="52"/>
-        <source>1 pending</source>
-        <translation>1 个待处理</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="73"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="107"/>
         <source>CURRENT ACCEPTED</source>
         <translation>当前已接受</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="83"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="127"/>
         <source>Accepted non-text content</source>
         <translation>已接受的非文本内容</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="91"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="117"/>
         <source>Durable · verified</source>
         <translation>已持久化 · 已校验</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="112"/>
-        <source>TEXT CANDIDATE</source>
-        <translation>文本候选</translation>
+        <location filename="../qml/components/VariantsPanel.qml" line="59"/>
+        <source>CANDIDATE SHELF</source>
+        <translation>候选架</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="123"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="67"/>
+        <source>Explore before committing history</source>
+        <translation>在写入历史前探索不同方案</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/VariantsPanel.qml" line="83"/>
+        <source>%1 pending</source>
+        <translation>%1 个待处理</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/VariantsPanel.qml" line="141"/>
+        <source>TRANSIENT OPTIONS</source>
+        <translation>临时方案</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/VariantsPanel.qml" line="152"/>
         <source>Compare</source>
         <translation>比较</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="139"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="191"/>
+        <source>Select candidate %1</source>
+        <translation>选择候选方案 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/VariantsPanel.qml" line="210"/>
+        <source>OPTION %1</source>
+        <translation>方案 %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/VariantsPanel.qml" line="221"/>
+        <source>Ready to accept</source>
+        <translation>可接受</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/VariantsPanel.qml" line="221"/>
+        <source>Earlier revision</source>
+        <translation>基于早期版本</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/VariantsPanel.qml" line="240"/>
         <source>Preview truncated</source>
         <translation>预览已截断</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="140"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="240"/>
         <source>Transient · not in history</source>
         <translation>临时状态 · 未进入历史</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="162"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="263"/>
         <source>No pending candidates</source>
         <translation>没有待处理候选</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="162"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="263"/>
         <source>No accepted or pending variants</source>
         <translation>没有已接受或待处理的候选版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="170"/>
-        <source>Edit the text draft to create a candidate</source>
-        <translation>编辑文本草稿以创建候选</translation>
+        <location filename="../qml/components/VariantsPanel.qml" line="271"/>
+        <source>Edit the text draft to create an option</source>
+        <translation>编辑文稿以创建候选方案</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="186"/>
-        <source>Branch as new artifact</source>
-        <translation>派生为新对象</translation>
+        <location filename="../qml/components/VariantsPanel.qml" line="285"/>
+        <source>Branch selected option</source>
+        <translation>将所选方案创建为新对象</translation>
     </message>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="197"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="301"/>
+        <source>Accept selected</source>
+        <translation>接受所选方案</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/VariantsPanel.qml" line="295"/>
         <source>Discard</source>
         <translation>丢弃</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="203"/>
-        <source>Accept candidate</source>
-        <translation>接受候选</translation>
     </message>
 </context>
 <context>
     <name>WorkspaceSurface</name>
     <message>
-        <location filename="../qml/components/WorkspaceSurface.qml" line="63"/>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="64"/>
         <source>WORKSPACE</source>
         <translation>工作区</translation>
     </message>
     <message>
-        <location filename="../qml/components/WorkspaceSurface.qml" line="75"/>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="76"/>
         <source>Artifact</source>
         <translation>作品</translation>
     </message>
     <message>
-        <location filename="../qml/components/WorkspaceSurface.qml" line="83"/>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="84"/>
         <source>Project graph</source>
         <translation>项目图谱</translation>
     </message>
     <message>
-        <location filename="../qml/components/WorkspaceSurface.qml" line="99"/>
+        <location filename="../qml/components/WorkspaceSurface.qml" line="100"/>
         <source>No artifact selected</source>
         <translation>未选择创作对象</translation>
     </message>

@@ -49,12 +49,17 @@ The first foundation intentionally keeps four Rust semantic owners:
 - `shape-core`: application use cases and built-in transformations.
 
 The first real desktop edit path now owns one additional `shape-desktop-bridge`. Its
-`DesktopSession` keeps one `ShapeProject` and at most one transient text candidate, and projects
-validated snapshots through CXX without UI policy. Acceptance still crosses the existing
-`shape-core` use case and `shape-store` compare-and-swap commit boundary. Richer draft sessions,
-media bridges, an Infer client, capability registry, preview renderer, and project dependency
-resolver remain deferred until a real application path consumes them. Do not create empty crates
-for roadmap boxes.
+`DesktopSession` keeps one `ShapeProject` and coordinates durable mutations, while
+`session::candidate_shelf::CandidateShelf` owns the transient, identity-addressed text candidate
+collection. Candidates project newest-first through CXX without UI policy. Successful in-place
+acceptance clears siblings prepared against the old head; branching and discard consume only the
+chosen candidate. Acceptance still crosses the existing `shape-core` use case and `shape-store`
+compare-and-swap commit boundary. `shape-execution::infer_runtime` now owns the first real Infer
+Runtime consumer: a bounded, redirect-free, loopback-only probe for the public contract manifest.
+It does not submit work or carry credentials. Pinned or durable explorations, media bridges, the
+authenticated Infer executor, capability registry, preview renderer, and project dependency
+resolver remain deferred until a real application path and credential boundary consume them. Do
+not create empty crates for roadmap boxes.
 
 The desktop visual foundation adds two deliberately separate owners rather than growing the
 project projection: `UiPreferences` owns persistent appearance/language lifecycle, while
@@ -63,11 +68,16 @@ components keep ownership of their own visual regions. This split should be revi
 second settings domain or a second top-level workspace creates a concrete growth trigger.
 `TextCompareWorkspace.qml` separately owns accepted-versus-candidate presentation; the C++
 `DesktopBackend` remains a presentation facade and never becomes the draft or persistence owner.
+The independent `InferRuntimeController` owns the asynchronous desktop probe lifecycle and exposes
+only availability, compatibility, contract version, and stable error identity to QML. It never
+enters `DesktopSession`, blocks the UI thread, edits Infer configuration, or makes accepted content
+dependent on runtime availability.
 The graph-aware desktop information architecture adds `ProjectNavigator.qml` for project-level
 creative-object selection and `ContextInspector.qml` for Explore, Details, and Lineage modes.
 `ArtifactWorkspace.qml` remains the media-workspace owner. The bridge projects only lineage already
 proven by the current accepted revision and its persisted Transformation. Once the first real
 cross-artifact branch path became available, `ProjectGraphWorkspace.qml` became the presentation
 owner for accepted current-head topology and transient candidate ghosts; `WorkspaceSurface.qml`
-owns artifact/graph workspace navigation. Rust remains the semantic graph projection owner, and
-QML layout never becomes durable graph authority.
+owns artifact/graph workspace navigation. `VariantsPanel.qml` owns artifact-scoped Candidate Shelf
+selection and review controls, while candidate identity and mutation remain in Rust. Rust remains
+the semantic graph projection owner, and QML layout never becomes durable graph authority.

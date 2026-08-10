@@ -1,4 +1,4 @@
-find_package(Qt6 6.9 REQUIRED COMPONENTS Quick QuickControls2 LinguistTools)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Quick QuickControls2 LinguistTools)
 find_package(Threads REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.9 I18N_TRANSLATED_LANGUAGES zh_CN)
@@ -82,6 +82,8 @@ qt_add_executable(shape-desktop
     src/main.cpp
     src/desktop_backend.cpp
     src/desktop_backend.hpp
+    src/infer_runtime_controller.cpp
+    src/infer_runtime_controller.hpp
     src/ui_preferences.cpp
     src/ui_preferences.hpp
     src/mac_titlebar.hpp
@@ -139,6 +141,7 @@ target_link_libraries(shape-desktop
     PRIVATE
         Qt6::Quick
         Qt6::QuickControls2
+        Qt6::Concurrent
         shape-desktop-rust
         Threads::Threads
         ${CMAKE_DL_LIBS}

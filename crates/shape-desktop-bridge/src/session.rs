@@ -1,22 +1,25 @@
-//! Mutable desktop lifecycle over one project and one transient text candidate.
+//! Mutable desktop lifecycle over one project and its transient candidate shelf.
+
+mod candidate_shelf;
 
 use shape_core::{ShapeProject, TextCandidate};
 use shape_domain::{ArtifactId, ArtifactKind, IntentSpec};
 
 use crate::{bounded_text_preview, ffi, project_snapshot};
+use candidate_shelf::CandidateShelf;
 
 const USER_AUTHORED_TEXT_INTENT: &str = "Replace text with a user-authored draft";
 
-/// One open desktop project and its single replaceable transient candidate.
+/// One open desktop project and its transient text candidates.
 ///
-/// The session never persists preview state. A proposal replaces the previous
-/// candidate only after successful execution; acceptance clones the pending
-/// value so a failed durable commit leaves the preview available for retry.
+/// The session never persists preview state. Proposals accumulate only after
+/// successful execution. Consequential operations address one exact candidate;
+/// a failed durable commit leaves the shelf available for retry.
 #[derive(Debug)]
 pub struct DesktopSession {
     project: ShapeProject,
     bundle_path: String,
-    pending_text: Option<TextCandidate>,
+    candidates: CandidateShelf,
 }
 
 /// Opens a validated project for mutable desktop use.
@@ -29,7 +32,7 @@ pub fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>, String> {
     Ok(Box::new(DesktopSession {
         project,
         bundle_path: super::project_path(path),
-        pending_text: None,
+        candidates: CandidateShelf::default(),
     }))
 }
 
@@ -45,7 +48,7 @@ impl DesktopSession {
     ///
     /// Rejects invalid identities, non-text artifacts, no-op drafts, stale
     /// accepted heads, and execution failures without replacing an existing
-    /// pending candidate.
+    /// pending candidates.
     pub fn session_propose_text(
         &mut self,
         artifact_id: &str,
@@ -71,6 +74,9 @@ impl DesktopSession {
         {
             return Err("candidate text matches the current accepted text".to_owned());
         }
+        if self.candidates.contains_text(artifact_id, replacement_text) {
+            return Err("candidate text already exists on the shelf".to_owned());
+        }
 
         let candidate = self
             .project
@@ -83,50 +89,62 @@ impl DesktopSession {
             )
             .map_err(|error| error.to_string())?;
         let wire = candidate_wire(&candidate);
-        self.pending_text = Some(candidate);
+        self.candidates.push(candidate);
         Ok(wire)
     }
 
-    /// Explicitly accepts the pending candidate and returns the new snapshot.
+    /// Returns all transient candidates in newest-first presentation order.
+    pub fn session_text_candidates(&self) -> Vec<ffi::TextCandidateWire> {
+        self.candidates.newest_first().map(candidate_wire).collect()
+    }
+
+    /// Explicitly accepts one candidate and returns the new durable snapshot.
     ///
     /// # Errors
     ///
-    /// Returns an error when no candidate exists or the durable CAS commit
-    /// fails. Failed acceptance retains the pending preview for inspection.
-    pub fn session_accept_text(&mut self) -> Result<ffi::ProjectSnapshotWire, String> {
-        let candidate = self
-            .pending_text
-            .clone()
-            .ok_or_else(|| "there is no text candidate to accept".to_owned())?;
+    /// Returns an error when the identity is unknown or the durable CAS commit
+    /// fails. Failed acceptance retains every preview for inspection. A
+    /// successful accepted-head change clears sibling candidates for that
+    /// artifact because they were prepared against the previous head.
+    pub fn session_accept_text(
+        &mut self,
+        candidate_id: &str,
+    ) -> Result<ffi::ProjectSnapshotWire, String> {
+        let candidate = self.candidates.clone_candidate(candidate_id)?;
+        let artifact_id = candidate.artifact_id();
         self.project
             .accept_text(candidate)
             .map_err(|error| error.to_string())?;
-        self.pending_text = None;
+        self.candidates.discard_artifact(artifact_id);
         self.session_snapshot()
     }
 
-    /// Accepts the pending candidate as the first revision of a new artifact.
+    /// Accepts one candidate as the first revision of a new artifact.
     ///
-    /// Failed branching retains the candidate so the user can rename or retry.
+    /// Failed branching retains the candidate so the user can rename or retry;
+    /// success removes only the chosen candidate because the source head is
+    /// unchanged and its sibling candidates remain valid.
     pub fn session_branch_text(
         &mut self,
+        candidate_id: &str,
         artifact_name: &str,
     ) -> Result<ffi::ProjectSnapshotWire, String> {
-        let candidate = self
-            .pending_text
-            .clone()
-            .ok_or_else(|| "there is no text candidate to branch".to_owned())?;
+        let candidate = self.candidates.clone_candidate(candidate_id)?;
         self.project
             .branch_text_candidate(candidate, artifact_name)
             .map_err(|error| error.to_string())?;
-        self.pending_text = None;
+        self.candidates.discard(candidate_id)?;
         self.session_snapshot()
     }
 
-    /// Discards transient preview without touching durable history.
-    pub fn session_discard_text(&mut self) {
-        self.pending_text = None;
+    /// Discards one transient preview without touching durable history.
+    pub fn session_discard_text(&mut self, candidate_id: &str) -> Result<(), String> {
+        self.candidates.discard(candidate_id)
     }
+}
+
+fn candidate_id(candidate: &TextCandidate) -> String {
+    candidate.receipt().attempt_id.to_string()
 }
 
 fn candidate_wire(candidate: &TextCandidate) -> ffi::TextCandidateWire {
@@ -134,7 +152,7 @@ fn candidate_wire(candidate: &TextCandidate) -> ffi::TextCandidateWire {
         bounded_text_preview(candidate.text().as_bytes()).expect("text candidates are valid UTF-8");
     let expected_head = candidate.expected_head();
     ffi::TextCandidateWire {
-        candidate_id: candidate.receipt().attempt_id.to_string(),
+        candidate_id: candidate_id(candidate),
         artifact_id: candidate.artifact_id().to_string(),
         has_expected_head: expected_head.is_some(),
         expected_head: expected_head.map_or_else(String::new, |head| head.to_string()),

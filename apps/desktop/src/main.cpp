@@ -1,4 +1,5 @@
 #include "desktop_backend.hpp"
+#include "infer_runtime_controller.hpp"
 #include "ui_preferences.hpp"
 
 #if defined(Q_OS_MACOS)
@@ -67,8 +68,29 @@ bool run_smoke_text_cycle(DesktopBackend& backend) {
         accepted.value(QStringLiteral("acceptedRevisionId")).toString();
     const QString replacement = QStringLiteral("A desktop candidate accepted after review.");
 
-    if (!backend.proposeTextCandidate(artifact_id, replacement) || !backend.hasCandidate()) {
-        std::cerr << "desktop text smoke could not create candidate" << std::endl;
+    if (!backend.proposeTextCandidate(
+            artifact_id,
+            QStringLiteral("A desktop candidate kept as another option.")
+        )) {
+        std::cerr << "desktop text smoke could not create first shelf candidate" << std::endl;
+        return false;
+    }
+    const QString first_candidate_id = backend.candidateId();
+    if (!backend.proposeTextCandidate(artifact_id, replacement) || !backend.hasCandidate()
+        || backend.candidateCount() != 2 || backend.candidates().size() != 2) {
+        std::cerr << "desktop text smoke could not accumulate candidate shelf" << std::endl;
+        return false;
+    }
+    const QString accepted_candidate_id = backend.candidateId();
+    if (accepted_candidate_id == first_candidate_id
+        || backend.candidates().first().toMap().value(QStringLiteral("id")).toString()
+               != accepted_candidate_id) {
+        std::cerr << "desktop text smoke did not select the newest candidate" << std::endl;
+        return false;
+    }
+    if (!backend.discardCandidate(first_candidate_id) || backend.candidateCount() != 1
+        || backend.candidateId() != accepted_candidate_id) {
+        std::cerr << "desktop text smoke could not discard an exact shelf candidate" << std::endl;
         return false;
     }
 
@@ -87,7 +109,8 @@ bool run_smoke_text_cycle(DesktopBackend& backend) {
         return false;
     }
 
-    if (!backend.acceptCandidate() || backend.hasCandidate()) {
+    if (!backend.acceptCandidate(accepted_candidate_id) || backend.hasCandidate()
+        || backend.candidateCount() != 0) {
         std::cerr << "desktop text smoke could not accept candidate" << std::endl;
         return false;
     }
@@ -116,13 +139,24 @@ bool run_smoke_text_cycle(DesktopBackend& backend) {
 
     const QString branch_replacement =
         QStringLiteral("A desktop candidate accepted as a separate artifact.");
-    if (!backend.proposeTextCandidate(artifact_id, branch_replacement) || !backend.hasCandidate()) {
+    if (!backend.proposeTextCandidate(
+            artifact_id,
+            QStringLiteral("A sibling candidate that remains on the shelf.")
+        )) {
+        std::cerr << "desktop text smoke could not create branch sibling" << std::endl;
+        return false;
+    }
+    const QString branch_sibling_id = backend.candidateId();
+    if (!backend.proposeTextCandidate(artifact_id, branch_replacement) || !backend.hasCandidate()
+        || backend.candidateCount() != 2) {
         std::cerr << "desktop text smoke could not create branch candidate" << std::endl;
         return false;
     }
+    const QString branch_candidate_id = backend.candidateId();
     const QString branch_name =
         committed.value(QStringLiteral("name")).toString() + QStringLiteral(" — Branch");
-    if (!backend.branchCandidate(branch_name) || backend.hasCandidate()) {
+    if (!backend.branchCandidate(branch_candidate_id, branch_name) || backend.candidateCount() != 1
+        || backend.candidateId() != branch_sibling_id) {
         std::cerr << "desktop text smoke could not branch candidate" << std::endl;
         return false;
     }
@@ -163,6 +197,10 @@ bool run_smoke_text_cycle(DesktopBackend& backend) {
         std::cerr << "desktop text smoke projected invalid branch lineage" << std::endl;
         return false;
     }
+    if (!backend.discardCandidate(branch_sibling_id) || backend.hasCandidate()) {
+        std::cerr << "desktop text smoke could not clear remaining shelf candidate" << std::endl;
+        return false;
+    }
 
     return true;
 }
@@ -191,6 +229,65 @@ bool verify_project_graph_interaction(QObject& root_object) {
     QCoreApplication::processEvents();
     if (root_object.property("selectedArtifactIndex").toInt() != 1) {
         std::cerr << "desktop graph smoke did not synchronize artifact selection" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool verify_candidate_shelf_interaction(DesktopBackend& backend, QObject& root_object) {
+    const int selected_index = root_object.property("selectedArtifactIndex").toInt();
+    const QVariantList artifacts = backend.artifacts();
+    if (selected_index < 0 || selected_index >= artifacts.size()) {
+        std::cerr << "desktop shelf smoke has no selected artifact" << std::endl;
+        return false;
+    }
+    const QString artifact_id =
+        artifacts[selected_index].toMap().value(QStringLiteral("id")).toString();
+    if (!backend.proposeTextCandidate(artifact_id, QStringLiteral("Candidate shelf option A."))) {
+        std::cerr << "desktop shelf smoke could not create first option" << std::endl;
+        return false;
+    }
+    const QString first_candidate_id = backend.candidateId();
+    if (!backend.proposeTextCandidate(artifact_id, QStringLiteral("Candidate shelf option B."))) {
+        std::cerr << "desktop shelf smoke could not create second option" << std::endl;
+        return false;
+    }
+    const QString second_candidate_id = backend.candidateId();
+    QCoreApplication::processEvents();
+
+    QObject* const shelf = root_object.findChild<QObject*>(QStringLiteral("candidateShelf"));
+    if (shelf == nullptr) {
+        std::cerr << "desktop shelf smoke could not find packaged shelf" << std::endl;
+        return false;
+    }
+    QQmlExpression selection(
+        QQmlEngine::contextForObject(shelf),
+        shelf,
+        QStringLiteral("select(\"%1\")").arg(first_candidate_id)
+    );
+    selection.evaluate();
+    if (selection.hasError()) {
+        std::cerr << "desktop shelf smoke could not select first option: "
+                  << selection.error().toString().toStdString() << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    if (backend.candidateId() != first_candidate_id
+        || root_object.property("selectedCandidateId").toString() != first_candidate_id) {
+        std::cerr << "desktop shelf smoke did not synchronize candidate selection" << std::endl;
+        return false;
+    }
+    if (!backend.discardCandidate(second_candidate_id)
+        || !backend.discardCandidate(first_candidate_id) || backend.hasCandidate()) {
+        std::cerr << "desktop shelf smoke could not clear transient options" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool verify_infer_runtime_surface(QObject& root_object) {
+    if (root_object.findChild<QObject*>(QStringLiteral("inferRuntimeStatusButton")) == nullptr) {
+        std::cerr << "desktop runtime smoke could not find packaged status control" << std::endl;
         return false;
     }
     return true;
@@ -225,6 +322,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    InferRuntimeController infer_runtime(&application);
     UiPreferences ui_preferences(application);
     QObject::connect(
         &ui_preferences,
@@ -244,8 +342,10 @@ int main(int argc, char* argv[]) {
     ui_preferences.attachEngine(engine);
     engine.setInitialProperties({
         {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
+        {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
         {QStringLiteral("uiPreferences"), QVariant::fromValue(&ui_preferences)},
     });
+    infer_runtime.refresh();
     engine.loadFromModule(QStringLiteral("Shape.Desktop"), QStringLiteral("Main"));
 
     if (engine.rootObjects().isEmpty()) {
@@ -263,14 +363,17 @@ int main(int argc, char* argv[]) {
 #endif
 
     if (arguments->smoke_exit) {
+        if (!verify_infer_runtime_surface(*root_object)) {
+            return 3;
+        }
         if (arguments->project_path.has_value()
             && (!backend->projectOpen() || backend->artifactCount() == 0)) {
             std::cerr << "Shape project smoke loaded no artifacts" << std::endl;
             return 3;
         }
         if (arguments->smoke_text_cycle
-            && (!run_smoke_text_cycle(*backend)
-                || !verify_project_graph_interaction(*root_object))) {
+            && (!run_smoke_text_cycle(*backend) || !verify_project_graph_interaction(*root_object)
+                || !verify_candidate_shelf_interaction(*backend, *root_object))) {
             return 4;
         }
         QTimer::singleShot(0, &application, &QCoreApplication::quit);

@@ -10,15 +10,30 @@ Rectangle {
     property string artifactKindKey: ""
     property string acceptedText: ""
     property bool candidatePending: false
+    property var candidates: []
     property string errorMessage: ""
+    property bool runtimeProbing: false
+    property bool runtimeReachable: false
+    property bool runtimeCompatible: false
+    property string runtimeContractVersion: ""
 
     readonly property bool canEditText: artifactId.length > 0
                                          && artifactKindKey === "text_document"
 
     signal candidateRequested(string artifactId, string replacementText)
+    signal runtimeRefreshRequested()
 
     function resetDraft() : void {
         draftEditor.text = acceptedText
+    }
+
+    function draftMatchesCandidate() : bool {
+        for (let index = 0; index < candidates.length; ++index) {
+            if (candidates[index].text === draftEditor.text) {
+                return true
+            }
+        }
+        return false
     }
 
     onArtifactIdChanged: resetDraft()
@@ -52,6 +67,22 @@ Rectangle {
                 color: Theme.muted
                 font.pixelSize: 10
             }
+
+            ShapeButton {
+                objectName: "inferRuntimeStatusButton"
+                implicitHeight: 26
+                text: panel.runtimeProbing ? qsTr("Checking AI…")
+                      : panel.runtimeCompatible ? qsTr("AI ready")
+                      : panel.runtimeReachable ? qsTr("AI contract mismatch")
+                      : qsTr("AI offline")
+                selected: panel.runtimeCompatible
+                enabled: !panel.runtimeProbing
+                Accessible.name: panel.runtimeCompatible
+                                 ? qsTr("Infer Runtime ready, contract %1").arg(
+                                       panel.runtimeContractVersion)
+                                 : text
+                onClicked: panel.runtimeRefreshRequested()
+            }
         }
 
         TextArea {
@@ -63,7 +94,7 @@ Rectangle {
             rightPadding: 12
             topPadding: 10
             bottomPadding: 10
-            enabled: panel.canEditText && !panel.candidatePending
+            enabled: panel.canEditText
             placeholderText: panel.canEditText
                              ? qsTr("Write the next text revision…")
                              : qsTr("Select a text document to begin")
@@ -91,7 +122,7 @@ Rectangle {
                 text: panel.errorMessage.length > 0
                       ? panel.errorMessage
                       : panel.candidatePending
-                        ? qsTr("A candidate is ready. Compare, discard, or accept it.")
+                        ? qsTr("Keep editing to add another option, or review the shelf.")
                         : qsTr("Accepted history stays unchanged until you accept the candidate.")
                 color: panel.errorMessage.length > 0 ? Theme.danger
                                                      : panel.candidatePending ? Theme.accent
@@ -104,9 +135,9 @@ Rectangle {
                 text: qsTr("Create candidate")
                 primary: true
                 enabled: panel.canEditText
-                         && !panel.candidatePending
                          && draftEditor.text.trim().length > 0
                          && draftEditor.text !== panel.acceptedText
+                         && !panel.draftMatchesCandidate()
                 onClicked: panel.candidateRequested(panel.artifactId, draftEditor.text)
             }
         }

@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QVariantMap>
 
+#include <algorithm>
 #include <cstdint>
 #include <utility>
 
@@ -144,6 +145,17 @@ QVariantMap graph_edge_projection(const shape::desktop::ProjectGraphEdgeWire& ed
     return projected;
 }
 
+QVariantMap candidate_projection(const shape::desktop::TextCandidateWire& candidate) {
+    QVariantMap projected;
+    projected.insert(QStringLiteral("id"), from_rust(candidate.candidate_id));
+    projected.insert(QStringLiteral("artifactId"), from_rust(candidate.artifact_id));
+    projected.insert(QStringLiteral("hasExpectedHead"), candidate.has_expected_head);
+    projected.insert(QStringLiteral("expectedHead"), from_rust(candidate.expected_head));
+    projected.insert(QStringLiteral("text"), from_rust(candidate.text_preview));
+    projected.insert(QStringLiteral("textTruncated"), candidate.text_preview_truncated);
+    return projected;
+}
+
 } // namespace
 
 struct DesktopBackend::SessionState {
@@ -158,6 +170,7 @@ DesktopBackend::DesktopBackend(QObject* parent) : QObject(parent) {}
 DesktopBackend::DesktopBackend(rust::Box<shape::desktop::DesktopSession> session, QObject* parent)
     : QObject(parent), session_(std::make_unique<SessionState>(std::move(session))) {
     applySnapshot(session_->session->session_snapshot());
+    applyCandidates(session_->session->session_text_candidates());
 }
 
 DesktopBackend::~DesktopBackend() = default;
@@ -194,6 +207,14 @@ QVariantList DesktopBackend::graphEdges() const {
     return graph_edges_;
 }
 
+int DesktopBackend::candidateCount() const {
+    return static_cast<int>(candidates_.size());
+}
+
+QVariantList DesktopBackend::candidates() const {
+    return candidates_;
+}
+
 bool DesktopBackend::hasCandidate() const {
     return has_candidate_;
 }
@@ -227,9 +248,10 @@ bool DesktopBackend::proposeTextCandidate(
         return false;
     }
     try {
-        applyCandidate(
-            session_->session->session_propose_text(to_utf8(artifactId), to_utf8(replacementText))
-        );
+        const auto candidate =
+            session_->session->session_propose_text(to_utf8(artifactId), to_utf8(replacementText));
+        const QString candidate_id = from_rust(candidate.candidate_id);
+        applyCandidates(session_->session->session_text_candidates(), candidate_id);
         setLastError(QString());
         emit candidateChanged();
         return true;
@@ -240,14 +262,23 @@ bool DesktopBackend::proposeTextCandidate(
     }
 }
 
-bool DesktopBackend::acceptCandidate() {
-    if (session_ == nullptr || !has_candidate_) {
+bool DesktopBackend::selectCandidate(const QString& candidateId) {
+    if (!applyCandidateSelection(candidateId)) {
+        return false;
+    }
+    setLastError(QString());
+    emit candidateChanged();
+    return true;
+}
+
+bool DesktopBackend::acceptCandidate(const QString& candidateId) {
+    if (session_ == nullptr || candidateId.isEmpty()) {
         setLastError(tr("There is no candidate to accept."));
         return false;
     }
     try {
-        applySnapshot(session_->session->session_accept_text());
-        clearCandidate();
+        applySnapshot(session_->session->session_accept_text(to_utf8(candidateId)));
+        applyCandidates(session_->session->session_text_candidates());
         setLastError(QString());
         emit projectChanged();
         emit candidateChanged();
@@ -259,14 +290,16 @@ bool DesktopBackend::acceptCandidate() {
     }
 }
 
-bool DesktopBackend::branchCandidate(const QString& artifactName) {
-    if (session_ == nullptr || !has_candidate_) {
+bool DesktopBackend::branchCandidate(const QString& candidateId, const QString& artifactName) {
+    if (session_ == nullptr || candidateId.isEmpty()) {
         setLastError(tr("There is no candidate to branch."));
         return false;
     }
     try {
-        applySnapshot(session_->session->session_branch_text(to_utf8(artifactName)));
-        clearCandidate();
+        applySnapshot(
+            session_->session->session_branch_text(to_utf8(candidateId), to_utf8(artifactName))
+        );
+        applyCandidates(session_->session->session_text_candidates());
         setLastError(QString());
         emit projectChanged();
         emit candidateChanged();
@@ -278,14 +311,21 @@ bool DesktopBackend::branchCandidate(const QString& artifactName) {
     }
 }
 
-void DesktopBackend::discardCandidate() {
-    if (session_ == nullptr || !has_candidate_) {
-        return;
+bool DesktopBackend::discardCandidate(const QString& candidateId) {
+    if (session_ == nullptr || candidateId.isEmpty()) {
+        return false;
     }
-    session_->session->session_discard_text();
-    clearCandidate();
-    setLastError(QString());
-    emit candidateChanged();
+    try {
+        session_->session->session_discard_text(to_utf8(candidateId));
+        applyCandidates(session_->session->session_text_candidates());
+        setLastError(QString());
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not discard desktop candidate:" << error.what();
+        setLastError(tr("Could not discard candidate."));
+        return false;
+    }
 }
 
 void DesktopBackend::retranslate() {
@@ -322,15 +362,51 @@ void DesktopBackend::applySnapshot(shape::desktop::ProjectSnapshotWire snapshot)
     graph_edges_ = std::move(graph_edges);
 }
 
-void DesktopBackend::applyCandidate(shape::desktop::TextCandidateWire candidate) {
-    has_candidate_ = true;
-    candidate_id_ = from_rust(candidate.candidate_id);
-    candidate_artifact_id_ = from_rust(candidate.artifact_id);
-    candidate_text_ = from_rust(candidate.text_preview);
-    candidate_text_truncated_ = candidate.text_preview_truncated;
+void DesktopBackend::applyCandidates(
+    rust::Vec<shape::desktop::TextCandidateWire> candidates,
+    const QString& preferredCandidateId
+) {
+    QVariantList projected;
+    projected.reserve(static_cast<qsizetype>(candidates.size()));
+    for (const auto& candidate : candidates) {
+        projected.append(candidate_projection(candidate));
+    }
+    const QString previous_candidate_id = candidate_id_;
+    candidates_ = std::move(projected);
+    if (!preferredCandidateId.isEmpty() && applyCandidateSelection(preferredCandidateId)) {
+        return;
+    }
+    if (!previous_candidate_id.isEmpty() && applyCandidateSelection(previous_candidate_id)) {
+        return;
+    }
+    if (!candidates_.isEmpty()) {
+        applyCandidateSelection(candidates_.first().toMap().value(QStringLiteral("id")).toString());
+        return;
+    }
+    clearCandidateSelection();
 }
 
-void DesktopBackend::clearCandidate() {
+bool DesktopBackend::applyCandidateSelection(const QString& candidateId) {
+    const auto selected = std::find_if(
+        candidates_.cbegin(),
+        candidates_.cend(),
+        [&candidateId](const QVariant& candidate) {
+            return candidate.toMap().value(QStringLiteral("id")).toString() == candidateId;
+        }
+    );
+    if (selected == candidates_.cend()) {
+        return false;
+    }
+    const QVariantMap candidate = selected->toMap();
+    has_candidate_ = true;
+    candidate_id_ = candidate.value(QStringLiteral("id")).toString();
+    candidate_artifact_id_ = candidate.value(QStringLiteral("artifactId")).toString();
+    candidate_text_ = candidate.value(QStringLiteral("text")).toString();
+    candidate_text_truncated_ = candidate.value(QStringLiteral("textTruncated")).toBool();
+    return true;
+}
+
+void DesktopBackend::clearCandidateSelection() {
     has_candidate_ = false;
     candidate_id_.clear();
     candidate_artifact_id_.clear();

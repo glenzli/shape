@@ -57,7 +57,9 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
         "A summer afternoon."
     );
 
-    let accepted = session.session_accept_text().expect("candidate accepts");
+    let accepted = session
+        .session_accept_text(&candidate.candidate_id)
+        .expect("candidate accepts");
     assert!(accepted.graph_edges.is_empty());
     assert_ne!(accepted.artifacts[0].accepted_revision_id, before_revision);
     assert_eq!(
@@ -93,7 +95,7 @@ fn failed_reproposal_does_not_replace_a_valid_pending_candidate() {
     let artifact_id = seeded_project(&root);
     let path = root.to_str().expect("portable path");
     let mut session = open_desktop_session(path).expect("session opens");
-    session
+    let candidate = session
         .session_propose_text(&artifact_id.to_string(), "A calm summer afternoon.")
         .expect("candidate executes");
     assert!(
@@ -103,7 +105,7 @@ fn failed_reproposal_does_not_replace_a_valid_pending_candidate() {
     );
 
     let accepted = session
-        .session_accept_text()
+        .session_accept_text(&candidate.candidate_id)
         .expect("original candidate accepts");
     assert_eq!(
         accepted.artifacts[0].text_preview,
@@ -120,12 +122,16 @@ fn pending_candidate_can_branch_as_a_new_artifact_with_a_source_edge() {
     let mut session = open_desktop_session(path).expect("session opens");
     let before = session.session_snapshot().expect("snapshot reads");
     let source_revision = before.artifacts[0].accepted_revision_id.clone();
-    session
+    let first = session
+        .session_propose_text(&artifact_id.to_string(), "A warm summer afternoon.")
+        .expect("first candidate executes");
+    let candidate = session
         .session_propose_text(&artifact_id.to_string(), "A quiet summer afternoon.")
         .expect("candidate executes");
+    assert_eq!(session.session_text_candidates().len(), 2);
 
     let branched = session
-        .session_branch_text("Story — Quiet")
+        .session_branch_text(&candidate.candidate_id, "Story — Quiet")
         .expect("candidate branches");
     assert_eq!(branched.artifacts.len(), 2);
     let source = branched
@@ -158,6 +164,13 @@ fn pending_candidate_can_branch_as_a_new_artifact_with_a_source_edge() {
     assert_eq!(edge.target_revision_id, branch.accepted_revision_id);
     assert_eq!(edge.transformation_id, branch.transformation_id);
     assert_eq!(edge.transformation_kind_key, "text_rewrite");
+    let remaining = session.session_text_candidates();
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].candidate_id, first.candidate_id);
+    session
+        .session_discard_text(&first.candidate_id)
+        .expect("remaining candidate discards");
+    assert!(session.session_text_candidates().is_empty());
     drop(session);
 
     let reopened = open_desktop_session(path).expect("session reopens");
@@ -169,5 +182,41 @@ fn pending_candidate_can_branch_as_a_new_artifact_with_a_source_edge() {
             .len(),
         2
     );
+    fs::remove_dir_all(root).expect("test project removes");
+}
+
+#[test]
+fn shelf_accumulates_candidates_and_accepting_one_clears_stale_siblings() {
+    let root = test_root();
+    let artifact_id = seeded_project(&root);
+    let path = root.to_str().expect("portable path");
+    let mut session = open_desktop_session(path).expect("session opens");
+    let first = session
+        .session_propose_text(&artifact_id.to_string(), "A bright summer afternoon.")
+        .expect("first candidate executes");
+    let second = session
+        .session_propose_text(&artifact_id.to_string(), "A still summer afternoon.")
+        .expect("second candidate executes");
+    assert!(
+        session
+            .session_propose_text(&artifact_id.to_string(), "A still summer afternoon.")
+            .is_err()
+    );
+
+    let projected = session.session_text_candidates();
+    assert_eq!(projected.len(), 2);
+    assert_eq!(projected[0].candidate_id, second.candidate_id);
+    assert_eq!(projected[1].candidate_id, first.candidate_id);
+    assert!(session.session_accept_text("missing-candidate").is_err());
+    assert_eq!(session.session_text_candidates().len(), 2);
+
+    let accepted = session
+        .session_accept_text(&second.candidate_id)
+        .expect("selected candidate accepts");
+    assert_eq!(
+        accepted.artifacts[0].text_preview,
+        "A still summer afternoon."
+    );
+    assert!(session.session_text_candidates().is_empty());
     fs::remove_dir_all(root).expect("test project removes");
 }

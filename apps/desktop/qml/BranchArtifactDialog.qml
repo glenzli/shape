@@ -13,6 +13,7 @@ Item {
 
     required property DesktopBackend backend
     property string sourceName: ""
+    property string candidateId: ""
 
     signal branchCreated()
 
@@ -21,8 +22,9 @@ Item {
     visible: false
     focus: visible
 
-    function openFor(name) : void {
+    function openFor(name, selectedCandidateId) : void {
         sourceName = name
+        candidateId = selectedCandidateId
         nameEditor.text = qsTr("%1 — Branch").arg(name)
         visible = true
         nameEditor.forceActiveFocus()
@@ -38,7 +40,7 @@ Item {
         if (name.length === 0) {
             return
         }
-        if (backend.branchCandidate(name)) {
+        if (backend.branchCandidate(candidateId, name)) {
             close()
             branchCreated()
         }

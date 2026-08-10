@@ -15,9 +15,8 @@ Rectangle {
     property var artifacts: []
     property var edges: []
     property int selectedIndex: 0
-    property bool hasCandidate: false
-    property string candidateArtifactId: ""
-    property bool candidateTextTruncated: false
+    property var candidates: []
+    property string selectedCandidateId: ""
 
     readonly property real nodeWidth: 196
     readonly property real nodeHeight: 88
@@ -28,10 +27,11 @@ Rectangle {
                                                    (graph.width - graph.graphMargin * 2
                                                     + graph.columnGap)
                                                    / (graph.nodeWidth + graph.columnGap)))
-    readonly property int projectedNodeCount: artifacts.length + (hasCandidate ? 1 : 0)
+    readonly property int projectedNodeCount: artifacts.length + candidates.length
     readonly property int rowCount: Math.max(1, Math.ceil(projectedNodeCount / columnCount))
 
     signal artifactSelected(int index)
+    signal candidateSelected(string candidateId)
 
     function artifactIndex(artifactId) : int {
         for (let index = 0; index < artifacts.length; ++index) {
@@ -85,6 +85,11 @@ Rectangle {
         const targetX = nodeX(targetIndex) + nodeWidth / 2
         const targetY = nodeY(targetIndex) + nodeHeight / 2
         const horizontal = Math.abs(targetX - sourceX) >= Math.abs(targetY - sourceY)
+        const sameRow = Math.floor(sourceIndex / columnCount)
+                        === Math.floor(targetIndex / columnCount)
+        const crossesIntermediateNode = sameRow
+                                        && Math.abs((sourceIndex % columnCount)
+                                                    - (targetIndex % columnCount)) > 1
         let startX = sourceX
         let startY = sourceY
         let endX = targetX
@@ -110,8 +115,15 @@ Rectangle {
         context.beginPath()
         context.moveTo(startX, startY)
         if (horizontal) {
-            const middleX = (startX + endX) / 2
-            context.bezierCurveTo(middleX, startY, middleX, endY, endX, endY)
+            if (crossesIntermediateNode) {
+                const span = endX - startX
+                const bendY = startY + nodeHeight / 2 + Math.min(36, rowGap * 0.45)
+                context.bezierCurveTo(startX + span * 0.22, bendY,
+                                      endX - span * 0.22, bendY, endX, endY)
+            } else {
+                const middleX = (startX + endX) / 2
+                context.bezierCurveTo(middleX, startY, middleX, endY, endX, endY)
+            }
         } else {
             const middleY = (startY + endY) / 2
             context.bezierCurveTo(startX, middleY, endX, middleY, endX, endY)
@@ -179,8 +191,9 @@ Rectangle {
                 Text {
                     id: graphSummary
                     anchors.centerIn: parent
-                    text: qsTr("%1 artifacts · %2 derivations")
+                    text: qsTr("%1 artifacts · %2 derivations · %3 candidates")
                           .arg(graph.artifacts.length).arg(graph.edges.length)
+                          .arg(graph.candidates.length)
                     color: Theme.muted
                     font.pixelSize: 10
                 }
@@ -229,10 +242,11 @@ Rectangle {
                                                   graph.artifactIndex(edge.targetArtifactId),
                                                   false)
                         }
-                        if (graph.hasCandidate) {
+                        for (let index = 0; index < graph.candidates.length; ++index) {
+                            const candidate = graph.candidates[index]
                             graph.paintConnection(context,
-                                                  graph.artifactIndex(graph.candidateArtifactId),
-                                                  graph.artifacts.length,
+                                                  graph.artifactIndex(candidate.artifactId),
+                                                  graph.artifacts.length + index,
                                                   true)
                         }
                     }
@@ -241,8 +255,7 @@ Rectangle {
                         target: graph
                         function onArtifactsChanged() : void { edgeCanvas.requestPaint() }
                         function onEdgesChanged() : void { edgeCanvas.requestPaint() }
-                        function onHasCandidateChanged() : void { edgeCanvas.requestPaint() }
-                        function onCandidateArtifactIdChanged() : void { edgeCanvas.requestPaint() }
+                        function onCandidatesChanged() : void { edgeCanvas.requestPaint() }
                         function onColumnCountChanged() : void { edgeCanvas.requestPaint() }
                     }
 
@@ -343,104 +356,122 @@ Rectangle {
                     }
                 }
 
-                Rectangle {
-                    id: candidateNode
+                Repeater {
+                    model: graph.candidates
 
-                    visible: graph.hasCandidate
-                    x: graph.nodeX(graph.artifacts.length)
-                    y: graph.nodeY(graph.artifacts.length)
-                    width: graph.nodeWidth
-                    height: graph.nodeHeight
-                    radius: Theme.radiusMedium
-                    color: Theme.accentSoft
-                    opacity: 0.9
+                    delegate: Rectangle {
+                        id: candidateNode
 
-                    Canvas {
-                        id: candidateBorderCanvas
+                        required property int index
+                        required property var modelData
+                        readonly property bool selected: modelData.id
+                                                         === graph.selectedCandidateId
 
-                        anchors.fill: parent
+                        x: graph.nodeX(graph.artifacts.length + index)
+                        y: graph.nodeY(graph.artifacts.length + index)
+                        width: graph.nodeWidth
+                        height: graph.nodeHeight
+                        radius: Theme.radiusMedium
+                        color: selected ? Theme.accentSoft : Theme.raised
+                        opacity: 0.94
 
-                        onPaint: {
-                            const context = getContext("2d")
-                            context.clearRect(0, 0, width, height)
-                            context.strokeStyle = Theme.accent
-                            context.lineWidth = 1.5
-                            context.setLineDash([6, 5])
-                            context.strokeRect(1, 1, width - 2, height - 2)
-                        }
+                        Canvas {
+                            id: candidateBorderCanvas
 
-                        Connections {
-                            target: Theme
-                            function onEffectiveDarkChanged() : void {
-                                candidateBorderCanvas.requestPaint()
+                            anchors.fill: parent
+
+                            onPaint: {
+                                const context = getContext("2d")
+                                context.clearRect(0, 0, width, height)
+                                context.strokeStyle = Theme.accent
+                                context.lineWidth = candidateNode.selected ? 2.2 : 1.4
+                                context.setLineDash([6, 5])
+                                context.strokeRect(1, 1, width - 2, height - 2)
                             }
-                        }
-                    }
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 10
+                            Connections {
+                                target: candidateNode
+                                function onSelectedChanged() : void {
+                                    candidateBorderCanvas.requestPaint()
+                                }
+                            }
 
-                        Rectangle {
-                            Layout.preferredWidth: 34
-                            Layout.preferredHeight: 34
-                            radius: 17
-                            color: Theme.raised
-                            border.color: Theme.accent
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "⋯"
-                                color: Theme.accent
-                                font.pixelSize: 15
-                                font.weight: Font.DemiBold
+                            Connections {
+                                target: Theme
+                                function onEffectiveDarkChanged() : void {
+                                    candidateBorderCanvas.requestPaint()
+                                }
                             }
                         }
 
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 4
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 10
 
-                            Text {
+                            Rectangle {
+                                Layout.preferredWidth: 34
+                                Layout.preferredHeight: 34
+                                radius: 17
+                                color: Theme.surface
+                                border.color: Theme.accent
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: candidateNode.index + 1
+                                    color: Theme.accent
+                                    font.pixelSize: 11
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+
+                            ColumnLayout {
                                 Layout.fillWidth: true
-                                text: qsTr("Pending candidate")
-                                color: Theme.accent
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                            }
+                                spacing: 4
 
-                            Text {
-                                Layout.fillWidth: true
-                                text: qsTr("From %1").arg(graph.artifactName(
-                                                              graph.candidateArtifactId))
-                                color: Theme.textSoft
-                                font.pixelSize: 9
-                                elide: Text.ElideRight
-                            }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: qsTr("Pending option %1").arg(candidateNode.index + 1)
+                                    color: Theme.accent
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
 
-                            Text {
-                                Layout.fillWidth: true
-                                text: graph.candidateTextTruncated
-                                      ? qsTr("Preview truncated") : qsTr("Outside history")
-                                color: Theme.muted
-                                font.pixelSize: 8
-                                elide: Text.ElideRight
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: qsTr("From %1").arg(graph.artifactName(
+                                                                  candidateNode.modelData.artifactId))
+                                    color: Theme.textSoft
+                                    font.pixelSize: 9
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: candidateNode.modelData.textTruncated
+                                          ? qsTr("Preview truncated") : qsTr("Outside history")
+                                    color: Theme.muted
+                                    font.pixelSize: 8
+                                    elide: Text.ElideRight
+                                }
                             }
                         }
-                    }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        Accessible.name: qsTr("Pending candidate from %1").arg(
-                                                 graph.artifactName(graph.candidateArtifactId))
-                        Accessible.role: Accessible.Button
-                        onClicked: {
-                            const sourceIndex = graph.artifactIndex(graph.candidateArtifactId)
-                            if (sourceIndex >= 0) {
-                                graph.artifactSelected(sourceIndex)
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            Accessible.name: qsTr("Pending option from %1").arg(
+                                                     graph.artifactName(
+                                                         candidateNode.modelData.artifactId))
+                            Accessible.role: Accessible.Button
+                            onClicked: {
+                                const sourceIndex = graph.artifactIndex(
+                                                      candidateNode.modelData.artifactId)
+                                if (sourceIndex >= 0) {
+                                    graph.artifactSelected(sourceIndex)
+                                    graph.candidateSelected(candidateNode.modelData.id)
+                                }
                             }
                         }
                     }
