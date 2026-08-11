@@ -13,7 +13,6 @@ use std::process::Command;
 
 use serde::Deserialize;
 use thiserror::Error;
-use time::{Duration, OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::{InferRuntimeClientError, InferRuntimeContractRevision, canonical_loopback_url};
 
@@ -24,7 +23,7 @@ use super::INFER_RUNTIME_CONTRACT_VERSION;
 pub const INFER_RUNTIME_COMPATIBILITY_ENDPOINT: &str = "http://127.0.0.1:8787";
 
 const DISCOVERY_SCHEMA: &str = "infra.discovery.registration";
-const DISCOVERY_SCHEMA_VERSION: &str = "20260810.1";
+const DISCOVERY_SCHEMA_VERSION: &str = "20260812.1";
 const SERVICE_KIND: &str = "infer-runtime";
 const SERVICE_INSTANCE_ID: &str = "local";
 const CONSUMER_PROTOCOL: &str = "infer-runtime.consumer";
@@ -39,7 +38,7 @@ const MAX_PROTOCOL_VERSIONS: usize = 16;
 pub enum InferRuntimeEndpointSource {
     /// An explicit Shape development or diagnostics override.
     ExplicitOverride,
-    /// A live, owner-only Infra Discovery registration.
+    /// An owner-only Infra Discovery registration selected for connection.
     Discovery,
     /// The temporary fixed-port migration fallback.
     CompatibilityFallback,
@@ -68,8 +67,6 @@ pub struct ResolvedInferRuntimeEndpoint {
     pub instance_id: Option<String>,
     /// Opaque per-process Discovery generation when available.
     pub generation: Option<String>,
-    /// Validated lease expiry as a Unix timestamp when discovered.
-    pub lease_expires_at_unix: Option<i64>,
     /// Exact Consumer protocol revision selected from Discovery when present.
     pub contract_version: Option<String>,
 }
@@ -124,11 +121,12 @@ impl InferRuntimeEndpointResolver {
     /// Returns [`InferRuntimeClientError::InvalidEndpoint`] when an explicit
     /// override or the compile-time compatibility endpoint is not canonical.
     pub fn resolve(&self) -> Result<ResolvedInferRuntimeEndpoint, InferRuntimeClientError> {
-        self.resolve_at(OffsetDateTime::now_utc())
+        self.resolve_current()
     }
 
-    /// Re-reads Discovery once after a connection failure. A new generation or
-    /// endpoint is selected; otherwise the compatibility fallback is returned.
+    /// Re-reads Discovery once after a connection failure. A changed
+    /// generation, endpoint, or selected application contract is returned;
+    /// otherwise the compatibility fallback is selected.
     ///
     /// # Errors
     ///
@@ -141,11 +139,10 @@ impl InferRuntimeEndpointResolver {
         if self.explicit_override.is_some() {
             return self.resolve();
         }
-        let now = OffsetDateTime::now_utc();
         let rediscovered = self
             .runtime_root
             .as_deref()
-            .and_then(|root| discover_endpoint(root, now).ok());
+            .and_then(|root| discover_endpoint(root).ok());
         let endpoint = match rediscovered {
             Some(candidate) if candidate != *failed => candidate,
             Some(_) | None => self.fallback()?,
@@ -154,10 +151,7 @@ impl InferRuntimeEndpointResolver {
         Ok(endpoint)
     }
 
-    fn resolve_at(
-        &self,
-        now: OffsetDateTime,
-    ) -> Result<ResolvedInferRuntimeEndpoint, InferRuntimeClientError> {
+    fn resolve_current(&self) -> Result<ResolvedInferRuntimeEndpoint, InferRuntimeClientError> {
         if let Some(origin) = &self.explicit_override {
             canonical_loopback_url(origin)?;
             let endpoint = ResolvedInferRuntimeEndpoint {
@@ -165,7 +159,6 @@ impl InferRuntimeEndpointResolver {
                 source: InferRuntimeEndpointSource::ExplicitOverride,
                 instance_id: None,
                 generation: None,
-                lease_expires_at_unix: None,
                 contract_version: None,
             };
             self.remember(endpoint.clone());
@@ -175,7 +168,7 @@ impl InferRuntimeEndpointResolver {
         let endpoint = self
             .runtime_root
             .as_deref()
-            .and_then(|root| discover_endpoint(root, now).ok())
+            .and_then(|root| discover_endpoint(root).ok())
             .map_or_else(|| self.fallback(), Ok)?;
         self.remember(endpoint.clone());
         Ok(endpoint)
@@ -188,7 +181,6 @@ impl InferRuntimeEndpointResolver {
             source: InferRuntimeEndpointSource::CompatibilityFallback,
             instance_id: None,
             generation: None,
-            lease_expires_at_unix: None,
             contract_version: None,
         })
     }
@@ -211,10 +203,9 @@ impl InferRuntimeEndpointResolver {
 
 fn discover_endpoint(
     runtime_root: &Path,
-    now: OffsetDateTime,
 ) -> Result<ResolvedInferRuntimeEndpoint, InferRuntimeDiscoveryError> {
     let registration = read_registration(runtime_root)?;
-    registration.select_consumer(now)
+    registration.select_consumer()
 }
 
 #[cfg(unix)]
@@ -360,15 +351,11 @@ struct Registration {
     schema: String,
     schema_version: String,
     service: Service,
-    lease: Lease,
     offers: Vec<Offer>,
 }
 
 impl Registration {
-    fn select_consumer(
-        &self,
-        now: OffsetDateTime,
-    ) -> Result<ResolvedInferRuntimeEndpoint, InferRuntimeDiscoveryError> {
+    fn select_consumer(&self) -> Result<ResolvedInferRuntimeEndpoint, InferRuntimeDiscoveryError> {
         if self.schema != DISCOVERY_SCHEMA
             || self.schema_version != DISCOVERY_SCHEMA_VERSION
             || self.service.kind != SERVICE_KIND
@@ -380,17 +367,6 @@ impl Registration {
             || self.offers.len() > MAX_OFFERS
         {
             return Err(InferRuntimeDiscoveryError::InvalidRegistration);
-        }
-
-        let renewed_at = parse_time(&self.lease.renewed_at)?;
-        let expires_at = parse_time(&self.lease.expires_at)?;
-        if renewed_at >= expires_at
-            || expires_at - renewed_at > Duration::seconds(120)
-            || renewed_at > now + Duration::seconds(15)
-            || expires_at > now + Duration::seconds(120)
-            || expires_at <= now
-        {
-            return Err(InferRuntimeDiscoveryError::InvalidLease);
         }
 
         for offer in &self.offers {
@@ -422,7 +398,6 @@ impl Registration {
             source: InferRuntimeEndpointSource::Discovery,
             instance_id: Some(self.service.instance_id.clone()),
             generation: Some(self.service.generation.clone()),
-            lease_expires_at_unix: Some(expires_at.unix_timestamp()),
             contract_version: Some(contract_version.to_owned()),
         })
     }
@@ -434,13 +409,6 @@ struct Service {
     kind: String,
     instance_id: String,
     generation: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Lease {
-    renewed_at: String,
-    expires_at: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -479,13 +447,6 @@ impl Offer {
         }
         Ok(())
     }
-}
-
-fn parse_time(value: &str) -> Result<OffsetDateTime, InferRuntimeDiscoveryError> {
-    if value.len() > 40 {
-        return Err(InferRuntimeDiscoveryError::InvalidLease);
-    }
-    OffsetDateTime::parse(value, &Rfc3339).map_err(|_| InferRuntimeDiscoveryError::InvalidLease)
 }
 
 fn valid_service_kind(value: &str) -> bool {
@@ -637,8 +598,6 @@ enum InferRuntimeDiscoveryError {
     InvalidJson(#[source] serde_json::Error),
     #[error("Infra Discovery registration shape is invalid")]
     InvalidRegistration,
-    #[error("Infra Discovery lease is invalid or expired")]
-    InvalidLease,
     #[error("Infer Runtime has no compatible Consumer offer")]
     NoCompatibleOffer,
     #[error("Infer Runtime Consumer endpoint is invalid")]

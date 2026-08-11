@@ -107,7 +107,9 @@ stable-error state. Rust selects endpoints in this order: canonical numeric-loop
 `SHAPE_INFER_RUNTIME_URL` override, live owner-only
 `infer-runtime.consumer@0.1.0-candidate.3` Infra Discovery offer, then the temporary
 `http://127.0.0.1:8787` migration fallback. It validates the exact Discovery schema, filesystem
-ownership and modes, lease, generation, offer binding, and raw endpoint before HTTP.
+ownership and modes, generation, offer binding, and raw endpoint before HTTP. The
+`infra.discovery.registration@20260812.1` manifest has no lease or liveness timestamp; a failed
+connection causes a stable-manifest re-read without repairing or deleting provider state.
 
 `InferTextController` separately owns one asynchronous authenticated generation lifecycle. Settings
 can copy the one-time managed token for Infer App `shape` into

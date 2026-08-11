@@ -7,7 +7,6 @@ use std::{
 };
 
 use serde_json::json;
-use time::{Duration, OffsetDateTime, format_description::well_known::Rfc3339};
 use uuid::Uuid;
 
 use super::*;
@@ -32,14 +31,8 @@ impl DiscoveryFixture {
         self.root.join("registrations").join(MANIFEST_FILENAME)
     }
 
-    fn write_registration(
-        &self,
-        now: OffsetDateTime,
-        generation: &str,
-        endpoint: &str,
-        version: &str,
-    ) {
-        self.write_value(&registration_value(now, generation, endpoint, version));
+    fn write_registration(&self, generation: &str, endpoint: &str, version: &str) {
+        self.write_value(&registration_value(generation, endpoint, version));
     }
 
     fn write_value(&self, value: &serde_json::Value) {
@@ -61,9 +54,7 @@ impl Drop for DiscoveryFixture {
 #[test]
 fn explicit_override_wins_and_remains_strict_numeric_loopback() {
     let fixture = DiscoveryFixture::new("override");
-    let now = OffsetDateTime::now_utc();
     fixture.write_registration(
-        now,
         "generation-a",
         "http://127.0.0.1:9111",
         INFER_RUNTIME_CONTRACT_VERSION,
@@ -74,7 +65,7 @@ fn explicit_override_wins_and_remains_strict_numeric_loopback() {
         "http://127.0.0.1:9333",
     );
 
-    let endpoint = resolver.resolve_at(now).expect("override resolves");
+    let endpoint = resolver.resolve_current().expect("override resolves");
     assert_eq!(endpoint.origin, "http://127.0.0.1:9222");
     assert_eq!(
         endpoint.source,
@@ -87,17 +78,15 @@ fn explicit_override_wins_and_remains_strict_numeric_loopback() {
         "http://127.0.0.1:9333",
     );
     assert_eq!(
-        invalid.resolve_at(now),
+        invalid.resolve_current(),
         Err(InferRuntimeClientError::InvalidEndpoint)
     );
 }
 
 #[test]
-fn discovery_tracks_generation_and_lease_before_falling_back() {
+fn discovery_tracks_stable_generation_without_a_manifest_clock() {
     let fixture = DiscoveryFixture::new("generation");
-    let now = OffsetDateTime::now_utc();
     fixture.write_registration(
-        now,
         "generation-a",
         "http://127.0.0.1:9111",
         INFER_RUNTIME_CONTRACT_VERSION,
@@ -108,7 +97,9 @@ fn discovery_tracks_generation_and_lease_before_falling_back() {
         "http://127.0.0.1:9333",
     );
 
-    let first = resolver.resolve_at(now).expect("first generation resolves");
+    let first = resolver
+        .resolve_current()
+        .expect("first generation resolves");
     assert_eq!(first.source, InferRuntimeEndpointSource::Discovery);
     assert_eq!(first.instance_id.as_deref(), Some("local"));
     assert_eq!(first.generation.as_deref(), Some("generation-a"));
@@ -116,36 +107,28 @@ fn discovery_tracks_generation_and_lease_before_falling_back() {
         first.contract_version.as_deref(),
         Some(INFER_RUNTIME_CONTRACT_VERSION)
     );
-    assert!(first.lease_expires_at_unix.is_some());
 
     fixture.write_registration(
-        now,
         "generation-b",
         "http://127.0.0.1:9222",
         INFER_RUNTIME_CONTRACT_VERSION,
     );
     let second = resolver
-        .resolve_at(now)
+        .resolve_current()
         .expect("second generation resolves");
     assert_eq!(second.origin, "http://127.0.0.1:9222");
     assert_eq!(second.generation.as_deref(), Some("generation-b"));
 
-    let expired = resolver
-        .resolve_at(now + Duration::seconds(121))
-        .expect("fallback remains available");
-    assert_eq!(
-        expired.source,
-        InferRuntimeEndpointSource::CompatibilityFallback
-    );
-    assert_eq!(expired.origin, "http://127.0.0.1:9333");
+    let unchanged = resolver
+        .resolve_current()
+        .expect("stable declaration remains selectable without a clock");
+    assert_eq!(unchanged, second);
 }
 
 #[test]
 fn connection_failure_retries_only_new_identity_then_uses_fallback() {
     let fixture = DiscoveryFixture::new("failure");
-    let now = OffsetDateTime::now_utc();
     fixture.write_registration(
-        now,
         "generation-a",
         "http://127.0.0.1:9111",
         INFER_RUNTIME_CONTRACT_VERSION,
@@ -155,10 +138,11 @@ fn connection_failure_retries_only_new_identity_then_uses_fallback() {
         fixture.root.clone(),
         "http://127.0.0.1:9333",
     );
-    let failed = resolver.resolve_at(now).expect("initial endpoint resolves");
+    let failed = resolver
+        .resolve_current()
+        .expect("initial endpoint resolves");
 
     fixture.write_registration(
-        OffsetDateTime::now_utc(),
         "generation-b",
         "http://127.0.0.1:9222",
         INFER_RUNTIME_CONTRACT_VERSION,
@@ -185,23 +169,16 @@ fn connection_failure_retries_only_new_identity_then_uses_fallback() {
 #[test]
 fn incompatible_or_structurally_invalid_registration_falls_back() {
     let fixture = DiscoveryFixture::new("invalid");
-    let now = OffsetDateTime::now_utc();
     let resolver = InferRuntimeEndpointResolver::with_runtime_root(
         "",
         fixture.root.clone(),
         "http://127.0.0.1:9333",
     );
 
-    fixture.write_registration(
-        now,
-        "generation-a",
-        "http://127.0.0.1:9111",
-        "0.1.0-candidate.1",
-    );
-    assert_fallback(&resolver, now);
+    fixture.write_registration("generation-a", "http://127.0.0.1:9111", "0.1.0-candidate.1");
+    assert_fallback(&resolver);
 
     let mut unknown = registration_value(
-        now,
         "generation-a",
         "http://127.0.0.1:9111",
         INFER_RUNTIME_CONTRACT_VERSION,
@@ -211,10 +188,9 @@ fn incompatible_or_structurally_invalid_registration_falls_back() {
         .expect("object")
         .insert("future".to_owned(), json!(true));
     fixture.write_value(&unknown);
-    assert_fallback(&resolver, now);
+    assert_fallback(&resolver);
 
     let manifest = serde_json::to_string(&registration_value(
-        now,
         "generation-a",
         "http://127.0.0.1:9111",
         INFER_RUNTIME_CONTRACT_VERSION,
@@ -227,13 +203,36 @@ fn incompatible_or_structurally_invalid_registration_falls_back() {
     );
     fs::write(fixture.manifest(), duplicate).expect("duplicate registration writes");
     set_mode(&fixture.manifest(), 0o600);
-    assert_fallback(&resolver, now);
+    assert_fallback(&resolver);
+
+    let mut removed_lease = registration_value(
+        "generation-a",
+        "http://127.0.0.1:9111",
+        INFER_RUNTIME_CONTRACT_VERSION,
+    );
+    removed_lease.as_object_mut().expect("object").insert(
+        "lease".to_owned(),
+        json!({
+            "renewed_at": "2026-08-12T00:00:00Z",
+            "expires_at": "2026-08-12T00:00:45Z"
+        }),
+    );
+    fixture.write_value(&removed_lease);
+    assert_fallback(&resolver);
+
+    let mut old_schema = registration_value(
+        "generation-a",
+        "http://127.0.0.1:9111",
+        INFER_RUNTIME_CONTRACT_VERSION,
+    );
+    old_schema["schema_version"] = json!("20260810.1");
+    fixture.write_value(&old_schema);
+    assert_fallback(&resolver);
 }
 
 #[test]
 fn migration_accepts_candidate_two_but_prefers_candidate_three() {
     let fixture = DiscoveryFixture::new("candidate-migration");
-    let now = OffsetDateTime::now_utc();
     let resolver = InferRuntimeEndpointResolver::with_runtime_root(
         "",
         fixture.root.clone(),
@@ -241,13 +240,12 @@ fn migration_accepts_candidate_two_but_prefers_candidate_three() {
     );
 
     fixture.write_registration(
-        now,
         "generation-candidate-two",
         "http://127.0.0.1:9111",
         InferRuntimeContractRevision::Candidate2.as_str(),
     );
     let candidate_two = resolver
-        .resolve_at(now)
+        .resolve_current()
         .expect("candidate.2 remains selectable");
     assert_eq!(
         candidate_two.contract_version.as_deref(),
@@ -255,7 +253,6 @@ fn migration_accepts_candidate_two_but_prefers_candidate_three() {
     );
 
     let mut both = registration_value(
-        now,
         "generation-both",
         "http://127.0.0.1:9222",
         InferRuntimeContractRevision::Candidate2.as_str(),
@@ -266,7 +263,7 @@ fn migration_accepts_candidate_two_but_prefers_candidate_three() {
     ]);
     fixture.write_value(&both);
     let candidate_three = resolver
-        .resolve_at(now)
+        .resolve_current()
         .expect("preferred candidate resolves");
     assert_eq!(
         candidate_three.contract_version.as_deref(),
@@ -277,9 +274,7 @@ fn migration_accepts_candidate_two_but_prefers_candidate_three() {
 #[test]
 fn owner_only_and_nofollow_boundaries_fail_closed_to_fallback() {
     let fixture = DiscoveryFixture::new("filesystem");
-    let now = OffsetDateTime::now_utc();
     fixture.write_registration(
-        now,
         "generation-a",
         "http://127.0.0.1:9111",
         INFER_RUNTIME_CONTRACT_VERSION,
@@ -291,10 +286,9 @@ fn owner_only_and_nofollow_boundaries_fail_closed_to_fallback() {
     );
 
     set_mode(&fixture.manifest(), 0o644);
-    assert_fallback(&resolver, now);
+    assert_fallback(&resolver);
 
     fixture.write_registration(
-        now,
         "generation-a",
         "http://127.0.0.1:9111",
         INFER_RUNTIME_CONTRACT_VERSION,
@@ -302,31 +296,42 @@ fn owner_only_and_nofollow_boundaries_fail_closed_to_fallback() {
     let target = fixture.root.join("owned-registration.json");
     fs::rename(fixture.manifest(), &target).expect("manifest becomes target");
     symlink(&target, fixture.manifest()).expect("manifest symlink creates");
-    assert_fallback(&resolver, now);
+    assert_fallback(&resolver);
 }
 
-fn assert_fallback(resolver: &InferRuntimeEndpointResolver, now: OffsetDateTime) {
+#[test]
+#[ignore = "requires a live Infer Runtime publisher in the platform discovery root"]
+fn live_publisher_resolves_through_the_strict_discovery_consumer() {
+    let probe = crate::infer_runtime::probe_infer_runtime_contract("");
+    let endpoint = probe.endpoint.expect("live probe resolves an endpoint");
+    assert_eq!(endpoint.source, InferRuntimeEndpointSource::Discovery);
+    assert_eq!(endpoint.instance_id.as_deref(), Some(SERVICE_INSTANCE_ID));
+    assert!(
+        endpoint
+            .generation
+            .as_deref()
+            .is_some_and(|value| !value.is_empty())
+    );
+    assert_eq!(
+        probe
+            .contract
+            .expect("live contract probe succeeds")
+            .contract_version,
+        INFER_RUNTIME_CONTRACT_VERSION
+    );
+}
+
+fn assert_fallback(resolver: &InferRuntimeEndpointResolver) {
     assert_eq!(
         resolver
-            .resolve_at(now)
+            .resolve_current()
             .expect("fallback remains valid")
             .source,
         InferRuntimeEndpointSource::CompatibilityFallback
     );
 }
 
-fn registration_value(
-    now: OffsetDateTime,
-    generation: &str,
-    endpoint: &str,
-    version: &str,
-) -> serde_json::Value {
-    let renewed_at = (now - Duration::seconds(5))
-        .format(&Rfc3339)
-        .expect("renewal time formats");
-    let expires_at = (now + Duration::seconds(40))
-        .format(&Rfc3339)
-        .expect("expiration time formats");
+fn registration_value(generation: &str, endpoint: &str, version: &str) -> serde_json::Value {
     json!({
         "schema": DISCOVERY_SCHEMA,
         "schema_version": DISCOVERY_SCHEMA_VERSION,
@@ -334,10 +339,6 @@ fn registration_value(
             "kind": SERVICE_KIND,
             "instance_id": SERVICE_INSTANCE_ID,
             "generation": generation
-        },
-        "lease": {
-            "renewed_at": renewed_at,
-            "expires_at": expires_at
         },
         "offers": [{
             "protocol": "infer-runtime.status",

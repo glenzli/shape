@@ -48,7 +48,6 @@ fn infer_probe_wire_preserves_compatibility_without_diagnostics_payloads() {
             source: InferRuntimeEndpointSource::CompatibilityFallback,
             instance_id: None,
             generation: None,
-            lease_expires_at_unix: None,
             contract_version: None,
         }),
         contract: Err(InferRuntimeClientError::Unavailable),
@@ -67,7 +66,6 @@ fn discovered_endpoint() -> ResolvedInferRuntimeEndpoint {
         source: InferRuntimeEndpointSource::Discovery,
         instance_id: Some("local".to_owned()),
         generation: Some("generation-test".to_owned()),
-        lease_expires_at_unix: Some(1_786_383_600),
         contract_version: Some(INFER_RUNTIME_CONTRACT_VERSION.to_owned()),
     }
 }

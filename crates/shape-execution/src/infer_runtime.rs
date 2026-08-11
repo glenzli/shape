@@ -267,9 +267,10 @@ impl InferRuntimeClient {
 /// Consumer lifecycle.
 ///
 /// A transport failure triggers one immediate Discovery re-read. Shape retries
-/// only when that produces a different endpoint or Discovery generation; the
-/// temporary migration fallback never causes a duplicate hit to the same
-/// failed address.
+/// only when that produces a different endpoint, application contract, or
+/// Discovery generation; the stable manifest is never treated as liveness
+/// evidence, and the temporary migration fallback never causes a duplicate hit
+/// to the same failed address.
 #[must_use]
 pub fn probe_infer_runtime_contract(explicit_override: &str) -> InferRuntimeProbe {
     let resolver = InferRuntimeEndpointResolver::from_environment(explicit_override);

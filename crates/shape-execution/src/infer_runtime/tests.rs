@@ -11,8 +11,6 @@ use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 #[cfg(unix)]
 use serde_json::json;
 #[cfg(unix)]
-use time::{Duration as TimeDuration, OffsetDateTime, format_description::well_known::Rfc3339};
-#[cfg(unix)]
 use uuid::Uuid;
 
 use super::{
@@ -85,7 +83,6 @@ fn failed_probe_retries_only_a_distinct_transport_or_discovery_generation() {
         source: InferRuntimeEndpointSource::Discovery,
         instance_id: Some("local".to_owned()),
         generation: Some("generation-a".to_owned()),
-        lease_expires_at_unix: Some(1),
         contract_version: Some(INFER_RUNTIME_CONTRACT_VERSION.to_owned()),
     };
     let same_address_fallback = ResolvedInferRuntimeEndpoint {
@@ -93,7 +90,6 @@ fn failed_probe_retries_only_a_distinct_transport_or_discovery_generation() {
         source: InferRuntimeEndpointSource::CompatibilityFallback,
         instance_id: None,
         generation: None,
-        lease_expires_at_unix: None,
         contract_version: None,
     };
     assert!(!should_retry_endpoint(&failed, &same_address_fallback));
@@ -127,18 +123,13 @@ fn resolved_probe_uses_the_discovered_generation_and_contract() {
     set_mode(&root, 0o700);
     set_mode(&root.join("registrations"), 0o700);
     set_mode(&root.join("sockets"), 0o700);
-    let now = OffsetDateTime::now_utc();
     let registration = json!({
         "schema": "infra.discovery.registration",
-        "schema_version": "20260810.1",
+        "schema_version": "20260812.1",
         "service": {
             "kind": "infer-runtime",
             "instance_id": "local",
             "generation": "generation-integration"
-        },
-        "lease": {
-            "renewed_at": (now - TimeDuration::seconds(5)).format(&Rfc3339).expect("time formats"),
-            "expires_at": (now + TimeDuration::seconds(40)).format(&Rfc3339).expect("time formats")
         },
         "offers": [{
             "protocol": "infer-runtime.consumer",
@@ -186,18 +177,13 @@ fn discovered_offer_and_http_contract_must_match() {
     set_mode(&root, 0o700);
     set_mode(&root.join("registrations"), 0o700);
     set_mode(&root.join("sockets"), 0o700);
-    let now = OffsetDateTime::now_utc();
     let registration = json!({
         "schema": "infra.discovery.registration",
-        "schema_version": "20260810.1",
+        "schema_version": "20260812.1",
         "service": {
             "kind": "infer-runtime",
             "instance_id": "local",
             "generation": "generation-mismatch"
-        },
-        "lease": {
-            "renewed_at": (now - TimeDuration::seconds(5)).format(&Rfc3339).unwrap(),
-            "expires_at": (now + TimeDuration::seconds(40)).format(&Rfc3339).unwrap()
         },
         "offers": [{
             "protocol": "infer-runtime.consumer",

@@ -62,8 +62,10 @@ acceptance clears siblings prepared against the old head; branching and discard 
 chosen candidate. Acceptance still crosses the existing `shape-core` use case and `shape-store`
 compare-and-swap commit boundary. `shape-execution::infer_runtime` now owns the first real Infer
 Runtime consumer. Its `discovery` owner validates the owner-only
-`infra.discovery.registration@20260810.1` manifest, exact Consumer offer, lease, generation, and
-canonical numeric-loopback endpoint. The HTTP owner then performs a bounded, proxy-free,
+`infra.discovery.registration@20260812.1` manifest, exact Consumer offer, generation, and canonical
+numeric-loopback endpoint. The manifest is a stable candidate declaration without a lease or
+liveness timestamp: connection failure causes one immediate re-read and only a changed generation,
+offer, or endpoint is reconsidered. The HTTP owner then performs a bounded, proxy-free,
 redirect-free public-contract probe. Explicit diagnostics override remains first; the fixed 8787
 origin is only a temporary final migration fallback. Its separate `credential` owner atomically
 loads and rotates only a managed 256-bit token from Shape's owner-only secret store. The `responses`
