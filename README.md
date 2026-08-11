@@ -70,13 +70,13 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   desktop keeps text and image candidates on one typed shelf while each medium owns
   its central workspace. It resolves Infer Runtime through strict owner-only
   Infra Discovery, imports a Shape-specific managed credential into an owner-only secret store,
-  and can execute one local-only `assistant.general` text generation as a transient candidate.
+  and can execute one local-only candidate.3 `language.respond` request as a transient candidate.
   The `audio.speech_synthesize` desktop workspace consumes immutable accepted text and creates a
   transient audio Candidate through a single versioned preset. The selected Candidate can be
   auditioned from an in-memory WAV device and becomes a new `audio.clip` only after explicit
   acceptance. Shape re-parses exact PCM S16 LE WAV bytes,
   requires preset voice/disclosure and local-only no-fallback Runtime provenance, and atomically
-  rejects a stale text source. Schema `20260811.4` additively upgrades initial, Scene-era, audio-era,
+  rejects a stale text source. Schema `20260811.5` additively upgrades initial, Scene-era, audio-era,
   and Working-Graph-era projects without changing existing accepted heads. Mutable Operator state
   now uses bounded versioned configuration envelopes. `text.transform` restores an exact authored
   mode plus instruction, keeps rewrite/expand/polish/shorten inside one stable Operator identity,
@@ -86,14 +86,37 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   or unconfigured AI never affects direct editing.
 - The deterministic raster foundation now also includes a real `image.resize` Rust path. Its typed
   target dimensions, stretch/fit-within policy, four explicit resampling kernels, bounded pixel
-  budget, prepared execution plan, and Candidate/Accept lifecycle are exercised through reopen.
-  Desktop catalog and workspace registration remain a separate consumer slice, so the UI does not
-  advertise resize before it can execute it end to end.
+  budget, prepared execution plan, and Candidate/Accept lifecycle are now consumed by a dedicated
+  desktop workspace. Resize configuration is project-backed, restored on reopen, and re-read by
+  exact draft identity before producing pixels; the packaged raster smoke covers import, draft,
+  reopen, Candidate, Compare, Accept, graph routing, and final reopen.
+- Shape will not duplicate mature photo-editing systems by default. Creative color grading and RAW
+  work remain Shape-level semantic Operators, but their preferred future execution route is an
+  explicit Shadow external-edit Adapter. Shape pins the input revision and color contract, accepts
+  only materialized output plus a receipt as a Candidate, and advances history only after explicit
+  acceptance. Shadow never writes the Shape project, and Shape never copies Shadow's internal Recipe.
+- The desktop shell now follows the node-focused workbench model: a compact Scene/Component/Asset
+  rail, a clickable graph-context strip above the active media workspace, and a horizontal Candidate
+  filmstrip wired to exact Select/Compare/Accept/Discard/Branch actions. The generic Inspector is no
+  longer a permanent third column. A separate comprehensive-Operator intent surface is packaged
+  without placeholder state; its first real consumer is the zero-input AI Image Source Operator.
+- AI image semantics are split deliberately. `image.generate` is a zero-material Source Operator;
+  `image.generate_from_materials` requires accepted raster materials with explicit roles. Both have
+  one logical output and place multiple generated options on the Candidate Shelf. The typed domain
+  contract exists now. The source-less form also has a strict Infer Runtime candidate.3 executor
+  and a Core Candidate/explicit-Accept path: PNG payloads and cloud Job provenance are revalidated,
+  and no accepted revision is written before user acceptance. The desktop can atomically create a
+  source-less AI Image Scene, restore its exact prompt/canvas draft, and open its dedicated canvas
+  plus Intent sidebar. Live execution remains fail-closed under the current Shape App ACL until
+  Infer explicitly grants the required subscription/balanced/cloud-only authority.
+  Material-conditioned execution stays unavailable until Infer exposes a real raster-output
+  edit/conditioned-generation contract.
 - Deferred: desktop editing of the new persistent Scene graph, GraphComponent instances, Infer-side
   App provisioning, Job/explain provenance inspection, pinned or durable explorations,
   composite/layer image structure, waveform editing, recording, Voice Reference execution,
-  `audio.generate`/`audio.transform`, Shadow/Echo suite adapters, external executors,
-  project imports/exports, and AI image planning. The required Infer speech alias/ACL is locally
+  `audio.generate`/`audio.transform`, Shadow/Echo suite adapters and external-edit sessions,
+  project imports/exports and material-conditioned image execution.
+  The required Infer speech alias/ACL is locally
   proven but remains an externally unpublished dependency until Infer commits it.
 - License: Shape source is licensed under the [`MIT License`](LICENSE). Shadow's GPL components
   remain behind independent-process or documented protocol boundaries so Shape's own distribution

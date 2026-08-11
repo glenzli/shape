@@ -1,8 +1,10 @@
 //! Canonical image-raster import and routing to image-specific use cases.
 
+mod ai_generate;
 mod raster_crop;
 mod raster_resize;
 
+pub use ai_generate::AiImageCandidate;
 pub use raster_crop::ImageCandidate;
 pub use raster_resize::ImageResizeCandidate;
 

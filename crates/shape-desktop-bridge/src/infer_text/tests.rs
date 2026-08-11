@@ -126,10 +126,17 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
         open_desktop_session(project_path.to_str().expect("portable project path"))
             .expect("draft session opens");
     let draft = draft_session
-        .session_begin_operator_draft(&artifact.id.to_string(), "text.transform")
-        .expect("text transform draft begins");
+        .session_begin_operator_draft(&artifact.id.to_string(), "text.edit")
+        .expect("Writing draft begins");
     draft_session
-        .session_update_text_transform_draft(&draft.draft_id, "expand", "Make it more vivid.")
+        .session_update_text_transform_draft(
+            &draft.draft_id,
+            "expand",
+            "Make it more vivid.",
+            "warm",
+            "literary",
+            1,
+        )
         .expect("text transform draft config persists");
     drop(draft_session);
 
@@ -176,7 +183,7 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
     );
     assert_eq!(
         accepted.artifacts[0].transformation_intent,
-        "Expand text: Make it more vivid."
+        "Expand text: Make it more vivid.\nTone: warm. Style: literary."
     );
     assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
     assert_eq!(

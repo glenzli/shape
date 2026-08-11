@@ -62,6 +62,8 @@ pub enum TextTransformMode {
     Polish,
     /// Condense the accepted document while preserving its essential meaning.
     Shorten,
+    /// Extract the essential claims into a shorter standalone account.
+    Summarize,
 }
 
 impl TextTransformMode {
@@ -73,6 +75,7 @@ impl TextTransformMode {
             Self::Expand => "expand",
             Self::Polish => "polish",
             Self::Shorten => "shorten",
+            Self::Summarize => "summarize",
         }
     }
 
@@ -87,6 +90,7 @@ impl TextTransformMode {
             "expand" => Some(Self::Expand),
             "polish" => Some(Self::Polish),
             "shorten" => Some(Self::Shorten),
+            "summarize" => Some(Self::Summarize),
             _ => None,
         }
     }
@@ -97,6 +101,7 @@ impl TextTransformMode {
             Self::Expand => "Expand text",
             Self::Polish => "Polish text",
             Self::Shorten => "Shorten text",
+            Self::Summarize => "Summarize text",
         }
     }
 }

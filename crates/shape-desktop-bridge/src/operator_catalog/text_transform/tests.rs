@@ -1,10 +1,11 @@
 use shape_domain::{OperatorDataTypeId, OperatorTypeId, WorkingOperatorDraft};
 
 use super::*;
+use crate::operator_catalog::{TEXT_EDIT_OPERATOR, TEXT_TRANSFORM_OPERATOR};
 
-fn text_transform_draft() -> WorkingOperatorDraft {
+fn writing_draft() -> WorkingOperatorDraft {
     WorkingOperatorDraft::new(
-        OperatorTypeId::new(TEXT_TRANSFORM_OPERATOR).unwrap(),
+        OperatorTypeId::new(TEXT_EDIT_OPERATOR).unwrap(),
         OperatorDataTypeId::new("text.document").unwrap(),
         OperatorDataTypeId::new("text.document").unwrap(),
     )
@@ -20,7 +21,7 @@ fn instruction_round_trips_exactly_and_empty_input_clears_configuration() {
     );
     let draft = graph
         .add_operator(
-            OperatorTypeId::new(TEXT_TRANSFORM_OPERATOR).unwrap(),
+            OperatorTypeId::new(TEXT_EDIT_OPERATOR).unwrap(),
             OperatorDataTypeId::new("text.document").unwrap(),
             OperatorDataTypeId::new("text.document").unwrap(),
         )
@@ -36,7 +37,7 @@ fn instruction_round_trips_exactly_and_empty_input_clears_configuration() {
 
 #[test]
 fn all_modes_round_trip_in_one_text_transform_schema() {
-    for mode in ["rewrite", "expand", "polish", "shorten"] {
+    for mode in ["rewrite", "expand", "polish", "shorten", "summarize"] {
         let configuration = configuration_for_mode_and_instruction(mode, "  Keep this exact.  ")
             .unwrap()
             .unwrap();
@@ -45,6 +46,41 @@ fn all_modes_round_trip_in_one_text_transform_schema() {
         assert_eq!(decoded.mode.as_str(), mode);
         assert_eq!(decoded.instruction, "  Keep this exact.  ");
     }
+}
+
+#[test]
+fn studio_intent_round_trips_tone_style_and_variant_count() {
+    let configuration = configuration_for_studio(
+        "summarize",
+        "Keep every quoted number.",
+        "confident",
+        "professional",
+        3,
+    )
+    .unwrap()
+    .unwrap();
+    let mut graph = shape_domain::ArtifactWorkingGraph::new(
+        shape_domain::ArtifactId::new(),
+        shape_domain::RevisionId::new(),
+    );
+    let draft = graph
+        .add_operator(
+            OperatorTypeId::new(TEXT_EDIT_OPERATOR).unwrap(),
+            OperatorDataTypeId::new("text.document").unwrap(),
+            OperatorDataTypeId::new("text.document").unwrap(),
+        )
+        .unwrap();
+    graph.set_operator_configuration(draft.id(), Some(configuration));
+    let draft = &graph.operators()[0];
+    assert_eq!(mode_from_draft(draft).unwrap(), "summarize");
+    assert_eq!(tone_from_draft(draft).unwrap(), "confident");
+    assert_eq!(style_from_draft(draft).unwrap(), "professional");
+    assert_eq!(variant_count_from_draft(draft).unwrap(), 3);
+    assert!(
+        compiled_instruction_from_draft(draft)
+            .unwrap()
+            .contains("Tone: confident. Style: professional.")
+    );
 }
 
 #[test]
@@ -90,17 +126,16 @@ fn unknown_modes_fields_schemas_and_oversized_instructions_fail_closed() {
     assert!(decode(&unknown_field).is_err());
     let unknown_mode = WorkingOperatorConfiguration::new(
         OperatorConfigurationSchemaId::new(TEXT_TRANSFORM_DRAFT_SCHEMA).unwrap(),
-        r#"{"mode":"summarize","instruction":"clear"}"#,
+        r#"{"mode":"translate","instruction":"clear","tone":"neutral","style":"natural","variant_count":1}"#,
     )
     .unwrap();
     assert!(decode(&unknown_mode).is_err());
-    assert!(configuration_for_mode_and_instruction("summarize", "clear").is_err());
-    assert!(configuration_for_mode_and_instruction("summarize", " ").is_err());
+    assert!(configuration_for_mode_and_instruction("translate", "clear").is_err());
+    assert!(configuration_for_studio("rewrite", "", "angry", "natural", 1).is_err());
+    assert!(configuration_for_studio("rewrite", "", "neutral", "academic", 1).is_err());
+    assert!(configuration_for_studio("rewrite", "", "neutral", "natural", 0).is_err());
+    assert!(configuration_for_studio("rewrite", "", "neutral", "natural", 5).is_err());
     assert!(configuration_for_instruction(&"x".repeat(MAX_INSTRUCTION_BYTES + 1)).is_err());
-    assert!(
-        instruction_from_draft(&text_transform_draft())
-            .unwrap()
-            .is_empty()
-    );
-    assert_eq!(mode_from_draft(&text_transform_draft()).unwrap(), "rewrite");
+    assert!(instruction_from_draft(&writing_draft()).unwrap().is_empty());
+    assert_eq!(mode_from_draft(&writing_draft()).unwrap(), "rewrite");
 }

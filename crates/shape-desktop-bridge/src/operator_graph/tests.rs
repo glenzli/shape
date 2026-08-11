@@ -55,6 +55,9 @@ fn accepted_text_history_projects_as_source_edit_output() {
     assert_eq!(graph.nodes.len(), 3);
     assert_eq!(graph.edges.len(), 2);
     assert_eq!(graph.nodes[0].role_key, "source");
+    assert!(graph.nodes[0].has_text_preview);
+    assert_eq!(graph.nodes[0].text_preview, "First");
+    assert!(!graph.nodes[0].text_preview_truncated);
     assert_eq!(graph.nodes[1].role_key, "operator");
     assert_eq!(graph.nodes[1].operator_type_key, "text.edit");
     assert_eq!(graph.nodes[1].artifact_id, artifact.id.to_string());
@@ -64,6 +67,8 @@ fn accepted_text_history_projects_as_source_edit_output() {
         accepted_revision.transformation_id.to_string()
     );
     assert_eq!(graph.nodes[2].role_key, "output");
+    assert!(graph.nodes[2].has_text_preview);
+    assert_eq!(graph.nodes[2].text_preview, "Second");
     assert_eq!(graph.edges[0].data_type_key, "text.document");
     fs::remove_dir_all(root).unwrap();
 }

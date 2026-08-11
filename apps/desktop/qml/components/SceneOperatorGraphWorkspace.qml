@@ -22,18 +22,32 @@ Rectangle {
     property var operatorDescriptors: []
     property string selectedNodeId: ""
     property string selectedCandidateId: ""
+    property string artifactKindKey: ""
+    property string artifactTextPreview: ""
+    property bool artifactTextPreviewTruncated: false
+    property url acceptedImageSource
+    property int artifactImageWidth: 0
+    property int artifactImageHeight: 0
+    property int artifactAudioDurationMillis: 0
+    property int artifactAudioSampleRateHz: 0
+    property int artifactAudioChannels: 0
     property real zoomLevel: 1.0
     property string focusedSelectionKind: "node"
 
-    readonly property real nodeWidth: 182
-    readonly property real nodeHeight: 108
-    readonly property real columnGap: 48
-    readonly property real rowGap: 52
+    readonly property real nodeWidth: 228
+    readonly property real nodeHeight: 164
+    readonly property real columnGap: 58
+    readonly property real rowGap: 42
     readonly property real graphMargin: 24
     readonly property int acceptedMaxStage: maximumAcceptedStage()
     readonly property int projectedNodeCount: nodes.length + drafts.length + candidates.length
     readonly property real minimumZoom: 0.65
     readonly property real maximumZoom: 1.5
+    readonly property bool currentResultPreviewAvailable: (artifactKindKey === "image_raster"
+                                                            && acceptedImageSource.toString().length
+                                                               > 0)
+                                                           || artifactKindKey === "text_document"
+                                                           || artifactKindKey === "audio_clip"
     readonly property var inspectedNode: nodeForId(selectedNodeId)
     readonly property var inspectedDraft: draftForId(selectedNodeId)
     readonly property var inspectedCandidate: candidateForId(selectedCandidateId)
@@ -84,6 +98,7 @@ Rectangle {
     signal draftSelected(string draftId)
     signal draftOpened(string draftId)
     signal draftDiscardRequested(string draftId)
+    signal nodeOutputRequested(string nodeId)
 
     function nodeIndex(nodeId) : int {
         for (let index = 0; index < nodes.length; ++index) {
@@ -226,21 +241,50 @@ Rectangle {
 
     function nodeTitle(node) : string {
         if (node.roleKey === "source") {
-            return node.artifactName.length > 0 ? node.artifactName : qsTr("Source")
+            return node.artifactName.length > 0 ? node.artifactName : qsTr("Starting material")
         }
         if (node.roleKey === "output") {
             return node.artifactName.length > 0
-                    ? qsTr("%1 / Main").arg(node.artifactName) : qsTr("Main output")
+                    ? qsTr("%1 / Current").arg(node.artifactName) : qsTr("Current result")
         }
         return node.operatorTypeLabel
     }
 
+    function dataTypeLabel(dataTypeKey) : string {
+        if (dataTypeKey === "text.document") return qsTr("Text")
+        if (dataTypeKey === "image.raster") return qsTr("Image")
+        if (dataTypeKey === "audio.clip") return qsTr("Audio")
+        return qsTr("Creative content")
+    }
+
+    function roleLabel(node) : string {
+        if (node.roleKey === "source"
+                || (node.roleKey === "operator" && node.inputPorts.length === 0)) {
+            return qsTr("STARTING POINT")
+        }
+        if (node.roleKey === "output") return qsTr("CURRENT RESULT")
+        return qsTr("CREATIVE STEP")
+    }
+
+    function draftRoleLabel(draft) : string {
+        return draft.hasInputDataType ? qsTr("NEXT STEP") : qsTr("STARTING POINT")
+    }
+
+    function draftDetail(draft) : string {
+        if (!draft.hasInputDataType) {
+            return qsTr("Creates the first %1").arg(dataTypeLabel(draft.outputDataTypeKey))
+        }
+        return qsTr("%1 to %2").arg(dataTypeLabel(draft.inputDataTypeKey))
+                .arg(dataTypeLabel(draft.outputDataTypeKey))
+    }
+
     function nodeDetail(node) : string {
         if (node.roleKey === "operator") {
-            return node.intent.length > 0 ? node.intent : node.operatorTypeKey
+            return node.intent.length > 0 ? node.intent : node.operatorTypeLabel
         }
         const ports = node.roleKey === "source" ? node.outputPorts : node.inputPorts
-        return ports.length > 0 ? ports[0].dataTypeKey : node.operatorTypeKey
+        return ports.length > 0 ? dataTypeLabel(ports[0].dataTypeKey)
+                                : qsTr("Creative content")
     }
 
     function roleColor(roleKey) : color {
@@ -262,28 +306,31 @@ Rectangle {
     function inspectionTitle() : string {
         if (inspectionKind === "node") return nodeTitle(inspectedNode)
         if (inspectionKind === "draft") return inspectedDraft.operatorTypeLabel
-        if (inspectionKind === "candidate") return qsTr("Pending Candidate")
+        if (inspectionKind === "candidate") return qsTr("New version")
         return ""
     }
 
     function inspectionEyebrow() : string {
-        if (inspectionKind === "node") return inspectedNode.roleLabel.toUpperCase()
-        if (inspectionKind === "draft") return qsTr("DRAFT OPERATOR")
-        if (inspectionKind === "candidate") return qsTr("CANDIDATE")
+        if (inspectionKind === "node") return roleLabel(inspectedNode)
+        if (inspectionKind === "draft") return draftRoleLabel(inspectedDraft)
+        if (inspectionKind === "candidate") return qsTr("OPTIONAL VERSION")
         return ""
     }
 
     function inspectionDetail() : string {
         if (inspectionKind === "node") {
-            return qsTr("%1 input ports · %2 output ports · %3")
-                    .arg(inspectedNode.inputPorts.length)
-                    .arg(inspectedNode.outputPorts.length)
-                    .arg(nodeDetail(inspectedNode))
+            if (inspectedNode.roleKey === "source") {
+                return qsTr("The original material this work starts from · %1")
+                        .arg(nodeDetail(inspectedNode))
+            }
+            if (inspectedNode.roleKey === "output") {
+                return qsTr("The version currently used by this work · %1")
+                        .arg(nodeDetail(inspectedNode))
+            }
+            return qsTr("A creative step in this work · %1").arg(nodeDetail(inspectedNode))
         }
         if (inspectionKind === "draft") {
-            return qsTr("%1 → %2 · Session-only until execution")
-                    .arg(inspectedDraft.inputDataTypeKey)
-                    .arg(inspectedDraft.outputDataTypeKey)
+            return qsTr("Ready to configure · %1").arg(draftDetail(inspectedDraft))
         }
         if (inspectionKind === "candidate") {
             return inspectedCandidate.hasImagePreview
@@ -354,6 +401,7 @@ Rectangle {
         spacing: 0
 
         SceneGraphToolbar {
+            id: graphToolbar
             Layout.fillWidth: true
             Layout.preferredHeight: 62
             projectName: graph.projectName
@@ -487,7 +535,7 @@ Rectangle {
                                 Layout.fillWidth: true
 
                                 Text {
-                                    text: qsTr("DRAFT OPERATOR")
+                                    text: graph.draftRoleLabel(draftNode.modelData)
                                     color: Theme.accent
                                     font.pixelSize: 9
                                     font.weight: Font.DemiBold
@@ -498,11 +546,12 @@ Rectangle {
 
                                 Button {
                                     objectName: "discardDraftButton-" + draftNode.index
+                                    visible: draftNode.modelData.hasInputDataType
                                     implicitWidth: 22
                                     implicitHeight: 22
                                     text: "×"
                                     flat: true
-                                    Accessible.name: qsTr("Remove Operator draft")
+                                    Accessible.name: qsTr("Remove unfinished step")
                                     onClicked: graph.draftDiscardRequested(draftNode.modelData.id)
                                 }
                             }
@@ -518,9 +567,7 @@ Rectangle {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: qsTr("%1 → %2")
-                                      .arg(draftNode.modelData.inputDataTypeKey)
-                                      .arg(draftNode.modelData.outputDataTypeKey)
+                                text: graph.draftDetail(draftNode.modelData)
                                 color: Theme.muted
                                 font.pixelSize: 9
                                 elide: Text.ElideRight
@@ -539,108 +586,47 @@ Rectangle {
                         required property int index
                         required property var modelData
                         readonly property bool currentNode: modelData.id === graph.selectedNodeId
-                        readonly property color semanticColor: graph.roleColor(modelData.roleKey)
+                        readonly property bool displaysCurrentPreview: modelData.roleKey === "output"
+                                                                       && ((graph.artifactKindKey
+                                                                            === "image_raster"
+                                                                            && graph.acceptedImageSource
+                                                                               .toString().length
+                                                                               > 0)
+                                                                           || graph.artifactKindKey
+                                                                              === "text_document"
+                                                                           || graph.artifactKindKey
+                                                                              === "audio_clip")
 
                         x: graph.nodeX(index)
                         y: graph.nodeY(index)
                         width: graph.nodeWidth
                         height: graph.nodeHeight
-                        leftPadding: 14
-                        rightPadding: 14
-                        topPadding: 12
-                        bottomPadding: 12
+                        padding: 0
                         highlighted: currentNode
                         Accessible.name: qsTr("Open %1").arg(graph.nodeTitle(modelData))
                         onClicked: graph.selectAcceptedNode(modelData.id)
                         onDoubleClicked: graph.nodeOpened(modelData.id)
 
-                        background: Rectangle {
-                            radius: Theme.radiusMedium
-                            color: acceptedNode.currentNode ? Theme.accentSoft
-                                                            : acceptedNode.hovered
-                                                              ? Theme.raisedHover : Theme.raised
-                            border.width: acceptedNode.currentNode ? 2 : 1
-                            border.color: acceptedNode.currentNode
-                                          ? acceptedNode.semanticColor : Theme.borderStrong
+                        background: Item {}
 
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                width: 3
-                                radius: 2
-                                color: acceptedNode.semanticColor
-                            }
-                        }
-
-                        Rectangle {
-                            visible: acceptedNode.modelData.inputPorts.length > 0
-                            anchors.left: parent.left
-                            anchors.leftMargin: -5
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 10
-                            height: 10
-                            radius: 5
-                            color: Theme.surface
-                            border.width: 2
-                            border.color: acceptedNode.semanticColor
-                        }
-
-                        Rectangle {
-                            visible: acceptedNode.modelData.outputPorts.length > 0
-                            anchors.right: parent.right
-                            anchors.rightMargin: -5
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 10
-                            height: 10
-                            radius: 5
-                            color: Theme.surface
-                            border.width: 2
-                            border.color: acceptedNode.semanticColor
-                        }
-
-                        contentItem: ColumnLayout {
-                            spacing: 4
-
-                            RowLayout {
-                                Layout.fillWidth: true
-
-                                Text {
-                                    text: acceptedNode.modelData.roleLabel.toUpperCase()
-                                    color: acceptedNode.semanticColor
-                                    font.pixelSize: 9
-                                    font.weight: Font.DemiBold
-                                    font.letterSpacing: 0.5
-                                }
-
-                                Item { Layout.fillWidth: true }
-
-                                Text {
-                                    text: qsTr("%1 in · %2 out")
-                                          .arg(acceptedNode.modelData.inputPorts.length)
-                                          .arg(acceptedNode.modelData.outputPorts.length)
-                                    color: Theme.disabled
-                                    font.pixelSize: 8
-                                }
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: graph.nodeTitle(acceptedNode.modelData)
-                                color: Theme.text
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                text: graph.nodeDetail(acceptedNode.modelData)
-                                color: Theme.muted
-                                font.pixelSize: 9
-                                elide: Text.ElideRight
-                                verticalAlignment: Text.AlignVCenter
+                        contentItem: CreativeGraphNodeCard {
+                            nodeData: acceptedNode.modelData
+                            selected: acceptedNode.currentNode
+                            hovered: acceptedNode.hovered
+                            artifactKindKey: graph.artifactKindKey
+                            artifactTextPreview: graph.artifactTextPreview
+                            artifactTextPreviewTruncated: graph.artifactTextPreviewTruncated
+                            acceptedImageSource: graph.acceptedImageSource
+                            artifactImageWidth: graph.artifactImageWidth
+                            artifactImageHeight: graph.artifactImageHeight
+                            artifactAudioDurationMillis: graph.artifactAudioDurationMillis
+                            artifactAudioSampleRateHz: graph.artifactAudioSampleRateHz
+                            artifactAudioChannels: graph.artifactAudioChannels
+                            stageNumber: graph.nodeStage(acceptedNode.modelData.id, {})
+                            onOutputNodeRequested: {
+                                graph.selectAcceptedNode(acceptedNode.modelData.id)
+                                graph.nodeOutputRequested(acceptedNode.modelData.id)
+                                graphToolbar.openNodeLibrary()
                             }
                         }
                     }
@@ -696,7 +682,7 @@ Rectangle {
                             spacing: 4
 
                             Text {
-                                text: qsTr("CANDIDATE OPERATOR")
+                                text: qsTr("NEW VERSION")
                                 color: Theme.accent
                                 font.pixelSize: 9
                                 font.weight: Font.DemiBold
@@ -705,7 +691,7 @@ Rectangle {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: qsTr("Pending option %1").arg(candidateNode.index + 1)
+                                text: qsTr("Option %1").arg(candidateNode.index + 1)
                                 color: Theme.text
                                 font.pixelSize: 12
                                 font.weight: Font.DemiBold
@@ -728,7 +714,7 @@ Rectangle {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            Accessible.name: qsTr("Review candidate %1").arg(
+                            Accessible.name: qsTr("Review version %1").arg(
                                                      candidateNode.index + 1)
                             Accessible.role: Accessible.Button
                             onClicked: graph.selectCandidate(candidateNode.modelData.id)
@@ -747,7 +733,7 @@ Rectangle {
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: qsTr("This scene needs a Source")
+                        text: qsTr("This work has no starting point yet")
                         color: Theme.textSoft
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
@@ -755,7 +741,7 @@ Rectangle {
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: qsTr("Import or create content to begin its Operator Graph.")
+                        text: qsTr("Create or import something and Shape will build the first step.")
                         color: Theme.muted
                         font.pixelSize: 10
                     }
@@ -775,6 +761,7 @@ Rectangle {
                            || graph.inspectionKind === "draft"
             reviewAvailable: graph.inspectionKind === "candidate"
             discardAvailable: graph.inspectionKind === "draft"
+                              && graph.inspectedDraft.hasInputDataType
             onOpenRequested: {
                 if (graph.inspectionKind === "draft") {
                     graph.draftOpened(graph.selectedNodeId)

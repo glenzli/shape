@@ -39,10 +39,18 @@ Only its Runtime wire changes according to the selected contract:
 | --- | --- | --- |
 | `model` | `assistant.general` | `language.respond` |
 | capability metadata key | `infer.quality_floor` | `infer.capability_floor` |
-| capability value | `general` | `capable` |
+| text capability value | `general` | `foundational` |
 
-Speech keeps the Intent `speech.synthesize`, but uses the same version-specific
-capability metadata key/value pair. Both adapters preserve:
+The candidate.3 vocabulary migration originally used a mechanical `general` to
+`capable` mapping. Shape's interactive text product has since calibrated that
+choice against its live local fleet: `capable` admits only the non-interactive
+35B deployment, while the validated 4B deployment is rated `foundational`.
+Text therefore requests the lower absolute floor explicitly; this is a product
+latency/availability choice, not a claim that the two versioned scales are
+equivalent.
+
+Speech keeps the Intent `speech.synthesize` and its independently validated
+capability floor. Both adapters preserve:
 
 - `infer.policy=local-first`;
 - `infer.placement=local_only`;

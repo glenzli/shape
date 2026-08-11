@@ -7,7 +7,9 @@ use shape_core::{
 use shape_domain::{ArtifactId, ArtifactKind, OperatorNodeId};
 use shape_execution::{ExecutionError, InferRuntimeCredentialStore, InferRuntimeExecutor};
 
-use crate::operator_catalog::{TEXT_TRANSFORM_OPERATOR, instruction_from_draft, mode_from_draft};
+use crate::operator_catalog::{
+    compiled_instruction_from_draft, is_text_workspace_operator, mode_from_draft,
+};
 
 /// Opaque ownership of one fully executed but still transient candidate.
 #[derive(Debug)]
@@ -54,21 +56,22 @@ pub(super) fn generate_infer_text_candidate(
         .into_iter()
         .find(|graph| graph.context_artifact_id() == artifact_id)
         .ok_or_else(|| "invalid_operator_draft".to_owned())?;
-    if graph.expected_revision_id() != expected_head {
+    if graph.expected_revision_id() != Some(expected_head) {
         return Err("stale_candidate".to_owned());
     }
     let draft = graph
         .operators()
         .iter()
         .find(|draft| {
-            draft.id() == &draft_id && draft.operator_type().as_str() == TEXT_TRANSFORM_OPERATOR
+            draft.id() == &draft_id && is_text_workspace_operator(draft.operator_type().as_str())
         })
         .ok_or_else(|| "invalid_operator_draft".to_owned())?;
     let mode = TextTransformMode::from_key(
         &mode_from_draft(draft).map_err(|_| "invalid_prompt".to_owned())?,
     )
     .ok_or_else(|| "invalid_prompt".to_owned())?;
-    let instruction = instruction_from_draft(draft).map_err(|_| "invalid_prompt".to_owned())?;
+    let instruction =
+        compiled_instruction_from_draft(draft).map_err(|_| "invalid_prompt".to_owned())?;
     let parameters =
         TextTransformParameters::new(mode, instruction).map_err(|_| "invalid_prompt".to_owned())?;
     let credential = InferRuntimeCredentialStore::new(credential_path)
@@ -117,6 +120,8 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::UnsupportedSpeechVoiceReference
         | CoreError::MissingAudioOutputContract
         | CoreError::AudioOutputContractMismatch
+        | CoreError::ImageGenerationOutputContractMismatch
+        | CoreError::InvalidImageGenerationTarget { .. }
         | CoreError::Execution(_) => "execution_invalid".to_owned(),
     }
 }

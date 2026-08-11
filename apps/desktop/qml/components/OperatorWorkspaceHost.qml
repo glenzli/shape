@@ -23,100 +23,133 @@ Rectangle {
     property string openedArtifactId: ""
     property string openedRevisionId: ""
     property string openedTransformationId: ""
+    property var openedNodeData: ({})
 
     readonly property string operatorFamilyKey: operatorFamily(openedOperatorTypeKey)
     readonly property bool hasRegisteredOperatorWorkspace: {
-        const component = operatorWorkspaces[openedOperatorTypeKey]
-        return component !== undefined && component !== null
+        const component = operatorWorkspaces[openedOperatorTypeKey];
+        return component !== undefined && component !== null;
     }
 
     readonly property string routeKey: {
-        if (!active) return "none"
-        if (openedRoleKey === "source") return "source.readonly"
-        if (openedRoleKey === "output") return "output.readonly"
-        if (openedRoleKey !== "operator") return "node.unknown"
+        if (!active)
+            return "none";
+        if (openedRoleKey === "source")
+            return "source.readonly";
+        if (openedRoleKey === "output")
+            return "output.readonly";
+        if (openedRoleKey !== "operator")
+            return "node.unknown";
         if (hasRegisteredOperatorWorkspace) {
-            return "operator." + openedOperatorTypeKey
+            return "operator." + openedOperatorTypeKey;
         }
         if (operatorFamilyKey.length > 0) {
-            return "operator.family." + operatorFamilyKey
+            return "operator.family." + operatorFamilyKey;
         }
-        return "operator.unknown"
+        return "operator.unknown";
     }
     readonly property Component routedWorkspace: {
-        if (routeKey === "source.readonly" || routeKey === "output.readonly") {
-            return readOnlyWorkspace
-        }
+        if (routeKey === "source.readonly")
+            return sourceMaterialWorkspace;
+        if (routeKey === "output.readonly")
+            return readOnlyWorkspace;
         if (hasRegisteredOperatorWorkspace) {
-            return operatorWorkspaces[openedOperatorTypeKey]
+            return operatorWorkspaces[openedOperatorTypeKey];
         }
-        return unknownWorkspace
+        return unknownWorkspace;
     }
-    readonly property string loadedWorkspaceObjectName: workspaceLoader.item !== null
-                                                        ? workspaceLoader.item.objectName : ""
+    readonly property string loadedWorkspaceObjectName: workspaceLoader.item !== null ? workspaceLoader.item.objectName : ""
     readonly property var loadedWorkspace: workspaceLoader.item
 
-    signal returnRequested()
+    signal returnRequested
     signal workspaceLoaded(var workspace)
 
-    function openWorkspace(nodeId, roleKey, operatorTypeKey, artifactId,
-                           revisionId, transformationId) : bool {
-        if (nodeId.length === 0 || roleKey.length === 0) return false
-        openedNodeId = nodeId
-        openedRoleKey = roleKey
-        openedOperatorTypeKey = operatorTypeKey
-        openedArtifactId = artifactId
-        openedRevisionId = revisionId
-        openedTransformationId = transformationId
-        active = true
-        return true
+    function openWorkspace(nodeId, roleKey, operatorTypeKey, artifactId, revisionId, transformationId, nodeData): bool {
+        if (nodeId.length === 0 || roleKey.length === 0)
+            return false;
+        openedNodeId = nodeId;
+        openedRoleKey = roleKey;
+        openedOperatorTypeKey = operatorTypeKey;
+        openedArtifactId = artifactId;
+        openedRevisionId = revisionId;
+        openedTransformationId = transformationId;
+        openedNodeData = nodeData || ({});
+        active = true;
+        return true;
     }
 
-    function closeWorkspace() : void {
-        active = false
-        openedNodeId = ""
-        openedRoleKey = ""
-        openedOperatorTypeKey = ""
-        openedArtifactId = ""
-        openedRevisionId = ""
-        openedTransformationId = ""
+    function closeWorkspace(): void {
+        active = false;
+        openedNodeId = "";
+        openedRoleKey = "";
+        openedOperatorTypeKey = "";
+        openedArtifactId = "";
+        openedRevisionId = "";
+        openedTransformationId = "";
+        openedNodeData = ({});
     }
 
-    function requestReturn() : void {
-        returnRequested()
+    function requestReturn(): void {
+        returnRequested();
     }
 
-    function operatorFamily(operatorTypeKey) : string {
-        const separator = operatorTypeKey.indexOf(".")
-        const family = separator > 0 ? operatorTypeKey.slice(0, separator) : ""
+    function operatorFamily(operatorTypeKey): string {
+        const separator = operatorTypeKey.indexOf(".");
+        const family = separator > 0 ? operatorTypeKey.slice(0, separator) : "";
         if (family === "text" || family === "image" || family === "audio") {
-            return family
+            return family;
         }
-        return ""
+        return "";
     }
 
-    function operatorFamilyLabel(familyKey) : string {
-        if (familyKey === "text") return qsTr("Text")
-        if (familyKey === "image") return qsTr("Image")
-        if (familyKey === "audio") return qsTr("Audio")
-        return qsTr("Unknown")
+    function operatorFamilyLabel(familyKey): string {
+        if (familyKey === "text")
+            return qsTr("Text");
+        if (familyKey === "image")
+            return qsTr("Image");
+        if (familyKey === "audio")
+            return qsTr("Audio");
+        return qsTr("Unknown");
     }
 
-    function workspaceTitle() : string {
-        if (routeKey === "source.readonly") return qsTr("Source viewer")
-        if (routeKey === "output.readonly") return qsTr("Output viewer")
+    function workspaceTitle(): string {
+        if (routeKey === "source.readonly")
+            return qsTr("Starting material");
+        if (routeKey === "output.readonly")
+            return qsTr("Current result");
         if (hasRegisteredOperatorWorkspace) {
-            return qsTr("Operator workspace · %1").arg(openedOperatorTypeKey)
+            switch (openedOperatorTypeKey) {
+            case "text.edit":
+            case "text.transform":
+                return qsTr("AI text editor");
+            case "image.generate":
+                return qsTr("Create an image");
+            case "image.edit":
+            case "image.crop":
+            case "image.resize":
+                return qsTr("Image editing");
+            case "audio.speech_synthesize":
+                return qsTr("Turn text into speech");
+            default:
+                return qsTr("Creative workspace");
+            }
         }
         if (operatorFamilyKey.length > 0) {
-            return qsTr("%1 workspace unavailable").arg(
-                        operatorFamilyLabel(operatorFamilyKey))
+            return qsTr("%1 workspace unavailable").arg(operatorFamilyLabel(operatorFamilyKey));
         }
-        return qsTr("Unsupported operator")
+        return qsTr("Unsupported operator");
     }
 
     radius: Theme.radiusLarge
     color: Theme.background
+
+    Component {
+        id: sourceMaterialWorkspace
+
+        SourceMaterialWorkspace {
+            nodeData: host.openedNodeData
+        }
+    }
 
     Component {
         id: readOnlyWorkspace
@@ -166,13 +199,7 @@ Rectangle {
                 Text {
                     objectName: "unknownWorkspaceMessage"
                     Layout.fillWidth: true
-                    text: host.operatorFamilyKey.length > 0
-                          ? qsTr("The %1 operator family is recognized, but this build has no workspace for “%2”.")
-                            .arg(host.operatorFamilyLabel(host.operatorFamilyKey))
-                            .arg(host.openedOperatorTypeKey)
-                          : qsTr("No workspace is registered for “%1”.").arg(
-                                host.openedOperatorTypeKey.length > 0
-                                ? host.openedOperatorTypeKey : qsTr("unknown operator"))
+                    text: host.operatorFamilyKey.length > 0 ? qsTr("The %1 operator family is recognized, but this build has no workspace for “%2”.").arg(host.operatorFamilyLabel(host.operatorFamilyKey)).arg(host.openedOperatorTypeKey) : qsTr("No workspace is registered for “%1”.").arg(host.openedOperatorTypeKey.length > 0 ? host.openedOperatorTypeKey : qsTr("unknown operator"))
                     color: Theme.text
                     font.pixelSize: 20
                     font.weight: Font.Light
@@ -182,7 +209,7 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("The Scene Graph remains available. Return to the graph and choose another node.")
+                    text: qsTr("Your workflow remains available. Return to it and choose another step.")
                     color: Theme.muted
                     font.pixelSize: 11
                     lineHeight: 1.35
@@ -209,26 +236,27 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 46
-            radius: Theme.radiusMedium
-            color: Theme.surface
-            border.color: Theme.border
+            Layout.preferredHeight: 50
+            radius: 0
+            color: "transparent"
+            border.width: 0
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 5
-                spacing: 5
+                anchors.leftMargin: 2
+                anchors.rightMargin: 4
+                spacing: 8
 
-                ShapeButton {
+                ShapeIconButton {
                     objectName: "returnToSceneGraphButton"
-                    implicitHeight: 32
-                    text: qsTr("← Scene graph")
-                    Accessible.name: qsTr("Return to scene graph")
+                    source: "qrc:/qt/qml/Shape/Desktop/icons/back.svg"
+                    toolTipText: qsTr("Return to workflow")
+                    accessibleName: toolTipText
+                    buttonSize: 34
                     onClicked: host.requestReturn()
                 }
 
                 ColumnLayout {
-                    Layout.leftMargin: 4
                     Layout.fillWidth: true
                     spacing: 1
 
@@ -236,19 +264,33 @@ Rectangle {
                         Layout.fillWidth: true
                         text: host.workspaceTitle()
                         color: Theme.text
-                        font.pixelSize: 11
+                        font.pixelSize: 15
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
 
                     Text {
                         Layout.fillWidth: true
-                        text: host.selectedCandidateId.length > 0
-                              ? qsTr("Node workspace · candidate selected")
-                              : qsTr("Node workspace · accepted revision")
+                        text: host.selectedCandidateId.length > 0 ? qsTr("Reviewing a new version") : qsTr("Working on this creative step")
                         color: Theme.muted
-                        font.pixelSize: 9
+                        font.pixelSize: 10
                         elide: Text.ElideRight
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: workspaceStateText.implicitWidth + 20
+                    Layout.preferredHeight: 26
+                    radius: 13
+                    color: host.selectedCandidateId.length > 0 ? Theme.accentSoft : Theme.raised
+
+                    Text {
+                        id: workspaceStateText
+                        anchors.centerIn: parent
+                        text: host.selectedCandidateId.length > 0 ? qsTr("Reviewing") : qsTr("Draft")
+                        color: host.selectedCandidateId.length > 0 ? Theme.accent : Theme.textSoft
+                        font.pixelSize: 9
+                        font.weight: Font.DemiBold
                     }
                 }
             }

@@ -111,7 +111,8 @@ impl WorkingOperatorConfiguration {
 pub struct WorkingOperatorDraft {
     id: OperatorNodeId,
     operator_type: OperatorTypeId,
-    input_data_type: OperatorDataTypeId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    input_data_type: Option<OperatorDataTypeId>,
     output_data_type: OperatorDataTypeId,
     #[serde(default)]
     configuration: Option<WorkingOperatorConfiguration>,
@@ -134,7 +135,25 @@ impl WorkingOperatorDraft {
             id: OperatorNodeId::new(format!("draft.{}", Uuid::now_v7().simple()))
                 .expect("UUID-backed working Operator identity is portable"),
             operator_type,
-            input_data_type,
+            input_data_type: Some(input_data_type),
+            output_data_type,
+            configuration: None,
+        }
+    }
+
+    /// Creates a zero-input Source Operator draft.
+    ///
+    /// # Panics
+    ///
+    /// Panics only if the generated UUID-backed node identity stops satisfying
+    /// the portable Operator identifier contract.
+    #[must_use]
+    pub fn new_source(operator_type: OperatorTypeId, output_data_type: OperatorDataTypeId) -> Self {
+        Self {
+            id: OperatorNodeId::new(format!("draft.{}", Uuid::now_v7().simple()))
+                .expect("UUID-backed working Operator identity is portable"),
+            operator_type,
+            input_data_type: None,
             output_data_type,
             configuration: None,
         }
@@ -151,8 +170,8 @@ impl WorkingOperatorDraft {
     }
 
     #[must_use]
-    pub const fn input_data_type(&self) -> &OperatorDataTypeId {
-        &self.input_data_type
+    pub const fn input_data_type(&self) -> Option<&OperatorDataTypeId> {
+        self.input_data_type.as_ref()
     }
 
     #[must_use]
@@ -168,7 +187,9 @@ impl WorkingOperatorDraft {
     fn validate(&self) -> Result<(), DomainError> {
         OperatorNodeId::new(self.id.as_str())?;
         OperatorTypeId::new(self.operator_type.as_str())?;
-        OperatorDataTypeId::new(self.input_data_type.as_str())?;
+        if let Some(input_data_type) = &self.input_data_type {
+            OperatorDataTypeId::new(input_data_type.as_str())?;
+        }
         OperatorDataTypeId::new(self.output_data_type.as_str())?;
         if let Some(configuration) = &self.configuration {
             configuration.validate()?;
@@ -181,7 +202,8 @@ impl WorkingOperatorDraft {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactWorkingGraph {
     context_artifact_id: ArtifactId,
-    expected_revision_id: RevisionId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    expected_revision_id: Option<RevisionId>,
     operators: Vec<WorkingOperatorDraft>,
 }
 
@@ -190,7 +212,18 @@ impl ArtifactWorkingGraph {
     pub const fn new(context_artifact_id: ArtifactId, expected_revision_id: RevisionId) -> Self {
         Self {
             context_artifact_id,
-            expected_revision_id,
+            expected_revision_id: Some(expected_revision_id),
+            operators: Vec::new(),
+        }
+    }
+
+    /// Creates mutable state for one Source Operator whose target Artifact has
+    /// no accepted head yet.
+    #[must_use]
+    pub const fn new_source(context_artifact_id: ArtifactId) -> Self {
+        Self {
+            context_artifact_id,
+            expected_revision_id: None,
             operators: Vec::new(),
         }
     }
@@ -201,7 +234,7 @@ impl ArtifactWorkingGraph {
     }
 
     #[must_use]
-    pub const fn expected_revision_id(&self) -> RevisionId {
+    pub const fn expected_revision_id(&self) -> Option<RevisionId> {
         self.expected_revision_id
     }
 
@@ -229,6 +262,9 @@ impl ArtifactWorkingGraph {
         input_data_type: OperatorDataTypeId,
         output_data_type: OperatorDataTypeId,
     ) -> Result<WorkingOperatorDraft, DomainError> {
+        if self.expected_revision_id.is_none() {
+            return Err(DomainError::InvalidWorkingGraphAnchor);
+        }
         if let Some(existing) = self
             .operators
             .iter()
@@ -244,6 +280,39 @@ impl ArtifactWorkingGraph {
             });
         }
         let draft = WorkingOperatorDraft::new(operator_type, input_data_type, output_data_type);
+        self.operators.push(draft.clone());
+        Ok(draft)
+    }
+
+    /// Adds or reuses one zero-input Source Operator in an unaccepted target.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if this graph is anchored to an accepted Revision or
+    /// its bounded draft collection is full.
+    pub fn add_source_operator(
+        &mut self,
+        operator_type: OperatorTypeId,
+        output_data_type: OperatorDataTypeId,
+    ) -> Result<WorkingOperatorDraft, DomainError> {
+        if self.expected_revision_id.is_some() {
+            return Err(DomainError::InvalidWorkingGraphAnchor);
+        }
+        if let Some(existing) = self
+            .operators
+            .iter()
+            .find(|operator| operator.operator_type == operator_type)
+        {
+            return Ok(existing.clone());
+        }
+        if self.operators.len() >= MAX_WORKING_OPERATORS {
+            return Err(DomainError::CollectionTooLarge {
+                collection: "working graph operators",
+                actual: self.operators.len() + 1,
+                maximum: MAX_WORKING_OPERATORS,
+            });
+        }
+        let draft = WorkingOperatorDraft::new_source(operator_type, output_data_type);
         self.operators.push(draft.clone());
         Ok(draft)
     }
@@ -272,6 +341,24 @@ impl ArtifactWorkingGraph {
         true
     }
 
+    /// Advances an accepted-input Working Graph to a newly locked head while
+    /// preserving reusable Operator intent and configuration.
+    ///
+    /// # Errors
+    ///
+    /// Rejects zero-input Source graphs, whose output acceptance completes the
+    /// source lifecycle instead of rebasing an input revision.
+    pub fn rebase_accepted_input(
+        &mut self,
+        expected_revision_id: RevisionId,
+    ) -> Result<(), DomainError> {
+        if self.expected_revision_id.is_none() {
+            return Err(DomainError::InvalidWorkingGraphAnchor);
+        }
+        self.expected_revision_id = Some(expected_revision_id);
+        self.validate()
+    }
+
     /// Removes the current single-route draft for one Operator type.
     pub fn remove_operator_type(&mut self, operator_type: &str) -> bool {
         let before = self.operators.len();
@@ -296,6 +383,9 @@ impl ArtifactWorkingGraph {
         }
         for operator in &self.operators {
             operator.validate()?;
+            if operator.input_data_type.is_some() != self.expected_revision_id.is_some() {
+                return Err(DomainError::InvalidWorkingGraphAnchor);
+            }
         }
         let identities = self
             .operators

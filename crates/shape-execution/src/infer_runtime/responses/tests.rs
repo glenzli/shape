@@ -100,7 +100,7 @@ fn executor_with_fake_runtime(
         assert_eq!(request["metadata"]["infer.max_cost_usd"], "0");
         assert_eq!(
             request["metadata"][revision.capability_floor_metadata_key()],
-            revision.capable_level()
+            revision.interactive_text_floor()
         );
         let obsolete_floor = match revision {
             InferRuntimeContractRevision::Candidate2 => "infer.capability_floor",
@@ -267,6 +267,20 @@ fn candidate_two_offer_uses_only_the_candidate_two_vocabulary() {
         ExecutionCoordinator::execute(&executor, &request()).expect("candidate.2 request succeeds");
     assert_eq!(executed.output.bytes, b"Candidate two.");
     worker.join().expect("fake runtime exits");
+}
+
+#[test]
+fn candidate_three_text_uses_the_foundational_interactive_floor() {
+    let request = ResponsesRequest::local_text(
+        "Rewrite this paragraph clearly.",
+        InferRuntimeContractRevision::Candidate3,
+    );
+    assert_eq!(request.model, "language.respond");
+    assert_eq!(
+        request.metadata.get("infer.capability_floor"),
+        Some(&"foundational")
+    );
+    assert!(!request.metadata.contains_key("infer.quality_floor"));
 }
 
 #[test]

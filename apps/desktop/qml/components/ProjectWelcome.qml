@@ -50,7 +50,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Start shaping")
+                text: qsTr("What do you want to make?")
                 color: Theme.text
                 font.pixelSize: 22
                 font.weight: Font.DemiBold
@@ -59,7 +59,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Create a project, add a Scene source, then place an Operator on the graph.")
+                text: qsTr("Start a project, then choose a creative goal. Shape will build the workflow for you and keep every adopted version safe.")
                 color: Theme.muted
                 font.pixelSize: 12
                 wrapMode: Text.WordWrap
@@ -74,14 +74,14 @@ Rectangle {
 
                 ShapeButton {
                     objectName: "newProjectButton"
-                    text: qsTr("New project")
+                    text: qsTr("Start a new project")
                     primary: true
                     onClicked: welcome.newProjectRequested()
                 }
 
                 ShapeButton {
                     objectName: "openProjectButton"
-                    text: qsTr("Open project…")
+                    text: qsTr("Continue a project…")
                     onClicked: welcome.openProjectRequested()
                 }
             }

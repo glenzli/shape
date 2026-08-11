@@ -93,16 +93,22 @@ QString operator_type_label(const QString& key) {
         return DesktopBackend::tr("Source input");
     }
     if (key == QStringLiteral("image.crop")) {
-        return DesktopBackend::tr("Crop");
+        return DesktopBackend::tr("Image editing");
+    }
+    if (key == QStringLiteral("image.resize")) {
+        return DesktopBackend::tr("Image editing");
     }
     if (key == QStringLiteral("text.edit")) {
-        return DesktopBackend::tr("Text calibration");
+        return DesktopBackend::tr("AI text editor");
     }
     if (key == QStringLiteral("text.transform")) {
-        return DesktopBackend::tr("AI text transform");
+        return DesktopBackend::tr("AI text editor");
     }
     if (key == QStringLiteral("audio.speech_synthesize")) {
         return DesktopBackend::tr("Speech synthesis");
+    }
+    if (key == QStringLiteral("image.generate")) {
+        return DesktopBackend::tr("AI image creation");
     }
     if (key == QStringLiteral("creative.generate")) {
         return DesktopBackend::tr("Generative edit");
@@ -157,6 +163,11 @@ QVariantMap operator_node_projection(const shape::desktop::OperatorGraphNodeWire
     projected.insert(QStringLiteral("revisionId"), from_rust(node.revision_id));
     projected.insert(QStringLiteral("transformationId"), from_rust(node.transformation_id));
     projected.insert(QStringLiteral("intent"), transformation_intent_label(from_rust(node.intent)));
+    projected.insert(QStringLiteral("mediaType"), from_rust(node.media_type));
+    projected.insert(QStringLiteral("byteLength"), static_cast<qulonglong>(node.byte_length));
+    projected.insert(QStringLiteral("hasTextPreview"), node.has_text_preview);
+    projected.insert(QStringLiteral("textPreview"), from_rust(node.text_preview));
+    projected.insert(QStringLiteral("textPreviewTruncated"), node.text_preview_truncated);
     projected.insert(QStringLiteral("inputPorts"), operator_port_projection(node.input_ports));
     projected.insert(QStringLiteral("outputPorts"), operator_port_projection(node.output_ports));
     return projected;
@@ -179,6 +190,7 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
     projected.insert(QStringLiteral("contextArtifactId"), from_rust(draft.context_artifact_id));
     projected.insert(QStringLiteral("operatorTypeKey"), operator_type_key);
     projected.insert(QStringLiteral("operatorTypeLabel"), operator_type_label(operator_type_key));
+    projected.insert(QStringLiteral("hasInputDataType"), draft.has_input_data_type);
     projected.insert(QStringLiteral("inputDataTypeKey"), from_rust(draft.input_data_type_key));
     projected.insert(QStringLiteral("outputDataTypeKey"), from_rust(draft.output_data_type_key));
     projected.insert(QStringLiteral("configurationSchema"), from_rust(draft.configuration_schema));
@@ -186,6 +198,12 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
     projected.insert(
         QStringLiteral("textTransformInstruction"),
         from_rust(draft.text_transform_instruction)
+    );
+    projected.insert(QStringLiteral("textTransformTone"), from_rust(draft.text_transform_tone));
+    projected.insert(QStringLiteral("textTransformStyle"), from_rust(draft.text_transform_style));
+    projected.insert(
+        QStringLiteral("textTransformVariantCount"),
+        static_cast<int>(draft.text_transform_variant_count)
     );
     projected.insert(
         QStringLiteral("audioSpeechPresetAlias"),
@@ -203,6 +221,31 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
     projected.insert(
         QStringLiteral("audioSpeechDisclosureRequired"),
         draft.audio_speech_disclosure_required
+    );
+    projected.insert(
+        QStringLiteral("imageResizeTargetWidth"),
+        static_cast<int>(draft.image_resize_target_width)
+    );
+    projected.insert(
+        QStringLiteral("imageResizeTargetHeight"),
+        static_cast<int>(draft.image_resize_target_height)
+    );
+    projected.insert(
+        QStringLiteral("imageResizeAspectPolicy"),
+        from_rust(draft.image_resize_aspect_policy)
+    );
+    projected.insert(
+        QStringLiteral("imageResizeResampling"),
+        from_rust(draft.image_resize_resampling)
+    );
+    projected.insert(QStringLiteral("aiImageInstruction"), from_rust(draft.ai_image_instruction));
+    projected.insert(
+        QStringLiteral("aiImageOutputWidth"),
+        static_cast<int>(draft.ai_image_output_width)
+    );
+    projected.insert(
+        QStringLiteral("aiImageOutputHeight"),
+        static_cast<int>(draft.ai_image_output_height)
     );
     return projected;
 }
@@ -540,6 +583,56 @@ bool DesktopBackend::createTextScene(const QString& sceneName, const QString& in
     }
 }
 
+bool DesktopBackend::createAiImageScene(
+    const QString& sceneName,
+    const QString& instruction,
+    int outputWidth,
+    int outputHeight
+) {
+    constexpr int kMaximumImageDimension = 4096;
+    if (session_ == nullptr || sceneName.trimmed().isEmpty() || instruction.trimmed().isEmpty()
+        || outputWidth <= 0 || outputHeight <= 0 || outputWidth > kMaximumImageDimension
+        || outputHeight > kMaximumImageDimension) {
+        setLastError(tr("Enter a Scene name, an image description, and valid dimensions."));
+        return false;
+    }
+    try {
+        applySnapshot(session_->session->session_create_ai_image_draft(
+            to_utf8(sceneName.trimmed()),
+            to_utf8(instruction),
+            static_cast<std::uint32_t>(outputWidth),
+            static_cast<std::uint32_t>(outputHeight)
+        ));
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit projectChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create AI image Scene:" << error.what();
+        setLastError(tr("Could not create the AI image Scene."));
+        return false;
+    }
+}
+
+bool DesktopBackend::createDetachedTextEditor(const QString& nodeName) {
+    if (session_ == nullptr || nodeName.trimmed().isEmpty()) {
+        return false;
+    }
+    try {
+        applySnapshot(session_->session->session_create_detached_text_editor(to_utf8(nodeName)));
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit projectChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create detached AI text editor:" << error.what();
+        setLastError(tr("Could not add the AI text editor node."));
+        return false;
+    }
+}
+
 QString
 DesktopBackend::beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey) {
     if (session_ == nullptr || artifactId.isEmpty() || operatorTypeKey.isEmpty()) {
@@ -584,16 +677,23 @@ QVariantList DesktopBackend::compatibleOperators(const QString& artifactId) {
 bool DesktopBackend::updateTextTransformDraft(
     const QString& draftId,
     const QString& modeKey,
-    const QString& instruction
+    const QString& instruction,
+    const QString& toneKey,
+    const QString& styleKey,
+    const int variantCount
 ) {
-    if (session_ == nullptr || draftId.isEmpty() || modeKey.isEmpty()) {
+    if (session_ == nullptr || draftId.isEmpty() || modeKey.isEmpty() || toneKey.isEmpty()
+        || styleKey.isEmpty() || variantCount < 1 || variantCount > 4) {
         return false;
     }
     try {
         session_->session->session_update_text_transform_draft(
             to_utf8(draftId),
             to_utf8(modeKey),
-            to_utf8(instruction)
+            to_utf8(instruction),
+            to_utf8(toneKey),
+            to_utf8(styleKey),
+            static_cast<std::uint8_t>(variantCount)
         );
         applyOperatorDrafts(session_->session->session_operator_drafts());
         setLastError(QString());
@@ -633,6 +733,70 @@ bool DesktopBackend::updateAudioSpeechDraft(
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not save audio speech draft:" << error.what();
         setLastError(tr("Could not save the Operator draft."));
+        return false;
+    }
+}
+
+bool DesktopBackend::updateImageResizeDraft(
+    const QString& draftId,
+    int targetWidth,
+    int targetHeight,
+    const QString& aspectPolicyKey,
+    const QString& resamplingKey
+) {
+    constexpr int kMaximumResizeDimension = 32'768;
+    if (session_ == nullptr || draftId.isEmpty() || targetWidth <= 0 || targetHeight <= 0
+        || targetWidth > kMaximumResizeDimension || targetHeight > kMaximumResizeDimension
+        || aspectPolicyKey.isEmpty() || resamplingKey.isEmpty()) {
+        setLastError(tr("Choose valid resize dimensions and policies."));
+        return false;
+    }
+    try {
+        session_->session->session_update_image_resize_draft(
+            to_utf8(draftId),
+            static_cast<std::uint32_t>(targetWidth),
+            static_cast<std::uint32_t>(targetHeight),
+            to_utf8(aspectPolicyKey),
+            to_utf8(resamplingKey)
+        );
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not save image resize draft:" << error.what();
+        setLastError(tr("Could not save the Operator draft."));
+        return false;
+    }
+}
+
+bool DesktopBackend::updateAiImageDraft(
+    const QString& draftId,
+    const QString& instruction,
+    int outputWidth,
+    int outputHeight
+) {
+    constexpr int kMaximumImageDimension = 4096;
+    if (session_ == nullptr || draftId.isEmpty() || instruction.trimmed().isEmpty()
+        || outputWidth <= 0 || outputHeight <= 0 || outputWidth > kMaximumImageDimension
+        || outputHeight > kMaximumImageDimension) {
+        setLastError(tr("Enter an image description and valid dimensions."));
+        return false;
+    }
+    try {
+        session_->session->session_update_ai_image_draft(
+            to_utf8(draftId),
+            to_utf8(instruction),
+            static_cast<std::uint32_t>(outputWidth),
+            static_cast<std::uint32_t>(outputHeight)
+        );
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not save AI image draft:" << error.what();
+        setLastError(tr("Could not save the AI image draft."));
         return false;
     }
 }
@@ -716,14 +880,49 @@ bool DesktopBackend::proposeRasterCrop(
     }
 }
 
+bool DesktopBackend::proposeRasterResize(const QString& artifactId, const QString& draftId) {
+    if (session_ == nullptr || artifactId.isEmpty() || draftId.isEmpty()) {
+        setLastError(tr("Open a valid Resize Operator draft."));
+        return false;
+    }
+    try {
+        const auto candidate =
+            session_->session->session_propose_raster_resize(to_utf8(artifactId), to_utf8(draftId));
+        const QString candidate_id = from_rust(candidate.candidate_id);
+        applyCandidates(session_->session->session_candidates(), candidate_id);
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit candidateChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create raster resize candidate:" << error.what();
+        setLastError(tr("Could not create the resize candidate."));
+        return false;
+    }
+}
+
 bool DesktopBackend::prepareImagePreviews(const QString& artifactId, const QString& candidateId) {
     if (session_ == nullptr || artifactId.isEmpty()) {
         return false;
     }
     try {
-        const QString accepted_source = cacheImagePreview(
-            session_->session->session_image_preview(to_utf8(artifactId), std::string())
+        const auto artifact = std::find_if(
+            artifacts_.cbegin(),
+            artifacts_.cend(),
+            [&artifactId](const QVariant& value) {
+                return value.toMap().value(QStringLiteral("id")).toString() == artifactId;
+            }
         );
+        if (artifact == artifacts_.cend()) {
+            return false;
+        }
+        QString accepted_source;
+        if (artifact->toMap().value(QStringLiteral("hasAcceptedRevision")).toBool()) {
+            accepted_source = cacheImagePreview(
+                session_->session->session_image_preview(to_utf8(artifactId), std::string())
+            );
+        }
         QString candidate_source;
         if (!candidateId.isEmpty()) {
             candidate_source = cacheImagePreview(
@@ -864,6 +1063,21 @@ QString DesktopBackend::adoptInferSpeechCandidate(
         return QString();
     }
     const auto adopted = session_->session->session_adopt_infer_speech(std::move(candidate));
+    const QString candidate_id = from_rust(adopted.candidate_id);
+    applyCandidates(session_->session->session_candidates(), candidate_id);
+    applyOperatorDrafts(session_->session->session_operator_drafts());
+    setLastError(QString());
+    emit candidateChanged();
+    emit operatorDraftsChanged();
+    return candidate_id;
+}
+
+QString
+DesktopBackend::adoptInferImageCandidate(rust::Box<shape::desktop::InferImageCandidate> candidate) {
+    if (session_ == nullptr) {
+        return QString();
+    }
+    const auto adopted = session_->session->session_adopt_infer_image(std::move(candidate));
     const QString candidate_id = from_rust(adopted.candidate_id);
     applyCandidates(session_->session->session_candidates(), candidate_id);
     applyOperatorDrafts(session_->session->session_operator_drafts());

@@ -115,7 +115,17 @@ struct DecodedRaster {
 }
 
 fn decode(bytes: &[u8], format: ImageFormat) -> Result<DecodedRaster, ExecutionFailure> {
-    if bytes.is_empty() || bytes.len() > MAX_ENCODED_BYTES {
+    decode_bounded(bytes, format, MAX_ENCODED_BYTES, MAX_DIMENSION, MAX_PIXELS)
+}
+
+fn decode_bounded(
+    bytes: &[u8],
+    format: ImageFormat,
+    max_encoded_bytes: usize,
+    max_dimension: u32,
+    max_pixels: u64,
+) -> Result<DecodedRaster, ExecutionFailure> {
+    if bytes.is_empty() || bytes.len() > max_encoded_bytes {
         return Err(failure(
             "image_too_large",
             "encoded image exceeds the local import limit",
@@ -124,8 +134,8 @@ fn decode(bytes: &[u8], format: ImageFormat) -> Result<DecodedRaster, ExecutionF
     let mut reader = ImageReader::new(Cursor::new(bytes));
     reader.set_format(format);
     let mut limits = Limits::default();
-    limits.max_image_width = Some(MAX_DIMENSION);
-    limits.max_image_height = Some(MAX_DIMENSION);
+    limits.max_image_width = Some(max_dimension);
+    limits.max_image_height = Some(max_dimension);
     limits.max_alloc = Some(MAX_DECODE_ALLOC);
     reader.limits(limits);
     let mut decoder = reader
@@ -135,7 +145,7 @@ fn decode(bytes: &[u8], format: ImageFormat) -> Result<DecodedRaster, ExecutionF
     let pixels = u64::from(width)
         .checked_mul(u64::from(height))
         .ok_or_else(|| failure("image_too_large", "image dimensions exceed the local limit"))?;
-    if pixels > MAX_PIXELS {
+    if pixels > max_pixels {
         return Err(failure(
             "image_too_large",
             "image pixel count exceeds the local import limit",
@@ -178,6 +188,36 @@ fn decode(bytes: &[u8], format: ImageFormat) -> Result<DecodedRaster, ExecutionF
         source_color_type,
         source_orientation: orientation,
     })
+}
+
+/// Revalidates and canonicalizes an externally generated PNG under its
+/// provider contract before it becomes a Shape raster Candidate.
+pub(crate) fn normalize_generated_png(
+    bytes: &[u8],
+    max_encoded_bytes: usize,
+    max_dimension: u32,
+    max_pixels: u64,
+) -> Result<(Vec<u8>, ImageRasterContract), ExecutionFailure> {
+    if image::guess_format(bytes).ok() != Some(ImageFormat::Png) {
+        return Err(failure(
+            "invalid_generated_image",
+            "generated image is not a PNG",
+        ));
+    }
+    let decoded = decode_bounded(
+        bytes,
+        ImageFormat::Png,
+        max_encoded_bytes,
+        max_dimension,
+        max_pixels,
+    )?;
+    let contract = contract(
+        decoded.image.width(),
+        decoded.image.height(),
+        decoded.icc.as_deref(),
+    )?;
+    let bytes = encode_png(&decoded.image, decoded.icc.as_deref())?;
+    Ok((bytes, contract))
 }
 
 fn contract(

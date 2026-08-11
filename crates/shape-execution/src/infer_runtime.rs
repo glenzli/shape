@@ -8,6 +8,8 @@ use thiserror::Error;
 
 mod credential;
 mod discovery;
+mod image_generation;
+mod job_provenance;
 mod responses;
 mod speech;
 
@@ -18,6 +20,7 @@ pub use discovery::{
     INFER_RUNTIME_COMPATIBILITY_ENDPOINT, InferRuntimeEndpointResolver, InferRuntimeEndpointSource,
     ResolvedInferRuntimeEndpoint,
 };
+pub use image_generation::{IMAGE_GENERATE_CAPABILITY, InferRuntimeImageGenerationExecutor};
 pub use responses::InferRuntimeExecutor;
 pub use speech::{
     AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
@@ -84,6 +87,13 @@ impl InferRuntimeContractRevision {
         match self {
             Self::Candidate2 => "general",
             Self::Candidate3 => "capable",
+        }
+    }
+
+    const fn interactive_text_floor(self) -> &'static str {
+        match self {
+            Self::Candidate2 => "general",
+            Self::Candidate3 => "foundational",
         }
     }
 

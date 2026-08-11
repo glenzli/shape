@@ -4,7 +4,6 @@ pragma ComponentBehavior: Bound
 //! geometry and draft authority remain outside this presentation owner.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
 
@@ -29,6 +28,10 @@ Item {
     signal fitRequested()
     signal operatorRequested(string operatorTypeKey)
 
+    function openNodeLibrary() : void {
+        operatorPalette.openFor(addOperatorButton)
+    }
+
     implicitHeight: 62
 
     RowLayout {
@@ -42,7 +45,7 @@ Item {
             spacing: 1
 
             Text {
-                text: qsTr("SCENE OPERATOR GRAPH")
+                text: qsTr("SCENE NODE GRAPH")
                 color: Theme.text
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
@@ -54,7 +57,7 @@ Item {
                       .arg(toolbar.projectName.length > 0
                            ? toolbar.projectName : qsTr("Project"))
                       .arg(toolbar.sceneName.length > 0
-                           ? toolbar.sceneName : qsTr("Scene"))
+                           ? toolbar.sceneName : qsTr("Work"))
                       .arg(toolbar.sceneKind)
                 color: Theme.muted
                 font.pixelSize: 10
@@ -72,7 +75,7 @@ Item {
             Text {
                 id: graphSummary
                 anchors.centerIn: parent
-                text: qsTr("%1 nodes · %2 drafts · %3 candidates")
+                text: qsTr("%1 steps · %2 ready · %3 new versions")
                       .arg(toolbar.nodeCount)
                       .arg(toolbar.draftCount).arg(toolbar.candidateCount)
                 color: Theme.muted
@@ -123,12 +126,11 @@ Item {
         ShapeButton {
             id: addOperatorButton
             objectName: "addOperatorButton"
-            visible: toolbar.nodeCount > 0
             implicitHeight: 30
             iconSource: "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
-            text: qsTr("Operator")
+            text: qsTr("Add node")
             primary: toolbar.draftCount === 0 && toolbar.operatorCount === 0
-            Accessible.name: qsTr("Add a compatible Operator")
+            Accessible.name: qsTr("Open the node library")
             onClicked: operatorPalette.openFor(addOperatorButton)
         }
     }

@@ -88,6 +88,8 @@ qt_add_executable(shape-desktop
     src/infer_text_controller.hpp
     src/infer_speech_controller.cpp
     src/infer_speech_controller.hpp
+    src/infer_image_controller.cpp
+    src/infer_image_controller.hpp
     src/infer_controller_support.hpp
     src/audio_preview_controller.cpp
     src/audio_preview_controller.hpp
@@ -116,16 +118,25 @@ qt_add_qml_module(shape-desktop
         qml/components/ArtifactDetailsPanel.qml
         qml/components/ArtifactLineagePanel.qml
         qml/components/AudioSpeechOperatorWorkspace.qml
+        qml/components/AiImageOperatorWorkspace.qml
+        qml/components/AiTextEditingWorkspace.qml
+        qml/components/CandidateFilmstrip.qml
         qml/components/ImageCompareWorkspace.qml
         qml/components/ContextInspector.qml
         qml/components/CreateProjectDialog.qml
+        qml/components/CreateSceneTypeDialog.qml
+        qml/components/CreateAiImageSceneDialog.qml
         qml/components/CreateTextSceneDialog.qml
+        qml/components/CreativeGraphNodeCard.qml
         qml/components/GraphSelectionInspector.qml
-        qml/components/IntentPanel.qml
+        qml/components/ImageEditorWorkspace.qml
         qml/components/OperatorPalette.qml
+        qml/components/OperatorIntentSidebar.qml
         qml/components/OperatorWorkspaceHost.qml
         qml/components/RasterCropOperatorWorkspace.qml
+        qml/components/RasterResizeOperatorWorkspace.qml
         qml/components/SceneGraphToolbar.qml
+        qml/components/SceneGraphContextStrip.qml
         qml/components/SceneOperatorGraphWorkspace.qml
         qml/components/ProjectNavigator.qml
         qml/components/ProjectWelcome.qml
@@ -133,12 +144,14 @@ qt_add_qml_module(shape-desktop
         qml/components/ShapeButton.qml
         qml/components/ShapeIcon.qml
         qml/components/ShapeIconButton.qml
+        qml/components/SourceMaterialWorkspace.qml
         qml/components/TextCompareWorkspace.qml
-        qml/components/TextOperatorWorkspace.qml
         qml/components/VariantsPanel.qml
+        qml/components/WorkbenchProjectRail.qml
         qml/components/WorkspaceSurface.qml
     RESOURCES
         icons/add.svg
+        icons/back.svg
         icons/close.svg
         icons/compare.svg
         icons/crop.svg

@@ -79,7 +79,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     text: inspector.title.length > 0
-                          ? inspector.title : qsTr("Select a node to inspect its role and ports")
+                          ? inspector.title : qsTr("Select a step to understand what it does")
                     color: inspector.title.length > 0 ? Theme.text : Theme.textSoft
                     font.pixelSize: Theme.fontBody
                     font.weight: inspector.title.length > 0 ? Font.DemiBold : Font.Normal
@@ -91,7 +91,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: inspector.detail.length > 0
                       ? inspector.detail
-                      : qsTr("Double-click a node to enter its dedicated workspace.")
+                      : qsTr("Open a step to work on it, or add the next step from above.")
                 color: Theme.muted
                 font.pixelSize: Theme.fontMeta
                 elide: Text.ElideRight
@@ -102,22 +102,22 @@ Rectangle {
             objectName: "discardSelectedDraftButton"
             visible: inspector.discardAvailable
             source: "qrc:/qt/qml/Shape/Desktop/icons/trash.svg"
-            toolTipText: qsTr("Discard draft")
+            toolTipText: qsTr("Remove this unfinished step")
             accessibleName: toolTipText
             onClicked: inspector.discardRequested()
         }
 
-        ShapeButton {
+        ShapeIconButton {
             objectName: inspector.reviewAvailable ? "reviewSelectedCandidateButton"
                                                   : "openSelectedNodeButton"
             visible: inspector.openAvailable || inspector.reviewAvailable
-            implicitHeight: 30
-            iconSource: "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
-            text: inspector.reviewAvailable ? qsTr("Review") : qsTr("Open")
             primary: true
-            Accessible.name: inspector.reviewAvailable
-                             ? qsTr("Review selected Candidate")
-                             : qsTr("Open selected node workspace")
+            source: "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
+            toolTipText: inspector.reviewAvailable
+                         ? qsTr("Review selected version")
+                         : qsTr("Open selected step")
+            accessibleName: toolTipText
+            buttonSize: 30
             onClicked: {
                 if (inspector.reviewAvailable) inspector.reviewRequested()
                 else inspector.openRequested()

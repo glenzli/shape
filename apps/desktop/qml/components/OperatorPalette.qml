@@ -21,10 +21,12 @@ Popup {
 
     function labelFor(typeKey) : string {
         switch (typeKey) {
-        case "text.edit": return qsTr("Text edit")
-        case "text.transform": return qsTr("AI text transform")
-        case "audio.speech_synthesize": return qsTr("Speech synthesis")
-        case "image.crop": return qsTr("Crop image")
+        case "text.edit":
+        case "text.transform": return qsTr("AI text editor")
+        case "audio.speech_synthesize": return qsTr("Turn text into speech")
+        case "image.edit":
+        case "image.crop":
+        case "image.resize": return qsTr("Edit the image")
         default: return typeKey
         }
     }
@@ -32,44 +34,49 @@ Popup {
     function descriptionFor(typeKey) : string {
         switch (typeKey) {
         case "text.edit":
-            return qsTr("Revise exact text while preserving accepted history.")
         case "text.transform":
-            return qsTr("Rewrite, expand, or polish through Infer Runtime.")
+            return qsTr("Combine graph materials with a reusable prompt, tone, style, and candidate workflow.")
         case "audio.speech_synthesize":
-            return qsTr("Create a local voice Candidate from accepted text.")
+            return qsTr("Create a spoken version from the current text.")
+        case "image.edit":
         case "image.crop":
-            return qsTr("Frame a non-destructive raster crop Candidate.")
+        case "image.resize":
+            return qsTr("Frame, resize, and refine the image in one editing step.")
         default:
-            return qsTr("Compatible Operator")
+            return qsTr("Available creative action")
         }
     }
 
     function categoryFor(categoryKey) : string {
         switch (categoryKey) {
-        case "text": return qsTr("TEXT")
-        case "ai_text": return qsTr("AI · TEXT")
-        case "ai_audio": return qsTr("AI · AUDIO")
+        case "text": return qsTr("WRITE")
+        case "ai_text": return qsTr("WRITE")
+        case "ai_audio": return qsTr("CREATE AUDIO")
         case "image": return qsTr("IMAGE")
-        default: return qsTr("OPERATOR")
+        default: return qsTr("NEXT STEP")
         }
     }
 
     function keywordsFor(typeKey) : string {
         switch (typeKey) {
-        case "text.edit": return "text edit revise copy"
-        case "text.transform": return "ai text transform rewrite expand polish llm"
+        case "text.edit":
+        case "text.transform": return "text write edit revise ai transform rewrite expand polish llm"
         case "audio.speech_synthesize": return "ai audio speech synthesize voice tts"
-        case "image.crop": return "image raster crop frame"
+        case "image.edit":
+        case "image.crop":
+        case "image.resize": return "image raster edit crop frame resize scale dimensions assist"
         default: return ""
         }
     }
 
     function objectNameFor(typeKey) : string {
         switch (typeKey) {
-        case "text.edit": return "addTextEditOperatorAction"
-        case "text.transform": return "addTextTransformOperatorAction"
+        case "text.edit":
+        case "text.transform": return "addWritingOperatorAction"
         case "audio.speech_synthesize": return "addSpeechOperatorAction"
-        case "image.crop": return "addCropOperatorAction"
+        case "image.edit":
+        case "image.crop":
+        case "image.resize": return "addImageEditingAction"
         default: return "compatibleOperatorAction"
         }
     }
@@ -80,22 +87,61 @@ Popup {
         case "sparkle": return "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
         case "waveform": return "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
         case "crop": return "qrc:/qt/qml/Shape/Desktop/icons/crop.svg"
+        case "fit": return "qrc:/qt/qml/Shape/Desktop/icons/fit.svg"
         default: return "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
         }
     }
 
     function catalog() : var {
-        return palette.operators.map(descriptor => ({
-            "typeKey": descriptor.typeKey,
-            "objectName": palette.objectNameFor(descriptor.typeKey),
-            "label": palette.labelFor(descriptor.typeKey),
-            "description": palette.descriptionFor(descriptor.typeKey),
-            "category": palette.categoryFor(descriptor.categoryKey),
-            "keywords": palette.keywordsFor(descriptor.typeKey),
-            "icon": palette.iconFor(descriptor.iconKey),
-            "inputDataTypeKey": descriptor.inputDataTypeKey,
-            "outputDataTypeKey": descriptor.outputDataTypeKey
-        }))
+        // The editor itself is graph-authorable before any material is
+        // selected. Compatibility descriptors add source-bound actions, but
+        // may never make the node library empty on a blank canvas.
+        const result = [{
+            "typeKey": "text.edit",
+            "objectName": palette.objectNameFor("text.edit"),
+            "label": palette.labelFor("text.edit"),
+            "description": palette.descriptionFor("text.edit"),
+            "category": palette.categoryFor("ai_text"),
+            "keywords": palette.keywordsFor("text.edit"),
+            "icon": palette.iconFor("sparkle"),
+            "inputDataTypeKey": "text.document",
+            "outputDataTypeKey": "text.document"
+        }]
+        let imageEditingAdded = false
+        for (let index = 0; index < palette.operators.length; ++index) {
+            const descriptor = palette.operators[index]
+            if (descriptor.typeKey === "text.edit"
+                    || descriptor.typeKey === "text.transform") continue
+            if (descriptor.typeKey === "image.crop"
+                    || descriptor.typeKey === "image.resize") {
+                if (imageEditingAdded) continue
+                imageEditingAdded = true
+                result.push({
+                    "typeKey": "image.edit",
+                    "objectName": palette.objectNameFor("image.edit"),
+                    "label": palette.labelFor("image.edit"),
+                    "description": palette.descriptionFor("image.edit"),
+                    "category": palette.categoryFor(descriptor.categoryKey),
+                    "keywords": palette.keywordsFor("image.edit"),
+                    "icon": palette.iconFor("crop"),
+                    "inputDataTypeKey": descriptor.inputDataTypeKey,
+                    "outputDataTypeKey": descriptor.outputDataTypeKey
+                })
+                continue
+            }
+            result.push({
+                "typeKey": descriptor.typeKey,
+                "objectName": palette.objectNameFor(descriptor.typeKey),
+                "label": palette.labelFor(descriptor.typeKey),
+                "description": palette.descriptionFor(descriptor.typeKey),
+                "category": palette.categoryFor(descriptor.categoryKey),
+                "keywords": palette.keywordsFor(descriptor.typeKey),
+                "icon": palette.iconFor(descriptor.iconKey),
+                "inputDataTypeKey": descriptor.inputDataTypeKey,
+                "outputDataTypeKey": descriptor.outputDataTypeKey
+            })
+        }
+        return result
     }
 
     function filterOperators(query) : var {
@@ -169,7 +215,7 @@ Popup {
                     spacing: 1
 
                     Text {
-                        text: qsTr("ADD OPERATOR")
+                        text: qsTr("ADD A NODE")
                         color: Theme.text
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
@@ -177,7 +223,7 @@ Popup {
                     }
 
                     Text {
-                        text: qsTr("Only compatible Operators are shown")
+                        text: qsTr("Nodes can be added without selecting another node")
                         color: Theme.muted
                         font.pixelSize: Theme.fontMeta
                     }
@@ -197,7 +243,7 @@ Popup {
                 implicitHeight: 36
                 leftPadding: 36
                 rightPadding: 12
-                placeholderText: qsTr("Search name, media, or capability…")
+                placeholderText: qsTr("Search the node library…")
                 color: Theme.text
                 selectionColor: Theme.accent
                 selectedTextColor: Theme.accentText
@@ -330,7 +376,7 @@ Popup {
                 visible: palette.filteredOperators.length === 0
                 anchors.centerIn: parent
                 width: parent.width - 32
-                text: qsTr("No compatible Operator matches this search.")
+                text: qsTr("No matching creative step was found.")
                 color: Theme.muted
                 font.pixelSize: Theme.fontMeta
                 horizontalAlignment: Text.AlignHCenter

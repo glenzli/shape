@@ -1,7 +1,8 @@
 use crate::{
-    Artifact, ArtifactKind, Constraint, ConstraintKind, ConstraintStrength, IntentSpec, RasterCrop,
-    RasterResize, RasterResizeAspectPolicy, RasterResizeDimensions, RasterResizeResampling,
-    RevisionId, TransformationOperation,
+    AiImageGenerateParameters, AiImageOutputCanvas, Artifact, ArtifactKind, Constraint,
+    ConstraintKind, ConstraintStrength, IntentSpec, RasterCrop, RasterResize,
+    RasterResizeAspectPolicy, RasterResizeDimensions, RasterResizeResampling, RevisionId,
+    TransformationOperation,
 };
 
 use super::{Transformation, TransformationKind};
@@ -108,4 +109,48 @@ fn typed_crop_operation_belongs_only_to_deterministic_edits() {
         Some(operation),
     );
     assert!(invalid.is_err());
+}
+
+#[test]
+fn typed_ai_image_generation_is_source_less_and_generative() {
+    let artifact = Artifact::new("Generated cover", ArtifactKind::ImageRaster).unwrap();
+    let parameters = AiImageGenerateParameters::new(
+        "A quiet blue circle on white",
+        AiImageOutputCanvas::new(1024, 1024).unwrap(),
+        1,
+        Vec::new(),
+    )
+    .unwrap();
+    let operation = TransformationOperation::AiImageGenerate(parameters.clone());
+    let transformation = Transformation::new_with_operation(
+        TransformationKind::GenerativeEdit,
+        artifact.id,
+        Vec::new(),
+        IntentSpec::new("Generate a raster image from authored intent").unwrap(),
+        Vec::new(),
+        Vec::new(),
+        Some(operation.clone()),
+    )
+    .unwrap();
+    assert_eq!(transformation.operation, Some(operation.clone()));
+    let encoded = serde_json::to_value(&transformation).unwrap();
+    assert_eq!(encoded["operation"]["operation"], "ai_image_generate");
+
+    for (kind, inputs) in [
+        (TransformationKind::DeterministicEdit, Vec::new()),
+        (TransformationKind::GenerativeEdit, vec![RevisionId::new()]),
+    ] {
+        assert!(
+            Transformation::new_with_operation(
+                kind,
+                artifact.id,
+                inputs,
+                IntentSpec::new("Invalid AI Image operation").unwrap(),
+                Vec::new(),
+                Vec::new(),
+                Some(operation.clone()),
+            )
+            .is_err()
+        );
+    }
 }

@@ -67,3 +67,43 @@ fn working_graph_save_rejects_a_stale_accepted_head() {
     assert!(store.artifact_working_graphs().unwrap().is_empty());
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn source_artifact_and_zero_input_graph_publish_atomically_and_reopen() {
+    let root = test_root("source-working-graph");
+    let mut store = ProjectStore::create(&root, "Source Working Graph").unwrap();
+    let artifact = Artifact::new("Generated image", ArtifactKind::ImageRaster).unwrap();
+    let mut graph = ArtifactWorkingGraph::new_source(artifact.id);
+    graph
+        .add_source_operator(
+            OperatorTypeId::new("image.generate").unwrap(),
+            OperatorDataTypeId::new("image.raster").unwrap(),
+        )
+        .unwrap();
+
+    store
+        .insert_source_artifact_with_working_graph(&artifact, &graph)
+        .unwrap();
+    assert_eq!(
+        store
+            .artifact(artifact.id)
+            .unwrap()
+            .unwrap()
+            .accepted_revision,
+        None
+    );
+    assert_eq!(
+        store.artifact_working_graphs().unwrap(),
+        vec![graph.clone()]
+    );
+    assert!(
+        store
+            .insert_source_artifact_with_working_graph(&artifact, &graph)
+            .is_err()
+    );
+    drop(store);
+
+    let reopened = ProjectStore::open(&root).unwrap();
+    assert_eq!(reopened.artifact_working_graphs().unwrap(), vec![graph]);
+    std::fs::remove_dir_all(root).unwrap();
+}

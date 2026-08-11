@@ -2,25 +2,73 @@ use std::{fs, path::PathBuf};
 
 use shape_core::ShapeProject;
 use shape_domain::{
-    ArtifactContentContract, ArtifactKind, AudioOriginDisclosure, AudioValueContract, IntentSpec,
+    AiImageGenerateParameters, AiImageOutputCanvas, ArtifactContentContract, ArtifactKind,
+    AudioOriginDisclosure, AudioValueContract, ImageColorProfile, ImageRasterContract, IntentSpec,
     PresetVoiceAlias, PresetVoiceSelection, SpeechSynthesisOperation, SpeechVoiceSelection,
 };
 use shape_execution::{
     AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, CapabilityId, ExecutionFailure, ExecutionOutput,
     ExecutionRequest, Executor, ExecutorIdentity, ExternalAttemptProvenance,
-    ExternalExecutionProvenance, ExternalRoutingCandidate, INFER_RUNTIME_CONTRACT_VERSION,
-    INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
-    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+    ExternalExecutionProvenance, ExternalRoutingCandidate, IMAGE_GENERATE_CAPABILITY,
+    INFER_RUNTIME_CONTRACT_VERSION, INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
 };
 use uuid::Uuid;
 
 use super::{create_desktop_project, open_desktop_session};
+use crate::infer_image::InferImageCandidate;
 use crate::infer_speech::InferSpeechCandidate;
-use crate::operator_catalog::AUDIO_SPEECH_OPERATOR;
+use crate::operator_catalog::{AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, IMAGE_RESIZE_OPERATOR};
 
 #[derive(Debug)]
 struct BridgeSpeechExecutor {
     identity: ExecutorIdentity,
+}
+
+#[derive(Debug)]
+struct BridgeImageExecutor {
+    identity: ExecutorIdentity,
+}
+
+impl BridgeImageExecutor {
+    fn new() -> Self {
+        Self {
+            identity: ExecutorIdentity::new(
+                "shape.bridge.test.image",
+                "1",
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
+            .expect("executor identity is valid"),
+        }
+    }
+}
+
+impl Executor for BridgeImageExecutor {
+    fn identity(&self) -> &ExecutorIdentity {
+        &self.identity
+    }
+
+    fn supports(&self, capability: &CapabilityId) -> bool {
+        capability.as_str() == IMAGE_GENERATE_CAPABILITY
+    }
+
+    fn execute(&self, _request: &ExecutionRequest) -> Result<ExecutionOutput, ExecutionFailure> {
+        use image::{ColorType, ImageEncoder, codecs::png::PngEncoder};
+
+        let mut bytes = Vec::new();
+        PngEncoder::new(&mut bytes)
+            .write_image(&[120_u8; 4 * 3 * 4], 4, 3, ColorType::Rgba8.into())
+            .unwrap();
+        Ok(ExecutionOutput {
+            bytes,
+            media_type: "image/png".to_owned(),
+            executor_job_id: Some("resp_shape_image_bridge_1".to_owned()),
+            external_provenance: Some(bridge_image_provenance()),
+            content_contract: Some(ArtifactContentContract::ImageRaster(
+                ImageRasterContract::rgba8(4, 3, ImageColorProfile::Srgb).unwrap(),
+            )),
+        })
+    }
 }
 
 impl BridgeSpeechExecutor {
@@ -149,6 +197,30 @@ fn bridge_provenance() -> ExternalExecutionProvenance {
     }
 }
 
+fn bridge_image_provenance() -> ExternalExecutionProvenance {
+    let mut provenance = bridge_provenance();
+    provenance.intent = IMAGE_GENERATE_CAPABILITY.to_owned();
+    provenance.provider = "codex-subscription".to_owned();
+    provenance.deployment = "codex_gpt_5_6_luna".to_owned();
+    provenance.model_profile = "codex_gpt_5_6_luna".to_owned();
+    provenance.model_build = "codex_gpt_5_6_luna_subscription".to_owned();
+    provenance.physical_model = "gpt-5.6-luna".to_owned();
+    provenance.placement = "cloud".to_owned();
+    provenance.capability_level = "advanced".to_owned();
+    provenance.policy = "balanced".to_owned();
+    provenance.requested_policy = "balanced".to_owned();
+    provenance.requested_provider_access_class = Some("subscription".to_owned());
+    provenance.requested_placement = "cloud_only".to_owned();
+    provenance.requested_preference = "cloud".to_owned();
+    provenance.offline_required = false;
+    provenance.requested_latency = None;
+    provenance.routing_candidates[0].provider = "codex-subscription".to_owned();
+    provenance.routing_candidates[0].deployment = "codex_gpt_5_6_luna".to_owned();
+    provenance.attempts[0].provider = "codex-subscription".to_owned();
+    provenance.attempts[0].deployment = "codex_gpt_5_6_luna".to_owned();
+    provenance
+}
+
 fn test_root() -> PathBuf {
     std::env::temp_dir().join(format!("shape-desktop-session-{}", Uuid::now_v7()))
 }
@@ -207,7 +279,7 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
             .session_operator_descriptors(&artifact.id)
             .expect("catalog projects")
             .len(),
-        3
+        2
     );
 
     drop(session);
@@ -220,12 +292,12 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
     session
         .session_propose_text(&artifact.id, "A revised first line.")
         .expect("candidate executes");
-    assert!(session.session_operator_drafts().is_empty());
+    assert_eq!(session.session_operator_drafts().len(), 1);
     assert_eq!(session.session_candidates().len(), 1);
     drop(session);
 
     let reopened = open_desktop_session(path).expect("project reopens");
-    assert!(reopened.session_operator_drafts().is_empty());
+    assert_eq!(reopened.session_operator_drafts().len(), 1);
     assert!(reopened.session_candidates().is_empty());
     assert_eq!(
         reopened
@@ -249,16 +321,23 @@ fn text_transform_configuration_restores_with_its_exact_draft_identity() {
     let artifact_id = snapshot.artifacts[0].id.clone();
     let draft = session
         .session_begin_operator_draft(&artifact_id, "text.transform")
-        .expect("transform draft begins");
+        .expect("legacy transform entry opens the Writing draft");
+    assert_eq!(draft.operator_type_key, "text.edit");
     let updated = session
         .session_update_text_transform_draft(
             &draft.draft_id,
             "polish",
             "  Make it warmer, but preserve the title.  ",
+            "warm",
+            "literary",
+            3,
         )
         .expect("instruction saves");
     assert_eq!(updated.draft_id, draft.draft_id);
     assert_eq!(updated.text_transform_mode, "polish");
+    assert_eq!(updated.text_transform_tone, "warm");
+    assert_eq!(updated.text_transform_style, "literary");
+    assert_eq!(updated.text_transform_variant_count, 3);
     assert_eq!(
         updated.text_transform_instruction,
         "  Make it warmer, but preserve the title.  "
@@ -276,12 +355,194 @@ fn text_transform_configuration_restores_with_its_exact_draft_identity() {
         "  Make it warmer, but preserve the title.  "
     );
     let cleared = reopened
-        .session_update_text_transform_draft(&draft.draft_id, "rewrite", "")
+        .session_update_text_transform_draft(
+            &draft.draft_id,
+            "rewrite",
+            "",
+            "neutral",
+            "natural",
+            1,
+        )
         .expect("instruction clears");
     assert_eq!(cleared.text_transform_mode, "rewrite");
     assert!(cleared.text_transform_instruction.is_empty());
-    assert!(cleared.configuration_schema.is_empty());
+    assert!(!cleared.configuration_schema.is_empty());
     fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
+fn detached_text_editor_can_be_authored_before_any_material_is_connected() {
+    let root = test_root();
+    let path = root.to_str().expect("portable path");
+    let mut session = create_desktop_project(path, "Detached Text").expect("project creates");
+    let snapshot = session
+        .session_create_detached_text_editor("Untitled AI text")
+        .expect("detached text editor creates atomically");
+    assert_eq!(snapshot.artifacts.len(), 1);
+    let artifact = &snapshot.artifacts[0];
+    assert_eq!(artifact.name, "Untitled AI text");
+    assert_eq!(artifact.kind_key, "text_document");
+    assert!(!artifact.has_accepted_revision);
+    assert!(artifact.operator_graph_nodes.is_empty());
+
+    let drafts = session.session_operator_drafts();
+    assert_eq!(drafts.len(), 1);
+    let draft = &drafts[0];
+    assert_eq!(draft.context_artifact_id, artifact.id);
+    assert_eq!(draft.operator_type_key, "text.edit");
+    assert!(!draft.has_input_data_type);
+    assert_eq!(draft.output_data_type_key, "text.document");
+    assert_eq!(draft.text_transform_mode, "rewrite");
+    assert_eq!(draft.text_transform_tone, "neutral");
+    assert_eq!(draft.text_transform_style, "natural");
+    assert_eq!(draft.text_transform_variant_count, 1);
+    let draft_id = draft.draft_id.clone();
+    session
+        .session_update_text_transform_draft(
+            &draft_id,
+            "summarize",
+            "Keep the conclusion explicit.",
+            "confident",
+            "concise",
+            3,
+        )
+        .expect("detached intent saves without a material input");
+    drop(session);
+
+    let reopened = open_desktop_session(path).expect("project reopens");
+    let restored = reopened.session_operator_drafts();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].draft_id, draft_id);
+    assert_eq!(restored[0].text_transform_mode, "summarize");
+    assert_eq!(restored[0].text_transform_tone, "confident");
+    assert_eq!(restored[0].text_transform_style, "concise");
+    assert_eq!(restored[0].text_transform_variant_count, 3);
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
+fn ai_image_scene_persists_a_zero_input_source_draft_and_exact_canvas() {
+    let root = test_root();
+    let path = root.to_str().expect("portable path");
+    let mut session = create_desktop_project(path, "AI Image Draft").expect("project creates");
+    let snapshot = session
+        .session_create_ai_image_draft("Cobalt bird", "A cobalt glass bird", 1536, 1024)
+        .expect("AI image source draft creates atomically");
+    assert_eq!(snapshot.artifacts.len(), 1);
+    let artifact = &snapshot.artifacts[0];
+    assert_eq!(artifact.name, "Cobalt bird");
+    assert_eq!(artifact.kind_key, "image_raster");
+    assert!(!artifact.has_accepted_revision);
+    assert!(artifact.operator_graph_nodes.is_empty());
+
+    let drafts = session.session_operator_drafts();
+    assert_eq!(drafts.len(), 1);
+    let draft = &drafts[0];
+    assert_eq!(draft.context_artifact_id, artifact.id);
+    assert_eq!(draft.operator_type_key, "image.generate");
+    assert!(!draft.has_input_data_type);
+    assert!(draft.input_data_type_key.is_empty());
+    assert_eq!(draft.output_data_type_key, "image.raster");
+    assert_eq!(draft.ai_image_instruction, "A cobalt glass bird");
+    assert_eq!(
+        (draft.ai_image_output_width, draft.ai_image_output_height),
+        (1536, 1024)
+    );
+    let draft_id = draft.draft_id.clone();
+    assert_eq!(
+        session
+            .session_discard_operator_draft(&draft_id)
+            .unwrap_err(),
+        "a Source Operator cannot be removed without deleting its Scene"
+    );
+    assert_eq!(session.session_operator_drafts()[0].draft_id, draft_id);
+    session
+        .session_update_ai_image_draft(&draft_id, "A cobalt paper bird", 1024, 1024)
+        .expect("AI image authored state saves");
+    drop(session);
+
+    let reopened = open_desktop_session(path).expect("project reopens");
+    let restored = reopened.session_operator_drafts();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].draft_id, draft_id);
+    assert!(!restored[0].has_input_data_type);
+    assert_eq!(restored[0].ai_image_instruction, "A cobalt paper bird");
+    assert_eq!(
+        (
+            restored[0].ai_image_output_width,
+            restored[0].ai_image_output_height
+        ),
+        (1024, 1024)
+    );
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
+fn ai_image_candidate_adopts_previews_accepts_and_reopens_as_operator_output() {
+    let root = test_root();
+    let path = root.to_str().expect("portable path");
+    let mut session = create_desktop_project(path, "AI Image Candidate").unwrap();
+    let snapshot = session
+        .session_create_ai_image_draft("Cobalt bird", "A cobalt glass bird", 4, 3)
+        .unwrap();
+    let artifact_id = snapshot.artifacts[0]
+        .id
+        .parse::<shape_domain::ArtifactId>()
+        .unwrap();
+    let draft_id = session.session_operator_drafts()[0].draft_id.clone();
+
+    let project = ShapeProject::open(&root).unwrap();
+    let parameters = AiImageGenerateParameters::new(
+        "A cobalt glass bird",
+        AiImageOutputCanvas::new(4, 3).unwrap(),
+        1,
+        Vec::new(),
+    )
+    .unwrap();
+    let generated = project
+        .propose_generated_image(artifact_id, &parameters, &BridgeImageExecutor::new())
+        .unwrap();
+    let expected_bytes = generated.bytes().to_vec();
+    let adopted = session
+        .session_adopt_infer_image(Box::new(InferImageCandidate::new(
+            generated,
+            draft_id.clone(),
+        )))
+        .unwrap();
+    assert!(adopted.has_image_preview);
+    assert!(!adopted.has_expected_head);
+    assert_eq!((adopted.image_width, adopted.image_height), (4, 3));
+    assert_eq!(session.session_operator_drafts()[0].draft_id, draft_id);
+    assert_eq!(
+        session
+            .session_image_preview(&artifact_id.to_string(), &adopted.candidate_id)
+            .unwrap()
+            .png_bytes,
+        expected_bytes
+    );
+
+    let accepted = session
+        .session_accept_candidate(&adopted.candidate_id)
+        .unwrap();
+    assert!(accepted.artifacts[0].has_accepted_revision);
+    assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 2);
+    assert_eq!(
+        accepted.artifacts[0].operator_graph_nodes[0].operator_type_key,
+        "image.generate"
+    );
+    assert!(session.session_operator_drafts().is_empty());
+    drop(session);
+
+    let reopened = open_desktop_session(path).unwrap();
+    assert!(reopened.session_operator_drafts().is_empty());
+    assert_eq!(
+        reopened
+            .session_image_preview(&artifact_id.to_string(), "")
+            .unwrap()
+            .png_bytes,
+        expected_bytes
+    );
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
@@ -421,7 +682,11 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     );
     assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
     assert_eq!(accepted.artifacts[0].operator_graph_edges.len(), 2);
-    assert!(session.session_operator_drafts().is_empty());
+    assert_eq!(session.session_operator_drafts().len(), 1);
+    assert_eq!(
+        session.session_operator_drafts()[0].context_artifact_id,
+        accepted.artifacts[0].id
+    );
     assert_eq!(
         accepted.artifacts[0].operator_graph_nodes[1].operator_type_key,
         "text.edit"
@@ -429,11 +694,15 @@ fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
     drop(session);
 
     let reopened = ShapeProject::open(&root).expect("project reopens");
-    assert!(
-        reopened
-            .artifact_working_graphs()
-            .expect("Working Graphs load")
-            .is_empty()
+    let working_graphs = reopened
+        .artifact_working_graphs()
+        .expect("Working Graphs load");
+    assert_eq!(working_graphs.len(), 1);
+    assert_eq!(
+        working_graphs[0]
+            .expected_revision_id()
+            .map(|id| id.to_string()),
+        Some(accepted.artifacts[0].accepted_revision_id.clone())
     );
     let content = reopened
         .read_accepted(artifact_id)
@@ -605,9 +874,18 @@ fn raster_import_crop_candidate_accept_and_reopen_cross_the_desktop_bridge() {
     let accepted_preview = session.session_image_preview(&artifact.id, "").unwrap();
     assert_eq!((accepted_preview.width, accepted_preview.height), (8, 6));
 
+    session
+        .session_begin_operator_draft(&artifact.id, IMAGE_CROP_OPERATOR)
+        .expect("frame tool draft begins");
+    session
+        .session_begin_operator_draft(&artifact.id, IMAGE_RESIZE_OPERATOR)
+        .expect("size tool draft begins");
+    assert_eq!(session.session_operator_drafts().len(), 2);
+
     let candidate = session
         .session_propose_raster_crop(&artifact.id, 1, 1, 4, 3)
         .unwrap();
+    assert!(session.session_operator_drafts().is_empty());
     assert_eq!(candidate.kind_key, "image_raster");
     assert_eq!((candidate.image_width, candidate.image_height), (4, 3));
     assert_eq!(
@@ -634,6 +912,102 @@ fn raster_import_crop_candidate_accept_and_reopen_cross_the_desktop_bridge() {
     assert_eq!(
         accepted.artifacts[0].operator_graph_nodes[1].operator_type_key,
         "image.crop"
+    );
+    drop(session);
+
+    let reopened = open_desktop_session(path).unwrap();
+    let preview = reopened
+        .session_image_preview(&accepted.artifacts[0].id, "")
+        .unwrap();
+    assert_eq!((preview.width, preview.height), (4, 3));
+    fs::remove_file(source).unwrap();
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn raster_resize_draft_candidate_accept_and_reopen_cross_the_desktop_bridge() {
+    use image::{ColorType, ImageEncoder, codecs::png::PngEncoder};
+
+    let root = test_root();
+    let source = root.with_extension("resize.png");
+    let pixels: Vec<u8> = (0_u8..48).flat_map(|value| [value, 60, 90, 255]).collect();
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&pixels, 8, 6, ColorType::Rgba8.into())
+        .unwrap();
+    fs::write(&source, png).unwrap();
+
+    ShapeProject::create(&root, "Desktop Resize").unwrap();
+    let path = root.to_str().unwrap();
+    let mut session = open_desktop_session(path).unwrap();
+    let imported = session
+        .session_import_raster(source.to_str().unwrap(), "Resize Cover")
+        .unwrap();
+    let artifact = imported.artifacts.first().unwrap();
+    let imported_head = artifact.accepted_revision_id.clone();
+    let draft = session
+        .session_begin_operator_draft(&artifact.id, "image.resize")
+        .unwrap();
+    assert_eq!(
+        (
+            draft.image_resize_target_width,
+            draft.image_resize_target_height
+        ),
+        (8, 6)
+    );
+    assert_eq!(draft.image_resize_aspect_policy, "fit_within");
+    assert_eq!(draft.image_resize_resampling, "lanczos3");
+    assert!(
+        session
+            .session_propose_raster_resize(&artifact.id, &draft.draft_id)
+            .is_err(),
+        "identity resize remains a draft"
+    );
+
+    let configured = session
+        .session_update_image_resize_draft(&draft.draft_id, 4, 4, "fit_within", "catmull_rom")
+        .unwrap();
+    assert_eq!(
+        (
+            configured.image_resize_target_width,
+            configured.image_resize_target_height
+        ),
+        (4, 4)
+    );
+    drop(session);
+
+    let mut session = open_desktop_session(path).unwrap();
+    let restored = session.session_operator_drafts();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].draft_id, draft.draft_id);
+    assert_eq!(restored[0].image_resize_aspect_policy, "fit_within");
+    assert_eq!(restored[0].image_resize_resampling, "catmull_rom");
+    let candidate = session
+        .session_propose_raster_resize(&artifact.id, &draft.draft_id)
+        .unwrap();
+    assert_eq!((candidate.image_width, candidate.image_height), (4, 3));
+    assert_eq!(
+        session.session_snapshot().unwrap().artifacts[0].accepted_revision_id,
+        imported_head
+    );
+    let preview = session
+        .session_image_preview(&artifact.id, &candidate.candidate_id)
+        .unwrap();
+    assert_eq!((preview.width, preview.height), (4, 3));
+
+    let accepted = session
+        .session_accept_candidate(&candidate.candidate_id)
+        .unwrap();
+    assert_eq!(
+        (
+            accepted.artifacts[0].image_width,
+            accepted.artifacts[0].image_height
+        ),
+        (4, 3)
+    );
+    assert_eq!(
+        accepted.artifacts[0].operator_graph_nodes[1].operator_type_key,
+        "image.resize"
     );
     drop(session);
 

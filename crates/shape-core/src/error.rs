@@ -63,4 +63,8 @@ pub enum CoreError {
     RasterCropOutputContractMismatch,
     #[error("raster resize executor output does not match the prepared image.resize contract")]
     RasterResizeOutputContractMismatch,
+    #[error("image generation output or Runtime provenance does not match image.generate")]
+    ImageGenerationOutputContractMismatch,
+    #[error("artifact {artifact_id} is not an unaccepted image.raster generation target")]
+    InvalidImageGenerationTarget { artifact_id: ArtifactId },
 }

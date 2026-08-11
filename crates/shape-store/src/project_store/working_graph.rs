@@ -1,7 +1,7 @@
 //! Mutable compatibility-Scene Working Graph persistence.
 
 use rusqlite::{OptionalExtension, params};
-use shape_domain::{ArtifactId, ArtifactWorkingGraph};
+use shape_domain::{Artifact, ArtifactId, ArtifactWorkingGraph};
 
 use super::ProjectStore;
 use crate::StoreError;
@@ -64,7 +64,7 @@ impl ProjectStore {
             let artifact = self
                 .artifact(artifact_id)?
                 .ok_or(StoreError::UnknownArtifact(artifact_id))?;
-            if artifact.accepted_revision == Some(graph.expected_revision_id()) {
+            if artifact.accepted_revision == graph.expected_revision_id() {
                 graphs.push(graph);
             }
         }
@@ -87,16 +87,18 @@ impl ProjectStore {
                 "empty working graphs must be deleted instead of persisted",
             ));
         }
-        let expected = Some(graph.expected_revision_id());
+        let expected = graph.expected_revision_id();
         let changed = self.connection.execute(
             "INSERT INTO artifact_working_graphs (artifact_id, graph_json)
              SELECT ?1, ?2
-             WHERE (SELECT accepted_revision FROM artifacts WHERE id = ?1) = ?3
+             WHERE (SELECT accepted_revision FROM artifacts WHERE id = ?1) IS ?3
              ON CONFLICT(artifact_id) DO UPDATE SET graph_json = excluded.graph_json",
             params![
                 graph.context_artifact_id().to_string(),
                 serde_json::to_string(graph)?,
-                graph.expected_revision_id().to_string(),
+                graph
+                    .expected_revision_id()
+                    .map(|revision| revision.to_string()),
             ],
         )?;
         if changed == 0 {
@@ -108,6 +110,52 @@ impl ProjectStore {
                 actual: artifact.accepted_revision,
             });
         }
+        Ok(())
+    }
+
+    /// Atomically creates one unaccepted Artifact and its zero-input Source draft.
+    ///
+    /// # Errors
+    ///
+    /// Rejects accepted Artifacts, mismatched identities, accepted-head graphs,
+    /// empty or malformed graphs, duplicate identities, and storage failures.
+    pub fn insert_source_artifact_with_working_graph(
+        &mut self,
+        artifact: &Artifact,
+        graph: &ArtifactWorkingGraph,
+    ) -> Result<(), StoreError> {
+        graph.validate()?;
+        if artifact.accepted_revision.is_some()
+            || graph.expected_revision_id().is_some()
+            || graph.context_artifact_id() != artifact.id
+            || graph.is_empty()
+        {
+            return Err(StoreError::InvalidCommit(
+                "source draft must target the same unaccepted Artifact",
+            ));
+        }
+        let kind_json = serde_json::to_string(&artifact.kind)?;
+        let graph_json = serde_json::to_string(graph)?;
+        let transaction = self.connection.transaction()?;
+        let inserted = transaction.execute(
+            "INSERT INTO artifacts (id, name, kind_json, accepted_revision)
+             VALUES (?1, ?2, ?3, NULL)",
+            params![artifact.id.to_string(), artifact.name, kind_json],
+        );
+        match inserted {
+            Ok(_) => {}
+            Err(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                return Err(StoreError::ArtifactAlreadyExists(artifact.id));
+            }
+            Err(error) => return Err(StoreError::Sqlite(error)),
+        }
+        transaction.execute(
+            "INSERT INTO artifact_working_graphs (artifact_id, graph_json) VALUES (?1, ?2)",
+            params![artifact.id.to_string(), graph_json],
+        )?;
+        transaction.commit()?;
         Ok(())
     }
 

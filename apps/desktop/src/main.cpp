@@ -1,6 +1,7 @@
 #include "audio_preview_controller.hpp"
 #include "desktop_backend.hpp"
 #include "image_preview_provider.hpp"
+#include "infer_image_controller.hpp"
 #include "infer_runtime_controller.hpp"
 #include "infer_speech_controller.hpp"
 #include "infer_text_controller.hpp"
@@ -114,6 +115,70 @@ bool run_smoke_raster_cycle(
         return false;
     }
 
+    QObject* const image_palette =
+        root_object.findChild<QObject*>(QStringLiteral("operatorPalette"));
+    QObject* const workspace_surface =
+        root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
+    if (image_palette == nullptr || workspace_surface == nullptr
+        || image_palette->property("compatibleOperatorCount").toInt() != 2) {
+        std::cerr << "desktop raster smoke did not expose the universal text editor beside the "
+                     "unified image editor"
+                  << std::endl;
+        return false;
+    }
+    QQmlExpression choose_image_editor(
+        QQmlEngine::contextForObject(image_palette),
+        image_palette,
+        QStringLiteral("chooseOperator('image.edit')")
+    );
+    choose_image_editor.evaluate();
+    QCoreApplication::processEvents();
+    if (choose_image_editor.hasError()
+        || workspace_surface->property("workspaceRouteKey").toString()
+               != QStringLiteral("operator.image.edit")
+        || workspace_surface->property("loadedWorkspaceObjectName").toString()
+               != QStringLiteral("imageEditorWorkspace")) {
+        std::cerr << "desktop raster smoke could not open the unified image editor" << std::endl;
+        return false;
+    }
+    QObject* image_editor = root_object.findChild<QObject*>(QStringLiteral("imageEditorWorkspace"));
+    if (image_editor == nullptr) {
+        std::cerr << "desktop raster smoke lost the unified image editor" << std::endl;
+        return false;
+    }
+    QQmlExpression choose_size_tool(
+        QQmlEngine::contextForObject(image_editor),
+        image_editor,
+        QStringLiteral("chooseTool('size')")
+    );
+    choose_size_tool.evaluate();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+    image_editor = root_object.findChild<QObject*>(QStringLiteral("imageEditorWorkspace"));
+    QObject* const resize_tool =
+        image_editor == nullptr
+            ? nullptr
+            : image_editor->findChild<QObject*>(QStringLiteral("rasterResizeOperatorWorkspace"));
+    QObject* const tool_stack =
+        image_editor == nullptr
+            ? nullptr
+            : image_editor->findChild<QObject*>(QStringLiteral("imageEditorToolStack"));
+    const QVariantList image_edit_drafts = backend.operatorDrafts();
+    if (choose_size_tool.hasError() || image_editor == nullptr || resize_tool == nullptr
+        || tool_stack == nullptr || tool_stack->property("currentIndex").toInt() != 1
+        || !resize_tool->property("visible").toBool()
+        || image_editor->property("selectedToolKey").toString() != QStringLiteral("size")
+        || image_edit_drafts.size() != 1
+        || image_edit_drafts.first().toMap().value(QStringLiteral("operatorTypeKey")).toString()
+               != QStringLiteral("image.resize")) {
+        std::cerr << "desktop raster smoke could not switch to the Size tool" << std::endl;
+        return false;
+    }
+    if (!QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
+        return false;
+    }
+    QCoreApplication::processEvents();
+
     if (!backend.proposeRasterCrop(artifact_id, 1, 1, 4, 3) || !backend.hasCandidate()) {
         std::cerr << "desktop raster smoke could not create crop candidate" << std::endl;
         return false;
@@ -154,14 +219,183 @@ bool run_smoke_raster_cycle(
     }
     root_object.setProperty("compareMode", false);
     QCoreApplication::processEvents();
-    if (!backend.prepareImagePreviews(artifact_id)
-        || !workspace_host_smoke::verifyOperatorRoute(
+    if (!backend.prepareImagePreviews(artifact_id)) {
+        std::cerr << "desktop raster smoke could not refresh the accepted image preview"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    QObject* const scene_graph =
+        root_object.findChild<QObject*>(QStringLiteral("sceneOperatorGraphWorkspace"));
+    if (scene_graph == nullptr
+        || !scene_graph->property("currentResultPreviewAvailable").toBool()) {
+        std::cerr << "desktop raster smoke found no preview in the current Result node"
+                  << std::endl;
+        return false;
+    }
+    if (!workspace_host_smoke::verifyOperatorRoute(
             root_object,
             QStringLiteral("image.crop"),
             QStringLiteral("operator.image.crop"),
-            QStringLiteral("imageCropOperatorWorkspace")
+            QStringLiteral("imageEditorWorkspace")
         )) {
         std::cerr << "desktop raster smoke did not route image.crop" << std::endl;
+        return false;
+    }
+
+    const QVariantList compatible_operators = backend.compatibleOperators(artifact_id);
+    const bool has_resize_descriptor = std::any_of(
+        compatible_operators.cbegin(),
+        compatible_operators.cend(),
+        [](const QVariant& descriptor) {
+            return descriptor.toMap().value(QStringLiteral("typeKey")).toString()
+                   == QStringLiteral("image.resize");
+        }
+    );
+    const QString resize_draft_id =
+        backend.beginOperatorDraft(artifact_id, QStringLiteral("image.resize"));
+    if (!has_resize_descriptor) {
+        std::cerr << "desktop raster smoke found no executable resize descriptor" << std::endl;
+        return false;
+    }
+    if (resize_draft_id.isEmpty()) {
+        std::cerr << "desktop raster smoke could not begin the resize draft: "
+                  << backend.lastError().toStdString() << std::endl;
+        return false;
+    }
+    if (!backend.updateImageResizeDraft(
+            resize_draft_id,
+            2,
+            2,
+            QStringLiteral("fit_within"),
+            QStringLiteral("lanczos3")
+        )) {
+        std::cerr << "desktop raster smoke could not save the resize draft: "
+                  << backend.lastError().toStdString() << std::endl;
+        return false;
+    }
+    if (!backend.openProject(QUrl::fromLocalFile(QString::fromStdString(project_path)))) {
+        std::cerr << "desktop raster smoke could not reopen the resize draft: "
+                  << backend.lastError().toStdString() << std::endl;
+        return false;
+    }
+
+    const QVariantList reopened_drafts = backend.operatorDrafts();
+    const auto reopened_resize_draft = std::find_if(
+        reopened_drafts.cbegin(),
+        reopened_drafts.cend(),
+        [&resize_draft_id](const QVariant& draft) {
+            return draft.toMap().value(QStringLiteral("id")).toString() == resize_draft_id;
+        }
+    );
+    if (reopened_resize_draft == reopened_drafts.cend()
+        || reopened_resize_draft->toMap().value(QStringLiteral("imageResizeTargetWidth")).toInt()
+               != 2
+        || reopened_resize_draft->toMap().value(QStringLiteral("imageResizeTargetHeight")).toInt()
+               != 2
+        || reopened_resize_draft->toMap()
+                   .value(QStringLiteral("imageResizeAspectPolicy"))
+                   .toString()
+               != QStringLiteral("fit_within")
+        || reopened_resize_draft->toMap().value(QStringLiteral("imageResizeResampling")).toString()
+               != QStringLiteral("lanczos3")) {
+        std::cerr << "desktop raster smoke reopened a different resize draft" << std::endl;
+        return false;
+    }
+
+    const QVariantList reopened_artifacts = backend.artifacts();
+    const auto current_artifact = std::find_if(
+        reopened_artifacts.cbegin(),
+        reopened_artifacts.cend(),
+        [&artifact_id](const QVariant& artifact) {
+            return artifact.toMap().value(QStringLiteral("id")).toString() == artifact_id;
+        }
+    );
+    if (current_artifact == reopened_artifacts.cend()) {
+        std::cerr << "desktop raster smoke lost the resized draft source" << std::endl;
+        return false;
+    }
+    const int reopened_artifact_index =
+        static_cast<int>(std::distance(reopened_artifacts.cbegin(), current_artifact));
+    root_object.setProperty("selectedArtifactIndex", reopened_artifact_index);
+    QCoreApplication::processEvents();
+
+    QQmlExpression open_resize_draft(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("openOperatorDraft(\"") + resize_draft_id + QStringLiteral("\")")
+    );
+    const QVariant opened = open_resize_draft.evaluate();
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+    QObject* const workspace_host =
+        workspace_surface->findChild<QObject*>(QStringLiteral("operatorWorkspaceHost"));
+    QObject* const loaded_resize_workspace =
+        workspace_host == nullptr
+            ? nullptr
+            : qvariant_cast<QObject*>(workspace_host->property("loadedWorkspace"));
+    QObject* const resize_controls = loaded_resize_workspace == nullptr
+                                         ? nullptr
+                                         : loaded_resize_workspace->findChild<QObject*>(
+                                               QStringLiteral("rasterResizeOperatorWorkspace")
+                                           );
+    if (open_resize_draft.hasError() || !opened.toBool() || workspace_host == nullptr
+        || workspace_surface->property("workspaceRouteKey").toString()
+               != QStringLiteral("operator.image.resize")
+        || workspace_surface->property("loadedWorkspaceObjectName").toString()
+               != QStringLiteral("imageEditorWorkspace")
+        || resize_controls == nullptr
+        || resize_controls->property("operatorDraftId").toString() != resize_draft_id
+        || resize_controls->property("pendingWidth").toInt() != 2
+        || resize_controls->property("pendingHeight").toInt() != 2) {
+        std::cerr << "desktop raster smoke did not restore the Resize workspace" << std::endl;
+        return false;
+    }
+
+    if (!backend.proposeRasterResize(artifact_id, resize_draft_id) || !backend.hasCandidate()) {
+        std::cerr << "desktop raster smoke could not create resize candidate" << std::endl;
+        return false;
+    }
+    const QString resize_candidate_id = backend.candidateId();
+    if (backend.artifacts()[reopened_artifact_index]
+                .toMap()
+                .value(QStringLiteral("acceptedRevisionId"))
+                .toString()
+            != accepted.value(QStringLiteral("acceptedRevisionId")).toString()
+        || !backend.prepareImagePreviews(artifact_id, resize_candidate_id)
+        || backend.candidateImageSource().isEmpty()) {
+        std::cerr << "desktop raster resize changed history or failed preview" << std::endl;
+        return false;
+    }
+    root_object.setProperty("compareMode", true);
+    QCoreApplication::processEvents();
+    if (!backend.acceptCandidate(resize_candidate_id) || backend.hasCandidate()) {
+        std::cerr << "desktop raster smoke could not accept resize candidate" << std::endl;
+        return false;
+    }
+    const QVariantMap resized = backend.artifacts()[reopened_artifact_index].toMap();
+    const QVariantList resized_operator_nodes =
+        resized.value(QStringLiteral("operatorNodes")).toList();
+    const bool has_resize_operator = std::any_of(
+        resized_operator_nodes.cbegin(),
+        resized_operator_nodes.cend(),
+        [](const QVariant& node) {
+            const QVariantMap projected = node.toMap();
+            return projected.value(QStringLiteral("roleKey")).toString()
+                       == QStringLiteral("operator")
+                   && projected.value(QStringLiteral("operatorTypeKey")).toString()
+                          == QStringLiteral("image.resize");
+        }
+    );
+    if (resized.value(QStringLiteral("imageWidth")).toInt() != 2
+        || resized.value(QStringLiteral("imageHeight")).toInt() != 2 || !has_resize_operator
+        || !workspace_host_smoke::verifyOperatorRoute(
+            root_object,
+            QStringLiteral("image.resize"),
+            QStringLiteral("operator.image.resize"),
+            QStringLiteral("imageEditorWorkspace")
+        )) {
+        std::cerr << "desktop raster smoke committed or routed an unexpected resize" << std::endl;
         return false;
     }
 
@@ -175,7 +409,7 @@ bool run_smoke_raster_cycle(
         }
     );
     return reopened_artifact != reopened.artifacts.end() && reopened_artifact->has_image_preview
-           && reopened_artifact->image_width == 4 && reopened_artifact->image_height == 3;
+           && reopened_artifact->image_width == 2 && reopened_artifact->image_height == 2;
 }
 
 bool run_smoke_text_cycle(DesktopBackend& backend) {
@@ -354,7 +588,7 @@ bool verify_candidate_shelf_interaction(DesktopBackend& backend, QObject& root_o
     const QString second_candidate_id = backend.candidateId();
     QCoreApplication::processEvents();
 
-    QObject* const shelf = root_object.findChild<QObject*>(QStringLiteral("candidateShelf"));
+    QObject* const shelf = root_object.findChild<QObject*>(QStringLiteral("candidateFilmstrip"));
     if (shelf == nullptr) {
         std::cerr << "desktop shelf smoke could not find packaged shelf" << std::endl;
         return false;
@@ -380,7 +614,7 @@ bool verify_candidate_shelf_interaction(DesktopBackend& backend, QObject& root_o
             root_object,
             QStringLiteral("text.edit"),
             QStringLiteral("operator.text.edit"),
-            QStringLiteral("textEditOperatorWorkspace"),
+            QStringLiteral("aiTextEditingWorkspace"),
             first_candidate_id
         )) {
         std::cerr << "desktop shelf smoke did not pass Candidate selection into the Host"
@@ -396,9 +630,7 @@ bool verify_candidate_shelf_interaction(DesktopBackend& backend, QObject& root_o
 }
 
 bool verify_infer_runtime_surface(QObject& root_object) {
-    if (root_object.findChild<QObject*>(QStringLiteral("inferRuntimeStatusButton")) == nullptr
-        || root_object.findChild<QObject*>(QStringLiteral("inferGenerateButton")) == nullptr
-        || root_object.findChild<QObject*>(QStringLiteral("inferCredentialField")) == nullptr) {
+    if (root_object.findChild<QObject*>(QStringLiteral("inferCredentialField")) == nullptr) {
         std::cerr << "desktop runtime smoke could not find packaged access controls" << std::endl;
         return false;
     }
@@ -412,8 +644,32 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
             QUrl::fromLocalFile(project_parent.path()),
             QStringLiteral("Desktop Authoring")
         )
-        || backend.artifactCount() != 0
-        || !backend.createTextScene(
+        || backend.artifactCount() != 0) {
+        std::cerr << "desktop authoring smoke could not create its empty project" << std::endl;
+        return false;
+    }
+
+    QObject* const creative_start =
+        root_object.findChild<QObject*>(QStringLiteral("createSceneTypeDialog"));
+    if (creative_start == nullptr
+        || !QMetaObject::invokeMethod(creative_start, "openForCreation", Qt::DirectConnection)) {
+        std::cerr << "desktop authoring smoke could not open the creative start chooser"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    if (!creative_start->property("visible").toBool()
+        || root_object.findChild<QObject*>(QStringLiteral("createTextSceneTypeButton")) == nullptr
+        || root_object.findChild<QObject*>(QStringLiteral("createAiImageSceneTypeButton"))
+               == nullptr
+        || root_object.findChild<QObject*>(QStringLiteral("importImageStartButton")) == nullptr) {
+        std::cerr << "desktop authoring smoke found an incomplete creative start chooser"
+                  << std::endl;
+        return false;
+    }
+    QMetaObject::invokeMethod(creative_start, "close", Qt::DirectConnection);
+
+    if (!backend.createTextScene(
             QStringLiteral("Opening"),
             QStringLiteral("A first accepted Scene source.")
         )
@@ -424,11 +680,87 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
     }
     root_object.setProperty("selectedArtifactIndex", 0);
     QCoreApplication::processEvents();
+    QObject* const text_creation =
+        root_object.findChild<QObject*>(QStringLiteral("createTextSceneDialog"));
+    QObject* const workspace_surface =
+        root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
+    if (text_creation == nullptr || workspace_surface == nullptr
+        || !QMetaObject::invokeMethod(text_creation, "sceneCreated", Qt::DirectConnection)) {
+        std::cerr << "desktop authoring smoke could not complete the text creation handoff"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+    const QVariantList automatic_drafts = backend.operatorDrafts();
+    if (automatic_drafts.size() != 1
+        || automatic_drafts.first().toMap().value(QStringLiteral("operatorTypeKey")).toString()
+               != QStringLiteral("text.edit")
+        || workspace_surface->property("workspaceRouteKey").toString()
+               != QStringLiteral("operator.text.edit")) {
+        std::cerr << "desktop authoring smoke did not enter the writing workspace directly"
+                  << std::endl;
+        return false;
+    }
+    if (!backend.discardOperatorDraft(
+            automatic_drafts.first().toMap().value(QStringLiteral("id")).toString()
+        )
+        || !QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
+        return false;
+    }
+    QCoreApplication::processEvents();
     const QString bundle_path = backend.bundlePath();
     if (!workspace_host_smoke::verifyOperatorDraftRoute(root_object, backend)
-        || !backend.openProject(QUrl::fromLocalFile(bundle_path))
-        || backend.artifactCount() != 1 || !backend.operatorDrafts().isEmpty()) {
+        || !backend.openProject(QUrl::fromLocalFile(bundle_path)) || backend.artifactCount() != 1
+        || !backend.operatorDrafts().isEmpty()) {
         std::cerr << "desktop authoring smoke did not reopen without the discarded draft"
+                  << std::endl;
+        return false;
+    }
+    if (!backend.createAiImageScene(
+            QStringLiteral("Concept image"),
+            QStringLiteral("A cobalt glass bird on a quiet grey background"),
+            1536,
+            1024
+        )
+        || backend.artifactCount() != 2 || backend.operatorDrafts().size() != 1) {
+        std::cerr << "desktop authoring smoke could not create the zero-input AI image Scene"
+                  << std::endl;
+        return false;
+    }
+    const QVariantMap image_draft = backend.operatorDrafts().first().toMap();
+    const QString image_draft_id = image_draft.value(QStringLiteral("id")).toString();
+    if (image_draft.value(QStringLiteral("operatorTypeKey")).toString()
+            != QStringLiteral("image.generate")
+        || image_draft.value(QStringLiteral("hasInputDataType")).toBool()
+        || image_draft.value(QStringLiteral("aiImageOutputWidth")).toInt() != 1536
+        || image_draft.value(QStringLiteral("aiImageOutputHeight")).toInt() != 1024) {
+        std::cerr << "desktop authoring smoke projected a different AI image draft" << std::endl;
+        return false;
+    }
+    root_object.setProperty("selectedArtifactIndex", 1);
+    QCoreApplication::processEvents();
+    QQmlExpression open_image_draft(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("openOperatorDraft(\"") + image_draft_id + QStringLiteral("\")")
+    );
+    if (!open_image_draft.evaluate().toBool() || open_image_draft.hasError()
+        || workspace_surface->property("workspaceRouteKey").toString()
+               != QStringLiteral("operator.image.generate")
+        || workspace_surface->property("loadedWorkspaceObjectName").toString()
+               != QStringLiteral("aiImageOperatorWorkspace")
+        || !workspace_surface->property("aiImageIntentActive").toBool()
+        || root_object.findChild<QObject*>(QStringLiteral("operatorIntentSidebar")) == nullptr
+        || root_object.findChild<QObject*>(QStringLiteral("aiImageCanvasPicker")) == nullptr) {
+        std::cerr << "desktop authoring smoke did not open the AI image workbench" << std::endl;
+        return false;
+    }
+    if (!backend.openProject(QUrl::fromLocalFile(bundle_path)) || backend.artifactCount() != 2
+        || backend.operatorDrafts().size() != 1
+        || backend.operatorDrafts().first().toMap().value(QStringLiteral("id")).toString()
+               != image_draft_id) {
+        std::cerr << "desktop authoring smoke did not reopen the exact AI image source draft"
                   << std::endl;
         return false;
     }
@@ -470,6 +802,7 @@ int main(int argc, char* argv[]) {
             .filePath(QStringLiteral("secrets/infer-runtime.token"));
     InferTextController infer_text(*backend, infer_credential_path, &application);
     InferSpeechController infer_speech(*backend, infer_credential_path, &application);
+    InferImageController infer_image(*backend, infer_credential_path, &application);
     AudioPreviewController audio_preview(*backend, &application);
     UiPreferences ui_preferences(application);
     QObject::connect(
@@ -497,6 +830,7 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
         {QStringLiteral("inferText"), QVariant::fromValue(&infer_text)},
         {QStringLiteral("inferSpeech"), QVariant::fromValue(&infer_speech)},
+        {QStringLiteral("inferImage"), QVariant::fromValue(&infer_image)},
         {QStringLiteral("audioPreview"), QVariant::fromValue(&audio_preview)},
         {QStringLiteral("uiPreferences"), QVariant::fromValue(&ui_preferences)},
     });

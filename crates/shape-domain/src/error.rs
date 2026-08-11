@@ -109,6 +109,9 @@ pub enum DomainError {
         "working Operator configuration must be a versioned JSON object within {max_bytes} bytes"
     )]
     InvalidWorkingOperatorConfiguration { max_bytes: usize },
+    /// A mutable graph mixes an accepted input anchor with a zero-input Source Operator.
+    #[error("working graph anchor and Operator input presence are inconsistent")]
+    InvalidWorkingGraphAnchor,
     /// An accepted audio value has an impossible or empty sample contract.
     #[error("audio value contract must declare bounded non-empty PCM audio")]
     InvalidAudioValueContract,

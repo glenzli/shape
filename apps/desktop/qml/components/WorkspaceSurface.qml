@@ -22,10 +22,14 @@ Item {
     property bool compareMode: false
     property string acceptedImageSource: ""
     property string candidateImageSource: ""
+    required property InferImageController inferImage
     required property InferSpeechController inferSpeech
     required property AudioPreviewController audioPreview
     property string projectPath: ""
     property bool inferCredentialConfigured: false
+    property bool inferTextRunning: false
+    property string inferTextErrorCode: ""
+    property bool inferRuntimeCompatible: false
     property int currentMode: 0
     property string selectedNodeId: ""
 
@@ -44,9 +48,14 @@ Item {
     readonly property bool intentWorkspaceActive: editWorkspaceActive
                                                   && (workspaceRouteKey === "operator.text.edit"
                                                       || workspaceRouteKey
-                                                         === "operator.text.transform"
-                                                      || workspaceRouteKey
-                                                         === "operator.image.crop")
+                                                         === "operator.text.transform")
+    readonly property bool aiImageWorkspaceActive: focusActive
+                                                   && workspaceRouteKey
+                                                      === "operator.image.generate"
+    readonly property bool aiImageIntentActive: aiImageWorkspaceActive
+                                                && selectedDraft !== null
+                                                && selectedDraft.operatorTypeKey
+                                                   === "image.generate"
     readonly property string workspaceRouteKey: operatorWorkspaceHost.routeKey
     readonly property string loadedWorkspaceObjectName: operatorWorkspaceHost
                                                          .loadedWorkspaceObjectName
@@ -73,6 +82,11 @@ Item {
     signal candidateSelected(string candidateId)
     signal candidateReviewRequested(string candidateId)
     signal cropRequested(string artifactId, int x, int y, int width, int height)
+    signal resizeDraftSaveRequested(string draftId, int targetWidth, int targetHeight,
+                                    string aspectPolicyKey, string resamplingKey)
+    signal resizeRequested(string artifactId, string draftId,
+                           int targetWidth, int targetHeight,
+                           string aspectPolicyKey, string resamplingKey)
     signal speechDraftSaveRequested(string draftId, string presetAlias,
                                     string presetCatalogRevision, string language,
                                     int speedMilli, bool syntheticDisclosureRequired)
@@ -80,12 +94,31 @@ Item {
                                     string artifactName, string presetAlias,
                                     string presetCatalogRevision, string language,
                                     int speedMilli, bool syntheticDisclosureRequired)
+    signal aiImageDraftSaveRequested(string draftId, string instruction,
+                                     int outputWidth, int outputHeight)
     signal operatorDraftRequested(string operatorTypeKey)
     signal operatorDraftDiscardRequested(string draftId)
+    signal textStudioDraftSaveRequested(string draftId, string modeKey,
+                                        string instruction, string toneKey,
+                                        string styleKey, int variantCount)
+    signal textStudioGenerationRequested(string artifactId, string draftId,
+                                         string modeKey, string instruction,
+                                         string toneKey, string styleKey,
+                                         int variantCount)
+    signal textCandidateLockRequested(string candidateId)
+    signal inferAccessSetupRequested()
 
     function showArtifact() : bool {
         if (selectedCandidate !== null && selectedCandidate.hasAudioPreview) {
             return openSpeechWorkspace()
+        }
+        if (selectedCandidate !== null && selectedCandidate.hasImagePreview) {
+            const drafts = operatorDrafts || []
+            for (let index = 0; index < drafts.length; ++index) {
+                if (drafts[index].operatorTypeKey === "image.generate") {
+                    return openOperatorDraft(drafts[index].id)
+                }
+            }
         }
         synchronizeNodeSelection()
         if (selectedNode !== null && selectedNode.roleKey === "operator") {
@@ -167,6 +200,40 @@ Item {
         return null
     }
 
+    function textDraftForArtifact(artifactId) : var {
+        const drafts = operatorDrafts || []
+        for (let index = 0; index < drafts.length; ++index) {
+            const draft = drafts[index]
+            if (draft.contextArtifactId === artifactId
+                    && (draft.operatorTypeKey === "text.edit"
+                        || draft.operatorTypeKey === "text.transform")) {
+                return draft
+            }
+        }
+        return null
+    }
+
+    function imageResizeDraftForArtifact(artifactId) : var {
+        const drafts = operatorDrafts || []
+        for (let index = 0; index < drafts.length; ++index) {
+            const draft = drafts[index]
+            if (draft.contextArtifactId === artifactId
+                    && draft.operatorTypeKey === "image.resize") return draft
+        }
+        return null
+    }
+
+    function openImageEditor() : bool {
+        if (!hasSelectedArtifact || selectedArtifact.kindKey !== "image_raster"
+                || !selectedArtifact.hasAcceptedRevision) return false
+        selectedNodeId = "workspace.image.edit." + selectedArtifact.id
+        if (!operatorWorkspaceHost.openWorkspace(
+                selectedNodeId, "operator", "image.edit", selectedArtifact.id,
+                selectedArtifact.acceptedRevisionId, "")) return false
+        currentMode = 1
+        return true
+    }
+
     function projectSpeechDraft(workspace) : void {
         if (!workspace || workspace.objectName !== "audioSpeechOperatorWorkspace") {
             return
@@ -200,7 +267,7 @@ Item {
         selectedNodeId = nodeId
         if (!operatorWorkspaceHost.openWorkspace(
                 node.id, node.roleKey, node.operatorTypeKey,
-                node.artifactId, node.revisionId, node.transformationId)) {
+                node.artifactId, node.revisionId, node.transformationId, node)) {
             return false
         }
         currentMode = 1
@@ -237,15 +304,20 @@ Item {
                 return
             }
         }
+        const drafts = operatorDrafts || []
+        if (drafts.length > 0) {
+            selectedNodeId = drafts[0].id
+            return
+        }
         if (nodes.length > 0) selectedNodeId = nodes[0].id
     }
 
     onSelectedArtifactChanged: synchronizeNodeSelection()
     onGraphNodesChanged: synchronizeNodeSelection()
-    onOperatorDraftsChanged: {
-        synchronizeNodeSelection()
-        refreshSpeechDraftProjection()
-    }
+    onOperatorDraftsChanged: Qt.callLater(function() {
+        surface.synchronizeNodeSelection()
+        surface.refreshSpeechDraftProjection()
+    })
 
     Connections {
         target: operatorWorkspaceHost
@@ -262,65 +334,120 @@ Item {
     Component {
         id: textEditOperatorWorkspace
 
-        TextOperatorWorkspace {
-            objectName: "textEditOperatorWorkspace"
+        AiTextEditingWorkspace {
             property string nodeId: operatorWorkspaceHost.openedNodeId
-            property string artifactId: operatorWorkspaceHost.openedArtifactId
             property string revisionId: operatorWorkspaceHost.openedRevisionId
             property string transformationId: operatorWorkspaceHost.openedTransformationId
-            property string candidateId: operatorWorkspaceHost.selectedCandidateId
+            property var textDraft: {
+                const exactDraft = surface.draftForId(operatorWorkspaceHost.openedNodeId)
+                if (exactDraft !== null) return exactDraft
+                if (operatorWorkspaceHost.openedRoleKey === "operator"
+                        && (operatorWorkspaceHost.openedOperatorTypeKey === "text.edit"
+                            || operatorWorkspaceHost.openedOperatorTypeKey
+                               === "text.transform")) {
+                    return surface.textDraftForArtifact(
+                                operatorWorkspaceHost.openedArtifactId)
+                }
+                return null
+            }
 
+            artifactId: operatorWorkspaceHost.openedArtifactId
+            artifactName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
+            operatorDraftId: textDraft !== null ? textDraft.id : ""
             acceptedText: surface.hasSelectedArtifact
                           ? surface.selectedArtifact.textPreview : ""
-            candidateText: surface.candidateForSelected
-                           ? surface.selectedCandidate.text : ""
             hasAcceptedRevision: surface.hasSelectedArtifact
                                  && surface.selectedArtifact.hasAcceptedRevision
-            hasTextPreview: surface.hasSelectedArtifact
-                            && surface.selectedArtifact.hasTextPreview
-            textPreviewTruncated: surface.hasSelectedArtifact
-                                  && surface.selectedArtifact.textPreviewTruncated
-            hasCandidate: surface.candidateForSelected
-            compareMode: surface.compareMode
-            onSpeechWorkspaceRequested: surface.openSpeechWorkspace()
+            candidates: surface.candidates
+            selectedCandidateId: surface.selectedCandidateId
+            generationRunning: surface.inferTextRunning
+            generationErrorCode: surface.inferTextErrorCode
+            runtimeCompatible: surface.inferRuntimeCompatible
+            credentialConfigured: surface.inferCredentialConfigured
+            persistedMode: textDraft !== null ? textDraft.textTransformMode : "rewrite"
+            persistedInstruction: textDraft !== null
+                                  ? textDraft.textTransformInstruction : ""
+            persistedTone: textDraft !== null ? textDraft.textTransformTone : "neutral"
+            persistedStyle: textDraft !== null ? textDraft.textTransformStyle : "natural"
+            persistedVariantCount: textDraft !== null
+                                   ? textDraft.textTransformVariantCount : 1
+            onDraftSaveRequested: (draftId, modeKey, instruction, toneKey,
+                                   styleKey, variantCount) =>
+                                      surface.textStudioDraftSaveRequested(
+                                          draftId, modeKey, instruction, toneKey,
+                                          styleKey, variantCount)
+            onGenerationRequested: (artifactId, draftId, modeKey, instruction,
+                                    toneKey, styleKey, variantCount) =>
+                                       surface.textStudioGenerationRequested(
+                                           artifactId, draftId, modeKey, instruction,
+                                           toneKey, styleKey, variantCount)
+            onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
+            onCandidateLockRequested: candidateId =>
+                                          surface.textCandidateLockRequested(candidateId)
+            onSetupRequested: surface.inferAccessSetupRequested()
+            onNewDraftRequested: surface.operatorDraftRequested("text.edit")
         }
     }
 
     Component {
-        id: imageCropOperatorWorkspace
+        id: imageEditorWorkspace
 
-        Item {
-            objectName: "imageCropOperatorWorkspace"
-            property string nodeId: operatorWorkspaceHost.openedNodeId
-            property string artifactId: operatorWorkspaceHost.openedArtifactId
-            property string revisionId: operatorWorkspaceHost.openedRevisionId
-            property string transformationId: operatorWorkspaceHost.openedTransformationId
-            property string candidateId: operatorWorkspaceHost.selectedCandidateId
-
-            RasterCropOperatorWorkspace {
-                anchors.fill: parent
-                anchors.margins: 24
-                visible: !surface.compareMode || !surface.candidateForSelected
-                artifactId: operatorWorkspaceHost.openedArtifactId
-                source: surface.acceptedImageSource
-                sourceWidth: surface.hasSelectedArtifact
-                             ? surface.selectedArtifact.imageWidth : 0
-                sourceHeight: surface.hasSelectedArtifact
-                              ? surface.selectedArtifact.imageHeight : 0
-                onCropRequested: (x, y, width, height) => {
-                    if (surface.hasSelectedArtifact) {
-                        surface.cropRequested(operatorWorkspaceHost.openedArtifactId,
-                                              x, y, width, height)
-                    }
+        ImageEditorWorkspace {
+            property var resizeDraft: surface.imageResizeDraftForArtifact(
+                                          operatorWorkspaceHost.openedArtifactId)
+            openedOperatorTypeKey: operatorWorkspaceHost.openedOperatorTypeKey
+            operatorDraftId: resizeDraft !== null ? resizeDraft.id : ""
+            artifactId: operatorWorkspaceHost.openedArtifactId
+            source: surface.acceptedImageSource
+            sourceWidth: surface.hasSelectedArtifact ? surface.selectedArtifact.imageWidth : 0
+            sourceHeight: surface.hasSelectedArtifact ? surface.selectedArtifact.imageHeight : 0
+            targetWidth: resizeDraft !== null ? resizeDraft.imageResizeTargetWidth : 0
+            targetHeight: resizeDraft !== null ? resizeDraft.imageResizeTargetHeight : 0
+            aspectPolicyKey: resizeDraft !== null
+                             ? resizeDraft.imageResizeAspectPolicy : "fit_within"
+            resamplingKey: resizeDraft !== null
+                           ? resizeDraft.imageResizeResampling : "lanczos3"
+            compareMode: surface.compareMode
+            candidatePending: surface.candidateForSelected
+            acceptedSource: surface.acceptedImageSource
+            candidateSource: surface.candidateImageSource
+            onCropRequested: (x, y, width, height) => {
+                if (surface.hasSelectedArtifact) {
+                    surface.cropRequested(operatorWorkspaceHost.openedArtifactId,
+                                          x, y, width, height)
                 }
             }
+            onResizeDraftRequested: surface.operatorDraftRequested("image.resize")
+            onResizeDraftSaveRequested: (draftId, width, height, aspect, resampling) =>
+                                            surface.resizeDraftSaveRequested(
+                                                draftId, width, height, aspect, resampling)
+            onResizeRequested: (artifactId, draftId, width, height, aspect, resampling) =>
+                                   surface.resizeRequested(
+                                       artifactId, draftId, width, height, aspect, resampling)
+        }
+    }
 
-            ImageCompareWorkspace {
-                anchors.fill: parent
-                anchors.margins: 24
-                visible: surface.compareMode && surface.candidateForSelected
-                acceptedSource: surface.acceptedImageSource
-                candidateSource: surface.candidateImageSource
+    Component {
+        id: aiImageOperatorWorkspace
+
+        AiImageOperatorWorkspace {
+            property var imageDraft: surface.draftForId(operatorWorkspaceHost.openedNodeId)
+            instruction: imageDraft !== null ? imageDraft.aiImageInstruction : ""
+            outputWidth: imageDraft !== null ? imageDraft.aiImageOutputWidth
+                         : surface.hasSelectedArtifact && surface.selectedArtifact.imageWidth > 0
+                           ? surface.selectedArtifact.imageWidth : 1024
+            outputHeight: imageDraft !== null ? imageDraft.aiImageOutputHeight
+                          : surface.hasSelectedArtifact && surface.selectedArtifact.imageHeight > 0
+                            ? surface.selectedArtifact.imageHeight : 1024
+            acceptedSource: surface.acceptedImageSource
+            candidateSource: surface.candidateImageSource
+            running: surface.inferImage.running
+            errorCode: surface.inferImage.errorCode
+            onCanvasRequested: (width, height) => {
+                if (imageDraft !== null) {
+                    surface.aiImageDraftSaveRequested(
+                        imageDraft.id, imageDraft.aiImageInstruction, width, height)
+                }
             }
         }
     }
@@ -408,7 +535,7 @@ Item {
 
                     Text {
                         Layout.fillWidth: true
-                        text: qsTr("SCENE GRAPH")
+                        text: qsTr("NODE GRAPH")
                         color: Theme.text
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
@@ -418,7 +545,7 @@ Item {
 
                     Text {
                         Layout.fillWidth: true
-                        text: qsTr("Connect Sources, Operators, and named Outputs.")
+                        text: qsTr("Add materials and editors freely; connect outputs when the flow is ready.")
                         color: Theme.muted
                         font.pixelSize: 9
                         elide: Text.ElideRight
@@ -436,7 +563,7 @@ Item {
                     Text {
                         id: primaryViewLabel
                         anchors.centerIn: parent
-                        text: qsTr("SCENE HOME")
+                        text: qsTr("PRIMARY VIEW")
                         color: Theme.accent
                         font.pixelSize: 9
                         font.weight: Font.DemiBold
@@ -461,12 +588,31 @@ Item {
                 candidates: surface.candidates
                 drafts: surface.operatorDrafts
                 operatorDescriptors: surface.operatorDescriptors
+                artifactKindKey: surface.hasSelectedArtifact
+                                 ? surface.selectedArtifact.kindKey : ""
+                artifactTextPreview: surface.hasSelectedArtifact
+                                     ? surface.selectedArtifact.textPreview : ""
+                artifactTextPreviewTruncated: surface.hasSelectedArtifact
+                                              && surface.selectedArtifact.textPreviewTruncated
+                acceptedImageSource: surface.acceptedImageSource
+                artifactImageWidth: surface.hasSelectedArtifact
+                                    ? surface.selectedArtifact.imageWidth : 0
+                artifactImageHeight: surface.hasSelectedArtifact
+                                     ? surface.selectedArtifact.imageHeight : 0
+                artifactAudioDurationMillis: surface.hasSelectedArtifact
+                                             ? surface.selectedArtifact.audioDurationMillis : 0
+                artifactAudioSampleRateHz: surface.hasSelectedArtifact
+                                           ? surface.selectedArtifact.audioSampleRateHz : 0
+                artifactAudioChannels: surface.hasSelectedArtifact
+                                       ? surface.selectedArtifact.audioChannels : 0
                 selectedNodeId: surface.selectedNodeId
                 selectedCandidateId: surface.selectedCandidateId
                 onNodeSelected: nodeId => surface.selectNode(nodeId)
                 onNodeOpened: nodeId => surface.openNode(nodeId)
-                onDraftRequested: operatorTypeKey => surface.operatorDraftRequested(
-                                      operatorTypeKey)
+                onDraftRequested: operatorTypeKey => {
+                    if (operatorTypeKey === "image.edit") surface.openImageEditor()
+                    else surface.operatorDraftRequested(operatorTypeKey)
+                }
                 onDraftSelected: draftId => surface.selectNode(draftId)
                 onDraftOpened: draftId => surface.openOperatorDraft(draftId)
                 onDraftDiscardRequested: draftId => surface.operatorDraftDiscardRequested(draftId)
@@ -481,7 +627,10 @@ Item {
                 operatorWorkspaces: ({
                     "text.edit": textEditOperatorWorkspace,
                     "text.transform": textEditOperatorWorkspace,
-                    "image.crop": imageCropOperatorWorkspace,
+                    "image.edit": imageEditorWorkspace,
+                    "image.crop": imageEditorWorkspace,
+                    "image.resize": imageEditorWorkspace,
+                    "image.generate": aiImageOperatorWorkspace,
                     "audio.speech_synthesize": audioSpeechOperatorWorkspace
                 })
                 onReturnRequested: surface.showGraph()

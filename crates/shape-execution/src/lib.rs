@@ -26,12 +26,13 @@ pub use executor::{
 };
 pub use ids::{AttemptId, JobId};
 pub use infer_runtime::{
-    AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, INFER_RUNTIME_COMPATIBILITY_ENDPOINT,
-    INFER_RUNTIME_CONTRACT_VERSION, INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
-    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
-    InferRuntimeClient, InferRuntimeClientError, InferRuntimeContract, InferRuntimeCredential,
-    InferRuntimeCredentialError, InferRuntimeCredentialStore, InferRuntimeEndpointResolver,
-    InferRuntimeEndpointSource, InferRuntimeExecutor, InferRuntimeProbe,
+    AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, IMAGE_GENERATE_CAPABILITY,
+    INFER_RUNTIME_COMPATIBILITY_ENDPOINT, INFER_RUNTIME_CONTRACT_VERSION,
+    INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1, InferRuntimeClient, InferRuntimeClientError,
+    InferRuntimeContract, InferRuntimeCredential, InferRuntimeCredentialError,
+    InferRuntimeCredentialStore, InferRuntimeEndpointResolver, InferRuntimeEndpointSource,
+    InferRuntimeExecutor, InferRuntimeImageGenerationExecutor, InferRuntimeProbe,
     InferRuntimeSpeechExecutor, ResolvedInferRuntimeEndpoint, probe_infer_runtime_contract,
 };
 pub use job::{ExecutionJob, ExecutionOutcome, ExecutionReceipt, JobState};

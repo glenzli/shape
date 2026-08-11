@@ -6,7 +6,7 @@ mod scene;
 mod text;
 
 pub use audio::AudioCandidate;
-pub use image::{ImageCandidate, ImageResizeCandidate};
+pub use image::{AiImageCandidate, ImageCandidate, ImageResizeCandidate};
 pub use scene::SceneGraphCandidate;
 pub use text::{
     TEXT_DOCUMENT_DATA_TYPE, TEXT_EDIT_OPERATOR_TYPE, TEXT_TRANSFORM_OPERATOR_TYPE, TextCandidate,
@@ -73,6 +73,23 @@ impl ShapeProject {
         let artifact = Artifact::new(name, kind)?;
         self.store.insert_artifact(&artifact)?;
         Ok(artifact)
+    }
+
+    /// Atomically creates an unaccepted Artifact together with its source-less
+    /// mutable Working Graph.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the graph does not target the new Artifact, has
+    /// an accepted input anchor, is empty, or cannot be durably published.
+    pub fn create_source_artifact_draft(
+        &mut self,
+        artifact: &Artifact,
+        graph: &ArtifactWorkingGraph,
+    ) -> Result<(), CoreError> {
+        Ok(self
+            .store
+            .insert_source_artifact_with_working_graph(artifact, graph)?)
     }
 
     /// Returns project metadata and current artifact heads.
@@ -146,6 +163,26 @@ impl ShapeProject {
         Ok(self.store.revision(revision_id)?)
     }
 
+    /// Loads one immutable revision and verifies its exact content object.
+    ///
+    /// Unlike [`Self::read_accepted`], this reads the requested historical
+    /// revision rather than the Artifact's current head. Read-only graph
+    /// projections use it to present the actual material bound to a Source
+    /// node.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the revision is unknown or its durable object is
+    /// missing or corrupt.
+    pub fn read_revision_content(
+        &self,
+        revision_id: RevisionId,
+    ) -> Result<AcceptedArtifactContent, CoreError> {
+        let revision = self.store.revision(revision_id)?;
+        let bytes = self.store.read_content(&revision.content)?;
+        Ok(AcceptedArtifactContent { revision, bytes })
+    }
+
     /// Loads the current accepted revision and verifies its exact content object.
     ///
     /// # Errors
@@ -157,10 +194,7 @@ impl ShapeProject {
     ) -> Result<Option<AcceptedArtifactContent>, CoreError> {
         self.store
             .accepted_revision(artifact_id)?
-            .map(|revision| {
-                let bytes = self.store.read_content(&revision.content)?;
-                Ok(AcceptedArtifactContent { revision, bytes })
-            })
+            .map(|revision| self.read_revision_content(revision.id))
             .transpose()
     }
 }

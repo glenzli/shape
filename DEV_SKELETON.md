@@ -67,8 +67,11 @@ canonical numeric-loopback endpoint. The HTTP owner then performs a bounded, pro
 redirect-free public-contract probe. Explicit diagnostics override remains first; the fixed 8787
 origin is only a temporary final migration fallback. Its separate `credential` owner atomically
 loads and rotates only a managed 256-bit token from Shape's owner-only secret store. The `responses`
-owner implements the first real `text.generate` executor with a fixed `assistant.general`,
-local-first/local-only/offline/no-fallback/zero-cost request. Runtime response identity enters the
+owner implements the first real `text.generate` executor with candidate.3 `language.respond` and
+an interactive `infer.capability_floor=foundational`, using a
+local-first/local-only/offline/no-fallback/zero-cost
+request. The frozen candidate.2 vocabulary is isolated behind the temporary version-negotiated
+migration branch and is never mixed into a candidate.3 request. Runtime response identity enters the
 payload-free execution receipt for later Job/explain lookup, but Runtime success remains only a
 Shape Candidate. `shape-core::propose_generated_text` owns the generative transformation and
 accepted-text context; `shape-desktop-bridge::infer_text` prepares a candidate outside the live
@@ -88,17 +91,48 @@ invalidation rules. Image-candidate clones share one immutable byte allocation, 
 acceptance does not duplicate the full encoded payload. Ordinary bridge snapshots project only
 image dimensions and immutable content identity; selected accepted or candidate PNG bytes cross
 the Rust/CXX boundary only on demand and are decoded into a display-scaled, byte-bounded native
-cache. `RasterCropOperatorWorkspace.qml` owns direct crop gestures, while `ImageCompareWorkspace.qml`
-owns accepted-versus-candidate presentation. Image branching, composites, masks, color adjustment,
-external editors, and model-backed image operations remain
-deferred until a concrete consumer freezes each contract.
+cache. `ImageEditorWorkspace.qml` is the product-level image editing owner; it composes
+`RasterCropOperatorWorkspace.qml` and `RasterResizeOperatorWorkspace.qml` as internal tools while
+`ImageCompareWorkspace.qml` owns accepted-versus-candidate presentation. The bridge retires any
+crop/resize Working Graph drafts together when either tool produces a Candidate, so the unified
+stage cannot leave a sibling tool draft stale. Image branching, composites, masks, and model-backed
+image operations remain deferred until a concrete consumer freezes each contract. Creative color
+adjustment is intentionally not assigned to a second built-in photo pipeline: the planned
+`image.color_grade` semantic Operator should use an explicit Shadow external-edit Adapter first. The
+Adapter pins the Shape input revision and color contract, receives materialized bytes plus a receipt,
+and can only create a transient Candidate; neither application may mutate the other's database.
 `shape-domain::image_resize` now separately owns the typed `image.resize` dimensions, aspect, and
 resampling contract. One opaque prepared plan carries its validated source and output interpretation
 into `shape-execution::raster::resize`; request JSON cannot reinterpret it. The executor accepts only
 materialized canonical PNG, preserves alpha/color/ICC interpretation, and applies explicit 32K-axis
 and 64-Mi-pixel bounds. `shape-core::project::image::raster_resize` owns the corresponding transient
-Candidate and explicit Accept use case. This Rust vertical slice is deliberately absent from the
-desktop catalog until a real resize workspace consumes it.
+Candidate and explicit Accept use case. `shape-desktop-bridge::operator_catalog::image_resize` owns
+the versioned draft codec; `RasterResizeOperatorWorkspace.qml` is its real desktop consumer and
+checkpoints authored dimensions/policies before execution reloads the exact draft identity.
+
+`shape-domain::ai_image` owns the first comprehensive image-generation family without leaking a
+provider workflow into the creative graph. `image.generate` is a zero-material Source Operator;
+`image.generate_from_materials` requires one or more accepted raster references with explicit
+roles. Both have one logical image output, so requested variants belong to the Candidate Shelf and
+never change graph port arity. The exact `20260811.1` parameter codec rejects model/provider/sampler
+fields, unknown revisions, duplicate materials, unanchored preserve constraints, and unsafe canvas
+or candidate bounds. `shape-execution::infer_runtime::image_generation` is the first physical
+consumer for the source-less form: it accepts only the exact candidate.3 Responses contract,
+disables redirects and proxies, bounds the JSON envelope to 32 MiB, revalidates the canonical
+Base64 PNG against the 20 MiB/4096-axis/16,777,216-pixel limits, and requires a successful
+cloud/subscription Job with no fallback. `infer_runtime::job_provenance` owns the shared bounded Job
+vocabulary used by speech and image adapters. `shape-core::project::image::ai_generate` keeps the
+normalized PNG, typed operation, and receipt transient; explicit Accept alone advances an existing
+unaccepted ImageRaster source identity to its first immutable revision. The desktop atomically
+creates that identity together with a zero-input Working Graph, persists the exact prompt/canvas,
+re-reads the draft before credential access, and adopts results through an independent
+`InferImageController`. `AiImageOperatorWorkspace.qml` and the real `OperatorIntentSidebar`
+consumer present one comprehensive Source Operator. The draft remains recoverable while Candidates
+are transient and is cleared only after acceptance. The live Shape App ACL does not currently
+authorize the required `image.generate`/subscription/balanced/cloud-only execution policy, so real
+generation fails closed without changing accepted history. Material-conditioned execution remains
+unavailable until Infer publishes a real typed raster-output edit/conditioned-generation contract;
+a text-only or image-description route must not be substituted.
 
 The first audio foundation continues those same dependency directions without introducing a media
 kernel. `shape-domain::audio` owns `audio.generate`,
@@ -124,6 +158,27 @@ project projection: `UiPreferences` owns persistent appearance/language lifecycl
 `MainTitleBar.qml` owns integrated window chrome and native safe areas. Individual workspace QML
 components keep ownership of their own visual regions. This split should be revisited when a
 second settings domain or a second top-level workspace creates a concrete growth trigger.
+
+The workbench shell now composes four additional presentation owners instead of retaining a
+permanent three-column dashboard. `WorkbenchProjectRail` owns compact project navigation;
+`SceneGraphContextStrip` preserves clickable Source/Operator/Output context above a focused media
+workspace; `CandidateFilmstrip` owns horizontal transient-result review actions; and
+`OperatorIntentSidebar` owns the reusable Intent/Change/Preserve/Reference presentation and is now
+consumed by the persisted zero-input `image.generate` draft. `Main.qml` only binds these regions to backend identities and
+signals. None of these QML owners may write project state or infer acceptance.
+The product direction is node-first. The Scene Working Graph is the primary creation surface even
+before content exists: Source and Operator nodes may be created while detached, typed connections
+bind outputs to inputs, and an output-port `+` is a shortcut for inserting a compatible downstream
+node. The current artifact-as-Scene desktop projection is an explicit compatibility slice, not the
+authority for future graph mutation. It must not be expanded to fake multi-source Scene membership;
+the next persistence revision needs a real Scene-owned Working Graph with node geometry, ports,
+edges, detached-node recovery, and output bindings.
+The current compatibility bridge now permits one honest detached `text.edit` entry: adding the AI
+Text Editor without a selected text source atomically creates an unaccepted `TextDocument` target
+and a zero-input Working Graph whose reusable intent is durable. The workspace labels it as waiting
+for materials and refuses execution. This proves node-before-material authoring without claiming
+that the compatibility Artifact is already a multi-node Scene or that typed connection mutation
+exists.
 `TextCompareWorkspace.qml` separately owns accepted-versus-candidate presentation; the C++
 `DesktopBackend` remains a presentation facade and never becomes the draft or persistence owner.
 The independent `InferRuntimeController` owns the asynchronous desktop probe lifecycle and exposes
@@ -137,19 +192,34 @@ session on the UI thread. It rejects concurrent generation, waits during destruc
 complete request generation and artifact identity, and exposes only stable localized failure codes.
 `InferSpeechController` owns the analogous but separate speech lifecycle because its admission,
 parameters, result type, and failure policy evolve independently from Text.
+`InferImageController` likewise owns the high-payload cloud-image lifecycle; large PNG bytes remain
+opaque until the UI-thread session adopts the Candidate and a selected preview is requested.
 The graph-aware desktop information architecture adds `ProjectNavigator.qml` for Scene selection
 and `ContextInspector.qml` for Explore, Details, and Lineage modes. `OperatorWorkspaceHost.qml`
-owns focused-workspace routing and lifecycle; Text and Raster Crop remain separate semantic owners.
+owns focused-workspace routing and lifecycle; text, image editing, and audio workspaces remain
+separate semantic owners.
 `shape-domain::operator_graph` now owns the platform-independent typed
 DAG contract: explicit Source, Operator, and Output roles; typed ports; multiple outputs; unique
 input binding; and cycle rejection. `shape-desktop-bridge::operator_graph` projects persisted
 accepted Revision/Transformation history into that contract. It stops cross-Artifact history at a
 pure Source boundary, so executor steps and media-internal structure never leak into the Scene.
-`SceneOperatorGraphWorkspace.qml` owns graph layout and interaction; `WorkspaceSurface.qml` owns
+`SceneOperatorGraphWorkspace.qml` owns graph layout and interaction, while
+`CreativeGraphNodeCard.qml` owns role- and media-specific accepted-node presentation. Source cards
+show origin context, editing cards show their creative method family, and the current Result card
+renders the selected Artifact's actual text, image, or audio summary. `WorkspaceSurface.qml` owns
 Scene-graph-first navigation and the explicit node-focused workspace boundary. Selection only
 updates shared context, while explicit open/review intent enters the media-specific workspace.
-`TextOperatorWorkspace.qml` serves deterministic `text.edit` and Infer-backed `text.transform`;
-`RasterCropOperatorWorkspace.qml` serves `image.crop`;
+`AiTextEditingWorkspace.qml` owns the focused AI text-edit lifecycle: external material summary,
+quick action, authored prompt, tone/style, sequential one-or-three Candidate generation, selectable
+output, targeted follow-up preparation, and explicit output lock. New compatibility drafts still use
+canonical `text.edit`, while legacy persisted `text.transform` drafts remain readable. The
+`shape.operator-draft.text-transform@20260812.1` codec persists
+rewrite/expand/polish/shorten/summarize, exact instruction, tone, style, and bounded variant count.
+Generation re-reads that project-backed configuration; producing a Candidate no longer deletes
+reusable text-node intent, and locking a text Candidate rebases the Working Graph to the new accepted
+head. `ImageEditorWorkspace.qml`
+presents one Image Editing stage; `image.crop` and `image.resize` remain exact internal contracts and
+accepted Transformation identities rather than separate palette entries;
 `AudioSpeechOperatorWorkspace.qml` serves preset-only `audio.speech_synthesize`; Source, Output,
 future family fallbacks and unknown Operators use `ReadOnlyNodeWorkspace.qml` without acquiring edit
 authority.
@@ -162,22 +232,28 @@ and derives its graph from immutable accepted history. Behind that projection,
 that every accepted Output node has one unique portable name. `shape-store` persists Scene heads and
 graph revisions with expected-head compare-and-swap, verifies that every durable node binding
 resolves to a real Artifact Revision or Transformation, and additively migrates initial and
-Scene-era schemas through the audio-capable and Working Graph revisions to schema `20260811.4`.
+Scene-era schemas through the audio-capable and Working Graph revisions to schema `20260811.5`.
 `shape-core::project::scene` keeps graph candidates transient until explicit acceptance. Two Scenes
 can therefore evolve and reopen independently without sharing draft state. The desktop compatibility
 slice stores type-compatible Operator drafts in a mutable Artifact Working Graph keyed to the exact
 accepted head. Unexecuted drafts restore on reopen without becoming accepted nodes; stale saves fail
 closed. `shape-desktop-bridge::operator_catalog` owns the currently executable compatibility and
-machine routing descriptors, while QML owns localized labels and search. Full persistent Scene graph
+machine routing descriptors, while QML owns localized labels and search. Working Graph anchors and
+input data types are optional only as one validated pair for a true zero-input Source Operator;
+accepted-input drafts preserve their previous serialized form. Full persistent Scene graph
 `shape-domain::working_graph` also owns a bounded versioned JSON envelope for mutable Operator-owned
 configuration without interpreting media semantics. `operator_catalog::text_transform` validates
-the exact rewrite/expand/polish/shorten mode plus instruction contract, including legacy rewrite-only
-configuration, while `operator_catalog::audio_speech` validates the preset, language, pace, and
+AI text-edit state: the exact rewrite/expand/polish/shorten/summarize mode, instruction, tone,
+style, and variant-count contract, including both older configuration revisions and legacy
+`text.transform` draft identity. The visible catalog exposes one AI Text Editor action, while
+`operator_catalog::audio_speech` validates the preset, language, pace, and
 mandatory disclosure contract. Both Infer controllers execute from an exact project-backed draft
-identity and re-read its Working Graph configuration instead of trusting a QML projection. General
-Operator parameters, full persistent Scene graph mutation, connections, a real multi-output flow,
-and reusable GraphComponent instances remain deferred until their real consumers freeze those
-contracts.
+identity and re-read its Working Graph configuration instead of trusting a QML projection. Full
+Scene-owned Working Graph mutation, durable typed connections, multi-material text pipeline
+compilation, durable unaccepted Explorations, a real multi-output flow, and reusable GraphComponent
+instances remain the next contract slice. The compatibility UI may expose node-first affordances,
+but it must label the current text-only executor boundary and must not claim that image/audio inputs
+participated before their real compiler stages exist.
 
 Developer launch lifecycle is a separate repository-tooling owner under `scripts/`. A validated
 candidate app is copied into an immutable revision-stamped release, then a product-side lock guards

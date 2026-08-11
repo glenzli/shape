@@ -132,6 +132,18 @@ bool verify_packaged_node_route(
         return false;
     }
 
+    if (expected_route == QStringLiteral("source.readonly")) {
+        QObject* const source_text =
+            host->findChild<QObject*>(QStringLiteral("sourceMaterialText"));
+        if (!node.value(QStringLiteral("hasTextPreview")).toBool() || source_text == nullptr
+            || source_text->property("text").toString()
+                   != node.value(QStringLiteral("textPreview")).toString()) {
+            std::cerr << "desktop graph smoke did not show the exact Source revision content"
+                      << std::endl;
+            return false;
+        }
+    }
+
     if (!invoke_packaged_click(
             workspace_surface,
             QStringLiteral("returnToSceneGraphButton"),
@@ -216,6 +228,10 @@ bool verifySceneGraphRoutes(QObject& root_object) {
     const auto output_node = graph_node_with_role(graph_nodes, QStringLiteral("output"));
     if (graph_nodes.size() != 3 || !source_node.has_value() || !operator_node.has_value()
         || !output_node.has_value()
+        || !source_node->value(QStringLiteral("hasTextPreview")).toBool()
+        || source_node->value(QStringLiteral("textPreview")).toString().isEmpty()
+        || source_node->value(QStringLiteral("textPreview")).toString()
+               == output_node->value(QStringLiteral("textPreview")).toString()
         || operator_node->value(QStringLiteral("operatorTypeKey")).toString()
                != QStringLiteral("text.edit")
         || operator_node->value(QStringLiteral("artifactId")).toString().isEmpty()
@@ -229,13 +245,13 @@ bool verifySceneGraphRoutes(QObject& root_object) {
             *workspace_surface,
             *source_node,
             QStringLiteral("source.readonly"),
-            QStringLiteral("sourceReadOnlyWorkspace")
+            QStringLiteral("sourceMaterialWorkspace")
         )
         || !verify_packaged_node_route(
             *workspace_surface,
             *operator_node,
             QStringLiteral("operator.text.edit"),
-            QStringLiteral("textEditOperatorWorkspace")
+            QStringLiteral("aiTextEditingWorkspace")
         )
         || !verify_packaged_node_route(
             *workspace_surface,
@@ -257,12 +273,16 @@ bool verifySceneGraphRoutes(QObject& root_object) {
         workspace_surface,
         QStringLiteral("openNode('%1')").arg(operator_node->value(QStringLiteral("id")).toString())
     );
-    if (!reopen_text_operator.evaluate().toBool() || reopen_text_operator.hasError()
-        || !invoke_packaged_click(
-            *workspace_surface,
-            QStringLiteral("openSpeechWorkspaceButton"),
-            "desktop graph smoke could not open speech from the text workspace"
-        )
+    if (!reopen_text_operator.evaluate().toBool() || reopen_text_operator.hasError()) {
+        std::cerr << "desktop graph smoke could not reopen the text Operator" << std::endl;
+        return false;
+    }
+    QQmlExpression open_speech_workspace(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("openSpeechWorkspace()")
+    );
+    if (!open_speech_workspace.evaluate().toBool() || open_speech_workspace.hasError()
         || workspace_surface->property("workspaceRouteKey").toString()
                != QStringLiteral("operator.audio.speech_synthesize")
         || workspace_surface->property("loadedWorkspaceObjectName").toString()
@@ -454,7 +474,7 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         return false;
     }
     QObject* const palette = root_object.findChild<QObject*>(QStringLiteral("operatorPalette"));
-    if (palette == nullptr || palette->property("compatibleOperatorCount").toInt() != 3
+    if (palette == nullptr || palette->property("compatibleOperatorCount").toInt() != 2
         || !invoke_packaged_click(
             root_object,
             QStringLiteral("addOperatorButton"),
@@ -468,25 +488,23 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
     QObject* const search_field =
         palette->findChild<QObject*>(QStringLiteral("operatorSearchField"));
     if (!palette->property("visible").toBool() || search_field == nullptr
-        || !search_field->setProperty("text", QStringLiteral("AI text transform"))) {
+        || !search_field->setProperty("text", QStringLiteral("revise"))) {
         std::cerr << "desktop authoring smoke could not search the Operator palette" << std::endl;
         return false;
     }
     QCoreApplication::processEvents();
     if (palette->property("visibleOperatorCount").toInt() != 1) {
-        std::cerr << "desktop authoring smoke Operator search did not narrow to Text Transform"
-                  << std::endl;
+        std::cerr << "desktop authoring smoke search did not find one Writing action" << std::endl;
         return false;
     }
     QQmlExpression choose_operator(
         QQmlEngine::contextForObject(palette),
         palette,
-        QStringLiteral("chooseOperator('text.transform')")
+        QStringLiteral("chooseOperator('text.edit')")
     );
     choose_operator.evaluate();
     if (choose_operator.hasError()) {
-        std::cerr << "desktop authoring smoke could not choose the Text Transform Operator"
-                  << std::endl;
+        std::cerr << "desktop authoring smoke could not choose the Writing action" << std::endl;
         return false;
     }
     QCoreApplication::processEvents();
@@ -500,25 +518,67 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         return false;
     }
     if (workspace_surface->property("workspaceRouteKey").toString()
-            != QStringLiteral("operator.text.transform")
+            != QStringLiteral("operator.text.edit")
         || workspace_surface->property("loadedWorkspaceObjectName").toString()
-               != QStringLiteral("textEditOperatorWorkspace")) {
+               != QStringLiteral("aiTextEditingWorkspace")) {
         std::cerr << "desktop authoring smoke routed the draft to the wrong workspace" << std::endl;
         return false;
     }
+    QObject* const workspace_host =
+        workspace_surface->findChild<QObject*>(QStringLiteral("operatorWorkspaceHost"));
+    QObject* const text_workspace =
+        workspace_host != nullptr
+            ? qvariant_cast<QObject*>(workspace_host->property("loadedWorkspace"))
+            : nullptr;
+    if (text_workspace == nullptr) {
+        return false;
+    }
+    text_workspace->setProperty("runtimeCompatible", true);
+    text_workspace->setProperty("credentialConfigured", false);
+    QCoreApplication::processEvents();
+    QObject* const setup_button =
+        text_workspace->findChild<QObject*>(QStringLiteral("aiTextGenerateButton"));
+    QObject* const settings_dialog =
+        root_object.findChild<QObject*>(QStringLiteral("shapeSettingsDialog"));
+    const bool setup_enabled =
+        setup_button != nullptr && setup_button->property("enabled").toBool();
+    if (setup_button == nullptr || settings_dialog == nullptr || !setup_enabled) {
+        std::cerr << "desktop authoring smoke did not expose actionable AI access setup"
+                  << " (button=" << (setup_button != nullptr)
+                  << ", settings=" << (settings_dialog != nullptr) << ", enabled=" << setup_enabled
+                  << ", accepted=" << text_workspace->property("hasAcceptedRevision").toBool()
+                  << ", draft=" << !text_workspace->property("operatorDraftId").toString().isEmpty()
+                  << ", runtime=" << text_workspace->property("runtimeCompatible").toBool()
+                  << ", credential=" << text_workspace->property("credentialConfigured").toBool()
+                  << ", running=" << text_workspace->property("generationRunning").toBool()
+                  << ", batch=" << text_workspace->property("batchActive").toBool() << ')'
+                  << std::endl;
+        return false;
+    }
     if (!invoke_packaged_click(
-            root_object,
-            QStringLiteral("textTransformModePolishButton"),
-            "desktop authoring smoke could not choose the Text Transform mode"
+            *workspace_surface,
+            QStringLiteral("aiTextGenerateButton"),
+            "desktop authoring smoke could not open AI access setup"
         )) {
         return false;
     }
-    QObject* const instruction_field =
-        root_object.findChild<QObject*>(QStringLiteral("textTransformInstructionField"));
+    QCoreApplication::processEvents();
+    if (!settings_dialog->property("visible").toBool()
+        || !QMetaObject::invokeMethod(settings_dialog, "close", Qt::DirectConnection)) {
+        std::cerr << "desktop authoring smoke left missing AI access as a disabled action"
+                  << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
     const QString instruction = QStringLiteral("Make it warmer, but preserve the title.");
-    if (instruction_field == nullptr || !instruction_field->property("visible").toBool()
-        || !instruction_field->setProperty("text", instruction)
-        || !QMetaObject::invokeMethod(instruction_field, "editingFinished", Qt::DirectConnection)) {
+    if (!backend.updateTextTransformDraft(
+            draft_id,
+            QStringLiteral("polish"),
+            instruction,
+            QStringLiteral("warm"),
+            QStringLiteral("literary"),
+            3
+        )) {
         std::cerr << "desktop authoring smoke could not author the Text Transform draft"
                   << std::endl;
         return false;
@@ -532,7 +592,16 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
                    .toString()
                != instruction
         || configured_drafts.first().toMap().value(QStringLiteral("textTransformMode")).toString()
-               != QStringLiteral("polish")) {
+               != QStringLiteral("polish")
+        || configured_drafts.first().toMap().value(QStringLiteral("textTransformTone")).toString()
+               != QStringLiteral("warm")
+        || configured_drafts.first().toMap().value(QStringLiteral("textTransformStyle")).toString()
+               != QStringLiteral("literary")
+        || configured_drafts.first()
+                   .toMap()
+                   .value(QStringLiteral("textTransformVariantCount"))
+                   .toInt()
+               != 3) {
         std::cerr << "desktop authoring smoke did not persist the Text Transform instruction"
                   << std::endl;
         return false;
@@ -564,7 +633,16 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
                    .toString()
                != instruction
         || reopened_drafts.first().toMap().value(QStringLiteral("textTransformMode")).toString()
-               != QStringLiteral("polish")) {
+               != QStringLiteral("polish")
+        || reopened_drafts.first().toMap().value(QStringLiteral("textTransformTone")).toString()
+               != QStringLiteral("warm")
+        || reopened_drafts.first().toMap().value(QStringLiteral("textTransformStyle")).toString()
+               != QStringLiteral("literary")
+        || reopened_drafts.first()
+                   .toMap()
+                   .value(QStringLiteral("textTransformVariantCount"))
+                   .toInt()
+               != 3) {
         std::cerr << "desktop authoring smoke did not restore the exact Operator draft"
                   << std::endl;
         return false;
@@ -593,16 +671,28 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
         return false;
     }
     QCoreApplication::processEvents();
-    QObject* const polish_mode_button =
-        root_object.findChild<QObject*>(QStringLiteral("textTransformModePolishButton"));
-    if (!instruction_field->property("visible").toBool()
-        || instruction_field->property("text").toString() != instruction
-        || polish_mode_button == nullptr || !polish_mode_button->property("selected").toBool()) {
+    QObject* const reopened_text_workspace =
+        workspace_host != nullptr
+            ? qvariant_cast<QObject*>(workspace_host->property("loadedWorkspace"))
+            : nullptr;
+    QCoreApplication::processEvents();
+    if (reopened_text_workspace == nullptr
+        || reopened_text_workspace->property("persistedInstruction").toString() != instruction
+        || reopened_text_workspace->property("pendingMode").toString() != QStringLiteral("polish")
+        || reopened_text_workspace->property("pendingTone").toString() != QStringLiteral("warm")
+        || reopened_text_workspace->property("pendingStyle").toString()
+               != QStringLiteral("literary")
+        || reopened_text_workspace->property("pendingVariantCount").toInt() != 3) {
         std::cerr << "desktop authoring smoke did not restore the instruction in the workspace"
                   << std::endl;
         return false;
     }
-    if (!backend.discardOperatorDraft(draft_id) || !backend.operatorDrafts().isEmpty()) {
+    const bool text_discarded = backend.discardOperatorDraft(draft_id);
+    const QVariantList drafts_after_text = backend.operatorDrafts();
+    if (!text_discarded || !drafts_after_text.isEmpty()) {
+        std::cerr << "desktop authoring smoke could not finish the text draft lifecycle"
+                  << " (discard=" << text_discarded << ", drafts=" << drafts_after_text.size()
+                  << ')' << std::endl;
         return false;
     }
 
@@ -712,7 +802,18 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
                   << std::endl;
         return false;
     }
-    return backend.discardOperatorDraft(speech_draft_id) && backend.operatorDrafts().isEmpty();
+    const bool speech_discarded = backend.discardOperatorDraft(speech_draft_id);
+    const QVariantList drafts_after_speech = backend.operatorDrafts();
+    const bool graph_restored =
+        QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection);
+    if (!speech_discarded || !drafts_after_speech.isEmpty() || !graph_restored) {
+        std::cerr << "desktop authoring smoke could not finish the speech draft lifecycle"
+                  << " (discard=" << speech_discarded << ", drafts=" << drafts_after_speech.size()
+                  << ", graph=" << graph_restored << ')' << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    return true;
 }
 
 } // namespace workspace_host_smoke

@@ -5,6 +5,7 @@
 //! receives explicit presence flags and presentation-safe values through one
 //! generated CXX contract. QML never reads or writes project files directly.
 
+mod infer_image;
 mod infer_runtime_access;
 mod infer_speech;
 mod infer_text;
@@ -18,6 +19,7 @@ use shape_domain::{
 };
 use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_runtime_contract};
 
+use infer_image::{InferImageCandidate, generate_infer_image_candidate};
 use infer_runtime_access::{infer_runtime_credential_status, install_infer_runtime_credential};
 use infer_speech::{InferSpeechCandidate, generate_infer_speech_candidate};
 use infer_text::{InferTextCandidate, generate_infer_text_candidate};
@@ -68,6 +70,11 @@ mod ffi {
         revision_id: String,
         transformation_id: String,
         intent: String,
+        media_type: String,
+        byte_length: u64,
+        has_text_preview: bool,
+        text_preview_truncated: bool,
+        text_preview: String,
         input_ports: Vec<OperatorPortWire>,
         output_ports: Vec<OperatorPortWire>,
     }
@@ -88,16 +95,27 @@ mod ffi {
         draft_id: String,
         context_artifact_id: String,
         operator_type_key: String,
+        has_input_data_type: bool,
         input_data_type_key: String,
         output_data_type_key: String,
         configuration_schema: String,
         text_transform_mode: String,
         text_transform_instruction: String,
+        text_transform_tone: String,
+        text_transform_style: String,
+        text_transform_variant_count: u8,
         audio_speech_preset_alias: String,
         audio_speech_preset_catalog_revision: String,
         audio_speech_language: String,
         audio_speech_speed_milli: u16,
         audio_speech_disclosure_required: bool,
+        image_resize_target_width: u32,
+        image_resize_target_height: u32,
+        image_resize_aspect_policy: String,
+        image_resize_resampling: String,
+        ai_image_instruction: String,
+        ai_image_output_width: u32,
+        ai_image_output_height: u32,
     }
 
     /// One Rust-owned Operator descriptor compatible with an accepted source.
@@ -214,6 +232,7 @@ mod ffi {
 
     extern "Rust" {
         type DesktopSession;
+        type InferImageCandidate;
         type InferSpeechCandidate;
         type InferTextCandidate;
 
@@ -249,6 +268,15 @@ mod ffi {
             explicit_override: &str,
         ) -> Result<Box<InferSpeechCandidate>>;
 
+        /// Runs zero-input AI image generation outside the live desktop session.
+        fn generate_infer_image_candidate(
+            project_path: &str,
+            artifact_id: &str,
+            draft_id: &str,
+            credential_path: &str,
+            explicit_override: &str,
+        ) -> Result<Box<InferImageCandidate>>;
+
         /// Opens one mutable desktop session. The session remains the sole
         /// owner of transient candidates and the underlying project.
         fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>>;
@@ -262,6 +290,17 @@ mod ffi {
             artifact_name: &str,
             initial_text: &str,
         ) -> Result<ProjectSnapshotWire>;
+        fn session_create_ai_image_draft(
+            self: &mut DesktopSession,
+            artifact_name: &str,
+            instruction: &str,
+            output_width: u32,
+            output_height: u32,
+        ) -> Result<ProjectSnapshotWire>;
+        fn session_create_detached_text_editor(
+            self: &mut DesktopSession,
+            artifact_name: &str,
+        ) -> Result<ProjectSnapshotWire>;
         fn session_begin_operator_draft(
             self: &mut DesktopSession,
             artifact_id: &str,
@@ -273,6 +312,9 @@ mod ffi {
             draft_id: &str,
             mode_key: &str,
             instruction: &str,
+            tone_key: &str,
+            style_key: &str,
+            variant_count: u8,
         ) -> Result<OperatorDraftWire>;
         fn session_update_audio_speech_draft(
             self: &mut DesktopSession,
@@ -282,6 +324,21 @@ mod ffi {
             language: &str,
             speed_milli: u16,
             synthetic_disclosure_required: bool,
+        ) -> Result<OperatorDraftWire>;
+        fn session_update_image_resize_draft(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            target_width: u32,
+            target_height: u32,
+            aspect_policy_key: &str,
+            resampling_key: &str,
+        ) -> Result<OperatorDraftWire>;
+        fn session_update_ai_image_draft(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            instruction: &str,
+            output_width: u32,
+            output_height: u32,
         ) -> Result<OperatorDraftWire>;
         fn session_operator_descriptors(
             self: &DesktopSession,
@@ -305,6 +362,11 @@ mod ffi {
             y: u32,
             width: u32,
             height: u32,
+        ) -> Result<CandidateWire>;
+        fn session_propose_raster_resize(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            draft_id: &str,
         ) -> Result<CandidateWire>;
         fn session_candidates(self: &DesktopSession) -> Vec<CandidateWire>;
         fn session_accept_candidate(
@@ -337,6 +399,12 @@ mod ffi {
         fn session_adopt_infer_speech(
             self: &mut DesktopSession,
             candidate: Box<InferSpeechCandidate>,
+        ) -> Result<CandidateWire>;
+        /// Adopts one completed zero-input image result only while its target
+        /// Artifact remains unaccepted and its exact draft still exists.
+        fn session_adopt_infer_image(
+            self: &mut DesktopSession,
+            candidate: Box<InferImageCandidate>,
         ) -> Result<CandidateWire>;
     }
 }

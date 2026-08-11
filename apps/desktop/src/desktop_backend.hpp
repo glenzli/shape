@@ -81,13 +81,23 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE bool createProject(const QUrl& parentDirectory, const QString& projectName);
     Q_INVOKABLE bool openProject(const QUrl& bundleUrl);
     Q_INVOKABLE bool createTextScene(const QString& sceneName, const QString& initialText);
+    Q_INVOKABLE bool createAiImageScene(
+        const QString& sceneName,
+        const QString& instruction,
+        int outputWidth,
+        int outputHeight
+    );
+    Q_INVOKABLE bool createDetachedTextEditor(const QString& nodeName);
     Q_INVOKABLE QString
     beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey);
     Q_INVOKABLE QVariantList compatibleOperators(const QString& artifactId);
     Q_INVOKABLE bool updateTextTransformDraft(
         const QString& draftId,
         const QString& modeKey,
-        const QString& instruction
+        const QString& instruction,
+        const QString& toneKey,
+        const QString& styleKey,
+        int variantCount
     );
     Q_INVOKABLE bool updateAudioSpeechDraft(
         const QString& draftId,
@@ -97,12 +107,26 @@ class DesktopBackend : public QObject {
         int speedMilli,
         bool syntheticDisclosureRequired
     );
+    Q_INVOKABLE bool updateImageResizeDraft(
+        const QString& draftId,
+        int targetWidth,
+        int targetHeight,
+        const QString& aspectPolicyKey,
+        const QString& resamplingKey
+    );
+    Q_INVOKABLE bool updateAiImageDraft(
+        const QString& draftId,
+        const QString& instruction,
+        int outputWidth,
+        int outputHeight
+    );
     Q_INVOKABLE bool discardOperatorDraft(const QString& draftId);
     Q_INVOKABLE bool
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);
     Q_INVOKABLE bool importRaster(const QUrl& sourceUrl);
     Q_INVOKABLE bool
     proposeRasterCrop(const QString& artifactId, int x, int y, int width, int height);
+    Q_INVOKABLE bool proposeRasterResize(const QString& artifactId, const QString& draftId);
     Q_INVOKABLE bool
     prepareImagePreviews(const QString& artifactId, const QString& candidateId = QString());
     Q_INVOKABLE bool selectCandidate(const QString& candidateId);
@@ -117,6 +141,9 @@ class DesktopBackend : public QObject {
     /// Adopts one background speech result on the UI thread after Rust revalidates its source.
     [[nodiscard]] QString
     adoptInferSpeechCandidate(rust::Box<shape::desktop::InferSpeechCandidate> candidate);
+    /// Adopts one background source-less image result after exact draft revalidation.
+    [[nodiscard]] QString
+    adoptInferImageCandidate(rust::Box<shape::desktop::InferImageCandidate> candidate);
 
     /// Fetches exact WAV bytes only for the preview selected by the audio controller.
     [[nodiscard]] std::optional<AudioPreviewData>

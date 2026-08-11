@@ -8,6 +8,7 @@ Button {
     property url source
     property string toolTipText: ""
     property string accessibleName: toolTipText
+    property bool primary: false
     property bool selected: false
     property int buttonSize: 28
     property int iconSize: 17
@@ -21,8 +22,14 @@ Button {
 
     background: Rectangle {
         radius: 6
+        border.width: control.primary ? 0 : 1
+        border.color: control.selected ? Theme.accent : "transparent"
         color: {
-            if (!control.enabled) return "transparent"
+            if (!control.enabled) return control.primary ? Theme.raised : "transparent"
+            if (control.primary) {
+                return control.down ? Qt.darker(Theme.accent, 1.1)
+                                    : control.hovered ? Theme.accentHover : Theme.accent
+            }
             if (control.selected) return Theme.accentSoft
             if (control.down) return Theme.selected
             if (control.hovered) return Theme.raisedHover
@@ -46,8 +53,9 @@ Button {
         size: control.iconSize
         opacity: control.enabled ? 1.0 : 0.34
         color: !control.enabled ? Theme.disabled
-                                : control.selected ? Theme.accent
-                                                   : control.hovered ? Theme.text : Theme.textSoft
+                                : control.primary ? Theme.accentText
+                                                  : control.selected ? Theme.accent
+                                                                     : control.hovered ? Theme.text : Theme.textSoft
     }
 
     ToolTip {

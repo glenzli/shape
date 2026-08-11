@@ -1,6 +1,8 @@
 //! Transient cross-media candidate collection with exact identity mutation.
 
-use shape_core::{AudioCandidate, ImageCandidate, TextCandidate};
+use shape_core::{
+    AiImageCandidate, AudioCandidate, ImageCandidate, ImageResizeCandidate, TextCandidate,
+};
 use shape_domain::ArtifactId;
 
 /// One executed payload awaiting explicit user acceptance.
@@ -8,6 +10,8 @@ use shape_domain::ArtifactId;
 pub(super) enum Candidate {
     Text(TextCandidate),
     Image(ImageCandidate),
+    ImageResize(ImageResizeCandidate),
+    AiImage(AiImageCandidate),
     Audio(AudioCandidate),
 }
 
@@ -16,6 +20,8 @@ impl Candidate {
         match self {
             Self::Text(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Image(candidate) => candidate.receipt().attempt_id.to_string(),
+            Self::ImageResize(candidate) => candidate.receipt().attempt_id.to_string(),
+            Self::AiImage(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Audio(candidate) => candidate.receipt().attempt_id.to_string(),
         }
     }
@@ -24,6 +30,8 @@ impl Candidate {
         match self {
             Self::Text(candidate) => candidate.artifact_id(),
             Self::Image(candidate) => candidate.artifact_id(),
+            Self::ImageResize(candidate) => candidate.artifact_id(),
+            Self::AiImage(candidate) => candidate.artifact_id(),
             Self::Audio(candidate) => candidate.artifact_id(),
         }
     }
@@ -73,6 +81,24 @@ impl CandidateShelf {
                     candidate.operation(),
                     Some(shape_domain::TransformationOperation::RasterCrop(existing))
                         if *existing == crop
+                )
+        })
+    }
+
+    pub(super) fn contains_image_resize(
+        &self,
+        artifact_id: ArtifactId,
+        resize: shape_domain::RasterResize,
+    ) -> bool {
+        self.candidates.iter().any(|candidate| {
+            let Candidate::ImageResize(candidate) = candidate else {
+                return false;
+            };
+            candidate.artifact_id() == artifact_id
+                && matches!(
+                    candidate.operation(),
+                    Some(shape_domain::TransformationOperation::RasterResize(existing))
+                        if *existing == resize
                 )
         })
     }

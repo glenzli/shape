@@ -47,31 +47,38 @@ Button {
         }
     }
 
-    contentItem: Row {
-        id: buttonContent
+    contentItem: Item {
+        implicitWidth: buttonContent.implicitWidth
+        implicitHeight: buttonContent.implicitHeight
 
-        spacing: control.iconSource.toString().length > 0 && control.text.length > 0 ? 7 : 0
+        Row {
+            id: buttonContent
+            anchors.centerIn: parent
+            spacing: control.iconSource.toString().length > 0 && control.text.length > 0 ? 7 : 0
 
-        ShapeIcon {
-            visible: control.iconSource.toString().length > 0
-            source: control.iconSource
-            size: control.iconSize
-            color: !control.enabled ? Theme.disabled
-                                    : control.primary ? Theme.accentText
-                                                      : control.selected ? Theme.accent
-                                                                         : Theme.textSoft
-        }
+            ShapeIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: control.iconSource.toString().length > 0
+                source: control.iconSource
+                size: control.iconSize
+                color: !control.enabled ? Theme.disabled
+                                        : control.primary ? Theme.accentText
+                                                          : control.selected ? Theme.accent
+                                                                             : Theme.textSoft
+            }
 
-        Text {
-            visible: control.text.length > 0
-            text: control.text
-            color: !control.enabled ? Theme.disabled
-                                    : control.primary ? Theme.accentText
-                                                      : control.selected ? Theme.accent
-                                                                         : Theme.textSoft
-            font.pixelSize: Theme.fontBody
-            font.weight: control.primary || control.selected ? Font.DemiBold : Font.Normal
-            verticalAlignment: Text.AlignVCenter
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: control.text.length > 0
+                text: control.text
+                color: !control.enabled ? Theme.disabled
+                                        : control.primary ? Theme.accentText
+                                                          : control.selected ? Theme.accent
+                                                                             : Theme.textSoft
+                font.pixelSize: Theme.fontBody
+                font.weight: control.primary || control.selected ? Font.DemiBold : Font.Normal
+                verticalAlignment: Text.AlignVCenter
+            }
         }
     }
 }

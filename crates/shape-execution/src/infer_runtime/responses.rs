@@ -222,7 +222,7 @@ impl<'a> ResponsesRequest<'a> {
         ]);
         metadata.insert(
             revision.capability_floor_metadata_key(),
-            revision.capable_level(),
+            revision.interactive_text_floor(),
         );
         Self {
             model: revision.text_intent(),

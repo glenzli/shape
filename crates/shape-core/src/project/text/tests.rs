@@ -211,6 +211,7 @@ fn text_transform_modes_are_stable_creative_keys_and_never_fallback() {
         (TextTransformMode::Expand, "expand", "Expand text"),
         (TextTransformMode::Polish, "polish", "Polish text"),
         (TextTransformMode::Shorten, "shorten", "Shorten text"),
+        (TextTransformMode::Summarize, "summarize", "Summarize text"),
     ];
 
     for (mode, key, verb) in cases {
@@ -226,7 +227,11 @@ fn text_transform_modes_are_stable_creative_keys_and_never_fallback() {
 
     assert_eq!(TextTransformMode::from_key(""), None);
     assert_eq!(TextTransformMode::from_key("Rewrite"), None);
-    assert_eq!(TextTransformMode::from_key("summarize"), None);
+    assert_eq!(
+        TextTransformMode::from_key("summarize"),
+        Some(TextTransformMode::Summarize)
+    );
+    assert_eq!(TextTransformMode::from_key("translate"), None);
 }
 
 #[test]

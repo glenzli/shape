@@ -9,21 +9,24 @@ use reqwest::{
     redirect::Policy,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use shape_domain::{
     ArtifactContentContract, AudioOriginDisclosure, SpeechSynthesisOperation, SpeechVoiceSelection,
 };
 
 use crate::{
     CapabilityId, ExecutionFailure, ExecutionOutput, ExecutionRequest, Executor, ExecutorIdentity,
-    ExternalAttemptProvenance, ExternalExecutionProvenance, ExternalRoutingCandidate,
+    ExternalExecutionProvenance,
     audio::{MAX_AUDIO_OUTPUT_BYTES, parse_pcm_s16le_wav},
 };
 
 use super::{
     INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
     InferRuntimeContractRevision, InferRuntimeCredential, InferRuntimeEndpointResolver,
-    ResolvedInferRuntimeEndpoint, should_retry_endpoint, validate_discovered_contract,
+    ResolvedInferRuntimeEndpoint,
+    job_provenance::{
+        JobPolicyProfile, JobProvenanceError, bounded_text, parse_job_snapshot, valid_job_id,
+    },
+    should_retry_endpoint, validate_discovered_contract,
 };
 
 /// Shape-side creative capability implemented by Runtime `speech.synthesize`.
@@ -44,10 +47,6 @@ const MAX_TEXT_BYTES: usize = 64 * 1024;
 const MAX_INSTRUCTION_BYTES: usize = 16 * 1024;
 const MAX_JOB_BYTES: usize = 1024 * 1024;
 const MAX_JOB_READ_BYTES: u64 = 1024 * 1024;
-const MAX_PROVENANCE_TEXT_BYTES: usize = 256;
-const MAX_ATTEMPTS: usize = 16;
-const MAX_ROUTING_CANDIDATES: usize = 64;
-const MAX_REASON_CODES: usize = 32;
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(500);
 const REQUEST_TIMEOUT: Duration = Duration::from_mins(5);
 
@@ -326,7 +325,14 @@ impl SpeechClient {
                 false,
             ));
         }
-        parse_job_snapshot(revision, job_id, &bytes)
+        parse_job_snapshot(
+            revision,
+            job_id,
+            SPEECH_INTENT,
+            JobPolicyProfile::ShapeLocalInteractive,
+            &bytes,
+        )
+        .map_err(SpeechAttemptFailure::from_job_provenance)
     }
 }
 
@@ -377,395 +383,6 @@ impl<'a> SpeechRequest<'a> {
     }
 }
 
-#[derive(Deserialize)]
-struct JobSnapshot {
-    id: String,
-    app_id: String,
-    intent: String,
-    provider: String,
-    deployment: String,
-    model_profile: String,
-    model_build: String,
-    physical_model: String,
-    placement: String,
-    #[serde(alias = "quality_grade")]
-    capability_level: String,
-    #[serde(alias = "rating_status")]
-    evaluation_status: String,
-    resource_class: String,
-    state: String,
-    policy: String,
-    priority: String,
-    constraints: Value,
-    routing: RoutingDecision,
-    attempts: Vec<Attempt>,
-    error: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct RoutingDecision {
-    #[serde(alias = "quality_floor")]
-    capability_floor: String,
-    candidates: Vec<RoutingCandidate>,
-}
-
-#[derive(Deserialize)]
-struct RoutingCandidate {
-    deployment: String,
-    provider: String,
-    status: String,
-    rank: Option<u32>,
-    #[serde(default)]
-    reason_codes: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct Attempt {
-    number: u32,
-    provider: String,
-    deployment: String,
-    outcome: String,
-    trigger: String,
-    error_kind: Option<String>,
-}
-
-fn parse_job_snapshot(
-    revision: InferRuntimeContractRevision,
-    expected_job_id: &str,
-    bytes: &[u8],
-) -> Result<ExternalExecutionProvenance, SpeechAttemptFailure> {
-    let raw: Value = serde_json::from_slice(bytes)
-        .map_err(|_| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
-    validate_job_vocabulary(revision, &raw)?;
-    let snapshot: JobSnapshot = serde_json::from_value(raw)
-        .map_err(|_| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
-    let scalar_fields = [
-        snapshot.id.as_str(),
-        snapshot.app_id.as_str(),
-        snapshot.intent.as_str(),
-        snapshot.provider.as_str(),
-        snapshot.deployment.as_str(),
-        snapshot.model_profile.as_str(),
-        snapshot.model_build.as_str(),
-        snapshot.physical_model.as_str(),
-        snapshot.placement.as_str(),
-        snapshot.capability_level.as_str(),
-        snapshot.evaluation_status.as_str(),
-        snapshot.resource_class.as_str(),
-        snapshot.policy.as_str(),
-        snapshot.priority.as_str(),
-        snapshot.routing.capability_floor.as_str(),
-    ];
-    if snapshot.id != expected_job_id
-        || snapshot.app_id != "shape"
-        || snapshot.intent != SPEECH_INTENT
-        || snapshot.state != "succeeded"
-        || snapshot.error.is_some()
-        || scalar_fields.iter().any(|value| !bounded_text(value))
-        || !revision.valid_capability_level(&snapshot.capability_level)
-        || !matches!(
-            snapshot.evaluation_status.as_str(),
-            "provisional" | "benchmarked"
-        )
-        || snapshot.attempts.is_empty()
-        || snapshot.attempts.len() > MAX_ATTEMPTS
-        || snapshot.routing.candidates.len() > MAX_ROUTING_CANDIDATES
-    {
-        return Err(SpeechAttemptFailure::new(
-            "infer_invalid_response",
-            false,
-            false,
-        ));
-    }
-    let requested = validate_shape_policy(revision, &snapshot)?;
-
-    let attempts = external_attempts(snapshot.attempts)?;
-    if attempts.last().map(|attempt| attempt.outcome.as_str()) != Some("succeeded") {
-        return Err(SpeechAttemptFailure::new(
-            "infer_invalid_response",
-            false,
-            false,
-        ));
-    }
-    if attempts.iter().any(|attempt| attempt.trigger == "fallback") {
-        return Err(SpeechAttemptFailure::new(
-            "infer_policy_violation",
-            false,
-            false,
-        ));
-    }
-
-    let routing_candidates = external_routing_candidates(snapshot.routing.candidates)?;
-
-    Ok(ExternalExecutionProvenance {
-        contract_revision: revision.as_str().to_owned(),
-        app_id: snapshot.app_id,
-        intent: snapshot.intent,
-        provider: snapshot.provider,
-        deployment: snapshot.deployment,
-        model_profile: snapshot.model_profile,
-        model_build: snapshot.model_build,
-        physical_model: snapshot.physical_model,
-        placement: snapshot.placement,
-        capability_level: snapshot.capability_level,
-        evaluation_status: snapshot.evaluation_status,
-        resource_class: snapshot.resource_class,
-        policy: snapshot.policy,
-        priority: snapshot.priority,
-        requested_policy: requested.policy,
-        requested_priority: requested.priority,
-        requested_provider_access_class: requested.provider_access_class,
-        requested_placement: requested.placement,
-        requested_preference: requested.preference,
-        offline_required: requested.offline_required,
-        requested_latency: requested.latency,
-        fallback: requested.fallback,
-        requested_deadline_ms: requested.deadline_ms,
-        max_cost_microusd: 0,
-        capability_floor: snapshot.routing.capability_floor,
-        routing_candidates,
-        attempts,
-    })
-}
-
-struct ValidatedShapePolicy {
-    policy: String,
-    priority: String,
-    provider_access_class: Option<String>,
-    placement: String,
-    preference: String,
-    offline_required: bool,
-    latency: Option<String>,
-    fallback: String,
-    deadline_ms: Option<u64>,
-}
-
-fn validate_shape_policy(
-    revision: InferRuntimeContractRevision,
-    snapshot: &JobSnapshot,
-) -> Result<ValidatedShapePolicy, SpeechAttemptFailure> {
-    let constraints = snapshot
-        .constraints
-        .as_object()
-        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
-    let policy = constraint_string(constraints, "policy")?;
-    let priority = constraint_string(constraints, "priority")?;
-    let provider_access_class = optional_constraint_string(constraints, "provider_access_class")?;
-    let placement = constraint_string(constraints, "placement")?;
-    let preference = constraint_string(constraints, "prefer")?;
-    let offline_required = constraints
-        .get("offline_required")
-        .and_then(Value::as_bool)
-        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
-    let fallback = constraint_string(constraints, "fallback")?;
-    let capability_floor = constraint_string(constraints, revision.job_capability_floor_key())?;
-    let latency = optional_constraint_string(constraints, "latency")?;
-    let deadline_ms = optional_constraint_u64(constraints, "deadline_ms")?;
-    let max_cost_usd = constraints
-        .get("max_cost_usd")
-        .and_then(Value::as_f64)
-        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
-    if policy != "local-first"
-        || priority != "interactive"
-        || placement != "local_only"
-        || preference != "local"
-        || !offline_required
-        || fallback != "none"
-        || max_cost_usd != 0.0
-        || capability_floor != revision.capable_level()
-        || provider_access_class.is_some()
-        || latency.as_deref() != Some("interactive")
-        || deadline_ms.is_some()
-        || capability_floor != snapshot.routing.capability_floor
-        || snapshot.placement != "local"
-        || snapshot.policy != "local-first"
-        || snapshot.priority != "interactive"
-    {
-        return Err(SpeechAttemptFailure::new(
-            "infer_policy_violation",
-            false,
-            false,
-        ));
-    }
-    Ok(ValidatedShapePolicy {
-        policy,
-        priority,
-        provider_access_class,
-        placement,
-        preference,
-        offline_required,
-        latency,
-        fallback,
-        deadline_ms,
-    })
-}
-
-fn validate_job_vocabulary(
-    revision: InferRuntimeContractRevision,
-    snapshot: &Value,
-) -> Result<(), SpeechAttemptFailure> {
-    let object = snapshot
-        .as_object()
-        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
-    let constraints = object
-        .get("constraints")
-        .and_then(Value::as_object)
-        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
-    let routing = object
-        .get("routing")
-        .and_then(Value::as_object)
-        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
-    let valid = match revision {
-        InferRuntimeContractRevision::Candidate2 => {
-            object.contains_key("quality_grade")
-                && object.contains_key("rating_status")
-                && !object.contains_key("capability_level")
-                && !object.contains_key("evaluation_status")
-                && constraints.contains_key("quality_floor")
-                && !constraints.contains_key("capability_floor")
-                && routing.contains_key("quality_floor")
-                && !routing.contains_key("capability_floor")
-        }
-        InferRuntimeContractRevision::Candidate3 => {
-            object.contains_key("capability_level")
-                && object.contains_key("evaluation_status")
-                && !object.contains_key("quality_grade")
-                && !object.contains_key("rating_status")
-                && constraints.contains_key("capability_floor")
-                && !constraints.contains_key("quality_floor")
-                && routing.contains_key("capability_floor")
-                && !routing.contains_key("quality_floor")
-        }
-    };
-    if valid {
-        Ok(())
-    } else {
-        Err(SpeechAttemptFailure::new(
-            "infer_invalid_response",
-            false,
-            false,
-        ))
-    }
-}
-
-fn external_attempts(
-    attempts: Vec<Attempt>,
-) -> Result<Vec<ExternalAttemptProvenance>, SpeechAttemptFailure> {
-    attempts
-        .into_iter()
-        .map(|attempt| {
-            if !bounded_text(&attempt.provider)
-                || !bounded_text(&attempt.deployment)
-                || !matches!(
-                    attempt.outcome.as_str(),
-                    "running" | "succeeded" | "failed" | "interrupted"
-                )
-                || !matches!(
-                    attempt.trigger.as_str(),
-                    "initial" | "retry" | "fallback" | "recovery"
-                )
-                || attempt
-                    .error_kind
-                    .as_deref()
-                    .is_some_and(|value| !bounded_text(value))
-            {
-                return Err(SpeechAttemptFailure::new(
-                    "infer_invalid_response",
-                    false,
-                    false,
-                ));
-            }
-            Ok(ExternalAttemptProvenance {
-                number: attempt.number,
-                provider: attempt.provider,
-                deployment: attempt.deployment,
-                outcome: attempt.outcome,
-                trigger: attempt.trigger,
-                error_kind: attempt.error_kind,
-            })
-        })
-        .collect()
-}
-
-fn external_routing_candidates(
-    candidates: Vec<RoutingCandidate>,
-) -> Result<Vec<ExternalRoutingCandidate>, SpeechAttemptFailure> {
-    candidates
-        .into_iter()
-        .map(|candidate| {
-            if !bounded_text(&candidate.provider)
-                || !bounded_text(&candidate.deployment)
-                || !matches!(
-                    candidate.status.as_str(),
-                    "eligible" | "fallback_eligible" | "rejected"
-                )
-                || candidate.reason_codes.len() > MAX_REASON_CODES
-                || candidate
-                    .reason_codes
-                    .iter()
-                    .any(|code| !bounded_text(code))
-            {
-                return Err(SpeechAttemptFailure::new(
-                    "infer_invalid_response",
-                    false,
-                    false,
-                ));
-            }
-            Ok(ExternalRoutingCandidate {
-                provider: candidate.provider,
-                deployment: candidate.deployment,
-                status: candidate.status,
-                rank: candidate.rank,
-                reason_codes: candidate.reason_codes,
-            })
-        })
-        .collect()
-}
-
-fn constraint_string(
-    constraints: &serde_json::Map<String, Value>,
-    key: &str,
-) -> Result<String, SpeechAttemptFailure> {
-    constraints
-        .get(key)
-        .and_then(Value::as_str)
-        .filter(|value| bounded_text(value))
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))
-}
-
-fn optional_constraint_string(
-    constraints: &serde_json::Map<String, Value>,
-    key: &str,
-) -> Result<Option<String>, SpeechAttemptFailure> {
-    match constraints.get(key) {
-        None | Some(Value::Null) => Ok(None),
-        Some(Value::String(value)) if bounded_text(value) => Ok(Some(value.clone())),
-        Some(_) => Err(SpeechAttemptFailure::new(
-            "infer_invalid_response",
-            false,
-            false,
-        )),
-    }
-}
-
-fn optional_constraint_u64(
-    constraints: &serde_json::Map<String, Value>,
-    key: &str,
-) -> Result<Option<u64>, SpeechAttemptFailure> {
-    match constraints.get(key) {
-        None | Some(Value::Null) => Ok(None),
-        Some(value) => value
-            .as_u64()
-            .map(Some)
-            .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false)),
-    }
-}
-
-fn bounded_text(value: &str) -> bool {
-    !value.is_empty() && value.len() <= MAX_PROVENANCE_TEXT_BYTES && value.is_ascii()
-}
-
 fn content_type(headers: &HeaderMap) -> Option<&str> {
     headers
         .get(CONTENT_TYPE)
@@ -781,13 +398,6 @@ fn required_header(headers: &HeaderMap, name: &str) -> Result<String, SpeechAtte
         .filter(|value| bounded_text(value))
         .map(ToOwned::to_owned)
         .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))
-}
-
-fn valid_job_id(value: &str) -> bool {
-    (1..=160).contains(&value.len())
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
 }
 
 #[derive(Deserialize)]
@@ -855,6 +465,10 @@ impl SpeechAttemptFailure {
             InferRuntimeClientError::IncompatibleContract { .. } => "infer_incompatible_contract",
         };
         Self::new(code, transport, transport)
+    }
+
+    fn from_job_provenance(error: JobProvenanceError) -> Self {
+        Self::new(error.code(), false, false)
     }
 }
 

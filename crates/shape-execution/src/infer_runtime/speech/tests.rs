@@ -359,18 +359,26 @@ fn job_readback_rejects_fallback_that_would_violate_the_shape_request() {
     let error = parse_job_snapshot(
         InferRuntimeContractRevision::Candidate3,
         "job_policy_violation",
+        SPEECH_INTENT,
+        JobPolicyProfile::ShapeLocalInteractive,
         &bytes,
     )
     .expect_err("no-fallback execution rejects a fallback Attempt");
-    assert_eq!(error.failure.code, "infer_policy_violation");
+    assert_eq!(error, JobProvenanceError::PolicyViolation);
 }
 
 #[test]
 fn candidate_two_job_provenance_remains_readable_during_migration() {
     let revision = InferRuntimeContractRevision::Candidate2;
     let bytes = serde_json::to_vec(&succeeded_job("job_candidate_two", revision)).unwrap();
-    let provenance = parse_job_snapshot(revision, "job_candidate_two", &bytes)
-        .unwrap_or_else(|_| panic!("candidate.2 provenance remains valid"));
+    let provenance = parse_job_snapshot(
+        revision,
+        "job_candidate_two",
+        SPEECH_INTENT,
+        JobPolicyProfile::ShapeLocalInteractive,
+        &bytes,
+    )
+    .unwrap_or_else(|_| panic!("candidate.2 provenance remains valid"));
     assert_eq!(provenance.contract_revision, revision.as_str());
     assert_eq!(provenance.capability_level, "general");
     assert_eq!(provenance.evaluation_status, "provisional");
@@ -403,10 +411,12 @@ fn job_provenance_rejects_vocabulary_that_does_not_match_the_contract() {
     let error = parse_job_snapshot(
         InferRuntimeContractRevision::Candidate3,
         "job_wrong_vocabulary",
+        SPEECH_INTENT,
+        JobPolicyProfile::ShapeLocalInteractive,
         &bytes,
     )
     .expect_err("candidate.2 fields cannot be decoded as candidate.3");
-    assert_eq!(error.failure.code, "infer_invalid_response");
+    assert_eq!(error, JobProvenanceError::InvalidResponse);
 }
 
 #[test]

@@ -40,7 +40,7 @@ Shape 的产品核心不是“用聊天控制编辑器”，也不是“把所�
    已验证类型化 Source → Operator → Output、跨 Artifact 接受、来源追踪和所选 WAV 的本地试听；
    录音、波形编辑、Voice Reference、transform/generate 仍按后续媒体阶段加入。Video、3D
    不提前进入首个桌面切片。
-10. **用户可以操作创作级 Operator，但不操作物理执行步骤。**`Crop`、`Rewrite`、`Composite` 是 Scene 节点；model、sampler、CFG、checkpoint、Infer Job 或 ComfyUI 节点属于折叠的 Execution Graph。
+10. **用户可以操作创作级 Operator，但不操作原子工具或物理执行步骤。**`Image Editing`、`Writing`、`Composite` 是 Scene 节点；Crop、Resize、Rewrite 是节点内部方法；model、sampler、CFG、checkpoint、Infer Job 或 ComfyUI 节点属于折叠的 Execution Graph。
 
 一句面向用户的定义：
 
@@ -278,6 +278,35 @@ Operator Graph 是类型化 DAG：连接必须精确匹配端口数据合同，�
 节点可有零到多个输入和一个或多个输出，循环在首版被拒绝。Source 是纯输入，Output 是纯接口；
 二者不能被便利性逻辑悄悄折叠进 Edit 节点。
 
+这里的 Graph 不是“接受历史的只读可视化”，而是 Scene 的首要创作界面。Working Graph 必须允许：
+
+- 未选中任何节点时，从节点库创建 Source、Operator 或 Output；
+- 节点在尚未连接时以合法、可恢复的 detached 状态存在；
+- 从输出端口拖线到兼容输入端口，或点击端口旁的 `+` 快速创建并连接下游节点；
+- 一个 Operator 接受多个异构素材输入；连接保存的是精确端口和上游输出身份；
+- 节点位置、折叠状态和可复用意图属于 Working Graph；生成结果不覆盖这些 authored state；
+- 锁定某个 Candidate 后，节点的输出 binding 指向一个不可变 Revision，节点本身仍可再次执行。
+
+接受的 Transformation/Revision 历史仍是来源权威，但它是 Working Graph 的执行结果和 lineage，
+不是用来冒充当前可编辑图的替代模型。兼容期桌面仍可能从 Artifact 历史投影旧 Scene；新建 Scene
+必须逐步迁移到真正的 `SceneWorkingGraph`，而不是继续扩张 artifact-as-scene 假设。
+
+当前过渡实现允许在没有文本素材时先创建一个 detached `text.edit`：它用一个尚无 accepted head
+的 `TextDocument` 目标和零输入 Working Graph 持久化节点意图，界面明确显示“等待连接素材”并禁止
+执行。这个桥接只证明“先建节点、后接素材”的交互成立，不代表 artifact-as-scene 已经具备任意
+多素材连线能力；真正的端口连接仍由下一版 `SceneWorkingGraph` 合同负责。
+
+#### 4.3.1 首批素材输入节点
+
+| 节点 | 稳定产品身份 | 内容与来源规则 | 首批输入方式 |
+| --- | --- | --- | --- |
+| 文本素材 | `source.text` | UTF-8 内容进入 Shape object store；源文件可空 | 直接输入、粘贴、文本文件 |
+| 图片素材 | `source.image` | 原始粘贴/导入字节与规范化预览分离；源文件可空 | 剪贴板、PNG/JPEG 文件 |
+| 文件素材 | `source.file` | 保存 content-addressed snapshot；原路径只是可选 provenance，不是打开项目的前提 | 文本、图片、PCM WAV 音频 |
+
+粘贴来的文字或图片是一等 Source，不得伪造临时路径。文件导入后项目必须能离线重开；“引用原文件”
+若以后加入，需要显式选择 link/pin 策略和失效状态，不能静默改变首版 snapshot 语义。
+
 **GraphComponent** 是可复用的封装子图。它显式声明输入、输出和版本；实例在上层 Scene 中表现
 为一个 Operator，但内部仍可展开。修改 Component 定义产生新版本，既有实例默认 pinned，不
 静默漂移。GraphComponent 与 ArtifactContent 内的 Layer/Clip/媒体 Component 是不同概念：前者
@@ -322,6 +351,32 @@ Scene Operator Graph：Source / Operator / Output，负责创作编排
 - 媒体组件只有在需要跨 Artifact/Project 复用或单独发布时，才提升为独立 Artifact 或 Source。
 - 内部图层和轨道的编辑历史不全部进入 Scene Operator Graph；它们通过 Content revision 与 Transformation 摘要表达。
 - 组件身份无法稳定保留时，Transformation 必须显式记录 `identity_rebound`，不能假装仍是同一对象。
+
+#### 4.5.1 Operator 粒度：创作动作，而不是滤镜清单
+
+主图默认只暴露用户能说清楚、能反复调整、能独立接受的一次创作动作。裁切、重采样、降噪、
+分割、色彩匹配等原子步骤可以有确定性执行器，也可以在高级模式下显式展开，但它们通常应是
+综合 Operator 的内部 Execution Plan，而不是逼用户手工串出几十个节点。
+
+首批综合族保持以下清晰边界：
+
+| 族 | 稳定 Operator | 心智模型 | 首选责任 |
+| --- | --- | --- | --- |
+| 通用媒体编辑 | 产品级 `image.edit` / `text.edit`；内部记录精确方法 | 在一个阶段内选择裁切、尺寸、直接写作或 AI 辅助，不手工串原子节点 | Shape Workspace；执行继续使用 typed `image.crop`、`image.resize`、人工/Infer Transformation |
+| 传统复合编辑 | `image.composite`、`audio.multitrack` | 有结构地编排 layer/mask/track/clip，AI 只是助手 | Shape 自有 Content Workspace |
+| 传统专用编辑 | `image.color_grade`、`audio.repair` | 精确专业编辑，允许 AI 辅助但不以生成替代编辑 | 优先 Shadow/Echo Adapter；Shape 保存语义与 Candidate |
+| 纯 AI、无素材 | `image.generate`、`audio.generate` | 从 Intent 与输出合同创建新媒体 | Infer/专用生成 Executor |
+| 纯 AI、有素材 | `image.generate_from_materials`、`audio.generate_from_materials` | 以一个或多个显式素材和角色约束生成 | 必须使用真实 typed multimodal 合同 |
+
+`image.generate` 与 `image.generate_from_materials` 不能因为共享一个界面就合并身份：前者是零素材
+Source Operator；后者至少有一个 `input.materials`，每个输入固定接受 Revision 与角色。两者都只有
+一个逻辑图片输出；一次执行得到的多个结果进入 Candidate Shelf，而不是把节点输出端口数量变成
+“模型生成了几张”。若 Runtime 只有纯文本生图，UI 必须把带素材生成标记为 capability unavailable，
+不能把文本理解或图片描述接口冒充图像编辑器。零素材形态已经拥有 candidate.3-only 的 Infer
+执行器、严格 PNG/Job provenance 复验，以及 Core 内“先 Candidate、后显式 Accept”的纵向回路。
+桌面现在也能原子创建 Scene 级零输入 Draft，恢复精确 prompt/canvas，并通过独立异步控制器把
+结果放入 Candidate Shelf；但当前 Shape App ACL 尚未授权所需的
+subscription/balanced/cloud-only 策略，因此真实在线执行继续 fail closed，且不会污染已接受历史。
 
 ### 4.6 ArtifactContent 类型
 
@@ -749,13 +804,13 @@ manifest、typed route 和 App ACL 启用功能，不能把本机工作树或当
 
 | 能力族 | 当前能力 | Shape 用途 | 状态判断 |
 | --- | --- | --- | --- |
-| Text Responses | `text.summarize`、`text.proofread`、`assistant.general`、`reasoning.deep` | Intent 解析辅助、文案、故事、结构化建议 | 已有控制面；按具体 provider capability 使用 |
+| Text Responses | `text.summarize`、`text.proofread`、`language.respond`、`reasoning.solve` | Intent 解析辅助、文案、故事、结构化建议 | candidate.3 控制面；按具体 provider capability 使用 |
 | Local/Cloud routing | Ollama、本地 MLX/ONNX、DeepSeek cloud、Codex subscription bridge | 本地优先、质量优先、显式订阅模型 | 已有；App ACL 决定能否使用 |
 | Audio | `audio.transcribe`、`audio.align` | Echo 音频文字、字幕、定位 | 已有类型化 endpoint |
 | Speech | `speech.synthesize` | preset 旁白 Audio Candidate | Shape 已完成桌面生成、按需试听、接受/重开与真实本机验证；alias/ACL 尚未由 Infer 提交发布 |
 | Face | `vision.detect_faces`、`vision.embed_face` | 身份保持验证的辅助证据 | Experimental；SensitiveBiometric、local-only |
 | Cross-modal embedding | `vision.embed_image`、`vision.embed_text` | Reference 检索、相似候选、素材发现 | Experimental；当前 768d shared space、local-only |
-| Image+text reasoning | `assistant.multimodal` / VL 路线 | 理解画面、验证部分约束、生成 Change proposal | 当前处于工作树演进中；只在新合同冻结并 probe 成功后启用 |
+| Image+text reasoning | `multimodal.respond` / VL 路线 | 理解画面、验证部分约束、生成 Change proposal | 当前处于工作树演进中；只在新合同冻结并 probe 成功后启用 |
 | Image/video generation | 无稳定 typed family | 生成、编辑、视频 | 初期走 Shape 外部执行器；形成多 consumer 需求后再提议进入 Infer Runtime |
 
 当前物理部署快照如下。它用于估算可行性和规划 Adapter，不应进入 Project 的创作语义；普通 Shape 请求仍提交 Intent，而不是指定这些模型名：
@@ -795,7 +850,7 @@ credential = { source = "managed" }
 resource_admin = false
 allowed_intents = [
   "text.proofread",
-  "assistant.general",
+  "language.respond",
   "vision.embed_image",
   "vision.embed_text",
 ]
@@ -925,6 +980,38 @@ Shadow asset URI
 
 不保存或改写 Shadow 的内部 Recipe 节点。需要精细 RAW 调整时提供“Open in Shadow”；用户在 Shadow 提交新 Recipe 后，Shape 显示 pending update。
 
+#### 9.3.1 外部编辑往返：避免在 Shape 重造 Shadow
+
+`image.color_grade`、RAW 还原和相机特定调色仍然是 Shape 的创作语义 Operator，但默认执行路线
+优先交给 Shadow，而不是在 Shape 内复制一套较弱的 Recipe、色彩面板和渲染管线。Shape 的责任是
+保存输入、意图、版本和接受历史；Shadow 的责任是提供成熟照片编辑工作区并产出可验证结果。
+
+一次外部编辑会话至少固定：
+
+```text
+External Edit Session
+  input Artifact Revision + exact content digest
+  Shape Operator Draft + representation/color contract
+  adapter identity + capability/contract revision
+  bounded materialization lease
+  opaque external session identity
+
+External Edit Return
+  exact returned bytes + content digest
+  input revision echoed back
+  execution receipt + Shadow recipe/render revision
+  disclosure/warnings
+```
+
+往返状态只有 `prepared → opened → returned | cancelled | expired`。Shadow 不获得 Shape Project
+数据库写权限，Shape 也不读取或复制 Shadow 的内部 Recipe 图。返回内容先成为 Shape Candidate；只有
+用户 Accept 才推进 Artifact Revision。若等待外部编辑期间输入 head 已变化，返回结果仍可保留在
+Exploration，但原基线上的 Accept 必须失败，用户需要显式分支或重新基于新 head 编辑。
+
+这条边界同样适用于其他成熟软件：只有可移植、确定、离线且确有自动化消费者的原子操作（例如
+crop、resize、格式/色彩空间转换）才适合内建；交互式调色、RAW、复杂音频修复等优先通过能力
+Adapter 接入。OpenColorIO 可执行明确的色彩空间 transform，但不因此成为另一套创意调色系统。
+
 ### 9.4 Echo Adapter
 
 建议能力：
@@ -1045,25 +1132,43 @@ Shape built-in composite/text/transform
 
 ### 11.1 应用框架
 
+项目打开后直接进入 Scene Node Graph。节点库始终可用，不要求先选中节点：
+
+```text
+Scene Node Graph
+├── 添加素材
+│   ├── 文本：输入 / 粘贴 / 文本文件
+│   ├── 图片：粘贴 / PNG / JPEG
+│   └── 文件：文本 / 图片 / 音频
+├── 添加编辑节点（允许暂时不连接）
+├── 从端口拖线连接
+└── 点击输出端口旁的 + 快速派生下游节点
+```
+
+节点表达用户决定保留和复用的创作阶段，节点内部的按钮和参数表达完成这个阶段的方法。
+Source、Operator、Output、Candidate 仍有不同视觉结构，但端口和连接不再藏到“高级诊断”里：
+它们是主界面的基本操作。物理模型、provider、sampler 和 Infer Job 继续留在折叠的执行诊断中。
+
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│ Project / Current Scene                            Publish   │
-├──────────────┬───────────────────────────────┬───────────────┤
-│ Scenes       │ Scene Operator Graph          │ Inspector     │
-│ Components   │ Source → Operator → Output    │ Explore       │
-│ Imports      │ typed ports / candidates      │ Details       │
-│ Exports      │                               │ Lineage       │
-├──────────────┴───────────────────────────────┴───────────────┤
-│ Double-click / Open workspace → node-focused editing         │
-│ Scene Graph › Operator › Canvas / Text / Timeline / …        │
-│ Intent / direct manipulation / Compare / Accept              │
+│ Project / Current Scene                           Publish    │
+├────────────┬─────────────────────────────────────────────────┤
+│ Scenes     │ Editable Node Graph · ports · connections · +  │
+│ Components ├──────────────────────────────────┬──────────────┤
+│ Assets     │ Focused Node Workspace           │ Node intent  │
+│            │ Materials / Prompt / Output      │ Options      │
+│            │ Candidate review / refinement    │ Provenance   │
+│            ├──────────────────────────────────┴──────────────┤
+│            │ Candidate filmstrip · Compare · Accept · Branch │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Scene 图谱是工作区的主视图，不是底部附属历史条。项目导航负责 Scene、Component、Import
-和 Export；进入一个 Scene 后显示它自己的 Source/Operator/Output。单击节点只选择并更新 Inspector；双击节点或
-显式执行 `Open workspace`，才进入该节点的媒体专属工作台。返回图谱时保留选择和项目上下文。
-这套交互统一的是类型化连接、节点选择、Candidate 和 Accept，不统一不同媒体的编辑方式。
+Scene 图谱是 Scene 首页和主要创建入口；进入一个节点的专属工作台后，它收缩成顶部可点击的上下文带，而不是
+完全消失。项目栏只保留 Scene、Component、Asset 等稳定入口；右侧只显示当前 Operator 的 Intent、
+Change、Preserve 和 References，不再常驻一个通用 dashboard Inspector。候选结果固定在底部横向
+filmstrip，选择、Compare、Accept、Discard 和 Branch 都作用于精确 Candidate 身份。返回完整图谱时
+保留选择和项目上下文。这套交互统一的是类型化连接、节点选择、Candidate 和 Accept，不统一不同
+媒体的编辑方式。
 
 ### 11.2 节点聚焦与 Workspace 选择规则
 
@@ -1112,7 +1217,55 @@ Output
 
 用户可以直接修改这些字段。高级执行设置折叠在“Implementation”中。
 
-### 11.4 Graph UI
+### 11.4 AI 文本编辑节点
+
+产品身份采用 `text.ai_edit`；兼容期实现可以读取既有 `text.edit` / `text.transform` Draft，但新 UI
+不再把人工编辑与 AI 编辑模式混成一个含义不清的“Writing”开关。
+
+节点端口：
+
+```text
+input.materials[0..N]
+  ├── text.document
+  ├── image.raster
+  ├── audio.clip
+  └── file.snapshot（由 ingest adapter 细化）
+
+output.text -> text.document
+```
+
+工作台从上到下保持一个稳定工作循环：
+
+1. **Materials**：显示由图外部端口连接进来的素材；用户在节点里查看、排序、标注角色，但不复制素材。
+2. **Intent**：可选 Prompt，加上 Expand、Polish、Summarize、Rewrite、Shorten 等快捷动作。
+3. **Tone / Style**：Emoji 语气选择和自然、简洁、专业、文学、口语等风格都是结构化 authored state。
+4. **Generate**：用户选择一次生成 1 个或多个候选；Shape 为每个候选建立独立执行请求和 receipt。
+5. **Output**：可选择文字片段，生成一个带 selection anchor 的后续修订请求；原候选字节保持不变。
+6. **Lock output**：把选中的候选固化为不可变 Revision 并绑定到节点输出；其他候选可继续比较、固定或丢弃。
+
+节点保存的是可复用意图：素材 bindings、快捷动作、Prompt、语气、风格、候选数量和选择锚点。
+生成的 exact bytes 属于 Candidate/Revision，不写回意图配置。生成成功后不能自动删除节点 Draft；
+锁定输出后 Working Graph 只把输入基线和 output binding 更新到新 Revision，节点身份和配置继续存在。
+
+多模态编译由 Shape Planner 完成，而不是把物理步骤暴露为用户节点：
+
+```mermaid
+flowchart LR
+    T["Text materials"] --> Pack["Bounded context pack"]
+    I["Image materials"] --> Vision["OCR / vision understanding"] --> Pack
+    A["Audio materials"] --> ASR["Speech transcription"] --> Pack
+    F["Files"] --> Ingest["Typed ingest"] --> Pack
+    Intent["Action + prompt + tone + style"] --> Compile["Text edit compiler"]
+    Pack --> Compile --> Route["Infer Runtime intent and constraints"]
+    Route --> N["1..N independent jobs"] --> Shelf["Durable candidate exploration"]
+    Shelf --> Lock["Lock selected output revision"]
+```
+
+编译器必须保存每个中间派生的来源和失败状态：语音转录失败不能当作“没有语音”；图片理解不可用时
+不能悄悄丢弃图片。当前只有直接文本路径时，UI 可以执行 text-only，其他素材组合必须明确显示
+pipeline unavailable，不能把未消费的输入仍显示成已参与生成。
+
+### 11.5 Graph UI
 
 - Project 打开后先恢复上次 Scene；Scene Operator Graph 是创作编排主画布。
 - Source 与 Output 必须视觉、交互和数据合同上区别于可编辑 Operator。
@@ -1126,7 +1279,7 @@ Output
 - Execution details 是节点的诊断面板，不是主画布。
 - 允许从任一历史 Revision 开始新分支，但不覆盖已有下游。
 
-### 11.5 Compare 与 Accept
+### 11.6 Compare 与 Accept
 
 Compare 是核心能力，不是附加功能：
 
@@ -1137,7 +1290,7 @@ Compare 是核心能力，不是附加功能：
 - 显示每个 Constraint 的 verified/unverified/failed；
 - Accept 前明确显示云费用、合成内容和不可完全重现提示。
 
-### 11.6 产品概念图
+### 11.7 产品概念图
 
 以下概念图用于验证产品心智模型和布局方向，不是最终视觉规范。
 
@@ -1526,7 +1679,8 @@ M1 至少覆盖：
 - GraphComponent 封装、版本固定与实例展开；
 - stable component IDs；
 - Draft/Preview/Commit；
-- deterministic crop/transform/basic color/text/composite；
+- deterministic crop/resize/transform/text/composite；`basic color` 保留 Shape 语义，首选通过
+  Shadow 外部编辑 Adapter 执行，不把复制一套调色管线作为 M0 门槛；
 - Exploration/Candidate/Accept/Pin/Branch；
 - Semantic History；
 - file import 与 file serialization；
@@ -1547,7 +1701,7 @@ M1 至少覆盖：
 工作包：
 
 - Intent proposal：Change/Preserve/Reference；
-- Infer Runtime `assistant.general` 与可用的 image understanding adapter；
+- Infer Runtime `language.respond` 与可用的 image understanding adapter；
 - 一个受控 Diffusers generation/edit worker；
 - 可选 ComfyUI advanced bridge；
 - subject mask adapter（先用已审计实现；Shadow SAM 路线稳定后可复用）；
@@ -1722,7 +1876,7 @@ M1 至少覆盖：
 5. `shape-text-content`：Text blocks、selection、diff。
 6. `shape-app`：DraftSession、Preview、Accept、Undo/Branch、Publish services。
 7. `apps/desktop`：Qt/QML shell、Scene Graph、node workspace、Intent proposal、Canvas/Text workspace、Compare、History。
-8. `shape-executor-builtin`：crop/transform/basic color/text/composite。
+8. `shape-executor-builtin`：crop/resize/transform/text/composite；创意调色默认不复制 Shadow。
 9. `shape-infer-client`：独立 App contract probe、Responses/typed vision adapter、provenance mapping。
 10. `shape-suite-shadow`：只在 Suite Asset Contract 确定后接入。
 11. `shape-executor-diffusers`：独立 worker、固定 pipeline templates、模型 manifest。
@@ -1739,9 +1893,12 @@ M1 至少覆盖：
 > expected-head CAS 持久化，两个 Scene 的独立演进与重开已通过核心合同测试。桌面端目前仍把
 > 现有 Artifact 接受历史兼容投影为单输出 Scene，并以 Scene Graph 为主视图；尚未接入持久化
 > Scene 图编辑，GraphComponent 也未完成。文件导入的 `image.raster` 已冻结首版显式色彩/像素合同，并完成
-> PNG/JPEG → 确定性 Crop → Candidate → Compare → Accept → Reopen 的桌面纵向切片。它验证了
-> “确定性图像编辑复用同一接受心智模型”，但尚不代表 M0/M1 完成；Shadow 来源、Composite、
-> Preserve/Reference、AI 图像执行与 Export 等门槛仍保持未勾选。
+> PNG/JPEG → 确定性 Crop/Resize → Candidate → Compare → Accept → Reopen 的桌面纵向切片。
+> Resize 的版本化草稿保存尺寸、纵横比策略和采样核，并在执行前从 Project 权威回读。它验证了
+> “确定性图像编辑复用同一接受心智模型”，但尚不代表 M0/M1 完成。零输入
+> `image.generate` 已有可重开的桌面 Source Draft、综合意图面板、独立控制器与 Candidate/Accept
+> 回路；真实云端生成仍等待 Infer App ACL 授权。有素材生成、Shadow 来源、Composite、通用
+> Preserve/Reference 与 Export 等门槛仍保持未勾选。
 
 只有以下全部成立，才能说 Shape 的第一阶段成立：
 

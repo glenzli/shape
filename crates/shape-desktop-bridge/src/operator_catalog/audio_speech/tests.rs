@@ -25,7 +25,10 @@ fn configured_draft(speed_milli: u16) -> WorkingOperatorDraft {
     let stored = graph
         .add_operator(
             draft.operator_type().clone(),
-            draft.input_data_type().clone(),
+            draft
+                .input_data_type()
+                .expect("speech draft has a text input")
+                .clone(),
             draft.output_data_type().clone(),
         )
         .unwrap();

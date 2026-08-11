@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 
-//! First compatibility Scene source creation over one atomic text origin.
+//! Human-facing text-work creation over one atomic accepted origin.
 
 import QtQuick
 import QtQuick.Controls
@@ -15,7 +15,7 @@ Dialog {
     signal sceneCreated()
 
     function openForCreation() : void {
-        sceneNameField.text = qsTr("Opening")
+        sceneNameField.text = qsTr("Untitled text")
         initialTextArea.text = ""
         open()
         sceneNameField.forceActiveFocus()
@@ -26,7 +26,7 @@ Dialog {
     anchors.centerIn: parent
     width: Math.min(560, parent.width - 48)
     modal: true
-    title: qsTr("Create text Scene")
+    title: qsTr("Start with text")
     closePolicy: Popup.CloseOnEscape
 
     contentItem: ColumnLayout {
@@ -36,7 +36,7 @@ Dialog {
             id: sceneNameField
             objectName: "sceneNameField"
             Layout.fillWidth: true
-            placeholderText: qsTr("Scene name")
+            placeholderText: qsTr("Name this work")
             selectByMouse: true
         }
 
@@ -45,14 +45,14 @@ Dialog {
             objectName: "initialSceneTextField"
             Layout.fillWidth: true
             Layout.preferredHeight: 150
-            placeholderText: qsTr("Enter the first accepted text source…")
+            placeholderText: qsTr("Start writing…")
             wrapMode: TextEdit.Wrap
             selectByMouse: true
         }
 
         Text {
             Layout.fillWidth: true
-            text: qsTr("This creates a Source and Main Output. Add an Operator from the Scene Graph next.")
+            text: qsTr("Shape saves this as the starting version and opens a writing workspace. You can add AI rewriting or speech later.")
             color: Theme.muted
             font.pixelSize: 10
             wrapMode: Text.WordWrap
@@ -76,7 +76,7 @@ Dialog {
 
         Button {
             objectName: "confirmCreateTextSceneButton"
-            text: qsTr("Create Scene")
+            text: qsTr("Start writing")
             highlighted: true
             enabled: sceneNameField.text.trim().length > 0
                      && initialTextArea.text.trim().length > 0

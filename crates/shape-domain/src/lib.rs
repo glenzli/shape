@@ -7,6 +7,7 @@
 //! - [`content`] owns immutable content references and media contracts;
 //! - [`artifact`] owns creative identity and immutable accepted revisions;
 //! - [`audio`] owns portable audio values, family ports, and voice authorization;
+//! - [`ai_image`] owns provider-neutral generative image families and authored parameters;
 //! - [`image_crop`] owns the first stable image Operator contract;
 //! - [`image_resize`] owns deterministic resize dimensions and policies;
 //! - [`operator_graph`] owns typed Source/Operator/Output scene structure;
@@ -18,6 +19,7 @@
 //!
 //! Filesystem, `SQLite`, Qt, C++, provider, and network types do not belong here.
 
+mod ai_image;
 mod artifact;
 mod audio;
 mod content;
@@ -32,6 +34,14 @@ mod scene;
 mod transformation;
 mod working_graph;
 
+pub use ai_image::{
+    AI_IMAGE_GENERATE_FROM_MATERIALS_OPERATOR_TYPE, AI_IMAGE_GENERATE_OPERATOR_TYPE,
+    AI_IMAGE_MAX_CANDIDATES, AI_IMAGE_MAX_DIMENSION, AI_IMAGE_MAX_PIXELS,
+    AI_IMAGE_PARAMETERS_REVISION, AI_IMAGE_RASTER_DATA_TYPE, AiImageContractError,
+    AiImageGenerateFromMaterialsParameters, AiImageGenerateParameters, AiImageMaterialReference,
+    AiImageMaterialRole, AiImageOperation, AiImageOperatorContract, AiImageOperatorFamily,
+    AiImageOutputCanvas, AiImagePortCardinality, AiImagePortContract, AiImagePortDataType,
+};
 pub use artifact::{Artifact, ArtifactContentContract, ArtifactKind, ArtifactRevision};
 pub use audio::{
     AUDIO_CLIP_DATA_TYPE, AUDIO_VALUE_CONTRACT_REVISION, AUTHORIZED_VOICE_REFERENCE_DATA_TYPE,

@@ -12,9 +12,10 @@ use shape_core::{
 };
 use shape_domain::{
     AUDIO_CLIP_DATA_TYPE, Artifact, ArtifactId, ArtifactKind, IMAGE_CROP_OPERATOR_TYPE,
-    OperatorDataTypeId, OperatorGraph, OperatorGraphEdge, OperatorGraphNode, OperatorNodeBinding,
-    OperatorNodeId, OperatorNodeRole, OperatorPort, OperatorPortId, OperatorTypeId, RevisionId,
-    Transformation, TransformationKind, TransformationOperation,
+    IMAGE_RESIZE_OPERATOR_TYPE, OperatorDataTypeId, OperatorGraph, OperatorGraphEdge,
+    OperatorGraphNode, OperatorNodeBinding, OperatorNodeId, OperatorNodeRole, OperatorPort,
+    OperatorPortId, OperatorTypeId, RevisionId, Transformation, TransformationKind,
+    TransformationOperation,
 };
 
 use crate::ffi;
@@ -290,7 +291,7 @@ fn node_wire(
         } => (
             source_artifact_id.to_string(),
             artifact_name_for(artifacts, source_artifact_id)?,
-            source_revision_id.to_string(),
+            source_revision_id,
             String::new(),
             String::new(),
         ),
@@ -306,7 +307,7 @@ fn node_wire(
             (
                 output_artifact_id.to_string(),
                 artifact_name_for(artifacts, *output_artifact_id)?,
-                output_revision_id.to_string(),
+                *output_revision_id,
                 operator_transformation_id.to_string(),
                 transformation.intent.as_str().to_owned(),
             )
@@ -317,20 +318,37 @@ fn node_wire(
         } => (
             output_artifact_id.to_string(),
             artifact_name_for(artifacts, output_artifact_id)?,
-            output_revision_id.to_string(),
+            output_revision_id,
             String::new(),
             String::new(),
         ),
     };
+    let content = project
+        .read_revision_content(revision_id)
+        .map_err(|error| error.to_string())?;
+    let (has_text_preview, text_preview, text_preview_truncated) =
+        if content.revision.content.media_type.starts_with("text/") {
+            match crate::bounded_text_preview(&content.bytes) {
+                Some((preview, truncated)) => (true, preview, truncated),
+                None => (false, String::new(), false),
+            }
+        } else {
+            (false, String::new(), false)
+        };
     Ok(ffi::OperatorGraphNodeWire {
         node_id: node.id.to_string(),
         role_key: node_role_key(node.role).to_owned(),
         operator_type_key: node.operator_type.to_string(),
         artifact_id,
         artifact_name,
-        revision_id,
+        revision_id: revision_id.to_string(),
         transformation_id,
         intent,
+        media_type: content.revision.content.media_type,
+        byte_length: content.revision.content.byte_length,
+        has_text_preview,
+        text_preview_truncated,
+        text_preview,
         input_ports: node.inputs.iter().map(port_wire).collect(),
         output_ports: node.outputs.iter().map(port_wire).collect(),
     })
@@ -368,7 +386,9 @@ fn operator_type(
 ) -> Result<OperatorTypeId, String> {
     let identifier = match (&transformation.operation, transformation.kind, output_kind) {
         (Some(TransformationOperation::RasterCrop(_)), _, _) => IMAGE_CROP_OPERATOR_TYPE,
+        (Some(TransformationOperation::RasterResize(_)), _, _) => IMAGE_RESIZE_OPERATOR_TYPE,
         (Some(TransformationOperation::AudioSpeechSynthesis(_)), _, _) => "audio.speech_synthesize",
+        (Some(TransformationOperation::AiImageGenerate(_)), _, _) => "image.generate",
         (_, TransformationKind::TextRewrite, _) => TEXT_EDIT_OPERATOR_TYPE,
         (_, TransformationKind::GenerativeEdit, ArtifactKind::TextDocument) => {
             TEXT_TRANSFORM_OPERATOR_TYPE

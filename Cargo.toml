@@ -27,6 +27,7 @@ license = "MIT"
 publish = false
 
 [workspace.dependencies]
+base64 = "0.22.1"
 blake3 = "1.8.5"
 cxx = "=1.0.198"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }

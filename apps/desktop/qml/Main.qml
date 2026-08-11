@@ -15,12 +15,14 @@ ApplicationWindow {
     required property InferRuntimeController inferRuntime
     required property InferTextController inferText
     required property InferSpeechController inferSpeech
+    required property InferImageController inferImage
     required property AudioPreviewController audioPreview
     required property UiPreferences uiPreferences
 
     property int selectedArtifactIndex: 0
     property string selectedCandidateId: ""
     property bool compareMode: false
+    property string workbenchSection: "scenes"
     readonly property var selectedArtifact: window.backend.artifacts.length > selectedArtifactIndex
                                             ? window.backend.artifacts[selectedArtifactIndex]
                                             : null
@@ -38,6 +40,18 @@ ApplicationWindow {
         return artifactCandidates.length > 0 ? artifactCandidates[0] : null
     }
     readonly property bool candidateForSelected: selectedCandidate !== null
+    readonly property var railAssets: {
+        const matches = []
+        for (let index = 0; index < backend.artifacts.length; ++index) {
+            const artifact = backend.artifacts[index]
+            if (artifact.kindKey === "image_raster"
+                    || artifact.kindKey === "audio_clip"
+                    || artifact.kindKey === "image_composite") {
+                matches.push(artifact)
+            }
+        }
+        return matches
+    }
 
     function candidatesForArtifact(artifactId) : var {
         const matches = []
@@ -66,6 +80,35 @@ ApplicationWindow {
         return -1
     }
 
+    function addOrOpenTextEditorNode() : void {
+        if (window.hasSelectedArtifact
+                && window.selectedArtifact.kindKey === "text_document") {
+            const existingDrafts = window.draftsForArtifact(window.selectedArtifact.id)
+            for (let index = 0; index < existingDrafts.length; ++index) {
+                if (existingDrafts[index].operatorTypeKey === "text.edit"
+                        || existingDrafts[index].operatorTypeKey === "text.transform") {
+                    workspaceSurface.openOperatorDraft(existingDrafts[index].id)
+                    return
+                }
+            }
+            if (window.selectedArtifact.hasAcceptedRevision) {
+                const draftId = window.backend.beginOperatorDraft(
+                    window.selectedArtifact.id, "text.edit")
+                if (draftId.length > 0) workspaceSurface.openOperatorDraft(draftId)
+                return
+            }
+        }
+        if (!window.backend.createDetachedTextEditor(qsTr("Untitled AI text"))) return
+        window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
+        window.selectedCandidateId = ""
+        window.compareMode = false
+        Qt.callLater(function() {
+            if (!window.hasSelectedArtifact) return
+            const drafts = window.draftsForArtifact(window.selectedArtifact.id)
+            if (drafts.length > 0) workspaceSurface.openOperatorDraft(drafts[0].id)
+        })
+    }
+
     function activateCandidate(candidateId) : bool {
         if (backend.selectCandidate(candidateId)) {
             selectedCandidateId = candidateId
@@ -78,7 +121,6 @@ ApplicationWindow {
         if (activateCandidate(candidateId)) {
             compareMode = true
             workspaceSurface.showArtifact()
-            contextInspector.currentPage = 0
         }
     }
 
@@ -89,19 +131,59 @@ ApplicationWindow {
         compareMode = !compareMode
         if (compareMode) {
             workspaceSurface.showArtifact()
-            contextInspector.currentPage = 0
         }
     }
 
+    function discardCandidate(candidateId) : void {
+        if (backend.discardCandidate(candidateId)) compareMode = false
+    }
+
+    function acceptCandidate(candidateId) : void {
+        if (!activateCandidate(candidateId) || selectedCandidate === null) return
+        const targetArtifactId = selectedCandidate.artifactId
+        const contextArtifactId = selectedCandidate.contextArtifactId
+        if (!backend.acceptCandidate(candidateId)) return
+        compareMode = false
+        if (targetArtifactId.length > 0 && targetArtifactId !== contextArtifactId) {
+            const acceptedIndex = artifactIndex(targetArtifactId)
+            if (acceptedIndex >= 0) {
+                selectedArtifactIndex = acceptedIndex
+                workspaceSurface.showGraph()
+            }
+        }
+    }
+
+    function openCandidateBranch(candidateId) : void {
+        if (!activateCandidate(candidateId) || selectedArtifact === null) return
+        branchDialog.openFor(selectedArtifact.name, candidateId)
+    }
+
     function refreshSelectedImage() : void {
-        if (!hasSelectedArtifact || selectedArtifact.kindKey !== "image_raster"
-                || !selectedArtifact.hasAcceptedRevision) {
+        if (!hasSelectedArtifact || selectedArtifact.kindKey !== "image_raster") {
             return
         }
         const imageCandidateId = selectedCandidate !== null
                                  && selectedCandidate.hasImagePreview
                                  ? selectedCandidate.id : ""
+        if (!selectedArtifact.hasAcceptedRevision && imageCandidateId.length === 0) return
         backend.prepareImagePreviews(selectedArtifact.id, imageCandidateId)
+    }
+
+    function imageGenerationStatus(errorCode) : string {
+        if (window.inferImage.running) return qsTr("AI is creating a new image version…")
+        if (!window.inferText.credentialConfigured) {
+            return qsTr("Add the Shape Infer credential in Settings before generating.")
+        }
+        if (errorCode === "intent_forbidden" || errorCode === "policy_violation") {
+            return qsTr("Infer has not granted Shape cloud image generation permission yet.")
+        }
+        if (errorCode === "provider_unavailable" || errorCode === "upstream_unavailable") {
+            return qsTr("No image generation provider is available right now.")
+        }
+        if (errorCode.length > 0) {
+            return qsTr("Image generation failed safely: %1").arg(errorCode)
+        }
+        return qsTr("Each run creates a reviewable version. Your chosen result changes only when you use it.")
     }
 
     function synchronizeSelectedArtifact() : void {
@@ -145,6 +227,7 @@ ApplicationWindow {
 
     ShapeSettingsDialog {
         id: settingsDialog
+        objectName: "shapeSettingsDialog"
         uiPreferences: window.uiPreferences
         inferText: window.inferText
     }
@@ -157,8 +240,15 @@ ApplicationWindow {
             window.selectedCandidateId = ""
             window.compareMode = false
             workspaceSurface.showGraph()
-            Qt.callLater(createTextSceneDialog.openForCreation)
+            Qt.callLater(createSceneTypeDialog.openForCreation)
         }
+    }
+
+    CreateSceneTypeDialog {
+        id: createSceneTypeDialog
+        onTextSceneRequested: createTextSceneDialog.openForCreation()
+        onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
+        onImportImageRequested: imageImportDialog.open()
     }
 
     CreateTextSceneDialog {
@@ -168,7 +258,30 @@ ApplicationWindow {
             window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
             window.selectedCandidateId = ""
             window.compareMode = false
-            workspaceSurface.showGraph()
+            Qt.callLater(function() {
+                if (!window.hasSelectedArtifact) {
+                    workspaceSurface.showGraph()
+                    return
+                }
+                const draftId = window.backend.beginOperatorDraft(
+                    window.selectedArtifact.id, "text.edit")
+                if (draftId.length > 0) workspaceSurface.openOperatorDraft(draftId)
+                else workspaceSurface.showGraph()
+            })
+        }
+    }
+
+    CreateAiImageSceneDialog {
+        id: createAiImageSceneDialog
+        backend: window.backend
+        onSceneCreated: {
+            window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
+            window.selectedCandidateId = ""
+            window.compareMode = false
+            Qt.callLater(function() {
+                const drafts = window.draftsForArtifact(window.selectedArtifact.id)
+                if (drafts.length > 0) workspaceSurface.openOperatorDraft(drafts[0].id)
+            })
         }
     }
 
@@ -187,7 +300,7 @@ ApplicationWindow {
 
     FileDialog {
         id: imageImportDialog
-        title: qsTr("Import raster image")
+        title: qsTr("Choose an image to work with")
         fileMode: FileDialog.OpenFile
         nameFilters: [qsTr("Images (*.png *.jpg *.jpeg)")]
         onAccepted: {
@@ -200,6 +313,13 @@ ApplicationWindow {
         }
     }
 
+    MessageDialog {
+        id: componentPreviewDialog
+        title: qsTr("Components")
+        text: qsTr("Reusable components are coming next. This section is reserved so larger projects can organize repeated creative work without changing today's project structure.")
+        buttons: MessageDialog.Ok
+    }
+
     BranchArtifactDialog {
         id: branchDialog
         backend: window.backend
@@ -207,7 +327,6 @@ ApplicationWindow {
             window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
             window.compareMode = false
             workspaceSurface.showGraph()
-            contextInspector.currentPage = 2
         }
     }
 
@@ -223,201 +342,272 @@ ApplicationWindow {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: 12
+        anchors.margins: 10
+        spacing: 10
 
-        ProjectNavigator {
-            Layout.minimumWidth: 232
-            Layout.preferredWidth: 232
-            Layout.maximumWidth: 232
+        WorkbenchProjectRail {
+            Layout.minimumWidth: 196
+            Layout.preferredWidth: 196
+            Layout.maximumWidth: 196
             Layout.fillHeight: true
             projectOpen: window.backend.projectOpen
-            artifacts: window.backend.artifacts
-            selectedIndex: window.selectedArtifactIndex
+            projectName: window.backend.projectName
+            scenes: window.backend.artifacts
+            components: []
+            assets: window.railAssets
             candidates: window.backend.candidates
-            graphActive: workspaceSurface.graphActive
-            onArtifactSelected: index => workspaceSurface.activateScene(index)
-            onArtifactOpened: index => workspaceSurface.activateScene(index)
-            onGraphRequested: workspaceSurface.showGraph()
+            currentSection: window.workbenchSection
+            selectedSceneId: window.hasSelectedArtifact ? window.selectedArtifact.id : ""
+            selectedAssetId: window.hasSelectedArtifact ? window.selectedArtifact.id : ""
+            onSectionRequested: sectionKey => window.workbenchSection = sectionKey
+            onSceneSelected: (sceneId, index) => workspaceSurface.activateScene(index)
+            onSceneOpened: (sceneId, index) => workspaceSurface.activateScene(index)
+            onAssetSelected: (assetId, index) => {
+                const targetIndex = window.artifactIndex(assetId)
+                if (targetIndex >= 0) workspaceSurface.activateScene(targetIndex)
+            }
+            onAssetOpened: (assetId, index) => {
+                const targetIndex = window.artifactIndex(assetId)
+                if (targetIndex >= 0) workspaceSurface.activateScene(targetIndex)
+            }
             onNewProjectRequested: createProjectDialog.openForCreation()
             onOpenProjectRequested: projectOpenDialog.open()
-            onCreateTextSceneRequested: createTextSceneDialog.openForCreation()
-            onImportImageRequested: imageImportDialog.open()
+            onCreateSceneRequested: createSceneTypeDialog.openForCreation()
+            onCreateComponentRequested: componentPreviewDialog.open()
+            onImportAssetRequested: imageImportDialog.open()
         }
 
         ColumnLayout {
             Layout.minimumWidth: 500
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 12
+            spacing: 8
 
-            WorkspaceSurface {
-                id: workspaceSurface
+            SceneGraphContextStrip {
+                Layout.fillWidth: true
+                Layout.preferredHeight: visible ? 82 : 0
+                visible: workspaceSurface.focusActive
+                sceneName: window.hasSelectedArtifact ? window.selectedArtifact.name : ""
+                nodes: workspaceSurface.graphNodes
+                drafts: window.artifactDrafts
+                candidateCount: window.artifactCandidates.length
+                selectedNodeId: workspaceSurface.selectedNodeId
+                onGraphRequested: workspaceSurface.showGraph()
+                onNodeSelected: nodeId => workspaceSurface.selectNode(nodeId)
+                onNodeOpened: nodeId => workspaceSurface.openNode(nodeId)
+                onDraftSelected: draftId => workspaceSurface.selectNode(draftId)
+                onDraftOpened: draftId => workspaceSurface.openOperatorDraft(draftId)
+            }
 
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                projectName: window.backend.projectName
-                allArtifacts: window.backend.artifacts
-                selectedArtifact: window.selectedArtifact
-                candidates: window.artifactCandidates
-                operatorDrafts: window.artifactDrafts
-                operatorDescriptors: window.hasSelectedArtifact
-                                     ? window.backend.compatibleOperators(
-                                           window.selectedArtifact.id) : []
-                selectedCandidate: window.selectedCandidate
-                selectedCandidateId: window.selectedCandidateId
-                compareMode: window.compareMode
-                acceptedImageSource: window.backend.acceptedImageSource
-                candidateImageSource: window.backend.candidateImageSource
-                inferSpeech: window.inferSpeech
-                audioPreview: window.audioPreview
-                projectPath: window.backend.bundlePath
-                inferCredentialConfigured: window.inferText.credentialConfigured
-                onSceneSelected: index => window.selectedArtifactIndex = index
-                onCandidateSelected: candidateId => window.activateCandidate(candidateId)
-                onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
-                onCropRequested: (artifactId, x, y, width, height) => {
-                    if (window.backend.proposeRasterCrop(
-                            artifactId, x, y, width, height)) {
-                        window.selectedCandidateId = window.backend.candidateId
-                        window.compareMode = true
-                        window.backend.prepareImagePreviews(
-                            artifactId, window.selectedCandidateId)
-                        contextInspector.currentPage = 0
+                spacing: 8
+
+                WorkspaceSurface {
+                    id: workspaceSurface
+
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    projectName: window.backend.projectName
+                    allArtifacts: window.backend.artifacts
+                    selectedArtifact: window.selectedArtifact
+                    candidates: window.artifactCandidates
+                    operatorDrafts: window.artifactDrafts
+                    operatorDescriptors: window.hasSelectedArtifact
+                                         ? window.backend.compatibleOperators(
+                                               window.selectedArtifact.id) : []
+                    selectedCandidate: window.selectedCandidate
+                    selectedCandidateId: window.selectedCandidateId
+                    compareMode: window.compareMode
+                    acceptedImageSource: window.backend.acceptedImageSource
+                    candidateImageSource: window.backend.candidateImageSource
+                    inferImage: window.inferImage
+                    inferSpeech: window.inferSpeech
+                    audioPreview: window.audioPreview
+                    projectPath: window.backend.bundlePath
+                    inferCredentialConfigured: window.inferText.credentialConfigured
+                    inferTextRunning: window.inferText.running
+                    inferTextErrorCode: window.inferText.errorCode
+                    inferRuntimeCompatible: window.inferRuntime.compatible
+                    onSceneSelected: index => window.selectedArtifactIndex = index
+                    onCandidateSelected: candidateId => window.activateCandidate(candidateId)
+                    onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
+                    onCropRequested: (artifactId, x, y, width, height) => {
+                        if (window.backend.proposeRasterCrop(
+                                artifactId, x, y, width, height)) {
+                            window.selectedCandidateId = window.backend.candidateId
+                            window.compareMode = true
+                            window.backend.prepareImagePreviews(
+                                artifactId, window.selectedCandidateId)
+                        }
                     }
-                }
-                onSpeechDraftSaveRequested: (draftId, presetAlias,
-                                             presetCatalogRevision, language,
-                                             speedMilli,
-                                             syntheticDisclosureRequired) => {
-                    window.backend.updateAudioSpeechDraft(
-                        draftId, presetAlias, presetCatalogRevision,
-                        language, speedMilli, syntheticDisclosureRequired)
-                }
-                onSpeechSynthesisRequested: (sourceArtifactId, draftId,
-                                             artifactName, presetAlias,
-                                             presetCatalogRevision, language,
-                                             speedMilli,
-                                             syntheticDisclosureRequired) => {
-                    if (window.backend.updateAudioSpeechDraft(
+                    onResizeDraftSaveRequested: (draftId, targetWidth, targetHeight,
+                                                 aspectPolicyKey, resamplingKey) => {
+                        window.backend.updateImageResizeDraft(
+                            draftId, targetWidth, targetHeight,
+                            aspectPolicyKey, resamplingKey)
+                    }
+                    onResizeRequested: (artifactId, draftId, targetWidth, targetHeight,
+                                        aspectPolicyKey, resamplingKey) => {
+                        if (window.backend.updateImageResizeDraft(
+                                draftId, targetWidth, targetHeight,
+                                aspectPolicyKey, resamplingKey)
+                                && window.backend.proposeRasterResize(artifactId, draftId)) {
+                            window.selectedCandidateId = window.backend.candidateId
+                            window.compareMode = true
+                            window.backend.prepareImagePreviews(
+                                artifactId, window.selectedCandidateId)
+                        }
+                    }
+                    onSpeechDraftSaveRequested: (draftId, presetAlias,
+                                                 presetCatalogRevision, language,
+                                                 speedMilli,
+                                                 syntheticDisclosureRequired) => {
+                        window.backend.updateAudioSpeechDraft(
                             draftId, presetAlias, presetCatalogRevision,
-                            language, speedMilli,
-                            syntheticDisclosureRequired)) {
-                        window.inferSpeech.generate(
-                            window.backend.bundlePath, sourceArtifactId,
-                            draftId, artifactName)
+                            language, speedMilli, syntheticDisclosureRequired)
                     }
-                }
-                onOperatorDraftRequested: operatorTypeKey => {
-                    if (!window.hasSelectedArtifact) return
-                    const draftId = window.backend.beginOperatorDraft(
-                        window.selectedArtifact.id, operatorTypeKey)
-                    if (draftId.length > 0) {
-                        workspaceSurface.openOperatorDraft(draftId)
+                    onSpeechSynthesisRequested: (sourceArtifactId, draftId,
+                                                 artifactName, presetAlias,
+                                                 presetCatalogRevision, language,
+                                                 speedMilli,
+                                                 syntheticDisclosureRequired) => {
+                        if (window.backend.updateAudioSpeechDraft(
+                                draftId, presetAlias, presetCatalogRevision,
+                                language, speedMilli,
+                                syntheticDisclosureRequired)) {
+                            window.inferSpeech.generate(
+                                window.backend.bundlePath, sourceArtifactId,
+                                draftId, artifactName)
+                        }
                     }
-                }
-                onOperatorDraftDiscardRequested: draftId => {
-                    if (window.backend.discardOperatorDraft(draftId)) {
-                        workspaceSurface.showGraph()
+                    onAiImageDraftSaveRequested: (draftId, instruction,
+                                                  outputWidth, outputHeight) => {
+                        window.backend.updateAiImageDraft(
+                            draftId, instruction, outputWidth, outputHeight)
                     }
-                }
-            }
-
-            IntentPanel {
-                Layout.fillWidth: true
-                Layout.preferredHeight: visible ? 244 : 0
-                visible: workspaceSurface.intentWorkspaceActive
-                artifactId: window.hasSelectedArtifact ? window.selectedArtifact.id : ""
-                artifactKindKey: window.hasSelectedArtifact
-                                 ? window.selectedArtifact.kindKey : ""
-                acceptedText: window.hasSelectedArtifact
-                              ? window.selectedArtifact.textPreview : ""
-                hasAcceptedRevision: window.hasSelectedArtifact
-                                     && window.selectedArtifact.hasAcceptedRevision
-                candidatePending: window.candidateForSelected
-                candidates: window.artifactCandidates
-                errorMessage: window.backend.lastError
-                generationRunning: window.inferText.running
-                credentialConfigured: window.inferText.credentialConfigured
-                generationErrorCode: window.inferText.errorCode
-                operatorDraftId: workspaceSurface.selectedDraft !== null
-                                 ? workspaceSurface.selectedDraft.id : ""
-                operatorTypeKey: workspaceSurface.selectedDraft !== null
-                                 ? workspaceSurface.selectedDraft.operatorTypeKey : ""
-                textTransformMode: workspaceSurface.selectedDraft !== null
-                                   ? workspaceSurface.selectedDraft
-                                     .textTransformMode : "rewrite"
-                textTransformInstruction: workspaceSurface.selectedDraft !== null
-                                          ? workspaceSurface.selectedDraft
-                                            .textTransformInstruction : ""
-                runtimeProbing: window.inferRuntime.probing
-                runtimeReachable: window.inferRuntime.reachable
-                runtimeCompatible: window.inferRuntime.compatible
-                runtimeContractVersion: window.inferRuntime.contractVersion
-                runtimeEndpointSource: window.inferRuntime.endpointSource
-                onRuntimeRefreshRequested: window.inferRuntime.refresh()
-                onInferCandidateRequested: (artifactId, draftId, modeKey,
-                                            instruction) => {
-                    if (window.backend.updateTextTransformDraft(
-                            draftId, modeKey, instruction)) {
-                        window.inferText.generate(
-                            window.backend.bundlePath, artifactId, draftId)
+                    onOperatorDraftRequested: operatorTypeKey => {
+                        if (operatorTypeKey === "text.edit"
+                                || operatorTypeKey === "text.transform") {
+                            window.addOrOpenTextEditorNode()
+                            return
+                        }
+                        if (!window.hasSelectedArtifact) return
+                        const draftId = window.backend.beginOperatorDraft(
+                            window.selectedArtifact.id, operatorTypeKey)
+                        if (draftId.length > 0) {
+                            workspaceSurface.openOperatorDraft(draftId)
+                        }
                     }
-                }
-                onTextTransformDraftConfigurationSaveRequested: (draftId,
-                                                                  modeKey,
-                                                                  instruction) => {
-                    window.backend.updateTextTransformDraft(
-                        draftId, modeKey, instruction)
-                }
-                onCandidateRequested: (artifactId, replacementText) => {
-                    if (window.backend.proposeTextCandidate(artifactId, replacementText)) {
-                        window.selectedCandidateId = window.backend.candidateId
-                        window.compareMode = true
-                        workspaceSurface.showArtifact()
-                        contextInspector.currentPage = 0
-                    }
-                }
-            }
-        }
-
-        ContextInspector {
-            id: contextInspector
-
-            Layout.minimumWidth: 328
-            Layout.preferredWidth: 328
-            Layout.maximumWidth: 328
-            Layout.fillHeight: true
-            artifact: window.selectedArtifact
-            candidates: window.artifactCandidates
-            selectedCandidateId: window.selectedCandidate !== null
-                                 ? window.selectedCandidate.id : ""
-            onCompareRequested: window.toggleComparison()
-            onCandidateSelected: candidateId => window.activateCandidate(candidateId)
-            onDiscardRequested: candidateId => {
-                if (window.backend.discardCandidate(candidateId)) {
-                    window.compareMode = false
-                }
-            }
-            onAcceptRequested: candidateId => {
-                const targetArtifactId = window.selectedCandidate !== null
-                                         ? window.selectedCandidate.artifactId : ""
-                const contextArtifactId = window.selectedCandidate !== null
-                                          ? window.selectedCandidate.contextArtifactId : ""
-                if (window.backend.acceptCandidate(candidateId)) {
-                    window.compareMode = false
-                    if (targetArtifactId.length > 0
-                            && targetArtifactId !== contextArtifactId) {
-                        const acceptedIndex = window.artifactIndex(targetArtifactId)
-                        if (acceptedIndex >= 0) {
-                            window.selectedArtifactIndex = acceptedIndex
+                    onOperatorDraftDiscardRequested: draftId => {
+                        if (window.backend.discardOperatorDraft(draftId)) {
                             workspaceSurface.showGraph()
+                        }
+                    }
+                    onTextStudioDraftSaveRequested: (draftId, modeKey, instruction,
+                                                     toneKey, styleKey, variantCount) => {
+                        window.backend.updateTextTransformDraft(
+                            draftId, modeKey, instruction, toneKey,
+                            styleKey, variantCount)
+                    }
+                    onTextStudioGenerationRequested: (artifactId, draftId, modeKey,
+                                                       instruction, toneKey, styleKey,
+                                                       variantCount) => {
+                        if (window.backend.updateTextTransformDraft(
+                                draftId, modeKey, instruction, toneKey,
+                                styleKey, variantCount)) {
+                            window.inferText.generate(
+                                window.backend.bundlePath, artifactId, draftId)
+                        }
+                    }
+                    onTextCandidateLockRequested: candidateId =>
+                                                      window.acceptCandidate(candidateId)
+                    onInferAccessSetupRequested: settingsDialog.open()
+                }
+
+                OperatorIntentSidebar {
+                    id: aiImageIntent
+                    Layout.minimumWidth: visible ? 304 : 0
+                    Layout.preferredWidth: visible ? 304 : 0
+                    Layout.maximumWidth: visible ? 304 : 0
+                    Layout.fillHeight: true
+                    visible: workspaceSurface.aiImageIntentActive
+                    operatorTitle: qsTr("Create an image")
+                    operatorKindLabel: qsTr("STARTING POINT · AI GENERATED")
+                    intentText: workspaceSurface.selectedDraft !== null
+                                ? workspaceSurface.selectedDraft.aiImageInstruction : ""
+                    intentPlaceholder: qsTr("Describe the image, composition, light, and mood…")
+                    changeItems: workspaceSurface.selectedDraft !== null ? [
+                        qsTr("Create a new image from your description"),
+                        qsTr("Image size %1 × %2")
+                            .arg(workspaceSurface.selectedDraft.aiImageOutputWidth)
+                            .arg(workspaceSurface.selectedDraft.aiImageOutputHeight)
+                    ] : []
+                    preserveItems: [qsTr("Your chosen result until you use another version")]
+                    references: []
+                    allowReferences: false
+                    referencesEmptyText: qsTr("This starting point does not need an existing image")
+                    editable: window.backend.projectOpen
+                    running: window.inferImage.running
+                    statusText: window.imageGenerationStatus(window.inferImage.errorCode)
+                    primaryActionText: qsTr("Generate a version")
+                    primaryActionEnabled: window.inferText.credentialConfigured
+                                          && workspaceSurface.selectedDraft !== null
+                                          && editedIntentText.trim().length > 0
+                    onIntentCommitRequested: text => {
+                        const draft = workspaceSurface.selectedDraft
+                        if (draft !== null) {
+                            window.backend.updateAiImageDraft(
+                                draft.id, text,
+                                draft.aiImageOutputWidth, draft.aiImageOutputHeight)
+                        }
+                    }
+                    onPrimaryActionRequested: {
+                        const draft = workspaceSurface.selectedDraft
+                        if (draft !== null && window.backend.updateAiImageDraft(
+                                draft.id, editedIntentText,
+                                draft.aiImageOutputWidth, draft.aiImageOutputHeight)) {
+                            window.inferImage.generate(
+                                window.backend.bundlePath,
+                                draft.contextArtifactId, draft.id)
                         }
                     }
                 }
             }
-            onBranchRequested: candidateId => branchDialog.openFor(
-                                   window.selectedArtifact.name, candidateId)
+
+            CandidateFilmstrip {
+                Layout.fillWidth: true
+                Layout.preferredHeight: visible ? 154 : 0
+                visible: workspaceSurface.focusActive
+                candidates: window.artifactCandidates
+                selectedCandidateId: window.selectedCandidateId
+                acceptedRevisionId: window.hasSelectedArtifact
+                                    ? window.selectedArtifact.acceptedRevisionId : ""
+                selectedPreviewSource: window.backend.candidateImageSource
+                mutationEnabled: window.backend.projectOpen
+                compareAvailable: window.candidateForSelected
+                onCandidateSelected: candidateId => window.activateCandidate(candidateId)
+                onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
+                onCompareRequested: candidateId => window.reviewCandidate(candidateId)
+                onDiscardRequested: candidateId => window.discardCandidate(candidateId)
+                onAcceptRequested: candidateId => window.acceptCandidate(candidateId)
+                onBranchRequested: candidateId => window.openCandidateBranch(candidateId)
+            }
+        }
+
+    }
+
+    Connections {
+        target: window.inferImage
+
+        function onCandidateCreated(candidateId, artifactId) : void {
+            const index = window.artifactIndex(artifactId)
+            if (index >= 0) window.selectedArtifactIndex = index
+            window.backend.selectCandidate(candidateId)
+            window.selectedCandidateId = candidateId
+            window.compareMode = false
+            window.backend.prepareImagePreviews(artifactId, candidateId)
         }
     }
 
@@ -466,7 +656,6 @@ ApplicationWindow {
                     && window.activateCandidate(candidateId)) {
                 window.compareMode = true
                 workspaceSurface.openSpeechWorkspace()
-                contextInspector.currentPage = 0
             }
         }
     }

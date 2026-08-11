@@ -53,7 +53,7 @@ pub(super) fn generate_infer_speech_candidate(
         .into_iter()
         .find(|graph| graph.context_artifact_id() == source_artifact_id)
         .ok_or_else(|| "invalid_operator_draft".to_owned())?;
-    if graph.expected_revision_id() != expected_source_head {
+    if graph.expected_revision_id() != Some(expected_source_head) {
         return Err("stale_candidate".to_owned());
     }
     let draft = graph
@@ -113,6 +113,8 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::MissingRasterOutputContract
         | CoreError::RasterCropOutputContractMismatch
         | CoreError::RasterResizeOutputContractMismatch
+        | CoreError::ImageGenerationOutputContractMismatch
+        | CoreError::InvalidImageGenerationTarget { .. }
         | CoreError::Execution(_) => "execution_invalid".to_owned(),
     }
 }

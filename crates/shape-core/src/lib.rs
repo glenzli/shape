@@ -9,8 +9,8 @@ mod project;
 
 pub use error::CoreError;
 pub use project::{
-    AcceptedArtifactContent, AudioCandidate, ImageCandidate, ImageResizeCandidate,
-    SceneGraphCandidate, ShapeProject, TEXT_DOCUMENT_DATA_TYPE, TEXT_EDIT_OPERATOR_TYPE,
-    TEXT_TRANSFORM_OPERATOR_TYPE, TextCandidate, TextEditParameters, TextTransformMode,
-    TextTransformParameters,
+    AcceptedArtifactContent, AiImageCandidate, AudioCandidate, ImageCandidate,
+    ImageResizeCandidate, SceneGraphCandidate, ShapeProject, TEXT_DOCUMENT_DATA_TYPE,
+    TEXT_EDIT_OPERATOR_TYPE, TEXT_TRANSFORM_OPERATOR_TYPE, TextCandidate, TextEditParameters,
+    TextTransformMode, TextTransformParameters,
 };
