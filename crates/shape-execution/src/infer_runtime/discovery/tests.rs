@@ -112,6 +112,10 @@ fn discovery_tracks_generation_and_lease_before_falling_back() {
     assert_eq!(first.source, InferRuntimeEndpointSource::Discovery);
     assert_eq!(first.instance_id.as_deref(), Some("local"));
     assert_eq!(first.generation.as_deref(), Some("generation-a"));
+    assert_eq!(
+        first.contract_version.as_deref(),
+        Some(INFER_RUNTIME_CONTRACT_VERSION)
+    );
     assert!(first.lease_expires_at_unix.is_some());
 
     fixture.write_registration(
@@ -224,6 +228,50 @@ fn incompatible_or_structurally_invalid_registration_falls_back() {
     fs::write(fixture.manifest(), duplicate).expect("duplicate registration writes");
     set_mode(&fixture.manifest(), 0o600);
     assert_fallback(&resolver, now);
+}
+
+#[test]
+fn migration_accepts_candidate_two_but_prefers_candidate_three() {
+    let fixture = DiscoveryFixture::new("candidate-migration");
+    let now = OffsetDateTime::now_utc();
+    let resolver = InferRuntimeEndpointResolver::with_runtime_root(
+        "",
+        fixture.root.clone(),
+        "http://127.0.0.1:9333",
+    );
+
+    fixture.write_registration(
+        now,
+        "generation-candidate-two",
+        "http://127.0.0.1:9111",
+        InferRuntimeContractRevision::Candidate2.as_str(),
+    );
+    let candidate_two = resolver
+        .resolve_at(now)
+        .expect("candidate.2 remains selectable");
+    assert_eq!(
+        candidate_two.contract_version.as_deref(),
+        Some(InferRuntimeContractRevision::Candidate2.as_str())
+    );
+
+    let mut both = registration_value(
+        now,
+        "generation-both",
+        "http://127.0.0.1:9222",
+        InferRuntimeContractRevision::Candidate2.as_str(),
+    );
+    both["offers"][1]["protocol_versions"] = json!([
+        InferRuntimeContractRevision::Candidate2.as_str(),
+        INFER_RUNTIME_CONTRACT_VERSION
+    ]);
+    fixture.write_value(&both);
+    let candidate_three = resolver
+        .resolve_at(now)
+        .expect("preferred candidate resolves");
+    assert_eq!(
+        candidate_three.contract_version.as_deref(),
+        Some(INFER_RUNTIME_CONTRACT_VERSION)
+    );
 }
 
 #[test]

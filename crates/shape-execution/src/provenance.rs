@@ -45,8 +45,10 @@ pub struct ExternalExecutionProvenance {
     pub model_build: String,
     pub physical_model: String,
     pub placement: String,
-    pub quality_grade: String,
-    pub rating_status: String,
+    #[serde(alias = "quality_grade")]
+    pub capability_level: String,
+    #[serde(alias = "rating_status")]
+    pub evaluation_status: String,
     pub resource_class: String,
     pub policy: String,
     pub priority: String,
@@ -60,7 +62,8 @@ pub struct ExternalExecutionProvenance {
     pub fallback: String,
     pub requested_deadline_ms: Option<u64>,
     pub max_cost_microusd: u64,
-    pub quality_floor: String,
+    #[serde(alias = "quality_floor")]
+    pub capability_floor: String,
     pub routing_candidates: Vec<ExternalRoutingCandidate>,
     pub attempts: Vec<ExternalAttemptProvenance>,
 }
@@ -79,8 +82,8 @@ impl ExternalExecutionProvenance {
             self.model_build.as_str(),
             self.physical_model.as_str(),
             self.placement.as_str(),
-            self.quality_grade.as_str(),
-            self.rating_status.as_str(),
+            self.capability_level.as_str(),
+            self.evaluation_status.as_str(),
             self.resource_class.as_str(),
             self.policy.as_str(),
             self.priority.as_str(),
@@ -89,7 +92,7 @@ impl ExternalExecutionProvenance {
             self.requested_placement.as_str(),
             self.requested_preference.as_str(),
             self.fallback.as_str(),
-            self.quality_floor.as_str(),
+            self.capability_floor.as_str(),
         ];
         scalar_fields.iter().all(|value| bounded_text(value))
             && self
@@ -144,3 +147,6 @@ impl ExternalExecutionProvenance {
 fn bounded_text(value: &str) -> bool {
     !value.is_empty() && value.len() <= MAX_PROVENANCE_TEXT_BYTES && value.is_ascii()
 }
+
+#[cfg(test)]
+mod tests;

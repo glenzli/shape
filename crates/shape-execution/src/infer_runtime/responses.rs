@@ -12,13 +12,12 @@ use crate::{
 
 use super::{
     INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
-    InferRuntimeCredential, InferRuntimeEndpointResolver, ResolvedInferRuntimeEndpoint,
-    should_retry_endpoint,
+    InferRuntimeContractRevision, InferRuntimeCredential, InferRuntimeEndpointResolver,
+    ResolvedInferRuntimeEndpoint, should_retry_endpoint, validate_discovered_contract,
 };
 
 const RESPONSES_PATH: &str = "v1/responses";
 const TEXT_GENERATE_CAPABILITY: &str = "text.generate";
-const TEXT_INTENT: &str = "assistant.general";
 const TEXT_MEDIA_TYPE: &str = "text/plain; charset=utf-8";
 const MAX_PROMPT_BYTES: usize = 256 * 1024;
 const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
@@ -90,11 +89,13 @@ impl InferRuntimeExecutor {
         endpoint: &ResolvedInferRuntimeEndpoint,
         prompt: &str,
     ) -> Result<ExecutionOutput, ResponsesAttemptFailure> {
-        InferRuntimeClient::new(&endpoint.origin)
+        let contract = InferRuntimeClient::new(&endpoint.origin)
             .and_then(|client| client.probe_contract())
             .map_err(|error| ResponsesAttemptFailure::from_contract(&error))?;
+        let revision = validate_discovered_contract(endpoint, &contract)
+            .map_err(|error| ResponsesAttemptFailure::from_contract(&error))?;
         let client = ResponsesClient::new(&endpoint.origin)?;
-        client.create_text_response(&self.credential, prompt)
+        client.create_text_response(&self.credential, prompt, revision)
     }
 }
 
@@ -169,8 +170,9 @@ impl ResponsesClient {
         &self,
         credential: &InferRuntimeCredential,
         prompt: &str,
+        revision: InferRuntimeContractRevision,
     ) -> Result<ExecutionOutput, ResponsesAttemptFailure> {
-        let request = ResponsesRequest::local_text(prompt);
+        let request = ResponsesRequest::local_text(prompt, revision);
         let response = self
             .client
             .post(self.endpoint.clone())
@@ -195,7 +197,7 @@ impl ResponsesClient {
         if !status.is_success() {
             return Err(error_response(status.as_u16(), &bytes));
         }
-        parse_response(&bytes)
+        parse_response(&bytes, revision)
     }
 }
 
@@ -208,21 +210,25 @@ struct ResponsesRequest<'a> {
 }
 
 impl<'a> ResponsesRequest<'a> {
-    fn local_text(input: &'a str) -> Self {
+    fn local_text(input: &'a str, revision: InferRuntimeContractRevision) -> Self {
+        let mut metadata = BTreeMap::from([
+            ("infer.fallback", "none"),
+            ("infer.max_cost_usd", "0"),
+            ("infer.offline_required", "true"),
+            ("infer.placement", "local_only"),
+            ("infer.policy", "local-first"),
+            ("infer.prefer", "local"),
+            ("infer.priority", "interactive"),
+        ]);
+        metadata.insert(
+            revision.capability_floor_metadata_key(),
+            revision.capable_level(),
+        );
         Self {
-            model: TEXT_INTENT,
+            model: revision.text_intent(),
             input,
             stream: false,
-            metadata: BTreeMap::from([
-                ("infer.fallback", "none"),
-                ("infer.max_cost_usd", "0"),
-                ("infer.offline_required", "true"),
-                ("infer.placement", "local_only"),
-                ("infer.policy", "local-first"),
-                ("infer.prefer", "local"),
-                ("infer.priority", "interactive"),
-                ("infer.quality_floor", "general"),
-            ]),
+            metadata,
         }
     }
 }
@@ -239,12 +245,15 @@ struct ResponseEnvelope {
     output: Vec<Value>,
 }
 
-fn parse_response(bytes: &[u8]) -> Result<ExecutionOutput, ResponsesAttemptFailure> {
+fn parse_response(
+    bytes: &[u8],
+    revision: InferRuntimeContractRevision,
+) -> Result<ExecutionOutput, ResponsesAttemptFailure> {
     let response: ResponseEnvelope = serde_json::from_slice(bytes)
         .map_err(|_| ResponsesAttemptFailure::new("infer_invalid_response", false, false))?;
     let _ = response.created_at;
     if response.object != "response"
-        || response.model != TEXT_INTENT
+        || response.model != revision.text_intent()
         || response
             .status
             .as_deref()

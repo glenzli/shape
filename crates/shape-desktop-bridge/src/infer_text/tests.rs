@@ -72,6 +72,7 @@ fn fake_runtime() -> (String, thread::JoinHandle<()>) {
             &mut contract,
             &json!({
                 "contract_version": shape_execution::INFER_RUNTIME_CONTRACT_VERSION,
+                "capability_scale_version": "20260811.1",
                 "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
             })
             .to_string(),
@@ -87,7 +88,7 @@ fn fake_runtime() -> (String, thread::JoinHandle<()>) {
                 "id": "resp_bridge_test",
                 "object": "response",
                 "created_at": 1_786_383_600_u64,
-                "model": "assistant.general",
+                "model": "language.respond",
                 "status": "completed",
                 "output": [{
                     "type": "message",

@@ -16,7 +16,8 @@ use time::{Duration as TimeDuration, OffsetDateTime, format_description::well_kn
 use uuid::Uuid;
 
 use super::{
-    INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
+    INFER_RUNTIME_CAPABILITY_SCALE_VERSION, INFER_RUNTIME_CONTRACT_VERSION,
+    INFER_RUNTIME_PREVIOUS_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
     InferRuntimeEndpointResolver, InferRuntimeEndpointSource, ResolvedInferRuntimeEndpoint,
     probe_with_resolver, should_retry_endpoint,
 };
@@ -59,6 +60,7 @@ fn compatible_manifest() -> String {
     format!(
         r#"{{
             "contract_version":"{INFER_RUNTIME_CONTRACT_VERSION}",
+            "capability_scale_version":"{INFER_RUNTIME_CAPABILITY_SCALE_VERSION}",
             "consumer_routes":[{{"method":"POST","path":"/v1/responses","future":true}}],
             "future_manifest_field":{{"enabled":true}}
         }}"#
@@ -84,6 +86,7 @@ fn failed_probe_retries_only_a_distinct_transport_or_discovery_generation() {
         instance_id: Some("local".to_owned()),
         generation: Some("generation-a".to_owned()),
         lease_expires_at_unix: Some(1),
+        contract_version: Some(INFER_RUNTIME_CONTRACT_VERSION.to_owned()),
     };
     let same_address_fallback = ResolvedInferRuntimeEndpoint {
         origin: failed.origin.clone(),
@@ -91,6 +94,7 @@ fn failed_probe_retries_only_a_distinct_transport_or_discovery_generation() {
         instance_id: None,
         generation: None,
         lease_expires_at_unix: None,
+        contract_version: None,
     };
     assert!(!should_retry_endpoint(&failed, &same_address_fallback));
 
@@ -99,6 +103,12 @@ fn failed_probe_retries_only_a_distinct_transport_or_discovery_generation() {
         ..failed.clone()
     };
     assert!(should_retry_endpoint(&failed, &new_generation));
+
+    let migrated_contract = ResolvedInferRuntimeEndpoint {
+        contract_version: Some(INFER_RUNTIME_PREVIOUS_CONTRACT_VERSION.to_owned()),
+        ..failed.clone()
+    };
+    assert!(should_retry_endpoint(&failed, &migrated_contract));
 
     let new_address_fallback = ResolvedInferRuntimeEndpoint {
         origin: "http://127.0.0.1:8788".to_owned(),
@@ -163,6 +173,55 @@ fn resolved_probe_uses_the_discovered_generation_and_contract() {
     fs::remove_dir_all(root).expect("fixture removes");
 }
 
+#[cfg(unix)]
+#[test]
+fn discovered_offer_and_http_contract_must_match() {
+    let candidate_two_manifest = format!(
+        r#"{{"contract_version":"{INFER_RUNTIME_PREVIOUS_CONTRACT_VERSION}","consumer_routes":[{{"method":"POST","path":"/v1/responses"}}]}}"#
+    );
+    let (base_url, worker) = fake_runtime(200, candidate_two_manifest);
+    let root = std::env::temp_dir().join(format!("shape-version-mismatch-{}", Uuid::now_v7()));
+    fs::create_dir_all(root.join("registrations")).expect("registration directory creates");
+    fs::create_dir_all(root.join("sockets")).expect("socket directory creates");
+    set_mode(&root, 0o700);
+    set_mode(&root.join("registrations"), 0o700);
+    set_mode(&root.join("sockets"), 0o700);
+    let now = OffsetDateTime::now_utc();
+    let registration = json!({
+        "schema": "infra.discovery.registration",
+        "schema_version": "20260810.1",
+        "service": {
+            "kind": "infer-runtime",
+            "instance_id": "local",
+            "generation": "generation-mismatch"
+        },
+        "lease": {
+            "renewed_at": (now - TimeDuration::seconds(5)).format(&Rfc3339).unwrap(),
+            "expires_at": (now + TimeDuration::seconds(40)).format(&Rfc3339).unwrap()
+        },
+        "offers": [{
+            "protocol": "infer-runtime.consumer",
+            "protocol_versions": [INFER_RUNTIME_CONTRACT_VERSION],
+            "binding": "infer-runtime.http-loopback",
+            "endpoint": base_url
+        }]
+    });
+    let manifest = root.join("registrations/infer-runtime--local.json");
+    fs::write(&manifest, serde_json::to_vec(&registration).unwrap()).unwrap();
+    set_mode(&manifest, 0o600);
+    let resolver =
+        InferRuntimeEndpointResolver::with_runtime_root("", root.clone(), "http://127.0.0.1:9");
+
+    let probe = probe_with_resolver(&resolver);
+    assert_eq!(
+        probe.contract,
+        Err(InferRuntimeClientError::InvalidContract)
+    );
+
+    worker.join().expect("fake runtime exits");
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
 #[test]
 fn contract_revision_and_required_route_fail_closed() {
     let incompatible = r#"{
@@ -181,9 +240,41 @@ fn contract_revision_and_required_route_fail_closed() {
     worker.join().expect("fake runtime exits");
 
     let missing_route = format!(
-        r#"{{"contract_version":"{INFER_RUNTIME_CONTRACT_VERSION}","consumer_routes":[]}}"#
+        r#"{{"contract_version":"{INFER_RUNTIME_CONTRACT_VERSION}","capability_scale_version":"{INFER_RUNTIME_CAPABILITY_SCALE_VERSION}","consumer_routes":[]}}"#
     );
     let (base_url, worker) = fake_runtime(200, missing_route);
+    assert_eq!(
+        InferRuntimeClient::new(&base_url)
+            .expect("endpoint validates")
+            .probe_contract(),
+        Err(InferRuntimeClientError::InvalidContract)
+    );
+    worker.join().expect("fake runtime exits");
+}
+
+#[test]
+fn previous_contract_remains_accepted_during_the_coordinated_migration() {
+    let manifest = format!(
+        r#"{{"contract_version":"{INFER_RUNTIME_PREVIOUS_CONTRACT_VERSION}","consumer_routes":[{{"method":"POST","path":"/v1/responses"}}]}}"#
+    );
+    let (base_url, worker) = fake_runtime(200, manifest);
+    let contract = InferRuntimeClient::new(&base_url)
+        .expect("endpoint validates")
+        .probe_contract()
+        .expect("candidate.2 remains compatible");
+    assert_eq!(
+        contract.contract_version,
+        INFER_RUNTIME_PREVIOUS_CONTRACT_VERSION
+    );
+    worker.join().expect("fake runtime exits");
+}
+
+#[test]
+fn candidate_three_requires_the_frozen_capability_scale_identity() {
+    let manifest = format!(
+        r#"{{"contract_version":"{INFER_RUNTIME_CONTRACT_VERSION}","consumer_routes":[{{"method":"POST","path":"/v1/responses"}}]}}"#
+    );
+    let (base_url, worker) = fake_runtime(200, manifest);
     assert_eq!(
         InferRuntimeClient::new(&base_url)
             .expect("endpoint validates")

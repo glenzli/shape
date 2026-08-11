@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use shape_domain::TransformationId;
 
+use super::super::INFER_RUNTIME_CAPABILITY_SCALE_VERSION;
 use super::*;
 use crate::InferRuntimeCredentialStore;
 use crate::{ExecutionCoordinator, ExecutionRequest};
@@ -59,6 +60,7 @@ fn write_response(stream: &mut TcpStream, status: u16, body: &str) {
 }
 
 fn executor_with_fake_runtime(
+    revision: InferRuntimeContractRevision,
     response_status: u16,
     response_body: Value,
 ) -> (InferRuntimeExecutor, thread::JoinHandle<()>) {
@@ -72,7 +74,8 @@ fn executor_with_fake_runtime(
             &mut contract_stream,
             200,
             &json!({
-                "contract_version": INFER_RUNTIME_CONTRACT_VERSION,
+                "contract_version": revision.as_str(),
+                "capability_scale_version": INFER_RUNTIME_CAPABILITY_SCALE_VERSION,
                 "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
             })
             .to_string(),
@@ -87,7 +90,7 @@ fn executor_with_fake_runtime(
             .expect("request has body")
             .1;
         let request: Value = serde_json::from_str(body).expect("request JSON parses");
-        assert_eq!(request["model"], TEXT_INTENT);
+        assert_eq!(request["model"], revision.text_intent());
         assert_eq!(request["input"], "Rewrite this paragraph clearly.");
         assert_eq!(request["stream"], false);
         assert_eq!(request["metadata"]["infer.policy"], "local-first");
@@ -95,6 +98,15 @@ fn executor_with_fake_runtime(
         assert_eq!(request["metadata"]["infer.offline_required"], "true");
         assert_eq!(request["metadata"]["infer.fallback"], "none");
         assert_eq!(request["metadata"]["infer.max_cost_usd"], "0");
+        assert_eq!(
+            request["metadata"][revision.capability_floor_metadata_key()],
+            revision.capable_level()
+        );
+        let obsolete_floor = match revision {
+            InferRuntimeContractRevision::Candidate2 => "infer.capability_floor",
+            InferRuntimeContractRevision::Candidate3 => "infer.quality_floor",
+        };
+        assert!(request["metadata"].get(obsolete_floor).is_none());
         write_response(
             &mut response_stream,
             response_status,
@@ -128,12 +140,13 @@ fn request() -> ExecutionRequest {
 #[test]
 fn authenticated_local_first_response_becomes_transient_output_with_runtime_job_identity() {
     let (executor, worker) = executor_with_fake_runtime(
+        InferRuntimeContractRevision::Candidate3,
         200,
         json!({
             "id": "resp_shape_test",
             "object": "response",
             "created_at": 1_786_383_600_u64,
-            "model": TEXT_INTENT,
+            "model": InferRuntimeContractRevision::Candidate3.text_intent(),
             "status": "completed",
             "output": [{
                 "type": "message",
@@ -156,6 +169,7 @@ fn authenticated_local_first_response_becomes_transient_output_with_runtime_job_
 #[test]
 fn error_handling_uses_only_http_status_and_machine_code() {
     let (executor, worker) = executor_with_fake_runtime(
+        InferRuntimeContractRevision::Candidate3,
         403,
         json!({
             "error": {
@@ -188,14 +202,71 @@ fn malformed_or_empty_success_envelopes_fail_closed() {
             "id": "resp_empty",
             "object": "response",
             "created_at": 1,
-            "model": TEXT_INTENT,
+            "model": InferRuntimeContractRevision::Candidate3.text_intent(),
             "output": []
         }),
     ] {
-        let (executor, worker) = executor_with_fake_runtime(200, response);
+        let (executor, worker) =
+            executor_with_fake_runtime(InferRuntimeContractRevision::Candidate3, 200, response);
         assert!(ExecutionCoordinator::execute(&executor, &request()).is_err());
         worker.join().expect("fake runtime exits");
     }
+}
+
+#[test]
+fn candidate_two_offer_uses_only_the_candidate_two_vocabulary() {
+    let revision = InferRuntimeContractRevision::Candidate2;
+    let listener = TcpListener::bind("127.0.0.1:0").expect("fake runtime binds");
+    let address = listener.local_addr().expect("runtime has address");
+    let worker = thread::spawn(move || {
+        let (mut contract_stream, _) = listener.accept().expect("contract probe connects");
+        let _ = read_request(&mut contract_stream);
+        write_response(
+            &mut contract_stream,
+            200,
+            &json!({
+                "contract_version": revision.as_str(),
+                "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
+            })
+            .to_string(),
+        );
+        let (mut response_stream, _) = listener.accept().expect("Responses request connects");
+        let request_text = read_request(&mut response_stream);
+        let body = request_text.split_once("\r\n\r\n").expect("body exists").1;
+        let request: Value = serde_json::from_str(body).expect("request parses");
+        assert_eq!(request["model"], revision.text_intent());
+        assert_eq!(request["metadata"]["infer.quality_floor"], "general");
+        assert!(request["metadata"].get("infer.capability_floor").is_none());
+        write_response(
+            &mut response_stream,
+            200,
+            &json!({
+                "id": "resp_candidate_two",
+                "object": "response",
+                "created_at": 1,
+                "model": revision.text_intent(),
+                "status": "completed",
+                "output": [{
+                    "type": "message",
+                    "content": [{"type": "output_text", "text": "Candidate two."}]
+                }]
+            })
+            .to_string(),
+        );
+    });
+    let resolver = InferRuntimeEndpointResolver::with_runtime_root(
+        &format!("http://{address}"),
+        std::env::temp_dir(),
+        "http://127.0.0.1:9",
+    );
+    let executor = InferRuntimeExecutor::with_resolver(
+        InferRuntimeCredential::from_test_token(TOKEN),
+        resolver,
+    );
+    let executed =
+        ExecutionCoordinator::execute(&executor, &request()).expect("candidate.2 request succeeds");
+    assert_eq!(executed.output.bytes, b"Candidate two.");
+    worker.join().expect("fake runtime exits");
 }
 
 #[test]

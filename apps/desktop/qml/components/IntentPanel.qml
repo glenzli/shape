@@ -62,7 +62,7 @@ Rectangle {
         case "credential_invalid":
         case "credential_unsafe": return qsTr("The saved Infer credential is invalid or unsafe.")
         case "invalid_api_key": return qsTr("Infer rejected the Shape credential. Rotate it in Infer Console.")
-        case "intent_forbidden": return qsTr("Shape is not allowed to use assistant.general.")
+        case "intent_forbidden": return qsTr("Shape is not allowed to use language.respond.")
         case "policy_violation": return qsTr("Infer rejected Shape's local-only execution policy.")
         case "no_candidate": return qsTr("No local model currently satisfies this request.")
         case "provider_unavailable":

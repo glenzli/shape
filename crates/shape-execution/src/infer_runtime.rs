@@ -25,8 +25,12 @@ pub use speech::{
     InferRuntimeSpeechExecutor,
 };
 
-/// Infer Runtime wire contract implemented by this Shape build.
-pub const INFER_RUNTIME_CONTRACT_VERSION: &str = "0.1.0-candidate.2";
+/// Preferred Infer Runtime wire contract implemented by this Shape build.
+pub const INFER_RUNTIME_CONTRACT_VERSION: &str = "0.1.0-candidate.3";
+
+/// Previous Infer Runtime contract retained only for the coordinated migration.
+const INFER_RUNTIME_PREVIOUS_CONTRACT_VERSION: &str = "0.1.0-candidate.2";
+const INFER_RUNTIME_CAPABILITY_SCALE_VERSION: &str = "20260811.1";
 
 const CONTRACT_PATH: &str = "infer/v1/contract";
 const MAX_CONTRACT_BYTES: u64 = 64 * 1024;
@@ -38,6 +42,67 @@ const REQUEST_TIMEOUT: Duration = Duration::from_millis(1_200);
 pub struct InferRuntimeContract {
     /// Exact version returned by the runtime contract manifest.
     pub contract_version: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InferRuntimeContractRevision {
+    Candidate2,
+    Candidate3,
+}
+
+impl InferRuntimeContractRevision {
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            INFER_RUNTIME_PREVIOUS_CONTRACT_VERSION => Some(Self::Candidate2),
+            INFER_RUNTIME_CONTRACT_VERSION => Some(Self::Candidate3),
+            _ => None,
+        }
+    }
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Candidate2 => INFER_RUNTIME_PREVIOUS_CONTRACT_VERSION,
+            Self::Candidate3 => INFER_RUNTIME_CONTRACT_VERSION,
+        }
+    }
+
+    const fn text_intent(self) -> &'static str {
+        match self {
+            Self::Candidate2 => "assistant.general",
+            Self::Candidate3 => "language.respond",
+        }
+    }
+
+    const fn capability_floor_metadata_key(self) -> &'static str {
+        match self {
+            Self::Candidate2 => "infer.quality_floor",
+            Self::Candidate3 => "infer.capability_floor",
+        }
+    }
+
+    const fn capable_level(self) -> &'static str {
+        match self {
+            Self::Candidate2 => "general",
+            Self::Candidate3 => "capable",
+        }
+    }
+
+    const fn job_capability_floor_key(self) -> &'static str {
+        match self {
+            Self::Candidate2 => "quality_floor",
+            Self::Candidate3 => "capability_floor",
+        }
+    }
+
+    fn valid_capability_level(self, value: &str) -> bool {
+        match self {
+            Self::Candidate2 => matches!(value, "basic" | "general" | "advanced" | "frontier"),
+            Self::Candidate3 => matches!(
+                value,
+                "foundational" | "capable" | "advanced" | "expert" | "exceptional"
+            ),
+        }
+    }
 }
 
 /// Final endpoint identity and public contract result from one bounded probe.
@@ -163,10 +228,17 @@ impl InferRuntimeClient {
         if manifest.contract_version.is_empty() {
             return Err(InferRuntimeClientError::InvalidContract);
         }
-        if manifest.contract_version != INFER_RUNTIME_CONTRACT_VERSION {
-            return Err(InferRuntimeClientError::IncompatibleContract {
-                actual: manifest.contract_version,
-            });
+        let revision =
+            InferRuntimeContractRevision::parse(&manifest.contract_version).ok_or_else(|| {
+                InferRuntimeClientError::IncompatibleContract {
+                    actual: manifest.contract_version.clone(),
+                }
+            })?;
+        if revision == InferRuntimeContractRevision::Candidate3
+            && manifest.capability_scale_version.as_deref()
+                != Some(INFER_RUNTIME_CAPABILITY_SCALE_VERSION)
+        {
+            return Err(InferRuntimeClientError::InvalidContract);
         }
         let has_required_route = manifest
             .consumer_routes
@@ -224,18 +296,43 @@ fn should_retry_endpoint(
 ) -> bool {
     candidate.origin != failed.origin
         || (candidate.source == InferRuntimeEndpointSource::Discovery
-            && candidate.generation != failed.generation)
+            && (candidate.generation != failed.generation
+                || candidate.contract_version != failed.contract_version))
 }
 
 fn probe_endpoint(
     endpoint: &ResolvedInferRuntimeEndpoint,
 ) -> Result<InferRuntimeContract, InferRuntimeClientError> {
-    InferRuntimeClient::new(&endpoint.origin)?.probe_contract()
+    let contract = InferRuntimeClient::new(&endpoint.origin)?.probe_contract()?;
+    validate_discovered_contract(endpoint, &contract)?;
+    Ok(contract)
+}
+
+fn validate_discovered_contract(
+    endpoint: &ResolvedInferRuntimeEndpoint,
+    contract: &InferRuntimeContract,
+) -> Result<InferRuntimeContractRevision, InferRuntimeClientError> {
+    let revision =
+        InferRuntimeContractRevision::parse(&contract.contract_version).ok_or_else(|| {
+            InferRuntimeClientError::IncompatibleContract {
+                actual: contract.contract_version.clone(),
+            }
+        })?;
+    if endpoint
+        .contract_version
+        .as_deref()
+        .is_some_and(|advertised| advertised != contract.contract_version)
+    {
+        return Err(InferRuntimeClientError::InvalidContract);
+    }
+    Ok(revision)
 }
 
 #[derive(Debug, Deserialize)]
 struct ContractManifest {
     contract_version: String,
+    #[serde(default)]
+    capability_scale_version: Option<String>,
     #[serde(default)]
     consumer_routes: Vec<ConsumerRoute>,
 }

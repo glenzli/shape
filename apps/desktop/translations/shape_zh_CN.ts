@@ -850,8 +850,8 @@
     </message>
     <message>
         <location line="+1"/>
-        <source>Shape is not allowed to use assistant.general.</source>
-        <translation>Shape 无权使用 assistant.general。</translation>
+        <source>Shape is not allowed to use language.respond.</source>
+        <translation>Shape 无权使用 language.respond。</translation>
     </message>
     <message>
         <location line="+1"/>

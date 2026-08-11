@@ -22,8 +22,8 @@ use crate::{
 
 use super::{
     INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
-    InferRuntimeCredential, InferRuntimeEndpointResolver, ResolvedInferRuntimeEndpoint,
-    should_retry_endpoint,
+    InferRuntimeContractRevision, InferRuntimeCredential, InferRuntimeEndpointResolver,
+    ResolvedInferRuntimeEndpoint, should_retry_endpoint, validate_discovered_contract,
 };
 
 /// Shape-side creative capability implemented by Runtime `speech.synthesize`.
@@ -113,10 +113,17 @@ impl InferRuntimeSpeechExecutor {
         text: &str,
         operation: &SpeechSynthesisOperation,
     ) -> Result<ExecutionOutput, SpeechAttemptFailure> {
-        InferRuntimeClient::new(&endpoint.origin)
+        let contract = InferRuntimeClient::new(&endpoint.origin)
             .and_then(|client| client.probe_contract_for_route("POST", SPEECH_ROUTE))
             .map_err(|error| SpeechAttemptFailure::from_contract(&error))?;
-        SpeechClient::new(&endpoint.origin)?.create_speech(&self.credential, text, operation)
+        let revision = validate_discovered_contract(endpoint, &contract)
+            .map_err(|error| SpeechAttemptFailure::from_contract(&error))?;
+        SpeechClient::new(&endpoint.origin)?.create_speech(
+            &self.credential,
+            text,
+            operation,
+            revision,
+        )
     }
 }
 
@@ -218,6 +225,7 @@ impl SpeechClient {
         credential: &InferRuntimeCredential,
         text: &str,
         operation: &SpeechSynthesisOperation,
+        revision: InferRuntimeContractRevision,
     ) -> Result<ExecutionOutput, SpeechAttemptFailure> {
         let SpeechVoiceSelection::Preset(voice) = &operation.voice else {
             return Err(SpeechAttemptFailure::new(
@@ -231,6 +239,7 @@ impl SpeechClient {
             voice.alias.as_str(),
             &operation.language,
             operation.speed_milli,
+            revision,
         );
         let response = self
             .client
@@ -275,7 +284,7 @@ impl SpeechClient {
         }
         let contract = parse_pcm_s16le_wav(&bytes, AudioOriginDisclosure::SyntheticSpeech)
             .map_err(|_| SpeechAttemptFailure::new("invalid_audio_output", false, false))?;
-        let provenance = self.job_provenance(credential, &job_id)?;
+        let provenance = self.job_provenance(credential, &job_id, revision)?;
         Ok(ExecutionOutput {
             bytes,
             media_type: AUDIO_MEDIA_TYPE.to_owned(),
@@ -289,6 +298,7 @@ impl SpeechClient {
         &self,
         credential: &InferRuntimeCredential,
         job_id: &str,
+        revision: InferRuntimeContractRevision,
     ) -> Result<ExternalExecutionProvenance, SpeechAttemptFailure> {
         let endpoint = self
             .origin
@@ -316,7 +326,7 @@ impl SpeechClient {
                 false,
             ));
         }
-        parse_job_snapshot(job_id, &bytes)
+        parse_job_snapshot(revision, job_id, &bytes)
     }
 }
 
@@ -333,7 +343,27 @@ struct SpeechRequest<'a> {
 }
 
 impl<'a> SpeechRequest<'a> {
-    fn local_unary(input: &'a str, voice: &'a str, language: &'a str, speed_milli: u16) -> Self {
+    fn local_unary(
+        input: &'a str,
+        voice: &'a str,
+        language: &'a str,
+        speed_milli: u16,
+        revision: InferRuntimeContractRevision,
+    ) -> Self {
+        let mut metadata = BTreeMap::from([
+            ("infer.fallback", "none"),
+            ("infer.max_cost_usd", "0"),
+            ("infer.offline_required", "true"),
+            ("infer.latency", "interactive"),
+            ("infer.placement", "local_only"),
+            ("infer.policy", "local-first"),
+            ("infer.prefer", "local"),
+            ("infer.priority", "interactive"),
+        ]);
+        metadata.insert(
+            revision.capability_floor_metadata_key(),
+            revision.capable_level(),
+        );
         Self {
             model: SPEECH_INTENT,
             input,
@@ -342,17 +372,7 @@ impl<'a> SpeechRequest<'a> {
             speed: f64::from(speed_milli) / 1_000.0,
             response_format: "wav",
             execution_mode: "unary",
-            metadata: BTreeMap::from([
-                ("infer.fallback", "none"),
-                ("infer.max_cost_usd", "0"),
-                ("infer.offline_required", "true"),
-                ("infer.latency", "interactive"),
-                ("infer.placement", "local_only"),
-                ("infer.policy", "local-first"),
-                ("infer.prefer", "local"),
-                ("infer.priority", "interactive"),
-                ("infer.quality_floor", "general"),
-            ]),
+            metadata,
         }
     }
 }
@@ -368,8 +388,10 @@ struct JobSnapshot {
     model_build: String,
     physical_model: String,
     placement: String,
-    quality_grade: String,
-    rating_status: String,
+    #[serde(alias = "quality_grade")]
+    capability_level: String,
+    #[serde(alias = "rating_status")]
+    evaluation_status: String,
     resource_class: String,
     state: String,
     policy: String,
@@ -382,7 +404,8 @@ struct JobSnapshot {
 
 #[derive(Deserialize)]
 struct RoutingDecision {
-    quality_floor: String,
+    #[serde(alias = "quality_floor")]
+    capability_floor: String,
     candidates: Vec<RoutingCandidate>,
 }
 
@@ -407,10 +430,14 @@ struct Attempt {
 }
 
 fn parse_job_snapshot(
+    revision: InferRuntimeContractRevision,
     expected_job_id: &str,
     bytes: &[u8],
 ) -> Result<ExternalExecutionProvenance, SpeechAttemptFailure> {
-    let snapshot: JobSnapshot = serde_json::from_slice(bytes)
+    let raw: Value = serde_json::from_slice(bytes)
+        .map_err(|_| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
+    validate_job_vocabulary(revision, &raw)?;
+    let snapshot: JobSnapshot = serde_json::from_value(raw)
         .map_err(|_| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
     let scalar_fields = [
         snapshot.id.as_str(),
@@ -422,12 +449,12 @@ fn parse_job_snapshot(
         snapshot.model_build.as_str(),
         snapshot.physical_model.as_str(),
         snapshot.placement.as_str(),
-        snapshot.quality_grade.as_str(),
-        snapshot.rating_status.as_str(),
+        snapshot.capability_level.as_str(),
+        snapshot.evaluation_status.as_str(),
         snapshot.resource_class.as_str(),
         snapshot.policy.as_str(),
         snapshot.priority.as_str(),
-        snapshot.routing.quality_floor.as_str(),
+        snapshot.routing.capability_floor.as_str(),
     ];
     if snapshot.id != expected_job_id
         || snapshot.app_id != "shape"
@@ -435,6 +462,11 @@ fn parse_job_snapshot(
         || snapshot.state != "succeeded"
         || snapshot.error.is_some()
         || scalar_fields.iter().any(|value| !bounded_text(value))
+        || !revision.valid_capability_level(&snapshot.capability_level)
+        || !matches!(
+            snapshot.evaluation_status.as_str(),
+            "provisional" | "benchmarked"
+        )
         || snapshot.attempts.is_empty()
         || snapshot.attempts.len() > MAX_ATTEMPTS
         || snapshot.routing.candidates.len() > MAX_ROUTING_CANDIDATES
@@ -445,7 +477,7 @@ fn parse_job_snapshot(
             false,
         ));
     }
-    let requested = validate_shape_policy(&snapshot)?;
+    let requested = validate_shape_policy(revision, &snapshot)?;
 
     let attempts = external_attempts(snapshot.attempts)?;
     if attempts.last().map(|attempt| attempt.outcome.as_str()) != Some("succeeded") {
@@ -466,7 +498,7 @@ fn parse_job_snapshot(
     let routing_candidates = external_routing_candidates(snapshot.routing.candidates)?;
 
     Ok(ExternalExecutionProvenance {
-        contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
+        contract_revision: revision.as_str().to_owned(),
         app_id: snapshot.app_id,
         intent: snapshot.intent,
         provider: snapshot.provider,
@@ -475,8 +507,8 @@ fn parse_job_snapshot(
         model_build: snapshot.model_build,
         physical_model: snapshot.physical_model,
         placement: snapshot.placement,
-        quality_grade: snapshot.quality_grade,
-        rating_status: snapshot.rating_status,
+        capability_level: snapshot.capability_level,
+        evaluation_status: snapshot.evaluation_status,
         resource_class: snapshot.resource_class,
         policy: snapshot.policy,
         priority: snapshot.priority,
@@ -490,7 +522,7 @@ fn parse_job_snapshot(
         fallback: requested.fallback,
         requested_deadline_ms: requested.deadline_ms,
         max_cost_microusd: 0,
-        quality_floor: snapshot.routing.quality_floor,
+        capability_floor: snapshot.routing.capability_floor,
         routing_candidates,
         attempts,
     })
@@ -509,6 +541,7 @@ struct ValidatedShapePolicy {
 }
 
 fn validate_shape_policy(
+    revision: InferRuntimeContractRevision,
     snapshot: &JobSnapshot,
 ) -> Result<ValidatedShapePolicy, SpeechAttemptFailure> {
     let constraints = snapshot
@@ -525,7 +558,7 @@ fn validate_shape_policy(
         .and_then(Value::as_bool)
         .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
     let fallback = constraint_string(constraints, "fallback")?;
-    let quality_floor = constraint_string(constraints, "quality_floor")?;
+    let capability_floor = constraint_string(constraints, revision.job_capability_floor_key())?;
     let latency = optional_constraint_string(constraints, "latency")?;
     let deadline_ms = optional_constraint_u64(constraints, "deadline_ms")?;
     let max_cost_usd = constraints
@@ -539,11 +572,11 @@ fn validate_shape_policy(
         || !offline_required
         || fallback != "none"
         || max_cost_usd != 0.0
-        || quality_floor != "general"
+        || capability_floor != revision.capable_level()
         || provider_access_class.is_some()
         || latency.as_deref() != Some("interactive")
         || deadline_ms.is_some()
-        || quality_floor != snapshot.routing.quality_floor
+        || capability_floor != snapshot.routing.capability_floor
         || snapshot.placement != "local"
         || snapshot.policy != "local-first"
         || snapshot.priority != "interactive"
@@ -565,6 +598,54 @@ fn validate_shape_policy(
         fallback,
         deadline_ms,
     })
+}
+
+fn validate_job_vocabulary(
+    revision: InferRuntimeContractRevision,
+    snapshot: &Value,
+) -> Result<(), SpeechAttemptFailure> {
+    let object = snapshot
+        .as_object()
+        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
+    let constraints = object
+        .get("constraints")
+        .and_then(Value::as_object)
+        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
+    let routing = object
+        .get("routing")
+        .and_then(Value::as_object)
+        .ok_or_else(|| SpeechAttemptFailure::new("infer_invalid_response", false, false))?;
+    let valid = match revision {
+        InferRuntimeContractRevision::Candidate2 => {
+            object.contains_key("quality_grade")
+                && object.contains_key("rating_status")
+                && !object.contains_key("capability_level")
+                && !object.contains_key("evaluation_status")
+                && constraints.contains_key("quality_floor")
+                && !constraints.contains_key("capability_floor")
+                && routing.contains_key("quality_floor")
+                && !routing.contains_key("capability_floor")
+        }
+        InferRuntimeContractRevision::Candidate3 => {
+            object.contains_key("capability_level")
+                && object.contains_key("evaluation_status")
+                && !object.contains_key("quality_grade")
+                && !object.contains_key("rating_status")
+                && constraints.contains_key("capability_floor")
+                && !constraints.contains_key("quality_floor")
+                && routing.contains_key("capability_floor")
+                && !routing.contains_key("quality_floor")
+        }
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(SpeechAttemptFailure::new(
+            "infer_invalid_response",
+            false,
+            false,
+        ))
+    }
 }
 
 fn external_attempts(

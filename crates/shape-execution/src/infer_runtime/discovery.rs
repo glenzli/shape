@@ -15,7 +15,10 @@ use serde::Deserialize;
 use thiserror::Error;
 use time::{Duration, OffsetDateTime, format_description::well_known::Rfc3339};
 
-use super::{INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClientError, canonical_loopback_url};
+use super::{InferRuntimeClientError, InferRuntimeContractRevision, canonical_loopback_url};
+
+#[cfg(test)]
+use super::INFER_RUNTIME_CONTRACT_VERSION;
 
 /// Fixed endpoint retained only while existing Consumers migrate to Discovery.
 pub const INFER_RUNTIME_COMPATIBILITY_ENDPOINT: &str = "http://127.0.0.1:8787";
@@ -67,6 +70,8 @@ pub struct ResolvedInferRuntimeEndpoint {
     pub generation: Option<String>,
     /// Validated lease expiry as a Unix timestamp when discovered.
     pub lease_expires_at_unix: Option<i64>,
+    /// Exact Consumer protocol revision selected from Discovery when present.
+    pub contract_version: Option<String>,
 }
 
 /// Resolves Infer Runtime through explicit override, Infra Discovery, then the
@@ -161,6 +166,7 @@ impl InferRuntimeEndpointResolver {
                 instance_id: None,
                 generation: None,
                 lease_expires_at_unix: None,
+                contract_version: None,
             };
             self.remember(endpoint.clone());
             return Ok(endpoint);
@@ -183,6 +189,7 @@ impl InferRuntimeEndpointResolver {
             instance_id: None,
             generation: None,
             lease_expires_at_unix: None,
+            contract_version: None,
         })
     }
 
@@ -389,18 +396,25 @@ impl Registration {
         for offer in &self.offers {
             offer.validate()?;
         }
-        let offer = self
-            .offers
-            .iter()
-            .find(|offer| {
-                offer.protocol == CONSUMER_PROTOCOL
-                    && offer.binding == CONSUMER_BINDING
-                    && offer
-                        .protocol_versions
-                        .iter()
-                        .any(|version| version == INFER_RUNTIME_CONTRACT_VERSION)
-            })
-            .ok_or(InferRuntimeDiscoveryError::NoCompatibleOffer)?;
+        let (offer, contract_version) = [
+            InferRuntimeContractRevision::Candidate3,
+            InferRuntimeContractRevision::Candidate2,
+        ]
+        .into_iter()
+        .find_map(|revision| {
+            self.offers
+                .iter()
+                .find(|offer| {
+                    offer.protocol == CONSUMER_PROTOCOL
+                        && offer.binding == CONSUMER_BINDING
+                        && offer
+                            .protocol_versions
+                            .iter()
+                            .any(|version| version == revision.as_str())
+                })
+                .map(|offer| (offer, revision.as_str()))
+        })
+        .ok_or(InferRuntimeDiscoveryError::NoCompatibleOffer)?;
         canonical_loopback_url(&offer.endpoint)
             .map_err(|_| InferRuntimeDiscoveryError::InvalidEndpoint)?;
         Ok(ResolvedInferRuntimeEndpoint {
@@ -409,6 +423,7 @@ impl Registration {
             instance_id: Some(self.service.instance_id.clone()),
             generation: Some(self.service.generation.clone()),
             lease_expires_at_unix: Some(expires_at.unix_timestamp()),
+            contract_version: Some(contract_version.to_owned()),
         })
     }
 }
