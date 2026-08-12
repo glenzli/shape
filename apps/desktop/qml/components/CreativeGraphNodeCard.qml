@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 
 //! Media- and role-aware presentation for one accepted creative graph node.
-//! The graph owner keeps layout and interaction; this owner makes Source,
-//! creative steps, and the current Result visually mean different things.
+//! Layout belongs to SceneOperatorGraphWorkspace; this owner makes Source,
+//! accepted creative steps, and the current Result visibly different.
 
 import QtQuick
 import QtQuick.Layouts
@@ -56,10 +56,21 @@ Item {
     }
 
     function roleLabel() : string {
-        if (isSource) return qsTr("SOURCE")
+        if (isSource) return qsTr("SOURCE MATERIAL")
         if (isOutput) return qsTr("CURRENT RESULT")
         if (isAiCreator) return qsTr("AI CREATION")
         return qsTr("EDITING STEP")
+    }
+
+    function roleIcon() : url {
+        if (isOutput) return "qrc:/qt/qml/Shape/Desktop/icons/verified.svg"
+        if (isOperator || isAiCreator) {
+            return "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
+        }
+        if (boundDataType === "audio.clip") {
+            return "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
+        }
+        return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
     }
 
     function title() : string {
@@ -97,38 +108,32 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radiusLarge
-        color: card.selected ? Theme.accentSoft
-                             : card.hovered ? Theme.raisedHover : Theme.raised
+        radius: Theme.cardRadius
+        color: card.selected
+               ? (card.isOutput ? Theme.successSoft : Theme.accentSoft)
+               : card.hovered ? Theme.raisedHover : Theme.panelRaised
         border.width: card.selected ? 2 : 1
         border.color: card.selected ? card.semanticColor : Theme.borderStrong
         clip: true
+    }
 
-        Rectangle {
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: 4
-            color: card.semanticColor
-        }
-
-        Rectangle {
-            visible: card.isOutput
-            anchors.fill: parent
-            color: Theme.success
-            opacity: Theme.effectiveDark ? 0.045 : 0.035
-        }
+    Rectangle {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 3
+        color: card.semanticColor
     }
 
     Rectangle {
         visible: card.nodeData.inputPorts.length > 0
         anchors.left: parent.left
-        anchors.leftMargin: -5
+        anchors.leftMargin: -6
         anchors.verticalCenter: parent.verticalCenter
-        width: 10
-        height: 10
-        radius: 5
-        color: Theme.surface
+        width: 12
+        height: 12
+        radius: 6
+        color: Theme.canvas
         border.width: 2
         border.color: card.semanticColor
     }
@@ -136,12 +141,12 @@ Item {
     Rectangle {
         visible: card.nodeData.outputPorts.length > 0
         anchors.right: parent.right
-        anchors.rightMargin: -5
+        anchors.rightMargin: -6
         anchors.verticalCenter: parent.verticalCenter
-        width: 10
-        height: 10
-        radius: 5
-        color: Theme.surface
+        width: 12
+        height: 12
+        radius: 6
+        color: Theme.canvas
         border.width: 2
         border.color: card.semanticColor
     }
@@ -152,65 +157,84 @@ Item {
         anchors.right: parent.right
         anchors.rightMargin: -17
         anchors.verticalCenter: parent.verticalCenter
-        width: 28
-        height: 28
         source: "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
         toolTipText: qsTr("Add a node from this output")
         accessibleName: toolTipText
+        buttonSize: 28
+        iconSize: 15
         onClicked: card.outputNodeRequested()
     }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.leftMargin: 16
-        anchors.rightMargin: 13
-        anchors.topMargin: 12
-        anchors.bottomMargin: 12
-        spacing: 6
+        anchors.leftMargin: 17
+        anchors.rightMargin: 14
+        anchors.topMargin: 14
+        anchors.bottomMargin: 13
+        spacing: 9
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: 10
 
-            Text {
-                text: card.roleLabel()
-                color: card.semanticColor
-                font.pixelSize: 9
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.6
+            Rectangle {
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+                radius: 9
+                color: card.isOutput ? Theme.successSoft : Theme.panelInset
+
+                ShapeIcon {
+                    anchors.centerIn: parent
+                    source: card.roleIcon()
+                    size: 17
+                    color: card.semanticColor
+                }
             }
 
-            Item { Layout.fillWidth: true }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+
+                Text {
+                    Layout.fillWidth: true
+                    text: card.roleLabel()
+                    color: card.semanticColor
+                    font.pixelSize: Theme.fontMicro
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 0.65
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: card.title()
+                    color: Theme.text
+                    font.pixelSize: Theme.fontHeading
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+            }
 
             Text {
                 visible: card.isOperator
                 text: qsTr("STEP %1").arg(card.stageNumber)
                 color: Theme.disabled
-                font.pixelSize: 8
+                font.pixelSize: Theme.fontMicro
             }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            text: card.title()
-            color: Theme.text
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
-            elide: Text.ElideRight
         }
 
         Rectangle {
             visible: card.displaysMaterialPreview
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumHeight: 66
-            radius: Theme.radiusSmall
-            color: Theme.effectiveDark ? "#11151a" : "#eef1f4"
+            Layout.minimumHeight: 68
+            radius: Theme.controlRadius
+            color: Theme.panelInset
             border.color: Theme.border
             clip: true
 
             Image {
-                visible: card.isOutput && card.boundDataType === "image.raster"
+                visible: card.boundDataType === "image.raster"
                          && card.acceptedImageSource.toString().length > 0
                 anchors.fill: parent
                 anchors.margins: 4
@@ -223,13 +247,14 @@ Item {
             Text {
                 visible: card.boundDataType === "text.document"
                 anchors.fill: parent
-                anchors.margins: 9
+                anchors.margins: 10
                 text: card.hasExactTextPreview
                       ? card.exactTextPreview
-                      : card.isOutput && card.artifactTextPreview.length > 0
+                      : card.artifactTextPreview.length > 0
                         ? card.artifactTextPreview : qsTr("Empty text")
                 color: Theme.textSoft
-                font.pixelSize: 9
+                font.pixelSize: Theme.fontMeta
+                lineHeight: 1.2
                 wrapMode: Text.Wrap
                 elide: Text.ElideRight
                 maximumLineCount: 4
@@ -247,31 +272,32 @@ Item {
                 }
 
                 ColumnLayout {
-                    spacing: 1
+                    spacing: 2
+
                     Text {
                         text: card.isSource ? qsTr("Audio material") : qsTr("Audio preview")
                         color: Theme.text
-                        font.pixelSize: 10
+                        font.pixelSize: Theme.fontBody
                         font.weight: Font.DemiBold
                     }
+
                     Text {
                         text: card.isOutput
-                              ? qsTr("%1 s · %2 Hz").arg(
-                                    (card.artifactAudioDurationMillis / 1000).toFixed(1)).arg(
-                                    card.artifactAudioSampleRateHz)
+                              ? qsTr("%1 s · %2 Hz")
+                                  .arg((card.artifactAudioDurationMillis / 1000).toFixed(1))
+                                  .arg(card.artifactAudioSampleRateHz)
                               : qsTr("Open to inspect this material")
                         color: Theme.muted
-                        font.pixelSize: 8
+                        font.pixelSize: Theme.fontMeta
                     }
                 }
             }
 
             ColumnLayout {
                 visible: card.boundDataType === "image.raster"
-                         && (!card.isOutput
-                             || card.acceptedImageSource.toString().length === 0)
+                         && card.acceptedImageSource.toString().length === 0
                 anchors.centerIn: parent
-                spacing: 3
+                spacing: 4
 
                 ShapeIcon {
                     Layout.alignment: Qt.AlignHCenter
@@ -279,70 +305,63 @@ Item {
                     color: card.semanticColor
                     size: 20
                 }
+
                 Text {
                     text: card.isSource ? qsTr("Image material") : qsTr("Image preview")
                     color: Theme.textSoft
-                    font.pixelSize: 9
+                    font.pixelSize: Theme.fontMeta
                     font.weight: Font.DemiBold
                 }
             }
         }
 
         RowLayout {
-            visible: card.isOperator
             Layout.fillWidth: true
-            spacing: 5
+            spacing: 6
 
             Rectangle {
                 visible: card.isImageEditor
-                Layout.preferredWidth: cropLabel.implicitWidth + 12
-                Layout.preferredHeight: 20
-                radius: 10
-                color: Theme.surface
-                border.color: Theme.border
+                Layout.preferredWidth: frameLabel.implicitWidth + 14
+                Layout.preferredHeight: 22
+                radius: 11
+                color: Theme.panelInset
+
                 Text {
-                    id: cropLabel
+                    id: frameLabel
                     anchors.centerIn: parent
                     text: qsTr("Frame")
                     color: Theme.textSoft
-                    font.pixelSize: 8
+                    font.pixelSize: Theme.fontMicro
                 }
             }
 
             Rectangle {
                 visible: card.isImageEditor
-                Layout.preferredWidth: sizeLabel.implicitWidth + 12
-                Layout.preferredHeight: 20
-                radius: 10
-                color: Theme.surface
-                border.color: Theme.border
+                Layout.preferredWidth: sizeLabel.implicitWidth + 14
+                Layout.preferredHeight: 22
+                radius: 11
+                color: Theme.panelInset
+
                 Text {
                     id: sizeLabel
                     anchors.centerIn: parent
                     text: qsTr("Size")
                     color: Theme.textSoft
-                    font.pixelSize: 8
+                    font.pixelSize: Theme.fontMicro
                 }
             }
 
             Text {
                 Layout.fillWidth: true
-                text: card.detail()
+                text: card.isOutput && card.boundDataType === "image.raster"
+                      ? qsTr("%1 × %2 px")
+                          .arg(card.artifactImageWidth).arg(card.artifactImageHeight)
+                      : card.detail()
                 color: Theme.muted
-                font.pixelSize: 9
+                font.pixelSize: Theme.fontMeta
                 elide: Text.ElideRight
                 horizontalAlignment: card.isImageEditor ? Text.AlignRight : Text.AlignLeft
             }
-        }
-
-        Text {
-            visible: card.isOutput && card.boundDataType === "image.raster"
-            Layout.fillWidth: true
-            text: qsTr("%1 × %2 px").arg(card.artifactImageWidth)
-                                      .arg(card.artifactImageHeight)
-            color: Theme.muted
-            font.pixelSize: 8
-            elide: Text.ElideRight
         }
     }
 }

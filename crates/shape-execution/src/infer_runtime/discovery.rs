@@ -14,10 +14,7 @@ use std::process::Command;
 use serde::Deserialize;
 use thiserror::Error;
 
-use super::{InferRuntimeClientError, InferRuntimeContractRevision, canonical_loopback_url};
-
-#[cfg(test)]
-use super::INFER_RUNTIME_CONTRACT_VERSION;
+use super::{INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClientError, canonical_loopback_url};
 
 /// Fixed endpoint retained only while existing Consumers migrate to Discovery.
 pub const INFER_RUNTIME_COMPATIBILITY_ENDPOINT: &str = "http://127.0.0.1:8787";
@@ -372,25 +369,18 @@ impl Registration {
         for offer in &self.offers {
             offer.validate()?;
         }
-        let (offer, contract_version) = [
-            InferRuntimeContractRevision::Candidate3,
-            InferRuntimeContractRevision::Candidate2,
-        ]
-        .into_iter()
-        .find_map(|revision| {
-            self.offers
-                .iter()
-                .find(|offer| {
-                    offer.protocol == CONSUMER_PROTOCOL
-                        && offer.binding == CONSUMER_BINDING
-                        && offer
-                            .protocol_versions
-                            .iter()
-                            .any(|version| version == revision.as_str())
-                })
-                .map(|offer| (offer, revision.as_str()))
-        })
-        .ok_or(InferRuntimeDiscoveryError::NoCompatibleOffer)?;
+        let offer = self
+            .offers
+            .iter()
+            .find(|offer| {
+                offer.protocol == CONSUMER_PROTOCOL
+                    && offer.binding == CONSUMER_BINDING
+                    && offer
+                        .protocol_versions
+                        .iter()
+                        .any(|version| version == INFER_RUNTIME_CONTRACT_VERSION)
+            })
+            .ok_or(InferRuntimeDiscoveryError::NoCompatibleOffer)?;
         canonical_loopback_url(&offer.endpoint)
             .map_err(|_| InferRuntimeDiscoveryError::InvalidEndpoint)?;
         Ok(ResolvedInferRuntimeEndpoint {
@@ -398,7 +388,7 @@ impl Registration {
             source: InferRuntimeEndpointSource::Discovery,
             instance_id: Some(self.service.instance_id.clone()),
             generation: Some(self.service.generation.clone()),
-            contract_version: Some(contract_version.to_owned()),
+            contract_version: Some(INFER_RUNTIME_CONTRACT_VERSION.to_owned()),
         })
     }
 }

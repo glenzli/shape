@@ -27,12 +27,12 @@ Item {
     property bool credentialConfigured: false
     property string persistedMode: "rewrite"
     property string persistedInstruction: ""
-    property string persistedTone: "neutral"
+    property string persistedExpressionJson: ""
     property string persistedStyle: "natural"
     property int persistedVariantCount: 1
 
     property string pendingMode: normalizeMode(persistedMode)
-    property string pendingTone: normalizeTone(persistedTone)
+    property string pendingExpressionJson: normalizeExpressionJson(persistedExpressionJson)
     property string pendingStyle: normalizeStyle(persistedStyle)
     property int pendingVariantCount: persistedVariantCount === 3 ? 3 : 1
     property int queuedGenerationCount: 0
@@ -42,12 +42,12 @@ Item {
     readonly property var selectedCandidate: candidateForId(selectedCandidateId)
     readonly property int materialCount: hasAcceptedRevision ? 1 : 0
     readonly property string outputText: selectedCandidate !== null ? selectedCandidate.text : acceptedText
-    readonly property bool canGenerate: hasAcceptedRevision && operatorDraftId.length > 0 && runtimeCompatible && credentialConfigured && !generationRunning && !batchActive
-    readonly property bool canUsePrimaryAction: hasAcceptedRevision && (operatorDraftId.length === 0 || runtimeCompatible) && !generationRunning && !batchActive
+    readonly property bool canGenerate: hasAcceptedRevision && operatorDraftId.length > 0 && runtimeCompatible && credentialConfigured && expressionPalette.expressionComplete && !generationRunning && !batchActive
+    readonly property bool canUsePrimaryAction: hasAcceptedRevision && (operatorDraftId.length === 0 || runtimeCompatible) && expressionPalette.expressionComplete && !generationRunning && !batchActive
     readonly property bool canLockOutput: selectedCandidate !== null
 
-    signal draftSaveRequested(string draftId, string modeKey, string instruction, string toneKey, string styleKey, int variantCount)
-    signal generationRequested(string artifactId, string draftId, string modeKey, string instruction, string toneKey, string styleKey, int variantCount)
+    signal draftSaveRequested(string draftId, string modeKey, string instruction, string expressionJson, string styleKey, int variantCount)
+    signal generationRequested(string artifactId, string draftId, string modeKey, string instruction, string expressionJson, string styleKey, int variantCount)
     signal candidateSelected(string candidateId)
     signal candidateLockRequested(string candidateId)
     signal setupRequested
@@ -74,17 +74,30 @@ Item {
         }
     }
 
-    function normalizeTone(value): string {
-        switch (value) {
-        case "neutral":
-        case "warm":
-        case "confident":
-        case "playful":
-        case "serious":
-            return value;
-        default:
-            return "neutral";
+    function normalizeExpressionJson(value): string {
+        if (value.length > 0) {
+            try {
+                const decoded = JSON.parse(value);
+                if (decoded.tones && decoded.tones.length > 0)
+                    return JSON.stringify(decoded);
+            } catch (error) {
+                // The Rust codec remains authoritative; a malformed projection
+                // falls back visibly instead of becoming authored state.
+            }
         }
+        return JSON.stringify({
+            "tones": [
+                {
+                    "kind": "preset",
+                    "preset": "neutral"
+                }
+            ],
+            "intensity": "balanced",
+            "audience": {
+                "kind": "preset",
+                "preset": "general"
+            }
+        });
     }
 
     function normalizeStyle(value): string {
@@ -130,34 +143,14 @@ Item {
         }
     }
 
-    function toneLabel(value): string {
-        switch (value) {
-        case "warm":
-            return qsTr("Warm");
-        case "confident":
-            return qsTr("Confident");
-        case "playful":
-            return qsTr("Playful");
-        case "serious":
-            return qsTr("Serious");
-        default:
-            return qsTr("Neutral");
-        }
-    }
-
     function persistIntent(): void {
         if (operatorDraftId.length === 0)
             return;
-        draftSaveRequested(operatorDraftId, pendingMode, promptEditor.text, pendingTone, pendingStyle, pendingVariantCount);
+        draftSaveRequested(operatorDraftId, pendingMode, promptEditor.text, pendingExpressionJson, pendingStyle, pendingVariantCount);
     }
 
     function chooseMode(modeKey): void {
         pendingMode = normalizeMode(modeKey);
-        persistTimer.restart();
-    }
-
-    function chooseTone(toneKey): void {
-        pendingTone = normalizeTone(toneKey);
         persistTimer.restart();
     }
 
@@ -208,7 +201,7 @@ Item {
         if (!batchActive || generationRunning || queuedGenerationCount <= 0)
             return;
         queuedGenerationCount -= 1;
-        generationRequested(artifactId, operatorDraftId, pendingMode, promptEditor.text, pendingTone, pendingStyle, pendingVariantCount);
+        generationRequested(artifactId, operatorDraftId, pendingMode, promptEditor.text, pendingExpressionJson, pendingStyle, pendingVariantCount);
     }
 
     function stopBatch(): void {
@@ -249,7 +242,7 @@ Item {
     }
 
     onPersistedModeChanged: pendingMode = normalizeMode(persistedMode)
-    onPersistedToneChanged: pendingTone = normalizeTone(persistedTone)
+    onPersistedExpressionJsonChanged: pendingExpressionJson = normalizeExpressionJson(persistedExpressionJson)
     onPersistedStyleChanged: pendingStyle = normalizeStyle(persistedStyle)
     onPersistedVariantCountChanged: pendingVariantCount = persistedVariantCount === 3 ? 3 : 1
     onPersistedInstructionChanged: {
@@ -293,33 +286,33 @@ Item {
         property bool current: false
 
         implicitWidth: Math.max(54, chipLabel.implicitWidth + 18)
-        implicitHeight: 32
+        implicitHeight: Theme.compactControlHeight
         leftPadding: 9
         rightPadding: 9
         focusPolicy: Qt.StrongFocus
 
         background: Rectangle {
-            radius: 8
+            radius: Theme.compactControlRadius
             color: {
                 if (!chip.enabled)
-                    return Theme.surface;
+                    return Theme.controlQuiet;
                 if (chip.current)
                     return Theme.accentSoft;
                 if (chip.down)
-                    return Theme.selected;
+                    return Theme.buttonGhostPressed;
                 if (chip.hovered)
-                    return Theme.raisedHover;
-                return Theme.raised;
+                    return Theme.buttonGhostHover;
+                return Theme.control;
             }
-            border.width: chip.visualFocus ? 1 : 0
-            border.color: Theme.accent
+            border.width: chip.current || chip.visualFocus ? 1 : 0
+            border.color: chip.visualFocus ? Theme.focusRing : Theme.accentBorder
         }
 
         contentItem: Text {
             id: chipLabel
             text: chip.text
             color: chip.enabled ? chip.current ? Theme.accent : Theme.textSoft : Theme.disabled
-            font.pixelSize: 11
+            font.pixelSize: Theme.fontSection
             font.weight: chip.current ? Font.DemiBold : Font.Normal
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -328,25 +321,31 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 12
+        spacing: 0
 
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 12
+            spacing: 0
 
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: 460
-                radius: Theme.radiusLarge
-                color: Theme.raised
-                border.color: Theme.border
+                color: Theme.panelRaised
+
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    width: 1
+                    color: Theme.border
+                }
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 14
+                    anchors.margins: 20
+                    spacing: 16
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -356,7 +355,7 @@ Item {
                             Layout.fillWidth: true
                             text: qsTr("Source text")
                             color: Theme.text
-                            font.pixelSize: 14
+                            font.pixelSize: Theme.fontHeading
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                         }
@@ -365,14 +364,14 @@ Item {
                             Layout.preferredWidth: sourceBadgeText.implicitWidth + 20
                             Layout.preferredHeight: 26
                             radius: 13
-                            color: workspace.hasAcceptedRevision ? Theme.selected : Theme.surface
+                            color: workspace.hasAcceptedRevision ? Theme.surfaceSelected : Theme.surfaceSubtle
 
                             Text {
                                 id: sourceBadgeText
                                 anchors.centerIn: parent
                                 text: workspace.hasAcceptedRevision ? qsTr("Locked source") : qsTr("Source missing")
                                 color: workspace.hasAcceptedRevision ? Theme.textSoft : Theme.muted
-                                font.pixelSize: 9
+                                font.pixelSize: Theme.fontMeta
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -388,7 +387,7 @@ Item {
                         text: workspace.acceptedText.length > 0 ? workspace.acceptedText : qsTr("Connect a text source to start editing.")
                         color: workspace.hasAcceptedRevision ? Theme.text : Theme.muted
                         wrapMode: TextEdit.Wrap
-                        font.pixelSize: 15
+                        font.pixelSize: 14
                         selectionColor: Theme.accentSoft
                         selectedTextColor: Theme.text
                         leftPadding: 14
@@ -396,9 +395,9 @@ Item {
                         topPadding: 12
                         bottomPadding: 12
                         background: Rectangle {
-                            radius: 10
-                            color: Theme.surface
-                            border.color: sourceEditor.activeFocus ? Theme.accent : "transparent"
+                            radius: Theme.controlRadius
+                            color: Theme.panelInset
+                            border.color: sourceEditor.activeFocus ? Theme.focusRing : Theme.border
                         }
                     }
 
@@ -419,14 +418,14 @@ Item {
                             Text {
                                 text: qsTr("New version")
                                 color: Theme.text
-                                font.pixelSize: 14
+                                font.pixelSize: Theme.fontHeading
                                 font.weight: Font.DemiBold
                             }
                             Text {
                                 Layout.fillWidth: true
                                 text: workspace.selectedCandidate !== null ? qsTr("Review, refine, then use it as this node's output.") : qsTr("Your source stays untouched until you choose a version.")
                                 color: Theme.muted
-                                font.pixelSize: 10
+                                font.pixelSize: Theme.fontMeta
                                 elide: Text.ElideRight
                             }
                         }
@@ -435,13 +434,13 @@ Item {
                             Layout.preferredWidth: candidateCountText.implicitWidth + 18
                             Layout.preferredHeight: 26
                             radius: 13
-                            color: Theme.surface
+                            color: Theme.surfaceSubtle
                             Text {
                                 id: candidateCountText
                                 anchors.centerIn: parent
                                 text: qsTr("%1 versions").arg(workspace.candidates.length)
                                 color: Theme.textSoft
-                                font.pixelSize: 9
+                                font.pixelSize: Theme.fontMeta
                             }
                         }
                     }
@@ -461,7 +460,7 @@ Item {
                             text: workspace.selectedCandidate !== null ? workspace.selectedCandidate.text : ""
                             color: Theme.text
                             wrapMode: TextEdit.Wrap
-                            font.pixelSize: 16
+                            font.pixelSize: 15
                             selectionColor: Theme.accentSoft
                             selectedTextColor: Theme.text
                             leftPadding: 16
@@ -469,9 +468,9 @@ Item {
                             topPadding: 14
                             bottomPadding: 14
                             background: Rectangle {
-                                radius: 10
-                                color: Theme.surface
-                                border.color: outputEditor.activeFocus ? Theme.accent : "transparent"
+                                radius: Theme.controlRadius
+                                color: Theme.panelInset
+                                border.color: outputEditor.activeFocus ? Theme.focusRing : Theme.border
                             }
                         }
 
@@ -485,8 +484,8 @@ Item {
                                 Layout.alignment: Qt.AlignHCenter
                                 Layout.preferredWidth: 46
                                 Layout.preferredHeight: 46
-                                radius: 23
-                                color: Theme.accentSoft
+                                radius: 12
+                                color: Theme.accentSurfaceQuiet
 
                                 ShapeIcon {
                                     anchors.centerIn: parent
@@ -500,7 +499,7 @@ Item {
                                 Layout.fillWidth: true
                                 text: workspace.hasAcceptedRevision ? qsTr("Ready for a new version") : qsTr("Connect a source first")
                                 color: Theme.text
-                                font.pixelSize: 16
+                                font.pixelSize: Theme.fontHeading
                                 font.weight: Font.DemiBold
                                 horizontalAlignment: Text.AlignHCenter
                             }
@@ -509,7 +508,7 @@ Item {
                                 Layout.fillWidth: true
                                 text: workspace.hasAcceptedRevision ? qsTr("Choose an edit direction and generate one or more alternatives.") : qsTr("This node keeps your editing intent while it waits for material.")
                                 color: Theme.muted
-                                font.pixelSize: 10
+                                font.pixelSize: Theme.fontMeta
                                 wrapMode: Text.WordWrap
                                 horizontalAlignment: Text.AlignHCenter
                             }
@@ -524,7 +523,7 @@ Item {
                             Layout.fillWidth: true
                             text: outputEditor.selectedText.trim().length > 0 ? qsTr("Selected text can be revised again") : qsTr("Select a passage to refine it again")
                             color: Theme.muted
-                            font.pixelSize: 9
+                            font.pixelSize: Theme.fontMeta
                             elide: Text.ElideRight
                         }
 
@@ -551,17 +550,15 @@ Item {
             }
 
             Rectangle {
-                Layout.preferredWidth: 354
-                Layout.maximumWidth: 380
+                Layout.preferredWidth: 348
+                Layout.maximumWidth: 372
                 Layout.fillHeight: true
-                radius: Theme.radiusLarge
-                color: Theme.surface
-                border.color: Theme.border
+                color: Theme.panel
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 12
+                    anchors.margins: 18
+                    spacing: 14
 
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -570,14 +567,14 @@ Item {
                         Text {
                             text: qsTr("Edit direction")
                             color: Theme.text
-                            font.pixelSize: 14
+                            font.pixelSize: Theme.fontHeading
                             font.weight: Font.DemiBold
                         }
                         Text {
                             Layout.fillWidth: true
                             text: qsTr("Describe the change; Shape keeps the source outside this node.")
                             color: Theme.muted
-                            font.pixelSize: 9
+                            font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap
                         }
                     }
@@ -585,7 +582,7 @@ Item {
                     Text {
                         text: qsTr("PROMPT · OPTIONAL")
                         color: Theme.muted
-                        font.pixelSize: 9
+                        font.pixelSize: Theme.fontMicro
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.6
                     }
@@ -608,9 +605,9 @@ Item {
                         onTextChanged: if (activeFocus)
                             persistTimer.restart()
                         background: Rectangle {
-                            color: Theme.raised
-                            radius: 9
-                            border.color: promptEditor.activeFocus ? Theme.accent : Theme.border
+                            color: Theme.control
+                            radius: Theme.controlRadius
+                            border.color: promptEditor.activeFocus ? Theme.focusRing : Theme.border
                         }
                     }
 
@@ -627,7 +624,7 @@ Item {
                             Text {
                                 text: qsTr("QUICK ACTION")
                                 color: Theme.muted
-                                font.pixelSize: 9
+                                font.pixelSize: Theme.fontMicro
                                 font.weight: Font.DemiBold
                                 font.letterSpacing: 0.6
                             }
@@ -649,35 +646,21 @@ Item {
                                 }
                             }
 
-                            Text {
-                                text: qsTr("TONE")
-                                color: Theme.muted
-                                font.pixelSize: 9
-                                font.weight: Font.DemiBold
-                                font.letterSpacing: 0.6
-                            }
-
-                            Flow {
+                            TextExpressionPalette {
+                                id: expressionPalette
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: childrenRect.height
-                                spacing: 6
-
-                                Repeater {
-                                    model: ["neutral", "warm", "confident", "playful", "serious"]
-                                    delegate: ChoiceChip {
-                                        required property string modelData
-                                        objectName: "textTone-" + modelData
-                                        text: workspace.toneLabel(modelData)
-                                        current: workspace.pendingTone === modelData
-                                        onClicked: workspace.chooseTone(modelData)
-                                    }
+                                persistedExpressionJson: workspace.persistedExpressionJson
+                                styleKey: workspace.pendingStyle
+                                onExpressionEdited: expressionJson => {
+                                    workspace.pendingExpressionJson = expressionJson;
+                                    persistTimer.restart();
                                 }
                             }
 
                             Text {
                                 text: qsTr("STYLE")
                                 color: Theme.muted
-                                font.pixelSize: 9
+                                font.pixelSize: Theme.fontMicro
                                 font.weight: Font.DemiBold
                                 font.letterSpacing: 0.6
                             }
@@ -711,7 +694,7 @@ Item {
                         Layout.fillWidth: true
                         text: workspace.generationErrorText().length > 0 ? workspace.generationErrorText() : !workspace.hasAcceptedRevision ? qsTr("Connect a text, image, audio, or file material before generating.") : workspace.operatorDraftId.length === 0 ? qsTr("Start a new draft to edit this saved result again.") : !workspace.runtimeCompatible ? qsTr("AI runtime is not ready.") : !workspace.credentialConfigured ? qsTr("Add an Infer credential in Settings.") : qsTr("The source remains unchanged until you choose a generated version.")
                         color: workspace.generationErrorText().length > 0 ? Theme.danger : Theme.muted
-                        font.pixelSize: 9
+                        font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap
                     }
 
@@ -767,7 +750,7 @@ Item {
 
     Component.onCompleted: {
         pendingMode = normalizeMode(persistedMode);
-        pendingTone = normalizeTone(persistedTone);
+        pendingExpressionJson = normalizeExpressionJson(persistedExpressionJson);
         pendingStyle = normalizeStyle(persistedStyle);
         pendingVariantCount = persistedVariantCount === 3 ? 3 : 1;
         observedCandidateCount = candidates.length;

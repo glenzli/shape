@@ -74,6 +74,27 @@ pub enum DomainError {
         maximum_dimension: u32,
         maximum_pixels: u64,
     },
+    /// A blur radius was an identity or exceeded the portable support bound.
+    #[error("blur radius must be within 1..={maximum}; received {radius}")]
+    InvalidRasterBlurRadius { radius: u16, maximum: u16 },
+    /// Unsharp-mask radius or amount was an identity or exceeded portable bounds.
+    #[error(
+        "unsharp mask requires radius within 1..={maximum_radius} and amount within 1..={maximum_amount_milli}; received radius={radius}, amount={amount_milli}"
+    )]
+    InvalidRasterUnsharpMask {
+        radius: u16,
+        amount_milli: u16,
+        maximum_radius: u16,
+        maximum_amount_milli: u16,
+    },
+    /// Drop-shadow parameters were invisible or exceeded portable bounds.
+    #[error(
+        "drop shadow requires visible color, offsets within +-{maximum_offset}, and blur radius within 0..={maximum_radius}"
+    )]
+    InvalidRasterDropShadow {
+        maximum_offset: u32,
+        maximum_radius: u16,
+    },
     /// A typed operation was attached to an incompatible transformation family.
     #[error("typed operation is incompatible with its transformation family")]
     InvalidTransformationOperation,

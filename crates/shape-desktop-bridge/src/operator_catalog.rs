@@ -26,8 +26,9 @@ pub(crate) use image_resize::{
 };
 use text_transform::validate_text_transform_configuration;
 pub(crate) use text_transform::{
-    compiled_instruction_from_draft, configuration_for_studio, instruction_from_draft,
-    mode_from_draft, style_from_draft, tone_from_draft, variant_count_from_draft,
+    compiled_instruction_from_draft, configuration_for_expression_studio, configuration_for_studio,
+    expression_json_from_draft, instruction_from_draft, mode_from_draft, style_from_draft,
+    tone_from_draft, variant_count_from_draft,
 };
 
 pub(crate) const AUDIO_SPEECH_OPERATOR: &str = "audio.speech_synthesize";

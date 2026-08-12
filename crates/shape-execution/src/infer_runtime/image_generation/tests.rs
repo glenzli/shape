@@ -15,6 +15,17 @@ use crate::{ExecutionCoordinator, ExecutionRequest};
 
 const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
+fn assert_contract_header(request: &str) {
+    assert_eq!(
+        request
+            .matches(&format!(
+                "infer-consumer-contract: {INFER_RUNTIME_CONTRACT_VERSION}\r\n"
+            ))
+            .count(),
+        1
+    );
+}
+
 fn read_request(stream: &mut TcpStream) -> Vec<u8> {
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
@@ -100,9 +111,10 @@ fn executor(origin: &str) -> InferRuntimeImageGenerationExecutor {
     )
 }
 
-fn contract(revision: InferRuntimeContractRevision) -> Value {
+fn contract() -> Value {
     json!({
-        "contract_version": revision.as_str(),
+        "contract_version": INFER_RUNTIME_CONTRACT_VERSION,
+        "supported_contract_versions": [INFER_RUNTIME_CONTRACT_VERSION],
         "capability_scale_version": INFER_RUNTIME_CAPABILITY_SCALE_VERSION,
         "consumer_routes": [{"method": "POST", "path": RESPONSES_ROUTE}]
     })
@@ -180,7 +192,7 @@ fn succeeded_job(job_id: &str) -> Value {
 }
 
 #[test]
-fn exact_candidate_three_request_returns_one_canonical_transient_raster() {
+fn current_contract_request_returns_one_canonical_transient_raster() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let source_png = png(4, 3, ColorType::Rgb8);
@@ -189,16 +201,14 @@ fn exact_candidate_three_request_returns_one_canonical_transient_raster() {
         let (mut contract_stream, _) = listener.accept().unwrap();
         let contract_request = String::from_utf8(read_request(&mut contract_stream)).unwrap();
         assert!(contract_request.starts_with("GET /infer/v1/contract HTTP/1.1\r\n"));
-        write_json(
-            &mut contract_stream,
-            200,
-            &contract(InferRuntimeContractRevision::Candidate3),
-        );
+        assert_contract_header(&contract_request);
+        write_json(&mut contract_stream, 200, &contract());
 
         let (mut image_stream, _) = listener.accept().unwrap();
         let image_request = read_request(&mut image_stream);
         let request_text = String::from_utf8_lossy(&image_request);
         assert!(request_text.starts_with("POST /v1/responses HTTP/1.1\r\n"));
+        assert_contract_header(&request_text);
         assert!(request_text.contains(&format!("authorization: Bearer {TOKEN}")));
         let body = image_request
             .windows(4)
@@ -250,6 +260,7 @@ fn exact_candidate_three_request_returns_one_canonical_transient_raster() {
         let (mut job_stream, _) = listener.accept().unwrap();
         let job_request = String::from_utf8(read_request(&mut job_stream)).unwrap();
         assert!(job_request.starts_with("GET /infer/v1/jobs/resp_shape_image_1 HTTP/1.1\r\n"));
+        assert_contract_header(&job_request);
         assert!(job_request.contains(&format!("authorization: Bearer {TOKEN}")));
         write_json(&mut job_stream, 200, &succeeded_job("resp_shape_image_1"));
     });
@@ -280,7 +291,7 @@ fn exact_candidate_three_request_returns_one_canonical_transient_raster() {
 }
 
 #[test]
-fn candidate_two_and_multi_candidate_requests_fail_before_generation() {
+fn unsupported_candidate_count_and_retired_contract_fail_before_generation() {
     let unsupported = executor("http://127.0.0.1:9")
         .execute(&request(&parameters(4, 3, 2)))
         .unwrap_err();
@@ -294,7 +305,12 @@ fn candidate_two_and_multi_candidate_requests_fail_before_generation() {
         write_json(
             &mut stream,
             200,
-            &contract(InferRuntimeContractRevision::Candidate2),
+            &json!({
+                "contract_version": "0.1.0-retired",
+                "supported_contract_versions": ["0.1.0-retired"],
+                "capability_scale_version": INFER_RUNTIME_CAPABILITY_SCALE_VERSION,
+                "consumer_routes": [{"method": "POST", "path": RESPONSES_ROUTE}]
+            }),
         );
     });
     let failure = executor(&format!("http://{address}"))
@@ -317,7 +333,7 @@ fn response_shape_base64_png_and_geometry_are_revalidated() {
     wrong_id["id"] = json!("job_not_response");
     invalid_cases.push(wrong_id);
     let mut wrong_model = valid.clone();
-    wrong_model["model"] = json!("language.respond");
+    wrong_model["model"] = json!("wrong.intent");
     invalid_cases.push(wrong_model);
     let mut empty = valid.clone();
     empty["output"] = json!([]);

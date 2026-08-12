@@ -131,6 +131,7 @@ fn provenance() -> ExternalExecutionProvenance {
         requested_deadline_ms: None,
         max_cost_microusd: 0,
         capability_floor: "capable".to_owned(),
+        named_route: None,
         routing_candidates: vec![ExternalRoutingCandidate {
             provider: "mlx-audio-local".to_owned(),
             deployment: "mlx_qwen3_tts_custom_voice_1_7b".to_owned(),

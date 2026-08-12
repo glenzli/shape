@@ -18,6 +18,17 @@ use crate::{ExecutionCoordinator, ExecutionRequest};
 
 const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
+fn assert_contract_header(request: &str) {
+    assert_eq!(
+        request
+            .matches(&format!(
+                "infer-consumer-contract: {INFER_RUNTIME_CONTRACT_VERSION}\r\n"
+            ))
+            .count(),
+        1
+    );
+}
+
 fn read_request(stream: &mut TcpStream) -> String {
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
@@ -60,7 +71,6 @@ fn write_response(stream: &mut TcpStream, status: u16, body: &str) {
 }
 
 fn executor_with_fake_runtime(
-    revision: InferRuntimeContractRevision,
     response_status: u16,
     response_body: Value,
 ) -> (InferRuntimeExecutor, thread::JoinHandle<()>) {
@@ -70,11 +80,13 @@ fn executor_with_fake_runtime(
         let (mut contract_stream, _) = listener.accept().expect("contract probe connects");
         let contract_request = read_request(&mut contract_stream);
         assert!(contract_request.starts_with("GET /infer/v1/contract HTTP/1.1\r\n"));
+        assert_contract_header(&contract_request);
         write_response(
             &mut contract_stream,
             200,
             &json!({
-                "contract_version": revision.as_str(),
+                "contract_version": INFER_RUNTIME_CONTRACT_VERSION,
+                "supported_contract_versions": [INFER_RUNTIME_CONTRACT_VERSION],
                 "capability_scale_version": INFER_RUNTIME_CAPABILITY_SCALE_VERSION,
                 "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
             })
@@ -84,13 +96,14 @@ fn executor_with_fake_runtime(
         let (mut response_stream, _) = listener.accept().expect("Responses request connects");
         let response_request = read_request(&mut response_stream);
         assert!(response_request.starts_with("POST /v1/responses HTTP/1.1\r\n"));
+        assert_contract_header(&response_request);
         assert!(response_request.contains(&format!("authorization: Bearer {TOKEN}")));
         let body = response_request
             .split_once("\r\n\r\n")
             .expect("request has body")
             .1;
         let request: Value = serde_json::from_str(body).expect("request JSON parses");
-        assert_eq!(request["model"], revision.text_intent());
+        assert_eq!(request["model"], TEXT_INTENT);
         assert_eq!(request["input"], "Rewrite this paragraph clearly.");
         assert_eq!(request["stream"], false);
         assert_eq!(request["metadata"]["infer.policy"], "local-first");
@@ -99,19 +112,40 @@ fn executor_with_fake_runtime(
         assert_eq!(request["metadata"]["infer.fallback"], "none");
         assert_eq!(request["metadata"]["infer.max_cost_usd"], "0");
         assert_eq!(
-            request["metadata"][revision.capability_floor_metadata_key()],
-            revision.interactive_text_floor()
+            request["metadata"]["infer.capability_floor"],
+            "foundational"
         );
-        let obsolete_floor = match revision {
-            InferRuntimeContractRevision::Candidate2 => "infer.capability_floor",
-            InferRuntimeContractRevision::Candidate3 => "infer.quality_floor",
-        };
-        assert!(request["metadata"].get(obsolete_floor).is_none());
+        assert_eq!(
+            request["metadata"]["infer.deployment_ids"],
+            "ollama_qwen3_5_4b"
+        );
+        let job_id = response_body
+            .get("id")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned);
         write_response(
             &mut response_stream,
             response_status,
             &response_body.to_string(),
         );
+        if response_status == 200
+            && response_body["model"] == TEXT_INTENT
+            && response_body["output"]
+                .as_array()
+                .is_some_and(|items| !items.is_empty())
+        {
+            let job_id = job_id.expect("successful response has a Job id");
+            let (mut job_stream, _) = listener.accept().expect("Job request connects");
+            let job_request = read_request(&mut job_stream);
+            assert!(job_request.starts_with(&format!("GET /infer/v1/jobs/{job_id} HTTP/1.1\r\n")));
+            assert_contract_header(&job_request);
+            assert!(job_request.contains(&format!("authorization: Bearer {TOKEN}")));
+            write_response(
+                &mut job_stream,
+                200,
+                &candidate_four_job(&job_id).to_string(),
+            );
+        }
     });
     let origin = format!("http://{address}");
     let credential = InferRuntimeCredential::from_test_token(TOKEN);
@@ -124,6 +158,66 @@ fn executor_with_fake_runtime(
         InferRuntimeExecutor::with_resolver(credential, resolver),
         worker,
     )
+}
+
+fn candidate_four_job(job_id: &str) -> Value {
+    json!({
+        "id": job_id,
+        "app_id": "shape",
+        "intent": "text.edit",
+        "provider": "ollama-local",
+        "deployment": "ollama_qwen3_5_4b",
+        "model_profile": "qwen3_5_4b",
+        "model_build": "qwen3_5_4b_q4_k_m",
+        "physical_model": "qwen3.5:4b",
+        "placement": "local",
+        "capability_level": "foundational",
+        "evaluation_status": "provisional",
+        "resource_class": "standard",
+        "state": "succeeded",
+        "policy": "local-first",
+        "priority": "interactive",
+        "constraints": {
+            "policy": "local-first",
+            "priority": "interactive",
+            "provider_access_class": null,
+            "placement": "local_only",
+            "prefer": "local",
+            "offline_required": true,
+            "latency": null,
+            "fallback": "none",
+            "max_cost_usd": 0.0,
+            "deadline_ms": null,
+            "capability_floor": "foundational",
+            "named_route": {
+                "kind": "deployment",
+                "ordered_ids": ["ollama_qwen3_5_4b"]
+            }
+        },
+        "routing": {
+            "capability_floor": "foundational",
+            "named_route": {
+                "kind": "deployment",
+                "ordered_ids": ["ollama_qwen3_5_4b"]
+            },
+            "candidates": [{
+                "provider": "ollama-local",
+                "deployment": "ollama_qwen3_5_4b",
+                "status": "eligible",
+                "rank": 1,
+                "reason_codes": []
+            }]
+        },
+        "attempts": [{
+            "number": 1,
+            "provider": "ollama-local",
+            "deployment": "ollama_qwen3_5_4b",
+            "outcome": "succeeded",
+            "trigger": "initial",
+            "error_kind": null
+        }],
+        "error": null
+    })
 }
 
 fn request() -> ExecutionRequest {
@@ -140,13 +234,12 @@ fn request() -> ExecutionRequest {
 #[test]
 fn authenticated_local_first_response_becomes_transient_output_with_runtime_job_identity() {
     let (executor, worker) = executor_with_fake_runtime(
-        InferRuntimeContractRevision::Candidate3,
         200,
         json!({
             "id": "resp_shape_test",
             "object": "response",
             "created_at": 1_786_383_600_u64,
-            "model": InferRuntimeContractRevision::Candidate3.text_intent(),
+            "model": TEXT_INTENT,
             "status": "completed",
             "output": [{
                 "type": "message",
@@ -163,26 +256,41 @@ fn authenticated_local_first_response_becomes_transient_output_with_runtime_job_
         executed.receipt.executor_job_id.as_deref(),
         Some("resp_shape_test")
     );
+    let provenance = executed
+        .output
+        .external_provenance
+        .as_ref()
+        .expect("candidate.4 text output carries verified Job provenance");
+    assert_eq!(provenance.intent, "text.edit");
+    assert_eq!(provenance.deployment, "ollama_qwen3_5_4b");
+    assert_eq!(provenance.capability_floor, "foundational");
+    assert_eq!(
+        provenance
+            .named_route
+            .as_ref()
+            .expect("named route is durable evidence")
+            .ordered_ids,
+        ["ollama_qwen3_5_4b"]
+    );
     worker.join().expect("fake runtime exits");
 }
 
 #[test]
 fn error_handling_uses_only_http_status_and_machine_code() {
     let (executor, worker) = executor_with_fake_runtime(
-        InferRuntimeContractRevision::Candidate3,
         403,
         json!({
             "error": {
                 "message": format!("do not expose {TOKEN}"),
                 "type": "invalid_request_error",
-                "code": "intent_forbidden"
+                "code": "route_target_forbidden"
             }
         }),
     );
     let error =
         ExecutionCoordinator::execute(&executor, &request()).expect_err("request is denied");
     let rendered = error.to_string();
-    assert!(rendered.contains("intent_forbidden"));
+    assert!(rendered.contains("route_target_forbidden"));
     assert!(!rendered.contains(TOKEN));
     assert!(!rendered.contains("do not expose"));
     worker.join().expect("fake runtime exits");
@@ -202,85 +310,28 @@ fn malformed_or_empty_success_envelopes_fail_closed() {
             "id": "resp_empty",
             "object": "response",
             "created_at": 1,
-            "model": InferRuntimeContractRevision::Candidate3.text_intent(),
+            "model": TEXT_INTENT,
             "output": []
         }),
     ] {
-        let (executor, worker) =
-            executor_with_fake_runtime(InferRuntimeContractRevision::Candidate3, 200, response);
+        let (executor, worker) = executor_with_fake_runtime(200, response);
         assert!(ExecutionCoordinator::execute(&executor, &request()).is_err());
         worker.join().expect("fake runtime exits");
     }
 }
 
 #[test]
-fn candidate_two_offer_uses_only_the_candidate_two_vocabulary() {
-    let revision = InferRuntimeContractRevision::Candidate2;
-    let listener = TcpListener::bind("127.0.0.1:0").expect("fake runtime binds");
-    let address = listener.local_addr().expect("runtime has address");
-    let worker = thread::spawn(move || {
-        let (mut contract_stream, _) = listener.accept().expect("contract probe connects");
-        let _ = read_request(&mut contract_stream);
-        write_response(
-            &mut contract_stream,
-            200,
-            &json!({
-                "contract_version": revision.as_str(),
-                "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
-            })
-            .to_string(),
-        );
-        let (mut response_stream, _) = listener.accept().expect("Responses request connects");
-        let request_text = read_request(&mut response_stream);
-        let body = request_text.split_once("\r\n\r\n").expect("body exists").1;
-        let request: Value = serde_json::from_str(body).expect("request parses");
-        assert_eq!(request["model"], revision.text_intent());
-        assert_eq!(request["metadata"]["infer.quality_floor"], "general");
-        assert!(request["metadata"].get("infer.capability_floor").is_none());
-        write_response(
-            &mut response_stream,
-            200,
-            &json!({
-                "id": "resp_candidate_two",
-                "object": "response",
-                "created_at": 1,
-                "model": revision.text_intent(),
-                "status": "completed",
-                "output": [{
-                    "type": "message",
-                    "content": [{"type": "output_text", "text": "Candidate two."}]
-                }]
-            })
-            .to_string(),
-        );
-    });
-    let resolver = InferRuntimeEndpointResolver::with_runtime_root(
-        &format!("http://{address}"),
-        std::env::temp_dir(),
-        "http://127.0.0.1:9",
-    );
-    let executor = InferRuntimeExecutor::with_resolver(
-        InferRuntimeCredential::from_test_token(TOKEN),
-        resolver,
-    );
-    let executed =
-        ExecutionCoordinator::execute(&executor, &request()).expect("candidate.2 request succeeds");
-    assert_eq!(executed.output.bytes, b"Candidate two.");
-    worker.join().expect("fake runtime exits");
-}
-
-#[test]
-fn candidate_three_text_uses_the_foundational_interactive_floor() {
-    let request = ResponsesRequest::local_text(
-        "Rewrite this paragraph clearly.",
-        InferRuntimeContractRevision::Candidate3,
-    );
-    assert_eq!(request.model, "language.respond");
+fn current_text_request_uses_the_named_foundational_route() {
+    let request = ResponsesRequest::local_text("Rewrite this paragraph clearly.");
+    assert_eq!(request.model, TEXT_INTENT);
     assert_eq!(
         request.metadata.get("infer.capability_floor"),
         Some(&"foundational")
     );
-    assert!(!request.metadata.contains_key("infer.quality_floor"));
+    assert_eq!(
+        request.metadata.get("infer.deployment_ids"),
+        Some(&TEXT_DEPLOYMENT_ID)
+    );
 }
 
 #[test]

@@ -15,8 +15,9 @@ use crate::operator_catalog::OperatorDescriptor;
 use crate::operator_catalog::{
     AUDIO_SPEECH_OPERATOR, IMAGE_GENERATE_OPERATOR, IMAGE_RESIZE_OPERATOR, TEXT_EDIT_OPERATOR,
     configuration_for_ai_image_generate, configuration_for_audio_speech,
-    configuration_for_image_resize, configuration_for_studio, default_audio_speech_configuration,
-    is_image_edit_workspace_operator, is_text_workspace_operator, validate_draft_configuration,
+    configuration_for_expression_studio, configuration_for_image_resize, configuration_for_studio,
+    default_audio_speech_configuration, is_image_edit_workspace_operator,
+    is_text_workspace_operator, validate_draft_configuration,
 };
 
 /// Identity-addressed drafts owned by one open desktop session.
@@ -265,6 +266,49 @@ impl OperatorDrafts {
         }
         let configuration =
             configuration_for_studio(mode_key, instruction, tone_key, style_key, variant_count)?;
+        let artifact_id = self.graphs[graph_index].context_artifact_id();
+        if !self.graphs[graph_index].set_operator_configuration(&draft_id, configuration) {
+            return Err("Operator draft disappeared during configuration".to_owned());
+        }
+        let draft = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("configured draft remains in its Working Graph")
+            .clone();
+        Ok((artifact_id, draft))
+    }
+
+    pub(crate) fn update_text_expression_configuration(
+        &mut self,
+        draft_id: &str,
+        mode_key: &str,
+        instruction: &str,
+        expression_json: &str,
+        style_key: &str,
+        variant_count: u8,
+    ) -> Result<(ArtifactId, WorkingOperatorDraft), String> {
+        let draft_id = OperatorNodeId::new(draft_id).map_err(|error| error.to_string())?;
+        let Some(graph_index) = self.graph_index_for_draft(&draft_id) else {
+            return Err("Operator draft does not exist".to_owned());
+        };
+        let operator_type = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("located draft remains in its Working Graph")
+            .operator_type()
+            .as_str();
+        if !is_text_workspace_operator(operator_type) {
+            return Err("draft is not a Writing workspace Operator".to_owned());
+        }
+        let configuration = configuration_for_expression_studio(
+            mode_key,
+            instruction,
+            expression_json,
+            style_key,
+            variant_count,
+        )?;
         let artifact_id = self.graphs[graph_index].context_artifact_id();
         if !self.graphs[graph_index].set_operator_configuration(&draft_id, configuration) {
             return Err("Operator draft disappeared during configuration".to_owned());

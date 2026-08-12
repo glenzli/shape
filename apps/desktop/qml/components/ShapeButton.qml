@@ -7,7 +7,7 @@ Button {
 
     property bool primary: false
     property bool selected: false
-    property bool quiet: !primary
+    property bool quiet: !primary && !selected
     property url iconSource
     property int iconSize: 15
 
@@ -19,22 +19,28 @@ Button {
     focusPolicy: Qt.StrongFocus
 
     background: Rectangle {
-        radius: Theme.radiusSmall
-        border.width: control.primary ? 0 : 1
-        border.color: control.selected ? Theme.accent : Theme.border
+        radius: Theme.controlRadius
+        border.width: control.primary || control.quiet ? 0 : 1
+        border.color: control.selected ? Theme.accentBorder : Theme.buttonBorder
         color: {
             if (!control.enabled) {
-                return Theme.raised
+                return control.quiet ? Theme.transparent : Theme.controlQuiet
             }
             if (control.primary) {
-                return control.down ? Qt.darker(Theme.accent, 1.1)
+                return control.down ? Theme.accentPressed
                                     : control.hovered ? Theme.accentHover : Theme.accent
             }
             if (control.selected) {
                 return Theme.accentSoft
             }
-            return control.down ? Theme.selected
-                                : control.hovered ? Theme.raisedHover : Theme.raised
+            if (control.quiet) {
+                return control.down ? Theme.buttonGhostPressed
+                                    : control.hovered ? Theme.buttonGhostHover
+                                                      : Theme.transparent
+            }
+            return control.down ? Theme.buttonPressedSurface
+                                : control.hovered ? Theme.buttonHoverSurface
+                                                  : Theme.buttonSurface
         }
 
         Rectangle {
@@ -43,7 +49,7 @@ Button {
             radius: parent.radius + 2
             color: "transparent"
             border.width: control.visualFocus ? 1 : 0
-            border.color: Theme.accent
+            border.color: Theme.focusRing
         }
     }
 

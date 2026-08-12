@@ -97,6 +97,8 @@ qt_add_executable(shape-desktop
     src/image_preview_provider.hpp
     src/ui_preferences.cpp
     src/ui_preferences.hpp
+    src/text_expression_library.cpp
+    src/text_expression_library.hpp
     src/mac_titlebar.hpp
     tests/workspace_host_smoke.cpp
     tests/workspace_host_smoke.hpp
@@ -127,6 +129,8 @@ qt_add_qml_module(shape-desktop
         qml/components/CreateSceneTypeDialog.qml
         qml/components/CreateAiImageSceneDialog.qml
         qml/components/CreateTextSceneDialog.qml
+        qml/components/CreativeCandidateNodeCard.qml
+        qml/components/CreativeDraftNodeCard.qml
         qml/components/CreativeGraphNodeCard.qml
         qml/components/GraphSelectionInspector.qml
         qml/components/ImageEditorWorkspace.qml
@@ -134,6 +138,7 @@ qt_add_qml_module(shape-desktop
         qml/components/OperatorIntentSidebar.qml
         qml/components/OperatorWorkspaceHost.qml
         qml/components/RasterCropOperatorWorkspace.qml
+        qml/components/RasterEffectsWorkspace.qml
         qml/components/RasterResizeOperatorWorkspace.qml
         qml/components/SceneGraphToolbar.qml
         qml/components/SceneGraphContextStrip.qml
@@ -146,6 +151,7 @@ qt_add_qml_module(shape-desktop
         qml/components/ShapeIconButton.qml
         qml/components/SourceMaterialWorkspace.qml
         qml/components/TextCompareWorkspace.qml
+        qml/components/TextExpressionPalette.qml
         qml/components/VariantsPanel.qml
         qml/components/WorkbenchProjectRail.qml
         qml/components/WorkspaceSurface.qml

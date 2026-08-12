@@ -399,6 +399,82 @@ bool run_smoke_raster_cycle(
         return false;
     }
 
+    if (!backend.proposeRasterTransform(artifact_id, QStringLiteral("rotate90_clockwise"))
+        || !backend.hasCandidate()) {
+        std::cerr << "desktop raster smoke could not create transform candidate" << std::endl;
+        return false;
+    }
+    const QString transform_candidate_id = backend.candidateId();
+    if (!backend.prepareImagePreviews(artifact_id, transform_candidate_id)
+        || backend.candidateImageSource().isEmpty()
+        || !backend.acceptCandidate(transform_candidate_id)) {
+        std::cerr << "desktop raster transform failed preview or acceptance" << std::endl;
+        return false;
+    }
+
+    if (!backend.proposeRasterBlur(artifact_id, 1) || !backend.hasCandidate()) {
+        std::cerr << "desktop raster smoke could not create blur candidate" << std::endl;
+        return false;
+    }
+    const QString blur_candidate_id = backend.candidateId();
+    if (!backend.prepareImagePreviews(artifact_id, blur_candidate_id)
+        || backend.candidateImageSource().isEmpty()
+        || !backend.acceptCandidate(blur_candidate_id)) {
+        std::cerr << "desktop raster blur failed preview or acceptance" << std::endl;
+        return false;
+    }
+
+    if (!backend.proposeRasterUnsharpMask(artifact_id, 1, 1250, 4) || !backend.hasCandidate()) {
+        std::cerr << "desktop raster smoke could not create unsharp-mask candidate" << std::endl;
+        return false;
+    }
+    const QString unsharp_candidate_id = backend.candidateId();
+    if (!backend.prepareImagePreviews(artifact_id, unsharp_candidate_id)
+        || backend.candidateImageSource().isEmpty()
+        || !backend.acceptCandidate(unsharp_candidate_id)) {
+        std::cerr << "desktop raster unsharp mask failed preview or acceptance" << std::endl;
+        return false;
+    }
+    if (!workspace_host_smoke::verifyOperatorRoute(
+            root_object,
+            QStringLiteral("image.unsharp_mask"),
+            QStringLiteral("operator.image.unsharp_mask"),
+            QStringLiteral("imageEditorWorkspace"),
+            QString(),
+            QStringLiteral("rasterEffectsWorkspace"),
+            QStringLiteral("effects")
+        )) {
+        std::cerr << "desktop raster smoke did not route unsharp mask into Image Editing"
+                  << std::endl;
+        return false;
+    }
+
+    if (!backend.proposeRasterDropShadow(artifact_id, 1, 0, 0, 0, 0, 0, 128)
+        || !backend.hasCandidate()) {
+        std::cerr << "desktop raster smoke could not create drop-shadow candidate" << std::endl;
+        return false;
+    }
+    const QString shadow_candidate_id = backend.candidateId();
+    if (!backend.prepareImagePreviews(artifact_id, shadow_candidate_id)
+        || backend.candidateImageSource().isEmpty()
+        || !backend.acceptCandidate(shadow_candidate_id)) {
+        std::cerr << "desktop raster drop shadow failed preview or acceptance" << std::endl;
+        return false;
+    }
+    if (!workspace_host_smoke::verifyOperatorRoute(
+            root_object,
+            QStringLiteral("image.drop_shadow"),
+            QStringLiteral("operator.image.drop_shadow"),
+            QStringLiteral("imageEditorWorkspace"),
+            QString(),
+            QStringLiteral("rasterEffectsWorkspace"),
+            QStringLiteral("effects")
+        )) {
+        std::cerr << "desktop raster smoke did not route drop shadow into Image Editing"
+                  << std::endl;
+        return false;
+    }
+
     const auto reopened = shape::desktop::load_project_snapshot(project_path);
     const auto reopened_artifact = std::find_if(
         reopened.artifacts.begin(),
@@ -409,7 +485,7 @@ bool run_smoke_raster_cycle(
         }
     );
     return reopened_artifact != reopened.artifacts.end() && reopened_artifact->has_image_preview
-           && reopened_artifact->image_width == 2 && reopened_artifact->image_height == 2;
+           && reopened_artifact->image_width == 3 && reopened_artifact->image_height == 2;
 }
 
 bool run_smoke_text_cycle(DesktopBackend& backend) {

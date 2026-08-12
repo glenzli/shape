@@ -35,9 +35,18 @@ Item {
     signal resizeRequested(string artifactId, string draftId,
                            int targetWidth, int targetHeight,
                            string aspectPolicyKey, string resamplingKey)
+    signal transformRequested(string transformKey)
+    signal blurRequested(int radius)
+    signal unsharpMaskRequested(int radius, int amountMilli, int threshold)
+    signal dropShadowRequested(int offsetX, int offsetY, int blurRadius,
+                               int red, int green, int blue, int alpha)
 
     function synchronizeTool() : void {
         if (openedOperatorTypeKey === "image.resize") selectedToolKey = "size"
+        else if (openedOperatorTypeKey === "image.transform"
+                 || openedOperatorTypeKey === "image.blur"
+                 || openedOperatorTypeKey === "image.unsharp_mask"
+                 || openedOperatorTypeKey === "image.drop_shadow") selectedToolKey = "effects"
         else if (openedOperatorTypeKey === "image.crop"
                  || openedOperatorTypeKey === "image.edit") selectedToolKey = "frame"
     }
@@ -100,6 +109,15 @@ Item {
             }
 
             ShapeButton {
+                objectName: "imageEditorEffectsTool"
+                text: qsTr("Effects")
+                checkable: true
+                checked: editor.selectedToolKey === "effects"
+                ButtonGroup.group: toolGroup
+                onClicked: editor.chooseTool("effects")
+            }
+
+            ShapeButton {
                 objectName: "imageEditorAiAssistTool"
                 text: qsTr("AI assist · later")
                 enabled: false
@@ -120,7 +138,8 @@ Item {
             visible: !editor.compareMode || !editor.candidatePending
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: editor.selectedToolKey === "size" ? 1 : 0
+            currentIndex: editor.selectedToolKey === "size" ? 1
+                          : editor.selectedToolKey === "effects" ? 2 : 0
 
             RasterCropOperatorWorkspace {
                 artifactId: editor.artifactId
@@ -149,6 +168,20 @@ Item {
                                        editor.resizeRequested(
                                            artifactId, draftId, width, height,
                                            aspect, resampling)
+            }
+
+            RasterEffectsWorkspace {
+                artifactId: editor.artifactId
+                source: editor.source
+                onTransformRequested: transformKey => editor.transformRequested(transformKey)
+                onBlurRequested: radius => editor.blurRequested(radius)
+                onUnsharpMaskRequested: (radius, amountMilli, threshold) =>
+                                            editor.unsharpMaskRequested(
+                                                radius, amountMilli, threshold)
+                onDropShadowRequested: (offsetX, offsetY, radius, red, green, blue, alpha) =>
+                                           editor.dropShadowRequested(
+                                               offsetX, offsetY, radius,
+                                               red, green, blue, alpha)
             }
         }
 

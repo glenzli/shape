@@ -208,6 +208,38 @@ fn project_backed_graphs_restore_exact_draft_identity() {
 }
 
 #[test]
+fn text_expression_update_snapshots_custom_tone_and_audience() {
+    let text = accepted_artifact(ArtifactKind::TextDocument);
+    let mut drafts = OperatorDrafts::default();
+    let draft = drafts
+        .begin(
+            &text,
+            descriptor_for(text.kind, TEXT_EDIT_OPERATOR).unwrap(),
+        )
+        .unwrap();
+    let expression = r#"{"tones":[{"kind":"preset","preset":"restrained"},{"kind":"custom","name":"Quiet conviction","instruction":"Stay certain without becoming forceful.","visual":"ascent"}],"intensity":"subtle","audience":{"kind":"preset","preset":"expert"}}"#;
+    let (_, updated) = drafts
+        .update_text_expression_configuration(
+            draft.id().as_str(),
+            "polish",
+            "Preserve every number.",
+            expression,
+            "professional",
+            3,
+        )
+        .unwrap();
+
+    let projected: serde_json::Value = serde_json::from_str(
+        &crate::operator_catalog::expression_json_from_draft(&updated).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        projected,
+        serde_json::from_str::<serde_json::Value>(expression).unwrap()
+    );
+}
+
+#[test]
 fn image_resize_configuration_is_exact_and_identity_addressed() {
     let raster = accepted_artifact(ArtifactKind::ImageRaster);
     let mut drafts = OperatorDrafts::default();

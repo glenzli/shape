@@ -1,7 +1,8 @@
 //! Transient cross-media candidate collection with exact identity mutation.
 
 use shape_core::{
-    AiImageCandidate, AudioCandidate, ImageCandidate, ImageResizeCandidate, TextCandidate,
+    AiImageCandidate, AudioCandidate, ImageCandidate, ImageEditCandidate, ImageResizeCandidate,
+    TextCandidate,
 };
 use shape_domain::ArtifactId;
 
@@ -11,6 +12,7 @@ pub(super) enum Candidate {
     Text(TextCandidate),
     Image(ImageCandidate),
     ImageResize(ImageResizeCandidate),
+    ImageEdit(ImageEditCandidate),
     AiImage(AiImageCandidate),
     Audio(AudioCandidate),
 }
@@ -21,6 +23,7 @@ impl Candidate {
             Self::Text(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Image(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::ImageResize(candidate) => candidate.receipt().attempt_id.to_string(),
+            Self::ImageEdit(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::AiImage(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Audio(candidate) => candidate.receipt().attempt_id.to_string(),
         }
@@ -31,6 +34,7 @@ impl Candidate {
             Self::Text(candidate) => candidate.artifact_id(),
             Self::Image(candidate) => candidate.artifact_id(),
             Self::ImageResize(candidate) => candidate.artifact_id(),
+            Self::ImageEdit(candidate) => candidate.artifact_id(),
             Self::AiImage(candidate) => candidate.artifact_id(),
             Self::Audio(candidate) => candidate.artifact_id(),
         }
@@ -100,6 +104,19 @@ impl CandidateShelf {
                     Some(shape_domain::TransformationOperation::RasterResize(existing))
                         if *existing == resize
                 )
+        })
+    }
+
+    pub(super) fn contains_image_edit(
+        &self,
+        artifact_id: ArtifactId,
+        operation: &shape_domain::TransformationOperation,
+    ) -> bool {
+        self.candidates.iter().any(|candidate| {
+            let Candidate::ImageEdit(candidate) = candidate else {
+                return false;
+            };
+            candidate.artifact_id() == artifact_id && candidate.operation() == Some(operation)
         })
     }
 

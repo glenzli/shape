@@ -93,29 +93,28 @@ Rectangle {
         }
     }
 
-    implicitHeight: 82
-    radius: Theme.radiusMedium
-    color: Theme.surface
+    implicitHeight: 78
+    color: Theme.panel
     border.color: Theme.border
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 10
+        anchors.leftMargin: 16
+        anchors.rightMargin: 14
         anchors.topMargin: 8
         anchors.bottomMargin: 8
         spacing: 10
 
         ColumnLayout {
-            Layout.preferredWidth: 126
-            Layout.maximumWidth: 150
+            Layout.preferredWidth: 148
+            Layout.maximumWidth: 170
             spacing: 2
 
             Text {
                 Layout.fillWidth: true
                 text: strip.sceneName.length > 0 ? strip.sceneName : qsTr("Workflow")
                 color: Theme.text
-                font.pixelSize: 11
+                font.pixelSize: Theme.fontBody
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -125,7 +124,7 @@ Rectangle {
                       .arg(strip.nodes.length + (strip.showDrafts ? strip.drafts.length : 0))
                       .arg(strip.candidateCount)
                 color: Theme.muted
-                font.pixelSize: 8
+                font.pixelSize: Theme.fontMicro
             }
 
             ShapeIconButton {
@@ -166,7 +165,7 @@ Rectangle {
                 required property int index
                 required property var modelData
 
-                width: 138
+                width: 154
                 height: contextList.height - 7
                 leftPadding: 9
                 rightPadding: 9
@@ -178,7 +177,7 @@ Rectangle {
                 onDoubleClicked: strip.activate(modelData, true)
 
                 background: Rectangle {
-                    radius: Theme.radiusSmall
+                    radius: Theme.controlRadius
                     color: contextDelegate.highlighted ? Theme.selected
                                                        : contextDelegate.hovered
                                                          ? Theme.raisedHover : Theme.raised
@@ -207,7 +206,7 @@ Rectangle {
                             Layout.fillWidth: true
                             text: String(contextDelegate.modelData.title)
                             color: Theme.text
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.fontMeta
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                         }
@@ -217,7 +216,7 @@ Rectangle {
                             text: String(contextDelegate.modelData.detail)
                             color: Boolean(contextDelegate.modelData.draft)
                                    ? Theme.accent : Theme.muted
-                            font.pixelSize: 8
+                            font.pixelSize: Theme.fontMicro
                             elide: Text.ElideRight
                         }
                     }

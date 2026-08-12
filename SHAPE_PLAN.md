@@ -296,6 +296,12 @@ Operator Graph 是类型化 DAG：连接必须精确匹配端口数据合同，�
 执行。这个桥接只证明“先建节点、后接素材”的交互成立，不代表 artifact-as-scene 已经具备任意
 多素材连线能力；真正的端口连接仍由下一版 `SceneWorkingGraph` 合同负责。
 
+文本编辑中的用户表达不能退化为当前模型的参数表。编辑动作、语气、文体和受众是四个独立维度：
+语气允许组合与强度调节，并可由用户用名称和自然语言说明创建个人预设；内置入口使用统一的抽象
+视觉标记，而不是平台 Emoji。个人预设只是复用来源，节点保存被选中预设的内容快照，因此模型、
+个人库或执行能力变化都不能让既有节点意图静默漂移。执行规划器可以把该表达编译给不同模型或
+多阶段管线；某个执行器能力不足时应明确报告限制，而不是从创作界面删去用户可以表达的意图。
+
 #### 4.3.1 首批素材输入节点
 
 | 节点 | 稳定产品身份 | 内容与来源规则 | 首批输入方式 |
@@ -372,7 +378,7 @@ Scene Operator Graph：Source / Operator / Output，负责创作编排
 Source Operator；后者至少有一个 `input.materials`，每个输入固定接受 Revision 与角色。两者都只有
 一个逻辑图片输出；一次执行得到的多个结果进入 Candidate Shelf，而不是把节点输出端口数量变成
 “模型生成了几张”。若 Runtime 只有纯文本生图，UI 必须把带素材生成标记为 capability unavailable，
-不能把文本理解或图片描述接口冒充图像编辑器。零素材形态已经拥有 candidate.3-only 的 Infer
+不能把文本理解或图片描述接口冒充图像编辑器。零素材形态已经拥有 candidate.4-only 的 Infer
 执行器、严格 PNG/Job provenance 复验，以及 Core 内“先 Candidate、后显式 Accept”的纵向回路。
 桌面现在也能原子创建 Scene 级零输入 Draft，恢复精确 prompt/canvas，并通过独立异步控制器把
 结果放入 Candidate Shelf；但当前 Shape App ACL 尚未授权所需的
@@ -794,7 +800,7 @@ planned → admitted → queued → running → validating → succeeded
 
 ## 8. 与现有 Infer Runtime 的集成
 
-本节以 2026-08-11 的 `infer-runtime` 本机实证为快照。Shape 必须按运行时的 contract
+本节以 2026-08-12 的 `infer-runtime` tracked candidate.4 合同与既有本机实证为快照。Shape 必须按运行时的 contract
 manifest、typed route 和 App ACL 启用功能，不能把本机工作树或当前 daemon 的配置当作已经
 发布的跨机器合同。
 
@@ -804,7 +810,7 @@ manifest、typed route 和 App ACL 启用功能，不能把本机工作树或当
 
 | 能力族 | 当前能力 | Shape 用途 | 状态判断 |
 | --- | --- | --- | --- |
-| Text Responses | `text.summarize`、`text.proofread`、`language.respond`、`reasoning.solve` | Intent 解析辅助、文案、故事、结构化建议 | candidate.3 控制面；按具体 provider capability 使用 |
+| Text Responses | `text.edit`、`text.summarize`、`text.proofread`、`language.respond`、`reasoning.solve` | 有界文本编辑、Intent 解析辅助、文案、故事、结构化建议 | candidate.4 增加具名路由；首个 `text.edit` 只授权本地 4B Deployment |
 | Local/Cloud routing | Ollama、本地 MLX/ONNX、DeepSeek cloud、Codex subscription bridge | 本地优先、质量优先、显式订阅模型 | 已有；App ACL 决定能否使用 |
 | Audio | `audio.transcribe`、`audio.align` | Echo 音频文字、字幕、定位 | 已有类型化 endpoint |
 | Speech | `speech.synthesize` | preset 旁白 Audio Candidate | Shape 已完成桌面生成、按需试听、接受/重开与真实本机验证；alias/ACL 尚未由 Infer 提交发布 |
@@ -813,7 +819,9 @@ manifest、typed route 和 App ACL 启用功能，不能把本机工作树或当
 | Image+text reasoning | `multimodal.respond` / VL 路线 | 理解画面、验证部分约束、生成 Change proposal | 当前处于工作树演进中；只在新合同冻结并 probe 成功后启用 |
 | Image/video generation | 无稳定 typed family | 生成、编辑、视频 | 初期走 Shape 外部执行器；形成多 consumer 需求后再提议进入 Infer Runtime |
 
-当前物理部署快照如下。它用于估算可行性和规划 Adapter，不应进入 Project 的创作语义；普通 Shape 请求仍提交 Intent，而不是指定这些模型名：
+当前物理部署快照如下。它用于估算可行性和规划 Adapter，不应进入 Project 的创作语义。Shape 的
+creative graph 仍只保存 Intent；candidate.4 Consumer 可在执行边界按 App 授权请求 Runtime
+Deployment 或 Model Profile，但不能请求 provider、Build 或物理模型字符串：
 
 | 数据面 | 当前已登记实现 | Shape 采用原则 |
 | --- | --- | --- |
@@ -849,28 +857,43 @@ Infer Runtime 已明确是推理控制平面，不负责业务工作流、Prompt
 credential = { source = "managed" }
 resource_admin = false
 allowed_intents = [
-  "text.proofread",
-  "language.respond",
-  "vision.embed_image",
-  "vision.embed_text",
+  "text.edit",
 ]
 allowed_provider_access_classes = ["standard"]
-max_pending_jobs = 16
+max_pending_jobs = 8
 default_policy = "local-first"
-allowed_policies = ["local-first", "quality-first"]
+allowed_policies = ["local-first"]
 
 [apps.shape.request_overrides]
-priority = ["interactive", "normal", "background"]
-placement = ["local_only", "anywhere"]
-prefer = ["local", "cloud"]
+priority = ["interactive", "normal"]
+placement = ["local_only"]
+prefer = ["local"]
 offline_required = true
-quality_floor = ["basic", "general", "advanced"]
-latency = ["interactive", "balanced", "throughput"]
-fallback = ["none", "equivalent"]
-max_cost_usd = { min = 0.0, max = 1.0 }
+capability_floor = ["foundational"]
+latency = ["interactive", "balanced"]
+fallback = ["none"]
+max_cost_usd = { min = 0.0, max = 0.0 }
+
+[apps.shape.routing]
+deployment_ids = []
+model_profile_ids = []
+
+[apps.shape.routing.intents."text.edit"]
+deployment_ids = ["ollama_qwen3_5_4b"]
+model_profile_ids = []
 ```
 
-注意：这是规划，不应在 Shape 项目里自动修改 Infer Runtime 配置。正式接入要由 Infer Runtime owner 创建 managed credential、验证 intent allowlist，并把 token 存在 Shape owner-only secret store。
+这里有两层不同的“全局”。`allowed_intents`、provider class、cloud modality、policy、override 和
+cost 组成 App 全局安全上限，任何 Intent 都不能突破。`apps.shape.routing` 只是没有专属规则时的
+路由默认值；`routing.intents."text.edit"` 一旦存在就完整替换该默认值，空列表即 deny-all，不会
+退回全局路由授权。Consumer 的具名列表仍是有效授权内的有序硬收窄，不是绕过 ACL 的模型选择器。
+未授权目标在创建 Job 和调用 Provider 前返回 `403 route_target_forbidden`；已授权但当前不可执行
+返回 `409 no_candidate`。`fallback=none` 只允许第一个具名目标，只有显式 `equivalent` 才可按授权
+列表尝试后续等价目标。
+
+注意：tracked 规划不等于 live 配置已经启用。正式接入仍要由 Infer Runtime owner 发布 candidate.4、
+通过 Console-owned 流程重启，再单独修改 ignored live `apps.shape` ACL；managed token 只保存在
+Shape owner-only secret store，不能进入 Project、设置导出或日志。
 
 云图像与 subscription 必须是第二次显式授权：
 
@@ -1893,7 +1916,9 @@ M1 至少覆盖：
 > expected-head CAS 持久化，两个 Scene 的独立演进与重开已通过核心合同测试。桌面端目前仍把
 > 现有 Artifact 接受历史兼容投影为单输出 Scene，并以 Scene Graph 为主视图；尚未接入持久化
 > Scene 图编辑，GraphComponent 也未完成。文件导入的 `image.raster` 已冻结首版显式色彩/像素合同，并完成
-> PNG/JPEG → 确定性 Crop/Resize → Candidate → Compare → Accept → Reopen 的桌面纵向切片。
+> PNG/JPEG → 确定性 Crop/Resize/Transform/Blur/Drop Shadow/Unsharp Mask → Candidate → Compare →
+> Accept → Reopen 的桌面纵向切片。已实现算法的状态、边界和接入入口统一记录在
+> [`raster/README.md`](crates/shape-execution/src/raster/README.md)，数值细节以源码和黄金测试为准。
 > Resize 的版本化草稿保存尺寸、纵横比策略和采样核，并在执行前从 Project 权威回读。它验证了
 > “确定性图像编辑复用同一接受心智模型”，但尚不代表 M0/M1 完成。零输入
 > `image.generate` 已有可重开的桌面 Source Draft、综合意图面板、独立控制器与 Candidate/Accept

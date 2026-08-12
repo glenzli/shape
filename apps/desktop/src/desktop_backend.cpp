@@ -200,6 +200,10 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
         from_rust(draft.text_transform_instruction)
     );
     projected.insert(QStringLiteral("textTransformTone"), from_rust(draft.text_transform_tone));
+    projected.insert(
+        QStringLiteral("textTransformExpressionJson"),
+        from_rust(draft.text_transform_expression_json)
+    );
     projected.insert(QStringLiteral("textTransformStyle"), from_rust(draft.text_transform_style));
     projected.insert(
         QStringLiteral("textTransformVariantCount"),
@@ -678,20 +682,20 @@ bool DesktopBackend::updateTextTransformDraft(
     const QString& draftId,
     const QString& modeKey,
     const QString& instruction,
-    const QString& toneKey,
+    const QString& expressionJson,
     const QString& styleKey,
     const int variantCount
 ) {
-    if (session_ == nullptr || draftId.isEmpty() || modeKey.isEmpty() || toneKey.isEmpty()
+    if (session_ == nullptr || draftId.isEmpty() || modeKey.isEmpty() || expressionJson.isEmpty()
         || styleKey.isEmpty() || variantCount < 1 || variantCount > 4) {
         return false;
     }
     try {
-        session_->session->session_update_text_transform_draft(
+        session_->session->session_update_text_expression_draft(
             to_utf8(draftId),
             to_utf8(modeKey),
             to_utf8(instruction),
-            to_utf8(toneKey),
+            to_utf8(expressionJson),
             to_utf8(styleKey),
             static_cast<std::uint8_t>(variantCount)
         );
@@ -898,6 +902,140 @@ bool DesktopBackend::proposeRasterResize(const QString& artifactId, const QStrin
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not create raster resize candidate:" << error.what();
         setLastError(tr("Could not create the resize candidate."));
+        return false;
+    }
+}
+
+bool DesktopBackend::proposeRasterTransform(
+    const QString& artifactId,
+    const QString& transformKey
+) {
+    if (session_ == nullptr || artifactId.isEmpty() || transformKey.isEmpty()) {
+        setLastError(tr("Choose a valid image transform."));
+        return false;
+    }
+    try {
+        const auto candidate = session_->session->session_propose_raster_transform(
+            to_utf8(artifactId),
+            to_utf8(transformKey)
+        );
+        const QString candidate_id = from_rust(candidate.candidate_id);
+        applyCandidates(session_->session->session_candidates(), candidate_id);
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit candidateChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create raster transform candidate:" << error.what();
+        setLastError(tr("Could not create the transform candidate."));
+        return false;
+    }
+}
+
+bool DesktopBackend::proposeRasterBlur(const QString& artifactId, int radius) {
+    if (session_ == nullptr || artifactId.isEmpty() || radius < 1 || radius > 64) {
+        setLastError(tr("Choose a blur radius from 1 to 64 pixels."));
+        return false;
+    }
+    try {
+        const auto candidate = session_->session->session_propose_raster_blur(
+            to_utf8(artifactId),
+            static_cast<std::uint16_t>(radius)
+        );
+        const QString candidate_id = from_rust(candidate.candidate_id);
+        applyCandidates(session_->session->session_candidates(), candidate_id);
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit candidateChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create raster blur candidate:" << error.what();
+        setLastError(tr(
+            "Could not create the blur candidate. Embedded color profiles are not supported yet."
+        ));
+        return false;
+    }
+}
+
+bool DesktopBackend::proposeRasterUnsharpMask(
+    const QString& artifactId,
+    int radius,
+    int amountMilli,
+    int threshold
+) {
+    if (session_ == nullptr || artifactId.isEmpty() || radius < 1 || radius > 64 || amountMilli < 1
+        || amountMilli > 4000 || threshold < 0 || threshold > 255) {
+        setLastError(tr("Choose valid sharpen settings."));
+        return false;
+    }
+    try {
+        const auto candidate = session_->session->session_propose_raster_unsharp_mask(
+            to_utf8(artifactId),
+            static_cast<std::uint16_t>(radius),
+            static_cast<std::uint16_t>(amountMilli),
+            static_cast<std::uint8_t>(threshold)
+        );
+        const QString candidate_id = from_rust(candidate.candidate_id);
+        applyCandidates(session_->session->session_candidates(), candidate_id);
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit candidateChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create raster unsharp-mask candidate:" << error.what();
+        setLastError(
+            tr("Could not create the sharpen candidate. Embedded color profiles are not supported "
+               "yet.")
+        );
+        return false;
+    }
+}
+
+bool DesktopBackend::proposeRasterDropShadow(
+    const QString& artifactId,
+    int offsetX,
+    int offsetY,
+    int blurRadius,
+    int red,
+    int green,
+    int blue,
+    int alpha
+) {
+    const auto valid_channel = [](int value) { return value >= 0 && value <= 255; };
+    if (session_ == nullptr || artifactId.isEmpty() || offsetX < -4096 || offsetX > 4096
+        || offsetY < -4096 || offsetY > 4096 || blurRadius < 0 || blurRadius > 64
+        || !valid_channel(red) || !valid_channel(green) || !valid_channel(blue) || alpha < 1
+        || alpha > 255) {
+        setLastError(tr("Choose valid drop-shadow settings."));
+        return false;
+    }
+    try {
+        const auto candidate = session_->session->session_propose_raster_drop_shadow(
+            to_utf8(artifactId),
+            static_cast<std::int32_t>(offsetX),
+            static_cast<std::int32_t>(offsetY),
+            static_cast<std::uint16_t>(blurRadius),
+            static_cast<std::uint8_t>(red),
+            static_cast<std::uint8_t>(green),
+            static_cast<std::uint8_t>(blue),
+            static_cast<std::uint8_t>(alpha)
+        );
+        const QString candidate_id = from_rust(candidate.candidate_id);
+        applyCandidates(session_->session->session_candidates(), candidate_id);
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit candidateChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not create raster drop-shadow candidate:" << error.what();
+        setLastError(
+            tr("Could not create the drop-shadow candidate. The image or expanded canvas may be "
+               "too large.")
+        );
         return false;
     }
 }

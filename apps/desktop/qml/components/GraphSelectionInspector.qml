@@ -4,7 +4,6 @@ pragma ComponentBehavior: Bound
 //! node semantics, draft lifecycle, Candidate state, or persistence.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
 
@@ -26,27 +25,28 @@ Rectangle {
     signal reviewRequested()
     signal discardRequested()
 
-    implicitHeight: 58
-    color: Theme.raised
+    implicitHeight: 66
+    color: Theme.panelRaised
     border.color: Theme.border
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 14
-        anchors.rightMargin: 12
-        spacing: 10
+        anchors.leftMargin: 18
+        anchors.rightMargin: 16
+        spacing: 12
 
         Rectangle {
-            Layout.preferredWidth: 34
-            Layout.preferredHeight: 34
-            radius: 9
-            color: inspector.selectionKind === "none" ? Theme.surface : Theme.accentSoft
+            Layout.preferredWidth: 36
+            Layout.preferredHeight: 36
+            radius: 10
+            color: inspector.selectionKind === "none"
+                   ? Theme.panelInset : Theme.accentSurfaceQuiet
 
             ShapeIcon {
                 visible: inspector.iconSource.toString().length > 0
                 anchors.centerIn: parent
                 source: inspector.iconSource
-                size: 17
+                size: 18
                 color: inspector.accentColor
             }
 
@@ -71,7 +71,7 @@ Rectangle {
                     visible: inspector.eyebrow.length > 0
                     text: inspector.eyebrow
                     color: inspector.accentColor
-                    font.pixelSize: 9
+                    font.pixelSize: Theme.fontMicro
                     font.weight: Font.DemiBold
                     font.letterSpacing: 0.45
                 }
@@ -81,7 +81,7 @@ Rectangle {
                     text: inspector.title.length > 0
                           ? inspector.title : qsTr("Select a step to understand what it does")
                     color: inspector.title.length > 0 ? Theme.text : Theme.textSoft
-                    font.pixelSize: Theme.fontBody
+                    font.pixelSize: 13
                     font.weight: inspector.title.length > 0 ? Font.DemiBold : Font.Normal
                     elide: Text.ElideRight
                 }

@@ -1,7 +1,8 @@
 use crate::{
     AiImageGenerateParameters, AiImageOutputCanvas, Artifact, ArtifactKind, Constraint,
-    ConstraintKind, ConstraintStrength, IntentSpec, RasterCrop, RasterResize,
-    RasterResizeAspectPolicy, RasterResizeDimensions, RasterResizeResampling, RevisionId,
+    ConstraintKind, ConstraintStrength, IntentSpec, RasterCrop, RasterDropShadow,
+    RasterGaussianBlur, RasterResize, RasterResizeAspectPolicy, RasterResizeDimensions,
+    RasterResizeResampling, RasterShadowColor, RasterTransform, RasterUnsharpMask, RevisionId,
     TransformationOperation,
 };
 
@@ -65,6 +66,44 @@ fn typed_resize_operation_belongs_only_to_deterministic_edits() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn typed_transform_and_blur_belong_only_to_deterministic_edits() {
+    let artifact = Artifact::new("Portrait", ArtifactKind::ImageRaster).unwrap();
+    for operation in [
+        TransformationOperation::RasterTransform(RasterTransform::FlipVertical),
+        TransformationOperation::RasterGaussianBlur(RasterGaussianBlur::new(4).unwrap()),
+        TransformationOperation::RasterDropShadow(
+            RasterDropShadow::new(4, 6, 3, RasterShadowColor::new(0, 0, 0, 128).unwrap()).unwrap(),
+        ),
+        TransformationOperation::RasterUnsharpMask(RasterUnsharpMask::new(2, 1_250, 4).unwrap()),
+    ] {
+        let deterministic = Transformation::new_with_operation(
+            TransformationKind::DeterministicEdit,
+            artifact.id,
+            vec![RevisionId::new()],
+            IntentSpec::new("deterministic raster edit").unwrap(),
+            Vec::new(),
+            Vec::new(),
+            Some(operation.clone()),
+        );
+        assert!(deterministic.is_ok());
+
+        let generative = Transformation::new_with_operation(
+            TransformationKind::GenerativeEdit,
+            artifact.id,
+            Vec::new(),
+            IntentSpec::new("wrong family").unwrap(),
+            Vec::new(),
+            Vec::new(),
+            Some(operation),
+        );
+        assert!(matches!(
+            generative,
+            Err(crate::DomainError::InvalidTransformationOperation)
+        ));
+    }
 }
 
 #[test]

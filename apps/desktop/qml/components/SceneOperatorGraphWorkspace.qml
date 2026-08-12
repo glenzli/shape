@@ -34,12 +34,14 @@ Rectangle {
     property real zoomLevel: 1.0
     property string focusedSelectionKind: "node"
 
-    readonly property real nodeWidth: 228
-    readonly property real nodeHeight: 164
-    readonly property real columnGap: 58
-    readonly property real rowGap: 42
-    readonly property real graphMargin: 24
+    readonly property real nodeWidth: 240
+    readonly property real nodeHeight: 188
+    readonly property real columnGap: 64
+    readonly property real rowGap: 38
+    readonly property real graphMargin: 34
     readonly property int acceptedMaxStage: maximumAcceptedStage()
+    readonly property int projectedMaxStage: acceptedMaxStage
+                                             + (drafts.length + candidates.length > 0 ? 1 : 0)
     readonly property int projectedNodeCount: nodes.length + drafts.length + candidates.length
     readonly property real minimumZoom: 0.65
     readonly property real maximumZoom: 1.5
@@ -84,9 +86,7 @@ Rectangle {
         for (let stage = 0; stage <= acceptedMaxStage; ++stage) {
             maximum = Math.max(maximum, acceptedNodesAtStage(stage))
         }
-        maximum = Math.max(maximum,
-                           acceptedNodesAtStage(acceptedMaxStage)
-                           + drafts.length + candidates.length)
+        maximum = Math.max(maximum, drafts.length + candidates.length)
         return maximum
     }
 
@@ -207,18 +207,23 @@ Rectangle {
     }
 
     function projectedStage(index) : int {
-        return index < nodes.length ? nodeStage(nodes[index].id, {}) : acceptedMaxStage
+        if (index < nodes.length) {
+            const stage = nodeStage(nodes[index].id, {})
+            return nodes[index].roleKey === "output"
+                    && drafts.length + candidates.length > 0 ? stage + 1 : stage
+        }
+        return acceptedMaxStage
     }
 
     function projectedLane(index) : int {
         if (index < nodes.length) return acceptedNodeLane(index)
-        return acceptedNodesAtStage(acceptedMaxStage) + index - nodes.length
+        return index - nodes.length
     }
 
     function contentGraphWidth() : real {
         return graph.graphMargin * 2
-               + (graph.acceptedMaxStage + 1) * graph.nodeWidth
-               + graph.acceptedMaxStage * graph.columnGap
+               + (graph.projectedMaxStage + 1) * graph.nodeWidth
+               + graph.projectedMaxStage * graph.columnGap
     }
 
     function contentGraphHeight() : real {
@@ -235,8 +240,12 @@ Rectangle {
     }
 
     function nodeY(index) : real {
-        return graph.graphMargin
-               + projectedLane(index) * (graph.nodeHeight + graph.rowGap)
+        const available = Math.max(viewport.height / graph.zoomLevel,
+                                   contentGraphHeight())
+        const used = graph.maximumLaneCount * graph.nodeHeight
+                     + (graph.maximumLaneCount - 1) * graph.rowGap
+        const offset = Math.max(graph.graphMargin, (available - used) / 2)
+        return offset + projectedLane(index) * (graph.nodeHeight + graph.rowGap)
     }
 
     function nodeTitle(node) : string {
@@ -392,9 +401,7 @@ Rectangle {
         context.restore()
     }
 
-    radius: Theme.radiusLarge
-    color: Theme.surface
-    border.color: Theme.border
+    color: Theme.panel
 
     ColumnLayout {
         anchors.fill: parent
@@ -437,6 +444,11 @@ Rectangle {
             contentWidth: Math.max(width, graphCanvas.width * graph.zoomLevel)
             contentHeight: Math.max(height, graphCanvas.height * graph.zoomLevel)
 
+            Rectangle {
+                anchors.fill: parent
+                color: Theme.canvas
+            }
+
             ScrollBar.horizontal: ScrollBar {
                 policy: viewport.contentWidth > viewport.width
                         ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
@@ -455,6 +467,37 @@ Rectangle {
                                  graph.contentGraphHeight())
                 scale: graph.zoomLevel
                 transformOrigin: Item.TopLeft
+
+                Canvas {
+                    id: gridCanvas
+
+                    anchors.fill: parent
+
+                    onPaint: {
+                        const context = getContext("2d")
+                        context.clearRect(0, 0, width, height)
+                        context.fillStyle = Theme.canvasGrid
+                        const step = 24
+                        for (let y = step; y < height; y += step) {
+                            for (let x = step; x < width; x += step) {
+                                context.fillRect(x, y, 1, 1)
+                            }
+                        }
+                    }
+
+                    Connections {
+                        target: graphCanvas
+                        function onWidthChanged() : void { gridCanvas.requestPaint() }
+                        function onHeightChanged() : void { gridCanvas.requestPaint() }
+                    }
+
+                    Connections {
+                        target: Theme
+                        function onEffectiveDarkChanged() : void {
+                            gridCanvas.requestPaint()
+                        }
+                    }
+                }
 
                 Canvas {
                     id: edgeCanvas
@@ -489,6 +532,7 @@ Rectangle {
                         function onDraftsChanged() : void { edgeCanvas.requestPaint() }
                         function onCandidatesChanged() : void { edgeCanvas.requestPaint() }
                         function onWidthChanged() : void { edgeCanvas.requestPaint() }
+                        function onHeightChanged() : void { edgeCanvas.requestPaint() }
                         function onZoomLevelChanged() : void { edgeCanvas.requestPaint() }
                     }
 
@@ -513,65 +557,20 @@ Rectangle {
                         y: graph.nodeY(graph.nodes.length + index)
                         width: graph.nodeWidth
                         height: graph.nodeHeight
-                        leftPadding: 13
-                        rightPadding: 13
-                        topPadding: 11
-                        bottomPadding: 11
+                        padding: 0
                         onClicked: graph.selectDraft(modelData.id)
                         onDoubleClicked: graph.draftOpened(modelData.id)
 
-                        background: Rectangle {
-                            radius: Theme.radiusMedium
-                            color: draftNode.selected ? Theme.accentSoft : Theme.raised
-                            border.width: draftNode.selected ? 2 : 1
-                            border.color: Theme.accent
-                            opacity: 0.92
-                        }
+                        background: Item {}
 
-                        contentItem: ColumnLayout {
-                            spacing: 4
-
-                            RowLayout {
-                                Layout.fillWidth: true
-
-                                Text {
-                                    text: graph.draftRoleLabel(draftNode.modelData)
-                                    color: Theme.accent
-                                    font.pixelSize: 9
-                                    font.weight: Font.DemiBold
-                                    font.letterSpacing: 0.5
-                                }
-
-                                Item { Layout.fillWidth: true }
-
-                                Button {
-                                    objectName: "discardDraftButton-" + draftNode.index
-                                    visible: draftNode.modelData.hasInputDataType
-                                    implicitWidth: 22
-                                    implicitHeight: 22
-                                    text: "×"
-                                    flat: true
-                                    Accessible.name: qsTr("Remove unfinished step")
-                                    onClicked: graph.draftDiscardRequested(draftNode.modelData.id)
-                                }
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: draftNode.modelData.operatorTypeLabel
-                                color: Theme.text
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: graph.draftDetail(draftNode.modelData)
-                                color: Theme.muted
-                                font.pixelSize: 9
-                                elide: Text.ElideRight
-                            }
+                        contentItem: CreativeDraftNodeCard {
+                            draftData: draftNode.modelData
+                            selected: draftNode.selected
+                            hovered: draftNode.hovered
+                            stageNumber: graph.acceptedMaxStage
+                            draftIndex: draftNode.index
+                            onDiscardRequested: graph.draftDiscardRequested(
+                                                    draftNode.modelData.id)
                         }
                     }
                 }
@@ -635,7 +634,7 @@ Rectangle {
                 Repeater {
                     model: graph.candidates
 
-                    delegate: Rectangle {
+                    delegate: Item {
                         id: candidateNode
 
                         required property int index
@@ -647,72 +646,19 @@ Rectangle {
                         y: graph.nodeY(graph.nodes.length + graph.drafts.length + index)
                         width: graph.nodeWidth
                         height: graph.nodeHeight
-                        radius: Theme.radiusMedium
-                        color: selected ? Theme.accentSoft : Theme.raised
-                        opacity: 0.95
 
-                        Canvas {
-                            id: candidateBorderCanvas
+                        CreativeCandidateNodeCard {
                             anchors.fill: parent
-                            onPaint: {
-                                const context = getContext("2d")
-                                context.clearRect(0, 0, width, height)
-                                context.strokeStyle = Theme.accent
-                                context.lineWidth = candidateNode.selected ? 2.2 : 1.4
-                                context.setLineDash([7, 5])
-                                context.strokeRect(1, 1, width - 2, height - 2)
-                            }
-                            Connections {
-                                target: candidateNode
-                                function onSelectedChanged() : void {
-                                    candidateBorderCanvas.requestPaint()
-                                }
-                            }
-                            Connections {
-                                target: Theme
-                                function onEffectiveDarkChanged() : void {
-                                    candidateBorderCanvas.requestPaint()
-                                }
-                            }
-                        }
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 13
-                            spacing: 4
-
-                            Text {
-                                text: qsTr("NEW VERSION")
-                                color: Theme.accent
-                                font.pixelSize: 9
-                                font.weight: Font.DemiBold
-                                font.letterSpacing: 0.5
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: qsTr("Option %1").arg(candidateNode.index + 1)
-                                color: Theme.text
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: candidateNode.modelData.hasImagePreview
-                                      ? qsTr("Image result · %1 × %2").arg(
-                                            candidateNode.modelData.imageWidth).arg(
-                                            candidateNode.modelData.imageHeight)
-                                      : candidateNode.modelData.text
-                                color: Theme.muted
-                                font.pixelSize: 9
-                                elide: Text.ElideRight
-                            }
+                            candidateData: candidateNode.modelData
+                            candidateIndex: candidateNode.index
+                            selected: candidateNode.selected
+                            hovered: candidateMouseArea.containsMouse
                         }
 
                         MouseArea {
+                            id: candidateMouseArea
                             anchors.fill: parent
+                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             Accessible.name: qsTr("Review version %1").arg(
                                                      candidateNode.index + 1)

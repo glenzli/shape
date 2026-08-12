@@ -4,12 +4,13 @@ mod candidate_shelf;
 mod operator_drafts;
 
 use shape_core::{
-    AiImageCandidate, AudioCandidate, ImageCandidate, ImageResizeCandidate, ShapeProject,
-    TextCandidate, TextEditParameters,
+    AiImageCandidate, AudioCandidate, ImageCandidate, ImageEditCandidate, ImageResizeCandidate,
+    ShapeProject, TextCandidate, TextEditParameters,
 };
 use shape_domain::{
     Artifact, ArtifactContentContract, ArtifactId, ArtifactKind, IntentSpec, RasterCrop,
-    SpeechVoiceSelection,
+    RasterDropShadow, RasterGaussianBlur, RasterShadowColor, RasterTransform, RasterUnsharpMask,
+    SpeechVoiceSelection, TransformationOperation,
 };
 
 use crate::{audio_origin_key, bounded_text_preview, ffi, project_snapshot};
@@ -20,9 +21,9 @@ use crate::operator_catalog::{
     AUDIO_SPEECH_OPERATOR, IMAGE_GENERATE_OPERATOR, IMAGE_RESIZE_OPERATOR,
     ai_image_generate_parameters_from_draft, ai_image_generate_state_from_draft, aspect_policy_key,
     audio_speech_operation_from_draft, compatible_descriptors, descriptor_for,
-    image_resize_from_draft, instruction_from_draft, is_image_edit_workspace_operator,
-    is_text_workspace_operator, mode_from_draft, resampling_key, style_from_draft, tone_from_draft,
-    variant_count_from_draft,
+    expression_json_from_draft, image_resize_from_draft, instruction_from_draft,
+    is_image_edit_workspace_operator, is_text_workspace_operator, mode_from_draft, resampling_key,
+    style_from_draft, tone_from_draft, variant_count_from_draft,
 };
 
 use crate::infer_image::InferImageCandidate;
@@ -291,6 +292,37 @@ impl DesktopSession {
         Ok(operator_draft_wire(artifact_id, &draft))
     }
 
+    /// Saves the complete authored expression snapshot owned by one Writing draft.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown or incompatible draft, invalid bounded
+    /// expression, stale accepted source, or persistence failure.
+    pub fn session_update_text_expression_draft(
+        &mut self,
+        draft_id: &str,
+        mode_key: &str,
+        instruction: &str,
+        expression_json: &str,
+        style_key: &str,
+        variant_count: u8,
+    ) -> Result<ffi::OperatorDraftWire, String> {
+        let previous = self.operator_drafts.clone();
+        let (artifact_id, draft) = self.operator_drafts.update_text_expression_configuration(
+            draft_id,
+            mode_key,
+            instruction,
+            expression_json,
+            style_key,
+            variant_count,
+        )?;
+        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+            self.operator_drafts = previous;
+            return Err(error);
+        }
+        Ok(operator_draft_wire(artifact_id, &draft))
+    }
+
     /// Saves the preset-only authored state owned by one speech synthesis draft.
     ///
     /// # Errors
@@ -539,6 +571,117 @@ impl DesktopSession {
         Ok(wire)
     }
 
+    /// Executes one lossless transform as a transient Image Editing Candidate.
+    pub fn session_propose_raster_transform(
+        &mut self,
+        artifact_id: &str,
+        transform_key: &str,
+    ) -> Result<ffi::CandidateWire, String> {
+        let transform = raster_transform_from_key(transform_key)?;
+        self.propose_raster_edit(
+            artifact_id,
+            &TransformationOperation::RasterTransform(transform),
+        )
+    }
+
+    /// Executes one alpha-aware fixed-point blur as a transient Candidate.
+    pub fn session_propose_raster_blur(
+        &mut self,
+        artifact_id: &str,
+        radius: u16,
+    ) -> Result<ffi::CandidateWire, String> {
+        let blur = RasterGaussianBlur::new(radius).map_err(|error| error.to_string())?;
+        self.propose_raster_edit(
+            artifact_id,
+            &TransformationOperation::RasterGaussianBlur(blur),
+        )
+    }
+
+    /// Executes one fixed-point unsharp mask as a transient Candidate.
+    pub fn session_propose_raster_unsharp_mask(
+        &mut self,
+        artifact_id: &str,
+        radius: u16,
+        amount_milli: u16,
+        threshold: u8,
+    ) -> Result<ffi::CandidateWire, String> {
+        let parameters = RasterUnsharpMask::new(radius, amount_milli, threshold)
+            .map_err(|error| error.to_string())?;
+        self.propose_raster_edit(
+            artifact_id,
+            &TransformationOperation::RasterUnsharpMask(parameters),
+        )
+    }
+
+    /// Executes one expanded flattened drop shadow as a transient Candidate.
+    #[allow(clippy::too_many_arguments)]
+    pub fn session_propose_raster_drop_shadow(
+        &mut self,
+        artifact_id: &str,
+        offset_x: i32,
+        offset_y: i32,
+        blur_radius: u16,
+        red: u8,
+        green: u8,
+        blue: u8,
+        alpha: u8,
+    ) -> Result<ffi::CandidateWire, String> {
+        let color =
+            RasterShadowColor::new(red, green, blue, alpha).map_err(|error| error.to_string())?;
+        let shadow = RasterDropShadow::new(offset_x, offset_y, blur_radius, color)
+            .map_err(|error| error.to_string())?;
+        self.propose_raster_edit(
+            artifact_id,
+            &TransformationOperation::RasterDropShadow(shadow),
+        )
+    }
+
+    fn propose_raster_edit(
+        &mut self,
+        artifact_id: &str,
+        operation: &TransformationOperation,
+    ) -> Result<ffi::CandidateWire, String> {
+        let artifact_id = parse_artifact_id(artifact_id)?;
+        let artifact = self
+            .project
+            .snapshot()
+            .map_err(|error| error.to_string())?
+            .artifacts
+            .into_iter()
+            .find(|artifact| artifact.id == artifact_id)
+            .ok_or_else(|| "artifact does not exist in this project".to_owned())?;
+        if artifact.kind != ArtifactKind::ImageRaster {
+            return Err("only raster images support deterministic image edits".to_owned());
+        }
+        let expected_head = artifact
+            .accepted_revision
+            .ok_or_else(|| "raster artifact has no accepted revision".to_owned())?;
+        self.validate_image_edit_workspace_draft_head(artifact_id, expected_head)?;
+        if self.candidates.contains_image_edit(artifact_id, operation) {
+            return Err("the same image-edit candidate already exists on the shelf".to_owned());
+        }
+        let candidate = match operation {
+            TransformationOperation::RasterTransform(parameters) => self
+                .project
+                .propose_raster_transform(artifact_id, expected_head, *parameters),
+            TransformationOperation::RasterGaussianBlur(parameters) => self
+                .project
+                .propose_raster_blur(artifact_id, expected_head, *parameters),
+            TransformationOperation::RasterDropShadow(parameters) => self
+                .project
+                .propose_raster_drop_shadow(artifact_id, expected_head, *parameters),
+            TransformationOperation::RasterUnsharpMask(parameters) => self
+                .project
+                .propose_raster_unsharp_mask(artifact_id, expected_head, *parameters),
+            _ => return Err("image edit method is not executable here".to_owned()),
+        }
+        .map_err(|error| error.to_string())?;
+        let wire = image_edit_candidate_wire(&candidate);
+        self.finish_image_edit_workspace_drafts(artifact_id)?;
+        self.candidates.push(Candidate::ImageEdit(candidate));
+        Ok(wire)
+    }
+
     /// Returns all transient candidates in newest-first presentation order.
     pub fn session_candidates(&self) -> Vec<ffi::CandidateWire> {
         self.candidates.newest_first().map(candidate_wire).collect()
@@ -564,6 +707,10 @@ impl DesktopSession {
             Candidate::ImageResize(candidate) => self
                 .project
                 .accept_raster_resize(candidate)
+                .map_err(|error| error.to_string())?,
+            Candidate::ImageEdit(candidate) => self
+                .project
+                .accept_raster_edit(candidate)
                 .map_err(|error| error.to_string())?,
             Candidate::AiImage(candidate) => self
                 .project
@@ -642,6 +789,14 @@ impl DesktopSession {
                         png_bytes: candidate.png_bytes().to_vec(),
                     })
                 }
+                Candidate::ImageEdit(candidate) if candidate.artifact_id() == artifact_id => {
+                    Ok(ffi::ImagePreviewWire {
+                        identity: candidate_id.to_owned(),
+                        width: candidate.contract().width,
+                        height: candidate.contract().height,
+                        png_bytes: candidate.png_bytes().to_vec(),
+                    })
+                }
                 Candidate::AiImage(candidate) if candidate.artifact_id() == artifact_id => {
                     Ok(ffi::ImagePreviewWire {
                         identity: candidate_id.to_owned(),
@@ -650,7 +805,10 @@ impl DesktopSession {
                         png_bytes: candidate.bytes().to_vec(),
                     })
                 }
-                Candidate::Image(_) | Candidate::ImageResize(_) | Candidate::AiImage(_) => {
+                Candidate::Image(_)
+                | Candidate::ImageResize(_)
+                | Candidate::ImageEdit(_)
+                | Candidate::AiImage(_) => {
                     Err("candidate does not belong to the selected artifact".to_owned())
                 }
                 Candidate::Text(_) | Candidate::Audio(_) => {
@@ -960,6 +1118,8 @@ fn operator_draft_wire(
             .expect("session admits only validated Operator draft configurations"),
         text_transform_tone: tone_from_draft(draft)
             .expect("session admits only validated Operator draft configurations"),
+        text_transform_expression_json: expression_json_from_draft(draft)
+            .expect("session admits only validated Operator draft configurations"),
         text_transform_style: style_from_draft(draft)
             .expect("session admits only validated Operator draft configurations"),
         text_transform_variant_count: variant_count_from_draft(draft)
@@ -1013,6 +1173,7 @@ fn candidate_wire(candidate: &Candidate) -> ffi::CandidateWire {
         Candidate::Text(candidate) => text_candidate_wire(candidate),
         Candidate::Image(candidate) => image_candidate_wire(candidate),
         Candidate::ImageResize(candidate) => image_resize_candidate_wire(candidate),
+        Candidate::ImageEdit(candidate) => image_edit_candidate_wire(candidate),
         Candidate::AiImage(candidate) => ai_image_candidate_wire(candidate),
         Candidate::Audio(candidate) => audio_candidate_wire(candidate),
     }
@@ -1114,6 +1275,41 @@ fn image_resize_candidate_wire(candidate: &ImageResizeCandidate) -> ffi::Candida
         audio_sample_rate_hz: 0,
         audio_channels: 0,
         audio_origin_key: String::new(),
+    }
+}
+
+fn image_edit_candidate_wire(candidate: &ImageEditCandidate) -> ffi::CandidateWire {
+    ffi::CandidateWire {
+        candidate_id: candidate.receipt().attempt_id.to_string(),
+        artifact_id: candidate.artifact_id().to_string(),
+        context_artifact_id: candidate.artifact_id().to_string(),
+        artifact_name: String::new(),
+        kind_key: "image_raster".to_owned(),
+        has_expected_head: true,
+        expected_head: candidate.expected_head().to_string(),
+        can_branch: false,
+        has_text_preview: false,
+        text_preview_truncated: false,
+        text_preview: String::new(),
+        has_image_preview: true,
+        image_width: candidate.contract().width,
+        image_height: candidate.contract().height,
+        has_audio_preview: false,
+        audio_duration_millis: 0,
+        audio_sample_rate_hz: 0,
+        audio_channels: 0,
+        audio_origin_key: String::new(),
+    }
+}
+
+fn raster_transform_from_key(key: &str) -> Result<RasterTransform, String> {
+    match key {
+        "rotate90_clockwise" => Ok(RasterTransform::Rotate90Clockwise),
+        "rotate180" => Ok(RasterTransform::Rotate180),
+        "rotate270_clockwise" => Ok(RasterTransform::Rotate270Clockwise),
+        "flip_horizontal" => Ok(RasterTransform::FlipHorizontal),
+        "flip_vertical" => Ok(RasterTransform::FlipVertical),
+        _ => Err("raster transform is unsupported".to_owned()),
     }
 }
 

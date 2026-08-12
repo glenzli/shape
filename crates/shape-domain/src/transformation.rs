@@ -5,7 +5,8 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AiImageGenerateParameters, ArtifactId, DomainError, RasterCrop, RasterResize, RevisionId,
+    AiImageGenerateParameters, ArtifactId, DomainError, RasterCrop, RasterDropShadow,
+    RasterGaussianBlur, RasterResize, RasterTransform, RasterUnsharpMask, RevisionId,
     SpeechSynthesisOperation, TransformationId,
 };
 
@@ -39,6 +40,10 @@ pub enum TransformationKind {
 pub enum TransformationOperation {
     RasterCrop(RasterCrop),
     RasterResize(RasterResize),
+    RasterTransform(RasterTransform),
+    RasterGaussianBlur(RasterGaussianBlur),
+    RasterDropShadow(RasterDropShadow),
+    RasterUnsharpMask(RasterUnsharpMask),
     AudioSpeechSynthesis(SpeechSynthesisOperation),
     AiImageGenerate(AiImageGenerateParameters),
 }
@@ -249,7 +254,12 @@ impl Transformation {
         let operation_matches_kind = match &operation {
             None => true,
             Some(
-                TransformationOperation::RasterCrop(_) | TransformationOperation::RasterResize(_),
+                TransformationOperation::RasterCrop(_)
+                | TransformationOperation::RasterResize(_)
+                | TransformationOperation::RasterTransform(_)
+                | TransformationOperation::RasterGaussianBlur(_)
+                | TransformationOperation::RasterDropShadow(_)
+                | TransformationOperation::RasterUnsharpMask(_),
             ) => kind == TransformationKind::DeterministicEdit,
             Some(TransformationOperation::AudioSpeechSynthesis(_)) => {
                 kind == TransformationKind::GenerativeEdit

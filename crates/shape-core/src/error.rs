@@ -63,6 +63,23 @@ pub enum CoreError {
     RasterCropOutputContractMismatch,
     #[error("raster resize executor output does not match the prepared image.resize contract")]
     RasterResizeOutputContractMismatch,
+    #[error("raster edit executor output does not match its prepared contract")]
+    RasterEditOutputContractMismatch,
+    #[error("raster blur currently requires a canonical sRGB image")]
+    RasterBlurUnsupportedColorProfile,
+    #[error("raster blur source exceeds the {maximum_pixels}-pixel working-set limit")]
+    RasterBlurSourceTooLarge { maximum_pixels: u64 },
+    #[error("raster unsharp mask currently requires a canonical sRGB image")]
+    RasterUnsharpMaskUnsupportedColorProfile,
+    #[error("raster unsharp-mask source exceeds the {maximum_pixels}-pixel working-set limit")]
+    RasterUnsharpMaskSourceTooLarge { maximum_pixels: u64 },
+    #[error("raster drop shadow currently requires a canonical sRGB image")]
+    RasterDropShadowUnsupportedColorProfile,
+    #[error("raster drop-shadow output exceeds {maximum_dimension}px or {maximum_pixels} pixels")]
+    RasterDropShadowOutputTooLarge {
+        maximum_dimension: u32,
+        maximum_pixels: u64,
+    },
     #[error("image generation output or Runtime provenance does not match image.generate")]
     ImageGenerationOutputContractMismatch,
     #[error("artifact {artifact_id} is not an unaccepted image.raster generation target")]

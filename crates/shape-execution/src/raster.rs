@@ -1,7 +1,12 @@
 //! Bounded PNG/JPEG normalization and canonical raster materialization.
 
+mod blur;
 mod crop;
+mod drop_shadow;
+mod pixels;
 mod resize;
+mod transform;
+mod unsharp_mask;
 
 use std::io::Cursor;
 
@@ -18,8 +23,15 @@ use crate::{
     ExecutorIdentity,
 };
 
+pub use blur::{RASTER_BLUR_CAPABILITY, RasterBlurExecutor};
 pub use crop::{RASTER_CROP_CAPABILITY, RasterCropExecutor};
+pub use drop_shadow::{RASTER_DROP_SHADOW_CAPABILITY, RasterDropShadowExecutor};
 pub use resize::{RASTER_RESIZE_CAPABILITY, RasterResizeExecutor};
+pub use transform::{RASTER_TRANSFORM_CAPABILITY, RasterTransformExecutor};
+pub use unsharp_mask::{
+    RASTER_UNSHARP_MASK_CAPABILITY, RASTER_UNSHARP_MASK_WORKING_BYTES_PER_PIXEL,
+    RasterUnsharpMaskExecutor,
+};
 
 pub const RASTER_IMPORT_CAPABILITY: &str = "image.raster.import";
 const RASTER_MEDIA_TYPE: &str = "image/png";

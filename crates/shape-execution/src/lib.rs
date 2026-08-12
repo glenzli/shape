@@ -37,9 +37,13 @@ pub use infer_runtime::{
 };
 pub use job::{ExecutionJob, ExecutionOutcome, ExecutionReceipt, JobState};
 pub use provenance::{
-    ExternalAttemptProvenance, ExternalExecutionProvenance, ExternalRoutingCandidate,
+    ExternalAttemptProvenance, ExternalExecutionProvenance, ExternalNamedRouteProvenance,
+    ExternalRoutingCandidate,
 };
 pub use raster::{
-    RASTER_CROP_CAPABILITY, RASTER_IMPORT_CAPABILITY, RASTER_RESIZE_CAPABILITY, RasterCropExecutor,
-    RasterExecutor, RasterResizeExecutor,
+    RASTER_BLUR_CAPABILITY, RASTER_CROP_CAPABILITY, RASTER_DROP_SHADOW_CAPABILITY,
+    RASTER_IMPORT_CAPABILITY, RASTER_RESIZE_CAPABILITY, RASTER_TRANSFORM_CAPABILITY,
+    RASTER_UNSHARP_MASK_CAPABILITY, RASTER_UNSHARP_MASK_WORKING_BYTES_PER_PIXEL,
+    RasterBlurExecutor, RasterCropExecutor, RasterDropShadowExecutor, RasterExecutor,
+    RasterResizeExecutor, RasterTransformExecutor, RasterUnsharpMaskExecutor,
 };

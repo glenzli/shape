@@ -95,7 +95,7 @@ impl ShapeProject {
     /// # Errors
     ///
     /// Rejects unsupported physical request shapes, malformed or mismatched PNG
-    /// output, missing candidate.3 Job provenance, or executor failure.
+    /// output, missing current-contract Job provenance, or executor failure.
     pub fn propose_generated_image(
         &self,
         artifact_id: ArtifactId,

@@ -18,8 +18,9 @@ writing draft; an AI image work atomically creates an unaccepted raster identity
 also open a bundle at startup, display its validated project metadata and artifact list, and render
 bounded accepted text or an on-demand verified raster preview supplied by Rust. Text documents can
 accumulate multiple transient candidates, compare and accept them in place, or branch one into a
-new artifact. An 8-bit PNG/JPEG can be imported into a canonical `image.raster` revision, shaped
-with a direct crop frame, compared against its transient crop candidate, accepted, and reopened.
+new artifact. An 8-bit PNG/JPEG can be imported into a canonical `image.raster` revision, cropped,
+resized, losslessly reoriented, blurred, or given a flattened drop shadow; every edit is compared
+as a transient Candidate before its exact versioned operation is accepted and reopened.
 Accepted text can also enter the preset-only Speech Synthesis workspace, produce a transient
 `audio.clip` Candidate through Infer Runtime, play the selected exact WAV in memory, and accept it
 as a new cross-artifact output without advancing the source text.
@@ -52,11 +53,16 @@ The selection immediately enters the dedicated Operator workspace. Unexecuted dr
 project's mutable Working Graph, restore with the same identity on reopen, and remain outside
 accepted history. Text transformation is presented as an AI Text Editor node and a dedicated
 `AiTextEditingWorkspace.qml`. The workspace keeps connected material context outside the editor,
-then owns quick actions, optional prompt, tone, style, one-or-three Candidate pacing, selectable
+then owns quick actions, optional prompt, readable tone samples, style, audience, one-or-three Candidate pacing, selectable
 output, targeted follow-up preparation, and explicit output locking. Compatibility work uses
-canonical `text.edit`; `shape.operator-draft.text-transform@20260812.1` checkpoints
-rewrite/expand/polish/shorten/summarize, exact authored instruction, tone, style, and bounded variant
-count. Legacy persisted configurations and `text.transform` drafts remain readable. The Infer Text
+canonical `text.edit`; `shape.operator-draft.text-transform@20260813.1` checkpoints
+rewrite/expand/polish/shorten/summarize, exact authored instruction, one-or-two tone facets,
+subtle/balanced/strong intensity, preset or authored audience, style, and bounded variant count.
+Built-in tones pair Shape-owned marks with a plain-language description and one expression sample;
+selection order explicitly means primary and supporting tone. A bounded personal tone library lives
+in the application preferences, but the selected name, instruction, example, and visual mark are
+copied into the project draft so later library edits never change old node intent. The previous
+`20260812.2` expression schema and older `text.transform` drafts remain readable. The Infer Text
 controller receives only the draft identity; Rust reopens the Working Graph, compiles the persisted
 intent, and revalidates it before execution.
 Raster authoring is likewise presented as one Image Editing action. Its workspace exposes Frame and
@@ -105,20 +111,24 @@ will treat returned bytes plus receipt as a Candidate, never as an in-place data
 only checking, reachable, compatible, contract-version, endpoint-source, instance/generation, and
 stable-error state. Rust selects endpoints in this order: canonical numeric-loopback
 `SHAPE_INFER_RUNTIME_URL` override, live owner-only
-`infer-runtime.consumer@0.1.0-candidate.3` Infra Discovery offer, then the temporary
+`infer-runtime.consumer@0.1.0-candidate.4` Infra Discovery offer, then the temporary
 `http://127.0.0.1:8787` migration fallback. It validates the exact Discovery schema, filesystem
 ownership and modes, generation, offer binding, and raw endpoint before HTTP. The
 `infra.discovery.registration@20260812.1` manifest has no lease or liveness timestamp; a failed
 connection causes a stable-manifest re-read without repairing or deleting provider state.
+Every protected contract, inference, and Job request carries
+`Infer-Consumer-Contract: 0.1.0-candidate.4`; Shape rejects a manifest whose supported-version set
+contains anything else.
 
 `InferTextController` separately owns one asynchronous authenticated generation lifecycle. Settings
 can copy the one-time managed token for Infer App `shape` into
 `AppConfigLocation/secrets/infer-runtime.token`; Rust atomically maintains its owner-only directory
 and file and never puts the token in QSettings, a project, exported settings, arguments, environment,
-or diagnostics. The preferred request is fixed to candidate.3 `language.respond` with an
-interactive `infer.capability_floor=foundational`, local-first, local-only, offline, no-fallback, and zero cloud
-cost. Frozen candidate.2 vocabulary is retained only behind exact contract negotiation during the
-migration window. Proxies, redirects, hostnames, and remote origins are rejected.
+or diagnostics. The request is fixed to candidate.4 `text.edit` with an interactive
+`infer.capability_floor=foundational`, the authorized `ollama_qwen3_5_4b` Deployment, local-first,
+local-only, offline, no-fallback, and zero cloud cost. Shape does not negotiate or deserialize older
+Consumer vocabularies; a retired Runtime requires an upgrade. Proxies, redirects, hostnames, and
+remote origins are rejected.
 The worker opens a read-only project view and returns an opaque generated candidate; the UI-thread
 `DesktopSession` rechecks expected-head identity before adding it to the transient shelf. Only the
 existing accept operation advances durable history. Infer App/ACL creation and daemon restart remain
@@ -137,7 +147,7 @@ speech drafts receive and persist the validated default on open, and generation 
 draft identity instead of accepting UI parameters as execution authority. This is a preview surface,
 not the future Echo-backed composition/render engine.
 
-`InferImageController` owns the separate high-payload candidate.3 image generation lifecycle.
+`InferImageController` owns the separate high-payload candidate.4 image generation lifecycle.
 Rust reopens the exact zero-input draft and validates its prompt/canvas before credential access,
 then requires cloud/subscription Job provenance before returning an opaque Candidate. The desktop
 never sends provider, model, sampler, or checkpoint choices. `AiImageOperatorWorkspace.qml` owns the
@@ -160,8 +170,11 @@ and `TextCompareWorkspace.qml` remains its compare
 owner. `ImageEditorWorkspace.qml` owns the one product-level image editing surface;
 `RasterCropOperatorWorkspace.qml` owns crop-frame interaction,
 `RasterResizeOperatorWorkspace.qml` owns project-backed dimensions, aspect policy and resampling,
-and `ImageCompareWorkspace.qml` owns raster comparison. Rust remains the exact pixel, draft, and
-persistence authority.
+`RasterEffectsWorkspace.qml` owns transient orientation, blur, unsharp-mask sharpening, and
+flattened drop-shadow controls,
+and `ImageCompareWorkspace.qml` owns raster comparison. Effects create real transient Candidates;
+their accepted Transformation records the exact versioned parameters, while QML never owns pixels,
+history, or executor policy. Rust remains the exact pixel, draft, and persistence authority.
 `WorkbenchProjectRail.qml` now owns the compact Scene/Component/Asset navigation surface while
 accepted Artifact projection remains the temporary Scene compatibility model. Entering an Operator
 keeps `SceneGraphContextStrip.qml` visible above the media workspace; it emits identity-based open
@@ -173,7 +186,10 @@ comprehensive Intent/Change/Preserve/Reference nodes and is instantiated for the
 `VariantsPanel.qml` remain packaged compatibility components but are no longer the main shell.
 `BranchArtifactDialog.qml` owns branch naming and submission;
 `SceneOperatorGraphWorkspace.qml` owns typed graph layout, zoom, single-selection, and open/review
-intent; `CreativeGraphNodeCard.qml` owns media- and role-specific node content. Text Source and
+intent; `CreativeGraphNodeCard.qml` owns accepted media- and role-specific node content,
+`CreativeDraftNodeCard.qml` owns mutable step affordances, and
+`CreativeCandidateNodeCard.qml` owns transient generated-version presentation. Keeping those cards
+separate prevents the graph layout owner from also becoming the visual-state owner. Text Source and
 Result cards receive the exact immutable revision preview projected by Rust, so neither card reuses
 the selected Artifact head as a substitute for its own bound content. `SceneGraphToolbar.qml` owns
 the scene breadcrumb, graph controls, and palette entry.
@@ -181,7 +197,11 @@ the scene breadcrumb, graph controls, and palette entry.
 `OperatorPalette.qml` owns their localized labels and presentation-only search, while
 `GraphSelectionInspector.qml` owns the compact selected-node action summary without acquiring node
 or lifecycle authority. `ShapeButton.qml`, `ShapeIconButton.qml`, and the shared SVG resources keep
-toolbar action treatment and content centering consistent. `SourceMaterialWorkspace.qml` owns the
+toolbar action treatment and content centering consistent. `Theme.qml` is the desktop visual
+contract shared in density and neutral-surface hierarchy with Shadow and Echo; Shape-specific
+canvas-grid and creative-state tokens live there instead of being redefined by workspaces.
+Connected rails, canvases, inspectors, and focused editors use separators for depth, reserving
+floating cards and shadows for palettes and dialogs. `SourceMaterialWorkspace.qml` owns the
 content-first, non-technical viewer for the exact immutable Source revision; internal identities
 remain outside its primary UI. `OperatorWorkspaceHost.qml` owns exact Operator routes and the
 separate Source/Output read-only routes,

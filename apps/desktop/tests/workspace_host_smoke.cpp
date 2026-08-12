@@ -83,7 +83,9 @@ bool verify_packaged_node_route(
     const QVariantMap& node,
     const QString& expected_route,
     const QString& expected_workspace,
-    const QString& expected_candidate_id = QString()
+    const QString& expected_candidate_id = QString(),
+    const QString& expected_child_object_name = QString(),
+    const QString& expected_selected_tool_key = QString()
 ) {
     const QString node_id = node.value(QStringLiteral("id")).toString();
     const QVariantList graph_nodes = workspace_surface.property("graphNodes").toList();
@@ -132,6 +134,19 @@ bool verify_packaged_node_route(
         return false;
     }
 
+    QObject* const loaded_workspace = qvariant_cast<QObject*>(host->property("loadedWorkspace"));
+    if ((!expected_child_object_name.isEmpty()
+         && (loaded_workspace == nullptr
+             || loaded_workspace->findChild<QObject*>(expected_child_object_name) == nullptr))
+        || (!expected_selected_tool_key.isEmpty()
+            && (loaded_workspace == nullptr
+                || loaded_workspace->property("selectedToolKey").toString()
+                       != expected_selected_tool_key))) {
+        std::cerr << "desktop graph smoke entered an incomplete packaged node workspace"
+                  << std::endl;
+        return false;
+    }
+
     if (expected_route == QStringLiteral("source.readonly")) {
         QObject* const source_text =
             host->findChild<QObject*>(QStringLiteral("sourceMaterialText"));
@@ -168,7 +183,9 @@ bool verifyOperatorRoute(
     const QString& operator_type_key,
     const QString& expected_route,
     const QString& expected_workspace,
-    const QString& expected_candidate_id
+    const QString& expected_candidate_id,
+    const QString& expected_child_object_name,
+    const QString& expected_selected_tool_key
 ) {
     QObject* const workspace_surface =
         root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
@@ -188,7 +205,9 @@ bool verifyOperatorRoute(
                *operator_node,
                expected_route,
                expected_workspace,
-               expected_candidate_id
+               expected_candidate_id,
+               expected_child_object_name,
+               expected_selected_tool_key
            );
 }
 
@@ -533,6 +552,27 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
     if (text_workspace == nullptr) {
         return false;
     }
+    QQuickItem* const primary_example = find_quick_item(
+        qobject_cast<QQuickItem*>(text_workspace),
+        QStringLiteral("textTone-neutral-example")
+    );
+    QQuickItem* const primary_role = find_quick_item(
+        qobject_cast<QQuickItem*>(text_workspace),
+        QStringLiteral("textTone-neutral-role")
+    );
+    QQuickItem* const expression_summary = find_quick_item(
+        qobject_cast<QQuickItem*>(text_workspace),
+        QStringLiteral("textExpressionSummaryText")
+    );
+    if (primary_example == nullptr || !primary_example->isVisible()
+        || primary_example->property("text").toString().isEmpty() || primary_role == nullptr
+        || !primary_role->isVisible() || primary_role->property("text").toString().isEmpty()
+        || expression_summary == nullptr
+        || expression_summary->property("text").toString().isEmpty()) {
+        std::cerr << "desktop authoring smoke did not load readable expression samples"
+                  << std::endl;
+        return false;
+    }
     text_workspace->setProperty("runtimeCompatible", true);
     text_workspace->setProperty("credentialConfigured", false);
     QCoreApplication::processEvents();
@@ -571,11 +611,14 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
     }
     QCoreApplication::processEvents();
     const QString instruction = QStringLiteral("Make it warmer, but preserve the title.");
+    const QString expression_json = QStringLiteral(
+        R"({"tones":[{"kind":"preset","preset":"warm"},{"kind":"custom","name":"Quiet conviction","instruction":"Stay certain without becoming forceful.","example":"This is the right direction; we can proceed carefully.","visual":"ascent"}],"intensity":"subtle","audience":{"kind":"preset","preset":"colleague"}})"
+    );
     if (!backend.updateTextTransformDraft(
             draft_id,
             QStringLiteral("polish"),
             instruction,
-            QStringLiteral("warm"),
+            expression_json,
             QStringLiteral("literary"),
             3
         )) {
@@ -595,6 +638,11 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
                != QStringLiteral("polish")
         || configured_drafts.first().toMap().value(QStringLiteral("textTransformTone")).toString()
                != QStringLiteral("warm")
+        || configured_drafts.first()
+                   .toMap()
+                   .value(QStringLiteral("textTransformExpressionJson"))
+                   .toString()
+               != expression_json
         || configured_drafts.first().toMap().value(QStringLiteral("textTransformStyle")).toString()
                != QStringLiteral("literary")
         || configured_drafts.first()
@@ -636,6 +684,11 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
                != QStringLiteral("polish")
         || reopened_drafts.first().toMap().value(QStringLiteral("textTransformTone")).toString()
                != QStringLiteral("warm")
+        || reopened_drafts.first()
+                   .toMap()
+                   .value(QStringLiteral("textTransformExpressionJson"))
+                   .toString()
+               != expression_json
         || reopened_drafts.first().toMap().value(QStringLiteral("textTransformStyle")).toString()
                != QStringLiteral("literary")
         || reopened_drafts.first()
@@ -679,7 +732,7 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
     if (reopened_text_workspace == nullptr
         || reopened_text_workspace->property("persistedInstruction").toString() != instruction
         || reopened_text_workspace->property("pendingMode").toString() != QStringLiteral("polish")
-        || reopened_text_workspace->property("pendingTone").toString() != QStringLiteral("warm")
+        || reopened_text_workspace->property("pendingExpressionJson").toString() != expression_json
         || reopened_text_workspace->property("pendingStyle").toString()
                != QStringLiteral("literary")
         || reopened_text_workspace->property("pendingVariantCount").toInt() != 3) {

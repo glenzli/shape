@@ -70,7 +70,10 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   desktop keeps text and image candidates on one typed shelf while each medium owns
   its central workspace. It resolves Infer Runtime through strict owner-only
   Infra Discovery, imports a Shape-specific managed credential into an owner-only secret store,
-  and can execute one local-only candidate.3 `language.respond` request as a transient candidate.
+  and can execute one local-only candidate.4 `text.edit` request through the authorized 4B
+  Deployment as a transient candidate. Older Consumer contracts and provenance are intentionally
+  unsupported while Shape remains in debug development. Contract probes, inference, and Job
+  readback all send the exact candidate.4 negotiation header.
   The `audio.speech_synthesize` desktop workspace consumes immutable accepted text and creates a
   transient audio Candidate through a single versioned preset. The selected Candidate can be
   auditioned from an in-memory WAV device and becomes a new `audio.clip` only after explicit
@@ -84,12 +87,10 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   persists its preset, language, pace, and disclosure contract; legacy unconfigured speech drafts
   receive the same validated preset default before the desktop session becomes available. Offline
   or unconfigured AI never affects direct editing.
-- The deterministic raster foundation now also includes a real `image.resize` Rust path. Its typed
-  target dimensions, stretch/fit-within policy, four explicit resampling kernels, bounded pixel
-  budget, prepared execution plan, and Candidate/Accept lifecycle are now consumed by a dedicated
-  desktop workspace. Resize configuration is project-backed, restored on reopen, and re-read by
-  exact draft identity before producing pixels; the packaged raster smoke covers import, draft,
-  reopen, Candidate, Compare, Accept, graph routing, and final reopen.
+- Deterministic Image Editing now includes Crop, Resize, orientation Transform, Blur, Drop Shadow,
+  and Unsharp Mask. The concise [raster algorithm index](crates/shape-execution/src/raster/README.md)
+  records their parameters, limits, and integration entry points. Every result remains a transient
+  Candidate until explicit acceptance records its typed operation in immutable history.
 - Shape will not duplicate mature photo-editing systems by default. Creative color grading and RAW
   work remain Shape-level semantic Operators, but their preferred future execution route is an
   explicit Shadow external-edit Adapter. Shape pins the input revision and color contract, accepts
@@ -103,7 +104,7 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
 - AI image semantics are split deliberately. `image.generate` is a zero-material Source Operator;
   `image.generate_from_materials` requires accepted raster materials with explicit roles. Both have
   one logical output and place multiple generated options on the Candidate Shelf. The typed domain
-  contract exists now. The source-less form also has a strict Infer Runtime candidate.3 executor
+  contract exists now. The source-less form also has a strict Infer Runtime candidate.4 executor
   and a Core Candidate/explicit-Accept path: PNG payloads and cloud Job provenance are revalidated,
   and no accepted revision is written before user acceptance. The desktop can atomically create a
   source-less AI Image Scene, restore its exact prompt/canvas draft, and open its dedicated canvas

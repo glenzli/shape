@@ -231,8 +231,8 @@ fn incompatible_or_structurally_invalid_registration_falls_back() {
 }
 
 #[test]
-fn migration_accepts_candidate_two_but_prefers_candidate_three() {
-    let fixture = DiscoveryFixture::new("candidate-migration");
+fn retired_offers_fall_back_and_only_the_current_contract_is_selected() {
+    let fixture = DiscoveryFixture::new("contract-selection");
     let resolver = InferRuntimeEndpointResolver::with_runtime_root(
         "",
         fixture.root.clone(),
@@ -240,33 +240,21 @@ fn migration_accepts_candidate_two_but_prefers_candidate_three() {
     );
 
     fixture.write_registration(
-        "generation-candidate-two",
+        "generation-retired",
         "http://127.0.0.1:9111",
-        InferRuntimeContractRevision::Candidate2.as_str(),
+        "0.1.0-retired",
     );
-    let candidate_two = resolver
-        .resolve_current()
-        .expect("candidate.2 remains selectable");
-    assert_eq!(
-        candidate_two.contract_version.as_deref(),
-        Some(InferRuntimeContractRevision::Candidate2.as_str())
-    );
+    assert_fallback(&resolver);
 
-    let mut both = registration_value(
-        "generation-both",
-        "http://127.0.0.1:9222",
-        InferRuntimeContractRevision::Candidate2.as_str(),
-    );
-    both["offers"][1]["protocol_versions"] = json!([
-        InferRuntimeContractRevision::Candidate2.as_str(),
-        INFER_RUNTIME_CONTRACT_VERSION
-    ]);
+    let mut both = registration_value("generation-both", "http://127.0.0.1:9222", "0.1.0-retired");
+    both["offers"][1]["protocol_versions"] =
+        json!(["0.1.0-retired", INFER_RUNTIME_CONTRACT_VERSION]);
     fixture.write_value(&both);
-    let candidate_three = resolver
+    let current = resolver
         .resolve_current()
-        .expect("preferred candidate resolves");
+        .expect("current contract resolves");
     assert_eq!(
-        candidate_three.contract_version.as_deref(),
+        current.contract_version.as_deref(),
         Some(INFER_RUNTIME_CONTRACT_VERSION)
     );
 }

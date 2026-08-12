@@ -87,6 +87,12 @@ Item {
     signal resizeRequested(string artifactId, string draftId,
                            int targetWidth, int targetHeight,
                            string aspectPolicyKey, string resamplingKey)
+    signal rasterTransformRequested(string artifactId, string transformKey)
+    signal rasterBlurRequested(string artifactId, int radius)
+    signal rasterUnsharpMaskRequested(string artifactId, int radius,
+                                      int amountMilli, int threshold)
+    signal rasterDropShadowRequested(string artifactId, int offsetX, int offsetY,
+                                     int blurRadius, int red, int green, int blue, int alpha)
     signal speechDraftSaveRequested(string draftId, string presetAlias,
                                     string presetCatalogRevision, string language,
                                     int speedMilli, bool syntheticDisclosureRequired)
@@ -99,11 +105,11 @@ Item {
     signal operatorDraftRequested(string operatorTypeKey)
     signal operatorDraftDiscardRequested(string draftId)
     signal textStudioDraftSaveRequested(string draftId, string modeKey,
-                                        string instruction, string toneKey,
+                                        string instruction, string expressionJson,
                                         string styleKey, int variantCount)
     signal textStudioGenerationRequested(string artifactId, string draftId,
                                          string modeKey, string instruction,
-                                         string toneKey, string styleKey,
+                                         string expressionJson, string styleKey,
                                          int variantCount)
     signal textCandidateLockRequested(string candidateId)
     signal inferAccessSetupRequested()
@@ -367,20 +373,21 @@ Item {
             persistedMode: textDraft !== null ? textDraft.textTransformMode : "rewrite"
             persistedInstruction: textDraft !== null
                                   ? textDraft.textTransformInstruction : ""
-            persistedTone: textDraft !== null ? textDraft.textTransformTone : "neutral"
+            persistedExpressionJson: textDraft !== null
+                                     ? textDraft.textTransformExpressionJson : ""
             persistedStyle: textDraft !== null ? textDraft.textTransformStyle : "natural"
             persistedVariantCount: textDraft !== null
                                    ? textDraft.textTransformVariantCount : 1
-            onDraftSaveRequested: (draftId, modeKey, instruction, toneKey,
+            onDraftSaveRequested: (draftId, modeKey, instruction, expressionJson,
                                    styleKey, variantCount) =>
                                       surface.textStudioDraftSaveRequested(
-                                          draftId, modeKey, instruction, toneKey,
+                                          draftId, modeKey, instruction, expressionJson,
                                           styleKey, variantCount)
             onGenerationRequested: (artifactId, draftId, modeKey, instruction,
-                                    toneKey, styleKey, variantCount) =>
+                                    expressionJson, styleKey, variantCount) =>
                                        surface.textStudioGenerationRequested(
                                            artifactId, draftId, modeKey, instruction,
-                                           toneKey, styleKey, variantCount)
+                                           expressionJson, styleKey, variantCount)
             onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
             onCandidateLockRequested: candidateId =>
                                           surface.textCandidateLockRequested(candidateId)
@@ -424,6 +431,21 @@ Item {
             onResizeRequested: (artifactId, draftId, width, height, aspect, resampling) =>
                                    surface.resizeRequested(
                                        artifactId, draftId, width, height, aspect, resampling)
+            onTransformRequested: transformKey =>
+                                      surface.rasterTransformRequested(
+                                          operatorWorkspaceHost.openedArtifactId, transformKey)
+            onBlurRequested: radius =>
+                                 surface.rasterBlurRequested(
+                                     operatorWorkspaceHost.openedArtifactId, radius)
+            onUnsharpMaskRequested: (radius, amountMilli, threshold) =>
+                                        surface.rasterUnsharpMaskRequested(
+                                            operatorWorkspaceHost.openedArtifactId,
+                                            radius, amountMilli, threshold)
+            onDropShadowRequested: (offsetX, offsetY, radius, red, green, blue, alpha) =>
+                                       surface.rasterDropShadowRequested(
+                                           operatorWorkspaceHost.openedArtifactId,
+                                           offsetX, offsetY, radius,
+                                           red, green, blue, alpha)
         }
     }
 
@@ -513,65 +535,7 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 8
-
-        Rectangle {
-            visible: surface.graphActive
-            Layout.fillWidth: true
-            Layout.preferredHeight: visible ? 46 : 0
-            radius: Theme.radiusMedium
-            color: Theme.surface
-            border.color: Theme.border
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 5
-                spacing: 5
-
-                ColumnLayout {
-                    Layout.leftMargin: 8
-                    Layout.fillWidth: true
-                    spacing: 1
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: qsTr("NODE GRAPH")
-                        color: Theme.text
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 0.7
-                        elide: Text.ElideRight
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: qsTr("Add materials and editors freely; connect outputs when the flow is ready.")
-                        color: Theme.muted
-                        font.pixelSize: 9
-                        elide: Text.ElideRight
-                    }
-                }
-
-                Rectangle {
-                    Layout.rightMargin: 4
-                    Layout.preferredWidth: primaryViewLabel.implicitWidth + 18
-                    Layout.preferredHeight: 26
-                    radius: 13
-                    color: Theme.accentSoft
-                    border.color: Theme.accent
-
-                    Text {
-                        id: primaryViewLabel
-                        anchors.centerIn: parent
-                        text: qsTr("PRIMARY VIEW")
-                        color: Theme.accent
-                        font.pixelSize: 9
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 0.4
-                    }
-                }
-            }
-        }
+        spacing: 0
 
         StackLayout {
             Layout.fillWidth: true
@@ -630,6 +594,10 @@ Item {
                     "image.edit": imageEditorWorkspace,
                     "image.crop": imageEditorWorkspace,
                     "image.resize": imageEditorWorkspace,
+                    "image.transform": imageEditorWorkspace,
+                    "image.blur": imageEditorWorkspace,
+                    "image.unsharp_mask": imageEditorWorkspace,
+                    "image.drop_shadow": imageEditorWorkspace,
                     "image.generate": aiImageOperatorWorkspace,
                     "audio.speech_synthesize": audioSpeechOperatorWorkspace
                 })

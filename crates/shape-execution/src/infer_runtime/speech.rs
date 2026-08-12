@@ -20,8 +20,8 @@ use crate::{
 };
 
 use super::{
-    INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
-    InferRuntimeContractRevision, InferRuntimeCredential, InferRuntimeEndpointResolver,
+    INFER_RUNTIME_CONTRACT_HEADER, INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient,
+    InferRuntimeClientError, InferRuntimeCredential, InferRuntimeEndpointResolver,
     ResolvedInferRuntimeEndpoint,
     job_provenance::{
         JobPolicyProfile, JobProvenanceError, bounded_text, parse_job_snapshot, valid_job_id,
@@ -115,14 +115,9 @@ impl InferRuntimeSpeechExecutor {
         let contract = InferRuntimeClient::new(&endpoint.origin)
             .and_then(|client| client.probe_contract_for_route("POST", SPEECH_ROUTE))
             .map_err(|error| SpeechAttemptFailure::from_contract(&error))?;
-        let revision = validate_discovered_contract(endpoint, &contract)
+        validate_discovered_contract(endpoint, &contract)
             .map_err(|error| SpeechAttemptFailure::from_contract(&error))?;
-        SpeechClient::new(&endpoint.origin)?.create_speech(
-            &self.credential,
-            text,
-            operation,
-            revision,
-        )
+        SpeechClient::new(&endpoint.origin)?.create_speech(&self.credential, text, operation)
     }
 }
 
@@ -224,7 +219,6 @@ impl SpeechClient {
         credential: &InferRuntimeCredential,
         text: &str,
         operation: &SpeechSynthesisOperation,
-        revision: InferRuntimeContractRevision,
     ) -> Result<ExecutionOutput, SpeechAttemptFailure> {
         let SpeechVoiceSelection::Preset(voice) = &operation.voice else {
             return Err(SpeechAttemptFailure::new(
@@ -238,12 +232,15 @@ impl SpeechClient {
             voice.alias.as_str(),
             &operation.language,
             operation.speed_milli,
-            revision,
         );
         let response = self
             .client
             .post(self.speech_endpoint.clone())
             .header(CONTENT_TYPE, "application/json")
+            .header(
+                INFER_RUNTIME_CONTRACT_HEADER,
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
             .bearer_auth(credential.expose())
             .json(&request)
             .send()
@@ -283,7 +280,7 @@ impl SpeechClient {
         }
         let contract = parse_pcm_s16le_wav(&bytes, AudioOriginDisclosure::SyntheticSpeech)
             .map_err(|_| SpeechAttemptFailure::new("invalid_audio_output", false, false))?;
-        let provenance = self.job_provenance(credential, &job_id, revision)?;
+        let provenance = self.job_provenance(credential, &job_id)?;
         Ok(ExecutionOutput {
             bytes,
             media_type: AUDIO_MEDIA_TYPE.to_owned(),
@@ -297,7 +294,6 @@ impl SpeechClient {
         &self,
         credential: &InferRuntimeCredential,
         job_id: &str,
-        revision: InferRuntimeContractRevision,
     ) -> Result<ExternalExecutionProvenance, SpeechAttemptFailure> {
         let endpoint = self
             .origin
@@ -306,6 +302,10 @@ impl SpeechClient {
         let response = self
             .client
             .get(endpoint)
+            .header(
+                INFER_RUNTIME_CONTRACT_HEADER,
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
             .bearer_auth(credential.expose())
             .send()
             .map_err(|_| SpeechAttemptFailure::new("infer_unavailable", true, true))?;
@@ -326,10 +326,9 @@ impl SpeechClient {
             ));
         }
         parse_job_snapshot(
-            revision,
             job_id,
             SPEECH_INTENT,
-            JobPolicyProfile::ShapeLocalInteractive,
+            JobPolicyProfile::LocalInteractive,
             &bytes,
         )
         .map_err(SpeechAttemptFailure::from_job_provenance)
@@ -349,14 +348,9 @@ struct SpeechRequest<'a> {
 }
 
 impl<'a> SpeechRequest<'a> {
-    fn local_unary(
-        input: &'a str,
-        voice: &'a str,
-        language: &'a str,
-        speed_milli: u16,
-        revision: InferRuntimeContractRevision,
-    ) -> Self {
-        let mut metadata = BTreeMap::from([
+    fn local_unary(input: &'a str, voice: &'a str, language: &'a str, speed_milli: u16) -> Self {
+        let metadata = BTreeMap::from([
+            ("infer.capability_floor", "capable"),
             ("infer.fallback", "none"),
             ("infer.max_cost_usd", "0"),
             ("infer.offline_required", "true"),
@@ -366,10 +360,6 @@ impl<'a> SpeechRequest<'a> {
             ("infer.prefer", "local"),
             ("infer.priority", "interactive"),
         ]);
-        metadata.insert(
-            revision.capability_floor_metadata_key(),
-            revision.capable_level(),
-        );
         Self {
             model: SPEECH_INTENT,
             input,

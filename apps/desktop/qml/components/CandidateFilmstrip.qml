@@ -75,14 +75,16 @@ Rectangle {
     }
 
     implicitHeight: 154
-    radius: Theme.radiusMedium
-    color: Theme.surface
+    color: Theme.panel
     border.color: Theme.border
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 7
+        anchors.leftMargin: 14
+        anchors.rightMargin: 14
+        anchors.topMargin: 10
+        anchors.bottomMargin: 10
+        spacing: 8
 
         RowLayout {
             Layout.fillWidth: true
@@ -91,7 +93,7 @@ Rectangle {
             Text {
                 text: qsTr("NEW VERSIONS")
                 color: Theme.textSoft
-                font.pixelSize: 9
+                font.pixelSize: Theme.fontMeta
                 font.weight: Font.DemiBold
                 font.letterSpacing: 0.7
             }
@@ -117,7 +119,7 @@ Rectangle {
                       ? qsTr("Choose one only when it feels right")
                       : qsTr("Run this step to create a version")
                 color: Theme.muted
-                font.pixelSize: 9
+                font.pixelSize: Theme.fontMeta
                 elide: Text.ElideRight
             }
 
@@ -193,7 +195,7 @@ Rectangle {
                                                     === String(modelData.id)
                 readonly property bool currentHead: filmstrip.isCurrentHead(modelData)
 
-                width: 176
+                width: 196
                 height: candidateList.height - 6
                 leftPadding: 8
                 rightPadding: 8
@@ -205,7 +207,7 @@ Rectangle {
                 onDoubleClicked: filmstrip.candidateReviewRequested(String(modelData.id))
 
                 background: Rectangle {
-                    radius: Theme.radiusSmall
+                    radius: Theme.controlRadius
                     color: candidateDelegate.selected ? Theme.accentSoft
                                                       : candidateDelegate.hovered
                                                         ? Theme.raisedHover : Theme.raised
@@ -258,7 +260,7 @@ Rectangle {
                             Text {
                                 text: qsTr("Option %1").arg(candidateDelegate.index + 1)
                                 color: candidateDelegate.selected ? Theme.accent : Theme.textSoft
-                                font.pixelSize: 9
+                            font.pixelSize: Theme.fontMeta
                                 font.weight: Font.DemiBold
                             }
 
@@ -277,7 +279,7 @@ Rectangle {
                             text: filmstrip.candidateSummary(candidateDelegate.modelData,
                                                              candidateDelegate.index)
                             color: Theme.muted
-                            font.pixelSize: 8
+                            font.pixelSize: Theme.fontMicro
                             elide: Text.ElideRight
                             wrapMode: Text.Wrap
                             maximumLineCount: 2
@@ -291,7 +293,7 @@ Rectangle {
                 visible: filmstrip.candidates.length === 0
                 text: qsTr("No new versions yet")
                 color: Theme.muted
-                font.pixelSize: 10
+                font.pixelSize: Theme.fontMeta
             }
         }
     }

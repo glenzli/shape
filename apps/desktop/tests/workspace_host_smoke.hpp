@@ -17,7 +17,9 @@ bool verifyOperatorRoute(
     const QString& operator_type_key,
     const QString& expected_route,
     const QString& expected_workspace,
-    const QString& expected_candidate_id = QString()
+    const QString& expected_candidate_id = QString(),
+    const QString& expected_child_object_name = QString(),
+    const QString& expected_selected_tool_key = QString()
 );
 
 bool verifyLocalization(QObject& root_object, UiPreferences& ui_preferences);

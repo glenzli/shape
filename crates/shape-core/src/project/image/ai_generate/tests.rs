@@ -108,6 +108,7 @@ fn provenance() -> ExternalExecutionProvenance {
         requested_deadline_ms: None,
         max_cost_microusd: 0,
         capability_floor: "capable".to_owned(),
+        named_route: None,
         routing_candidates: vec![ExternalRoutingCandidate {
             provider: "codex-subscription".to_owned(),
             deployment: "codex_gpt_5_6_luna".to_owned(),

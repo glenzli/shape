@@ -122,6 +122,13 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::MissingRasterOutputContract
         | CoreError::RasterCropOutputContractMismatch
         | CoreError::RasterResizeOutputContractMismatch
+        | CoreError::RasterEditOutputContractMismatch
+        | CoreError::RasterBlurUnsupportedColorProfile
+        | CoreError::RasterBlurSourceTooLarge { .. }
+        | CoreError::RasterUnsharpMaskUnsupportedColorProfile
+        | CoreError::RasterUnsharpMaskSourceTooLarge { .. }
+        | CoreError::RasterDropShadowUnsupportedColorProfile
+        | CoreError::RasterDropShadowOutputTooLarge { .. }
         | CoreError::Execution(_) => "execution_invalid".to_owned(),
     }
 }

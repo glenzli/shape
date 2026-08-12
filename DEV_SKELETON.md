@@ -69,22 +69,28 @@ offer, or endpoint is reconsidered. The HTTP owner then performs a bounded, prox
 redirect-free public-contract probe. Explicit diagnostics override remains first; the fixed 8787
 origin is only a temporary final migration fallback. Its separate `credential` owner atomically
 loads and rotates only a managed 256-bit token from Shape's owner-only secret store. The `responses`
-owner implements the first real `text.generate` executor with candidate.3 `language.respond` and
-an interactive `infer.capability_floor=foundational`, using a
-local-first/local-only/offline/no-fallback/zero-cost
-request. The frozen candidate.2 vocabulary is isolated behind the temporary version-negotiated
-migration branch and is never mixed into a candidate.3 request. Runtime response identity enters the
-payload-free execution receipt for later Job/explain lookup, but Runtime success remains only a
-Shape Candidate. `shape-core::propose_generated_text` owns the generative transformation and
+owner implements the first real `text.generate` executor with candidate.4 `text.edit`, an
+interactive `infer.capability_floor=foundational`, and the authorized Runtime Deployment
+`ollama_qwen3_5_4b`, using a local-first/local-only/offline/no-fallback/zero-cost request. Shape
+implements only the candidate.4 Consumer contract; older offers, HTTP manifests, request
+vocabularies, and persisted provenance are incompatible and require upgrading Runtime or recreating
+debug data. Every protected contract, execution, and Job request sends the exact
+`Infer-Consumer-Contract: 0.1.0-candidate.4` header, and the manifest must publish exactly that one
+supported version. A success is not trusted from the Response envelope alone: the
+adapter reads the same authenticated Job and requires matching Shape App, Intent, policy,
+Deployment, Model Profile, final Attempt, and singular named-route evidence before returning a
+payload-free execution receipt. Runtime success remains only a Shape Candidate.
+`shape-core::propose_generated_text` owns the generative transformation and
 accepted-text context; `shape-desktop-bridge::infer_text` prepares a candidate outside the live
 session and `DesktopSession` revalidates its expected head before adopting it. Detailed provenance
-inspection, additional Intents, media bridges, capability registry, and project dependency resolver
+inspection beyond the verified Job facts, additional Intents, media bridges, capability registry, and project dependency resolver
 remain deferred until real product paths consume them. Do not create empty crates for roadmap
 boxes.
 
 The first raster path extends those existing owners instead of introducing a media-kernel crate.
 `shape-domain::image_raster` owns the platform-independent RGBA8, alpha, orientation, color, and
-ICC contracts; `shape-domain::image_crop` separately owns the typed `image.crop` rectangle contract.
+ICC contracts; dedicated image owners separately freeze Crop, Resize, orientation Transform,
+Gaussian Blur, flattened Drop Shadow, and Unsharp Mask semantics.
 `shape-execution::raster` owns bounded PNG/JPEG decode, EXIF normalization and canonical PNG
 materialization, while its `crop` owner executes exact deterministic pixels. `shape-core::project::image` owns
 the atomic import-origin commit and image Candidate/Accept use cases. The desktop shelf is now a
@@ -94,7 +100,8 @@ acceptance does not duplicate the full encoded payload. Ordinary bridge snapshot
 image dimensions and immutable content identity; selected accepted or candidate PNG bytes cross
 the Rust/CXX boundary only on demand and are decoded into a display-scaled, byte-bounded native
 cache. `ImageEditorWorkspace.qml` is the product-level image editing owner; it composes
-`RasterCropOperatorWorkspace.qml` and `RasterResizeOperatorWorkspace.qml` as internal tools while
+`RasterCropOperatorWorkspace.qml`, `RasterResizeOperatorWorkspace.qml`, and
+`RasterEffectsWorkspace.qml` as internal tools while
 `ImageCompareWorkspace.qml` owns accepted-versus-candidate presentation. The bridge retires any
 crop/resize Working Graph drafts together when either tool produces a Candidate, so the unified
 stage cannot leave a sibling tool draft stale. Image branching, composites, masks, and model-backed
@@ -112,6 +119,15 @@ Candidate and explicit Accept use case. `shape-desktop-bridge::operator_catalog:
 the versioned draft codec; `RasterResizeOperatorWorkspace.qml` is its real desktop consumer and
 checkpoints authored dimensions/policies before execution reloads the exact draft identity.
 
+`shape-execution::raster::pixels` owns the shared fixed-point sRGB/linear conversion,
+premultiplied-alpha math, source-over composition, and reusable two-buffer three-box Gaussian
+approximation. Blur and `image.unsharp_mask` both admit at most 16,777,216 pixels: a 4096-square
+source passes planning, while an 8192-square source fails before allocation. Unsharp Mask preserves
+source alpha exactly and applies radius, fixed-point amount, and threshold to linear-premultiplied
+RGB under revision `20260813.1`; its desktop controls are transient, and only Candidate acceptance
+persists those exact parameters. This is a portable CPU foundation, not a generic Filter SDK or a
+second photo-development pipeline.
+
 `shape-domain::ai_image` owns the first comprehensive image-generation family without leaking a
 provider workflow into the creative graph. `image.generate` is a zero-material Source Operator;
 `image.generate_from_materials` requires one or more accepted raster references with explicit
@@ -119,7 +135,7 @@ roles. Both have one logical image output, so requested variants belong to the C
 never change graph port arity. The exact `20260811.1` parameter codec rejects model/provider/sampler
 fields, unknown revisions, duplicate materials, unanchored preserve constraints, and unsafe canvas
 or candidate bounds. `shape-execution::infer_runtime::image_generation` is the first physical
-consumer for the source-less form: it accepts only the exact candidate.3 Responses contract,
+consumer for the source-less form: it accepts only the exact candidate.4 Responses contract,
 disables redirects and proxies, bounds the JSON envelope to 32 MiB, revalidates the canonical
 Base64 PNG against the 20 MiB/4096-axis/16,777,216-pixel limits, and requires a successful
 cloud/subscription Job with no fallback. `infer_runtime::job_provenance` owns the shared bounded Job
@@ -212,11 +228,18 @@ renders the selected Artifact's actual text, image, or audio summary. `Workspace
 Scene-graph-first navigation and the explicit node-focused workspace boundary. Selection only
 updates shared context, while explicit open/review intent enters the media-specific workspace.
 `AiTextEditingWorkspace.qml` owns the focused AI text-edit lifecycle: external material summary,
-quick action, authored prompt, tone/style, sequential one-or-three Candidate generation, selectable
+quick action, authored prompt, sequential one-or-three Candidate generation, selectable
 output, targeted follow-up preparation, and explicit output lock. New compatibility drafts still use
 canonical `text.edit`, while legacy persisted `text.transform` drafts remain readable. The
-`shape.operator-draft.text-transform@20260812.1` codec persists
-rewrite/expand/polish/shorten/summarize, exact instruction, tone, style, and bounded variant count.
+`TextExpressionPalette.qml` semantic owner presents readable built-in expression samples,
+primary/supporting one-or-two tone composition, intensity, audience, and personal preset authoring.
+`TextExpressionLibrary` owns the
+bounded preference lifecycle for those reusable personal presets; project drafts copy the selected
+authored meaning rather than retaining a live preference reference. The
+`shape.operator-draft.text-transform@20260813.1` codec persists
+rewrite/expand/polish/shorten/summarize, exact instruction, ordered tone facets, optional custom
+example, intensity, audience, style, and bounded variant count. The previous `20260812.2` expression
+schema remains readable.
 Generation re-reads that project-backed configuration; producing a Candidate no longer deletes
 reusable text-node intent, and locking a text Candidate rebases the Working Graph to the new accepted
 head. `ImageEditorWorkspace.qml`
@@ -246,7 +269,7 @@ accepted-input drafts preserve their previous serialized form. Full persistent S
 `shape-domain::working_graph` also owns a bounded versioned JSON envelope for mutable Operator-owned
 configuration without interpreting media semantics. `operator_catalog::text_transform` validates
 AI text-edit state: the exact rewrite/expand/polish/shorten/summarize mode, instruction, tone,
-style, and variant-count contract, including both older configuration revisions and legacy
+intensity, audience, style, and variant-count contract, including all older configuration revisions and legacy
 `text.transform` draft identity. The visible catalog exposes one AI Text Editor action, while
 `operator_catalog::audio_speech` validates the preset, language, pace, and
 mandatory disclosure contract. Both Infer controllers execute from an exact project-backed draft

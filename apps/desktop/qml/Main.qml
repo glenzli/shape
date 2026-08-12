@@ -342,13 +342,12 @@ ApplicationWindow {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 10
+        spacing: 0
 
         WorkbenchProjectRail {
-            Layout.minimumWidth: 196
-            Layout.preferredWidth: 196
-            Layout.maximumWidth: 196
+            Layout.minimumWidth: 216
+            Layout.preferredWidth: 216
+            Layout.maximumWidth: 216
             Layout.fillHeight: true
             projectOpen: window.backend.projectOpen
             projectName: window.backend.projectName
@@ -381,11 +380,11 @@ ApplicationWindow {
             Layout.minimumWidth: 500
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 8
+            spacing: 0
 
             SceneGraphContextStrip {
                 Layout.fillWidth: true
-                Layout.preferredHeight: visible ? 82 : 0
+                Layout.preferredHeight: visible ? 78 : 0
                 visible: workspaceSurface.focusActive
                 sceneName: window.hasSelectedArtifact ? window.selectedArtifact.name : ""
                 nodes: workspaceSurface.graphNodes
@@ -402,7 +401,7 @@ ApplicationWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 8
+                spacing: 0
 
                 WorkspaceSurface {
                     id: workspaceSurface
@@ -460,6 +459,43 @@ ApplicationWindow {
                                 artifactId, window.selectedCandidateId)
                         }
                     }
+                    onRasterTransformRequested: (artifactId, transformKey) => {
+                        if (window.backend.proposeRasterTransform(artifactId, transformKey)) {
+                            window.selectedCandidateId = window.backend.candidateId
+                            window.compareMode = true
+                            window.backend.prepareImagePreviews(
+                                artifactId, window.selectedCandidateId)
+                        }
+                    }
+                    onRasterBlurRequested: (artifactId, radius) => {
+                        if (window.backend.proposeRasterBlur(artifactId, radius)) {
+                            window.selectedCandidateId = window.backend.candidateId
+                            window.compareMode = true
+                            window.backend.prepareImagePreviews(
+                                artifactId, window.selectedCandidateId)
+                        }
+                    }
+                    onRasterUnsharpMaskRequested: (artifactId, radius,
+                                                   amountMilli, threshold) => {
+                        if (window.backend.proposeRasterUnsharpMask(
+                                artifactId, radius, amountMilli, threshold)) {
+                            window.selectedCandidateId = window.backend.candidateId
+                            window.compareMode = true
+                            window.backend.prepareImagePreviews(
+                                artifactId, window.selectedCandidateId)
+                        }
+                    }
+                    onRasterDropShadowRequested: (artifactId, offsetX, offsetY,
+                                                  radius, red, green, blue, alpha) => {
+                        if (window.backend.proposeRasterDropShadow(
+                                artifactId, offsetX, offsetY, radius,
+                                red, green, blue, alpha)) {
+                            window.selectedCandidateId = window.backend.candidateId
+                            window.compareMode = true
+                            window.backend.prepareImagePreviews(
+                                artifactId, window.selectedCandidateId)
+                        }
+                    }
                     onSpeechDraftSaveRequested: (draftId, presetAlias,
                                                  presetCatalogRevision, language,
                                                  speedMilli,
@@ -506,16 +542,16 @@ ApplicationWindow {
                         }
                     }
                     onTextStudioDraftSaveRequested: (draftId, modeKey, instruction,
-                                                     toneKey, styleKey, variantCount) => {
+                                                     expressionJson, styleKey, variantCount) => {
                         window.backend.updateTextTransformDraft(
-                            draftId, modeKey, instruction, toneKey,
+                            draftId, modeKey, instruction, expressionJson,
                             styleKey, variantCount)
                     }
                     onTextStudioGenerationRequested: (artifactId, draftId, modeKey,
-                                                       instruction, toneKey, styleKey,
+                                                       instruction, expressionJson, styleKey,
                                                        variantCount) => {
                         if (window.backend.updateTextTransformDraft(
-                                draftId, modeKey, instruction, toneKey,
+                                draftId, modeKey, instruction, expressionJson,
                                 styleKey, variantCount)) {
                             window.inferText.generate(
                                 window.backend.bundlePath, artifactId, draftId)
@@ -528,9 +564,9 @@ ApplicationWindow {
 
                 OperatorIntentSidebar {
                     id: aiImageIntent
-                    Layout.minimumWidth: visible ? 304 : 0
-                    Layout.preferredWidth: visible ? 304 : 0
-                    Layout.maximumWidth: visible ? 304 : 0
+                    Layout.minimumWidth: visible ? 320 : 0
+                    Layout.preferredWidth: visible ? 320 : 0
+                    Layout.maximumWidth: visible ? 320 : 0
                     Layout.fillHeight: true
                     visible: workspaceSurface.aiImageIntentActive
                     operatorTitle: qsTr("Create an image")
@@ -578,7 +614,7 @@ ApplicationWindow {
 
             CandidateFilmstrip {
                 Layout.fillWidth: true
-                Layout.preferredHeight: visible ? 154 : 0
+                Layout.preferredHeight: visible ? 150 : 0
                 visible: workspaceSurface.focusActive
                 candidates: window.artifactCandidates
                 selectedCandidateId: window.selectedCandidateId

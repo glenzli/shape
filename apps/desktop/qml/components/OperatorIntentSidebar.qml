@@ -53,14 +53,13 @@ Rectangle {
     }
 
     implicitWidth: 276
-    radius: Theme.radiusMedium
-    color: Theme.surface
+    color: Theme.panel
     border.color: Theme.border
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 10
+        anchors.margins: 18
+        spacing: 12
 
         ColumnLayout {
             Layout.fillWidth: true
@@ -71,7 +70,7 @@ Rectangle {
                 text: sidebar.operatorTitle.length > 0
                       ? sidebar.operatorTitle : qsTr("Creative direction")
                 color: Theme.text
-                font.pixelSize: 14
+                font.pixelSize: Theme.fontHeading
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -81,7 +80,7 @@ Rectangle {
                 text: sidebar.operatorKindLabel
                 visible: text.length > 0
                 color: Theme.muted
-                font.pixelSize: 9
+                font.pixelSize: Theme.fontMeta
                 elide: Text.ElideRight
             }
         }
@@ -89,7 +88,7 @@ Rectangle {
         Text {
             text: qsTr("WHAT YOU WANT")
             color: Theme.muted
-            font.pixelSize: 9
+            font.pixelSize: Theme.fontMicro
             font.weight: Font.DemiBold
             font.letterSpacing: 0.7
         }
@@ -107,7 +106,7 @@ Rectangle {
             placeholderTextColor: Theme.muted
             selectionColor: Theme.accentSoft
             selectedTextColor: Theme.text
-            font.pixelSize: 11
+            font.pixelSize: Theme.fontBody
             wrapMode: TextEdit.Wrap
             Accessible.name: qsTr("Creative direction")
             onTextChanged: {
@@ -120,9 +119,9 @@ Rectangle {
             }
 
             background: Rectangle {
-                radius: Theme.radiusSmall
-                color: Theme.raised
-                border.color: intentEditor.activeFocus ? Theme.accent : Theme.border
+                radius: Theme.controlRadius
+                color: Theme.control
+                border.color: intentEditor.activeFocus ? Theme.focusRing : Theme.border
             }
         }
 
@@ -164,7 +163,7 @@ Rectangle {
                         Text {
                             text: qsTr("REFERENCES")
                             color: Theme.muted
-                            font.pixelSize: 9
+                            font.pixelSize: Theme.fontMicro
                             font.weight: Font.DemiBold
                             font.letterSpacing: 0.7
                         }
@@ -199,7 +198,7 @@ Rectangle {
                             onClicked: sidebar.referenceActivated(index)
 
                             background: Rectangle {
-                                radius: Theme.radiusSmall
+                                radius: Theme.controlRadius
                                 color: referenceDelegate.hovered
                                        ? Theme.raisedHover : Theme.raised
                                 border.color: Theme.border
@@ -222,7 +221,7 @@ Rectangle {
                                         Layout.fillWidth: true
                                         text: sidebar.itemLabel(referenceDelegate.modelData)
                                         color: Theme.textSoft
-                                        font.pixelSize: 10
+                                        font.pixelSize: Theme.fontMeta
                                         elide: Text.ElideRight
                                     }
 
@@ -231,7 +230,7 @@ Rectangle {
                                         text: sidebar.itemDetail(referenceDelegate.modelData)
                                         visible: text.length > 0
                                         color: Theme.muted
-                                        font.pixelSize: 8
+                                        font.pixelSize: Theme.fontMicro
                                         elide: Text.ElideRight
                                     }
                                 }
@@ -244,7 +243,7 @@ Rectangle {
                         visible: sidebar.references.length === 0
                         text: sidebar.referencesEmptyText
                         color: Theme.muted
-                        font.pixelSize: 9
+                        font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -256,7 +255,7 @@ Rectangle {
             visible: sidebar.statusText.length > 0
             text: sidebar.statusText
             color: Theme.muted
-            font.pixelSize: 9
+            font.pixelSize: Theme.fontMeta
             wrapMode: Text.WordWrap
         }
 
@@ -287,7 +286,7 @@ Rectangle {
         Text {
             text: section.title
             color: Theme.muted
-            font.pixelSize: 9
+            font.pixelSize: Theme.fontMicro
             font.weight: Font.DemiBold
             font.letterSpacing: 0.7
         }
@@ -308,7 +307,7 @@ Rectangle {
                 onClicked: section.itemActivated(index)
 
                 background: Rectangle {
-                    radius: Theme.radiusSmall
+                    radius: Theme.controlRadius
                     color: sectionItem.hovered ? Theme.raisedHover : Theme.raised
                     border.color: Theme.border
                 }
@@ -327,7 +326,7 @@ Rectangle {
                         Layout.fillWidth: true
                         text: sidebar.itemLabel(sectionItem.modelData)
                         color: Theme.textSoft
-                        font.pixelSize: 10
+                        font.pixelSize: Theme.fontMeta
                         elide: Text.ElideRight
                     }
                 }
@@ -339,7 +338,7 @@ Rectangle {
             visible: section.items.length === 0
             text: section.emptyText
             color: Theme.muted
-            font.pixelSize: 9
+            font.pixelSize: Theme.fontMeta
             wrapMode: Text.WordWrap
         }
     }

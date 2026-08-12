@@ -18,6 +18,17 @@ use crate::{ExecutionCoordinator, ExecutionInput, ExecutionRequest};
 
 const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
+fn assert_contract_header(request: &str) {
+    assert_eq!(
+        request
+            .matches(&format!(
+                "infer-consumer-contract: {INFER_RUNTIME_CONTRACT_VERSION}\r\n"
+            ))
+            .count(),
+        1
+    );
+}
+
 fn read_request(stream: &mut TcpStream) -> Vec<u8> {
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
@@ -90,16 +101,17 @@ fn wav(sample_rate_hz: u32, channels: u16, frames: u32) -> Vec<u8> {
     bytes
 }
 
-fn compatible_contract(revision: InferRuntimeContractRevision) -> Value {
+fn compatible_contract() -> Value {
     json!({
-        "contract_version": revision.as_str(),
+        "contract_version": INFER_RUNTIME_CONTRACT_VERSION,
+        "supported_contract_versions": [INFER_RUNTIME_CONTRACT_VERSION],
         "capability_scale_version": INFER_RUNTIME_CAPABILITY_SCALE_VERSION,
         "consumer_routes": [{"method": "POST", "path": SPEECH_ROUTE}]
     })
 }
 
-fn succeeded_job(job_id: &str, revision: InferRuntimeContractRevision) -> Value {
-    let mut job = json!({
+fn succeeded_job(job_id: &str) -> Value {
+    json!({
         "id": job_id,
         "app_id": "shape",
         "intent": SPEECH_INTENT,
@@ -109,6 +121,8 @@ fn succeeded_job(job_id: &str, revision: InferRuntimeContractRevision) -> Value 
         "model_build": "qwen3_tts_custom_voice_1_7b_8bit",
         "physical_model": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
         "placement": "local",
+        "capability_level": "capable",
+        "evaluation_status": "provisional",
         "resource_class": "standard",
         "state": "succeeded",
         "policy": "local-first",
@@ -123,9 +137,11 @@ fn succeeded_job(job_id: &str, revision: InferRuntimeContractRevision) -> Value 
             "latency": "interactive",
             "fallback": "none",
             "max_cost_usd": 0.0,
-            "deadline_ms": null
+            "deadline_ms": null,
+            "capability_floor": "capable"
         },
         "routing": {
+            "capability_floor": "capable",
             "candidates": [{
                 "provider": "mlx-audio",
                 "deployment": "qwen3-tts-custom-voice-local",
@@ -143,16 +159,7 @@ fn succeeded_job(job_id: &str, revision: InferRuntimeContractRevision) -> Value 
             "error_kind": null
         }],
         "error": null
-    });
-    let (level_key, status_key) = match revision {
-        InferRuntimeContractRevision::Candidate2 => ("quality_grade", "rating_status"),
-        InferRuntimeContractRevision::Candidate3 => ("capability_level", "evaluation_status"),
-    };
-    job[level_key] = json!(revision.capable_level());
-    job[status_key] = json!("provisional");
-    job["constraints"][revision.job_capability_floor_key()] = json!(revision.capable_level());
-    job["routing"][revision.job_capability_floor_key()] = json!(revision.capable_level());
-    job
+    })
 }
 
 fn operation(voice: SpeechVoiceSelection) -> SpeechSynthesisOperation {
@@ -205,16 +212,14 @@ fn unary_wav_becomes_typed_transient_candidate_with_runtime_job_provenance() {
         let (mut contract_stream, _) = listener.accept().expect("contract probe connects");
         let contract_request = String::from_utf8(read_request(&mut contract_stream)).unwrap();
         assert!(contract_request.starts_with("GET /infer/v1/contract HTTP/1.1\r\n"));
-        write_json(
-            &mut contract_stream,
-            200,
-            &compatible_contract(InferRuntimeContractRevision::Candidate3),
-        );
+        assert_contract_header(&contract_request);
+        write_json(&mut contract_stream, 200, &compatible_contract());
 
         let (mut speech_stream, _) = listener.accept().expect("speech request connects");
         let speech_request = read_request(&mut speech_stream);
         let request_text = String::from_utf8_lossy(&speech_request);
         assert!(request_text.starts_with("POST /v1/audio/speech HTTP/1.1\r\n"));
+        assert_contract_header(&request_text);
         assert!(request_text.contains(&format!("authorization: Bearer {TOKEN}")));
         let body = speech_request
             .windows(4)
@@ -236,21 +241,14 @@ fn unary_wav_becomes_typed_transient_candidate_with_runtime_job_provenance() {
         assert_eq!(request["metadata"]["infer.fallback"], "none");
         assert_eq!(request["metadata"]["infer.max_cost_usd"], "0");
         assert_eq!(request["metadata"]["infer.capability_floor"], "capable");
-        assert!(request["metadata"].get("infer.quality_floor").is_none());
         write_wav(&mut speech_stream, "job_shape_speech_1", &served_wav);
 
         let (mut job_stream, _) = listener.accept().expect("Job request connects");
         let job_request = String::from_utf8(read_request(&mut job_stream)).unwrap();
         assert!(job_request.starts_with("GET /infer/v1/jobs/job_shape_speech_1 HTTP/1.1\r\n"));
+        assert_contract_header(&job_request);
         assert!(job_request.contains(&format!("authorization: Bearer {TOKEN}")));
-        write_json(
-            &mut job_stream,
-            200,
-            &succeeded_job(
-                "job_shape_speech_1",
-                InferRuntimeContractRevision::Candidate3,
-            ),
-        );
+        write_json(&mut job_stream, 200, &succeeded_job("job_shape_speech_1"));
     });
 
     let voice = PresetVoiceSelection::new(
@@ -318,11 +316,7 @@ fn authorization_and_runtime_error_paths_fail_closed_without_payload_leaks() {
     let worker = thread::spawn(move || {
         let (mut contract_stream, _) = listener.accept().expect("contract probe connects");
         let _ = read_request(&mut contract_stream);
-        write_json(
-            &mut contract_stream,
-            200,
-            &compatible_contract(InferRuntimeContractRevision::Candidate3),
-        );
+        write_json(&mut contract_stream, 200, &compatible_contract());
 
         let (mut speech_stream, _) = listener.accept().expect("speech request connects");
         let _ = read_request(&mut speech_stream);
@@ -350,17 +344,13 @@ fn authorization_and_runtime_error_paths_fail_closed_without_payload_leaks() {
 
 #[test]
 fn job_readback_rejects_fallback_that_would_violate_the_shape_request() {
-    let mut job = succeeded_job(
-        "job_policy_violation",
-        InferRuntimeContractRevision::Candidate3,
-    );
+    let mut job = succeeded_job("job_policy_violation");
     job["attempts"][0]["trigger"] = Value::String("fallback".to_owned());
     let bytes = serde_json::to_vec(&job).unwrap();
     let error = parse_job_snapshot(
-        InferRuntimeContractRevision::Candidate3,
         "job_policy_violation",
         SPEECH_INTENT,
-        JobPolicyProfile::ShapeLocalInteractive,
+        JobPolicyProfile::LocalInteractive,
         &bytes,
     )
     .expect_err("no-fallback execution rejects a fallback Attempt");
@@ -368,54 +358,32 @@ fn job_readback_rejects_fallback_that_would_violate_the_shape_request() {
 }
 
 #[test]
-fn candidate_two_job_provenance_remains_readable_during_migration() {
-    let revision = InferRuntimeContractRevision::Candidate2;
-    let bytes = serde_json::to_vec(&succeeded_job("job_candidate_two", revision)).unwrap();
-    let provenance = parse_job_snapshot(
-        revision,
-        "job_candidate_two",
-        SPEECH_INTENT,
-        JobPolicyProfile::ShapeLocalInteractive,
-        &bytes,
-    )
-    .unwrap_or_else(|_| panic!("candidate.2 provenance remains valid"));
-    assert_eq!(provenance.contract_revision, revision.as_str());
-    assert_eq!(provenance.capability_level, "general");
-    assert_eq!(provenance.evaluation_status, "provisional");
-    assert_eq!(provenance.capability_floor, "general");
-}
-
-#[test]
-fn candidate_two_speech_request_uses_only_the_candidate_two_floor() {
-    let revision = InferRuntimeContractRevision::Candidate2;
+fn current_speech_request_uses_only_the_capability_floor() {
     let request = SpeechRequest::local_unary(
         "migration",
         INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
         INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
         1_000,
-        revision,
     );
     let request = serde_json::to_value(request).expect("speech request serializes");
     assert_eq!(request["model"], SPEECH_INTENT);
-    assert_eq!(request["metadata"]["infer.quality_floor"], "general");
-    assert!(request["metadata"].get("infer.capability_floor").is_none());
+    assert_eq!(request["metadata"]["infer.capability_floor"], "capable");
 }
 
 #[test]
 fn job_provenance_rejects_vocabulary_that_does_not_match_the_contract() {
-    let bytes = serde_json::to_vec(&succeeded_job(
-        "job_wrong_vocabulary",
-        InferRuntimeContractRevision::Candidate2,
-    ))
-    .unwrap();
+    let mut job = succeeded_job("job_wrong_vocabulary");
+    job.as_object_mut()
+        .expect("job is an object")
+        .remove("capability_level");
+    let bytes = serde_json::to_vec(&job).unwrap();
     let error = parse_job_snapshot(
-        InferRuntimeContractRevision::Candidate3,
         "job_wrong_vocabulary",
         SPEECH_INTENT,
-        JobPolicyProfile::ShapeLocalInteractive,
+        JobPolicyProfile::LocalInteractive,
         &bytes,
     )
-    .expect_err("candidate.2 fields cannot be decoded as candidate.3");
+    .expect_err("retired fields cannot be decoded by the current contract");
     assert_eq!(error, JobProvenanceError::InvalidResponse);
 }
 

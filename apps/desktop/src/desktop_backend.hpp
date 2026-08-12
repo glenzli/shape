@@ -95,7 +95,7 @@ class DesktopBackend : public QObject {
         const QString& draftId,
         const QString& modeKey,
         const QString& instruction,
-        const QString& toneKey,
+        const QString& expressionJson,
         const QString& styleKey,
         int variantCount
     );
@@ -127,6 +127,20 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE bool
     proposeRasterCrop(const QString& artifactId, int x, int y, int width, int height);
     Q_INVOKABLE bool proposeRasterResize(const QString& artifactId, const QString& draftId);
+    Q_INVOKABLE bool proposeRasterTransform(const QString& artifactId, const QString& transformKey);
+    Q_INVOKABLE bool proposeRasterBlur(const QString& artifactId, int radius);
+    Q_INVOKABLE bool
+    proposeRasterUnsharpMask(const QString& artifactId, int radius, int amountMilli, int threshold);
+    Q_INVOKABLE bool proposeRasterDropShadow(
+        const QString& artifactId,
+        int offsetX,
+        int offsetY,
+        int blurRadius,
+        int red,
+        int green,
+        int blue,
+        int alpha
+    );
     Q_INVOKABLE bool
     prepareImagePreviews(const QString& artifactId, const QString& candidateId = QString());
     Q_INVOKABLE bool selectCandidate(const QString& candidateId);

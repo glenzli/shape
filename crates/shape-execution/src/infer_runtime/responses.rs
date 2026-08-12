@@ -11,17 +11,24 @@ use crate::{
 };
 
 use super::{
-    INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
-    InferRuntimeContractRevision, InferRuntimeCredential, InferRuntimeEndpointResolver,
-    ResolvedInferRuntimeEndpoint, should_retry_endpoint, validate_discovered_contract,
+    INFER_RUNTIME_CONTRACT_HEADER, INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient,
+    InferRuntimeClientError, InferRuntimeCredential, InferRuntimeEndpointResolver,
+    ResolvedInferRuntimeEndpoint,
+    job_provenance::{JobPolicyProfile, JobProvenanceError, parse_job_snapshot},
+    should_retry_endpoint, validate_discovered_contract,
 };
 
 const RESPONSES_PATH: &str = "v1/responses";
+const JOB_PATH: &str = "infer/v1/jobs/";
 const TEXT_GENERATE_CAPABILITY: &str = "text.generate";
 const TEXT_MEDIA_TYPE: &str = "text/plain; charset=utf-8";
+const TEXT_INTENT: &str = "text.edit";
+const TEXT_DEPLOYMENT_ID: &str = "ollama_qwen3_5_4b";
 const MAX_PROMPT_BYTES: usize = 256 * 1024;
 const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESPONSE_READ_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_JOB_BYTES: usize = 1024 * 1024;
+const MAX_JOB_READ_BYTES: u64 = 1024 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(500);
 const REQUEST_TIMEOUT: Duration = Duration::from_mins(2);
 
@@ -92,10 +99,10 @@ impl InferRuntimeExecutor {
         let contract = InferRuntimeClient::new(&endpoint.origin)
             .and_then(|client| client.probe_contract())
             .map_err(|error| ResponsesAttemptFailure::from_contract(&error))?;
-        let revision = validate_discovered_contract(endpoint, &contract)
+        validate_discovered_contract(endpoint, &contract)
             .map_err(|error| ResponsesAttemptFailure::from_contract(&error))?;
         let client = ResponsesClient::new(&endpoint.origin)?;
-        client.create_text_response(&self.credential, prompt, revision)
+        client.create_text_response(&self.credential, prompt)
     }
 }
 
@@ -142,19 +149,18 @@ impl Executor for InferRuntimeExecutor {
 }
 
 struct ResponsesClient {
+    origin: Url,
     endpoint: Url,
     client: Client,
 }
 
 impl ResponsesClient {
     fn new(origin: &str) -> Result<Self, ResponsesAttemptFailure> {
-        let endpoint = super::canonical_loopback_url(origin)
-            .and_then(|origin| {
-                origin
-                    .join(RESPONSES_PATH)
-                    .map_err(|_| InferRuntimeClientError::InvalidEndpoint)
-            })
+        let origin = super::canonical_loopback_url(origin)
             .map_err(|error| ResponsesAttemptFailure::from_contract(&error))?;
+        let endpoint = origin
+            .join(RESPONSES_PATH)
+            .map_err(|_| ResponsesAttemptFailure::new("infer_invalid_endpoint", false, false))?;
         let client = Client::builder()
             .connect_timeout(CONNECT_TIMEOUT)
             .timeout(REQUEST_TIMEOUT)
@@ -163,20 +169,27 @@ impl ResponsesClient {
             .user_agent("shape/0.1 infer-responses-consumer")
             .build()
             .map_err(|_| ResponsesAttemptFailure::new("infer_client_invalid", false, false))?;
-        Ok(Self { endpoint, client })
+        Ok(Self {
+            origin,
+            endpoint,
+            client,
+        })
     }
 
     fn create_text_response(
         &self,
         credential: &InferRuntimeCredential,
         prompt: &str,
-        revision: InferRuntimeContractRevision,
     ) -> Result<ExecutionOutput, ResponsesAttemptFailure> {
-        let request = ResponsesRequest::local_text(prompt, revision);
+        let request = ResponsesRequest::local_text(prompt);
         let response = self
             .client
             .post(self.endpoint.clone())
             .header(CONTENT_TYPE, "application/json")
+            .header(
+                INFER_RUNTIME_CONTRACT_HEADER,
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
             .bearer_auth(credential.expose())
             .json(&request)
             .send()
@@ -197,7 +210,52 @@ impl ResponsesClient {
         if !status.is_success() {
             return Err(error_response(status.as_u16(), &bytes));
         }
-        parse_response(&bytes, revision)
+        let mut output = parse_response(&bytes)?;
+        let job_id = output
+            .executor_job_id
+            .as_deref()
+            .ok_or_else(|| ResponsesAttemptFailure::new("infer_invalid_response", false, false))?;
+        output.external_provenance = Some(self.job_provenance(credential, job_id)?);
+        Ok(output)
+    }
+
+    fn job_provenance(
+        &self,
+        credential: &InferRuntimeCredential,
+        job_id: &str,
+    ) -> Result<crate::ExternalExecutionProvenance, ResponsesAttemptFailure> {
+        let endpoint = self
+            .origin
+            .join(&format!("{JOB_PATH}{job_id}"))
+            .map_err(|_| ResponsesAttemptFailure::new("infer_invalid_response", false, false))?;
+        let response = self
+            .client
+            .get(endpoint)
+            .header(
+                INFER_RUNTIME_CONTRACT_HEADER,
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
+            .bearer_auth(credential.expose())
+            .send()
+            .map_err(|_| ResponsesAttemptFailure::new("infer_unavailable", true, true))?;
+        let status = response.status();
+        let mut bytes = Vec::new();
+        response
+            .take(MAX_JOB_READ_BYTES + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| ResponsesAttemptFailure::new("infer_invalid_response", false, false))?;
+        if !status.is_success() {
+            return Err(error_response(status.as_u16(), &bytes));
+        }
+        if bytes.len() > MAX_JOB_BYTES {
+            return Err(ResponsesAttemptFailure::new(
+                "infer_invalid_response",
+                false,
+                false,
+            ));
+        }
+        parse_job_snapshot(job_id, TEXT_INTENT, JobPolicyProfile::LocalTextEdit, &bytes)
+            .map_err(ResponsesAttemptFailure::from_job_provenance)
     }
 }
 
@@ -210,8 +268,10 @@ struct ResponsesRequest<'a> {
 }
 
 impl<'a> ResponsesRequest<'a> {
-    fn local_text(input: &'a str, revision: InferRuntimeContractRevision) -> Self {
-        let mut metadata = BTreeMap::from([
+    fn local_text(input: &'a str) -> Self {
+        let metadata = BTreeMap::from([
+            ("infer.capability_floor", "foundational"),
+            ("infer.deployment_ids", TEXT_DEPLOYMENT_ID),
             ("infer.fallback", "none"),
             ("infer.max_cost_usd", "0"),
             ("infer.offline_required", "true"),
@@ -220,12 +280,8 @@ impl<'a> ResponsesRequest<'a> {
             ("infer.prefer", "local"),
             ("infer.priority", "interactive"),
         ]);
-        metadata.insert(
-            revision.capability_floor_metadata_key(),
-            revision.interactive_text_floor(),
-        );
         Self {
-            model: revision.text_intent(),
+            model: TEXT_INTENT,
             input,
             stream: false,
             metadata,
@@ -245,15 +301,12 @@ struct ResponseEnvelope {
     output: Vec<Value>,
 }
 
-fn parse_response(
-    bytes: &[u8],
-    revision: InferRuntimeContractRevision,
-) -> Result<ExecutionOutput, ResponsesAttemptFailure> {
+fn parse_response(bytes: &[u8]) -> Result<ExecutionOutput, ResponsesAttemptFailure> {
     let response: ResponseEnvelope = serde_json::from_slice(bytes)
         .map_err(|_| ResponsesAttemptFailure::new("infer_invalid_response", false, false))?;
     let _ = response.created_at;
     if response.object != "response"
-        || response.model != revision.text_intent()
+        || response.model != TEXT_INTENT
         || response
             .status
             .as_deref()
@@ -377,6 +430,10 @@ impl ResponsesAttemptFailure {
             InferRuntimeClientError::IncompatibleContract { .. } => "infer_incompatible_contract",
         };
         Self::new(code, transport, transport)
+    }
+
+    fn from_job_provenance(error: JobProvenanceError) -> Self {
+        Self::new(error.code(), false, false)
     }
 }
 

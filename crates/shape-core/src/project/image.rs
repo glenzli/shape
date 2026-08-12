@@ -1,11 +1,17 @@
 //! Canonical image-raster import and routing to image-specific use cases.
 
 mod ai_generate;
+mod raster_blur;
 mod raster_crop;
+mod raster_drop_shadow;
+mod raster_edit;
 mod raster_resize;
+mod raster_transform;
+mod raster_unsharp_mask;
 
 pub use ai_generate::AiImageCandidate;
 pub use raster_crop::ImageCandidate;
+pub use raster_edit::ImageEditCandidate;
 pub use raster_resize::ImageResizeCandidate;
 
 use std::{fs::File, io::Read, path::Path};

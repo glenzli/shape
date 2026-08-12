@@ -179,6 +179,7 @@ fn bridge_provenance() -> ExternalExecutionProvenance {
         requested_deadline_ms: None,
         max_cost_microusd: 0,
         capability_floor: "capable".to_owned(),
+        named_route: None,
         routing_candidates: vec![ExternalRoutingCandidate {
             provider: "mlx-audio-local".to_owned(),
             deployment: "mlx_qwen3_tts_custom_voice_1_7b".to_owned(),
@@ -367,6 +368,51 @@ fn text_transform_configuration_restores_with_its_exact_draft_identity() {
     assert_eq!(cleared.text_transform_mode, "rewrite");
     assert!(cleared.text_transform_instruction.is_empty());
     assert!(!cleared.configuration_schema.is_empty());
+    fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
+fn text_expression_snapshot_survives_project_reopen() {
+    let root = test_root();
+    let path = root.to_str().expect("portable path");
+    let mut session = create_desktop_project(path, "Expression Draft").expect("project creates");
+    let snapshot = session
+        .session_create_text_document("Opening", "A first line.")
+        .expect("text scene creates");
+    let artifact_id = snapshot.artifacts[0].id.clone();
+    let draft = session
+        .session_begin_operator_draft(&artifact_id, "text.edit")
+        .expect("Writing draft opens");
+    let expression = r#"{"tones":[{"kind":"preset","preset":"empathetic"},{"kind":"custom","name":"Quiet conviction","instruction":"Stay certain without becoming forceful.","example":"This is the right direction; we can proceed carefully.","visual":"ascent"}],"intensity":"subtle","audience":{"kind":"preset","preset":"expert"}}"#;
+    let updated = session
+        .session_update_text_expression_draft(
+            &draft.draft_id,
+            "polish",
+            "Keep every number.",
+            expression,
+            "professional",
+            3,
+        )
+        .expect("expression saves");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&updated.text_transform_expression_json).unwrap(),
+        serde_json::from_str::<serde_json::Value>(expression).unwrap()
+    );
+    drop(session);
+
+    let reopened = open_desktop_session(path).expect("project reopens");
+    let restored = reopened.session_operator_drafts();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].draft_id, draft.draft_id);
+    assert_eq!(
+        restored[0].configuration_schema,
+        "shape.operator-draft.text-transform@20260813.1"
+    );
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&restored[0].text_transform_expression_json)
+            .unwrap(),
+        serde_json::from_str::<serde_json::Value>(expression).unwrap()
+    );
     fs::remove_dir_all(root).expect("fixture removes");
 }
 
@@ -1016,6 +1062,83 @@ fn raster_resize_draft_candidate_accept_and_reopen_cross_the_desktop_bridge() {
         .session_image_preview(&accepted.artifacts[0].id, "")
         .unwrap();
     assert_eq!((preview.width, preview.height), (4, 3));
+    fs::remove_file(source).unwrap();
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn transform_blur_unsharp_and_shadow_cross_the_desktop_candidate_boundary() {
+    use image::{ColorType, ImageEncoder, codecs::png::PngEncoder};
+
+    let root = test_root();
+    let source = root.with_extension("effects.png");
+    let pixels = [
+        255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255, 255, 0, 255, 255, 0, 255,
+        255, 255,
+    ];
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&pixels, 3, 2, ColorType::Rgba8.into())
+        .unwrap();
+    fs::write(&source, png).unwrap();
+
+    ShapeProject::create(&root, "Desktop Effects").unwrap();
+    let path = root.to_str().unwrap();
+    let mut session = open_desktop_session(path).unwrap();
+    let imported = session
+        .session_import_raster(source.to_str().unwrap(), "Effects")
+        .unwrap();
+    let artifact_id = imported.artifacts[0].id.clone();
+
+    let transform = session
+        .session_propose_raster_transform(&artifact_id, "rotate90_clockwise")
+        .unwrap();
+    assert_eq!((transform.image_width, transform.image_height), (2, 3));
+    session
+        .session_accept_candidate(&transform.candidate_id)
+        .unwrap();
+
+    let blur = session
+        .session_propose_raster_blur(&artifact_id, 2)
+        .unwrap();
+    assert_eq!((blur.image_width, blur.image_height), (2, 3));
+    session
+        .session_accept_candidate(&blur.candidate_id)
+        .unwrap();
+
+    let unsharp = session
+        .session_propose_raster_unsharp_mask(&artifact_id, 1, 1_250, 4)
+        .unwrap();
+    assert_eq!((unsharp.image_width, unsharp.image_height), (2, 3));
+    session
+        .session_accept_candidate(&unsharp.candidate_id)
+        .unwrap();
+
+    let shadow = session
+        .session_propose_raster_drop_shadow(&artifact_id, 1, 2, 0, 0, 0, 0, 128)
+        .unwrap();
+    assert_eq!((shadow.image_width, shadow.image_height), (3, 5));
+    let preview = session
+        .session_image_preview(&artifact_id, &shadow.candidate_id)
+        .unwrap();
+    assert_eq!((preview.width, preview.height), (3, 5));
+    let accepted = session
+        .session_accept_candidate(&shadow.candidate_id)
+        .unwrap();
+    let operator_types = accepted.artifacts[0]
+        .operator_graph_nodes
+        .iter()
+        .map(|node| node.operator_type_key.as_str())
+        .collect::<Vec<_>>();
+    assert!(operator_types.contains(&"image.transform"));
+    assert!(operator_types.contains(&"image.blur"));
+    assert!(operator_types.contains(&"image.unsharp_mask"));
+    assert!(operator_types.contains(&"image.drop_shadow"));
+    drop(session);
+
+    let reopened = open_desktop_session(path).unwrap();
+    let preview = reopened.session_image_preview(&artifact_id, "").unwrap();
+    assert_eq!((preview.width, preview.height), (3, 5));
     fs::remove_file(source).unwrap();
     fs::remove_dir_all(root).unwrap();
 }

@@ -102,6 +102,7 @@ mod ffi {
         text_transform_mode: String,
         text_transform_instruction: String,
         text_transform_tone: String,
+        text_transform_expression_json: String,
         text_transform_style: String,
         text_transform_variant_count: u8,
         audio_speech_preset_alias: String,
@@ -316,6 +317,15 @@ mod ffi {
             style_key: &str,
             variant_count: u8,
         ) -> Result<OperatorDraftWire>;
+        fn session_update_text_expression_draft(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            mode_key: &str,
+            instruction: &str,
+            expression_json: &str,
+            style_key: &str,
+            variant_count: u8,
+        ) -> Result<OperatorDraftWire>;
         fn session_update_audio_speech_draft(
             self: &mut DesktopSession,
             draft_id: &str,
@@ -367,6 +377,37 @@ mod ffi {
             self: &mut DesktopSession,
             artifact_id: &str,
             draft_id: &str,
+        ) -> Result<CandidateWire>;
+        fn session_propose_raster_transform(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            transform_key: &str,
+        ) -> Result<CandidateWire>;
+        fn session_propose_raster_blur(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            radius: u16,
+        ) -> Result<CandidateWire>;
+        fn session_propose_raster_unsharp_mask(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            radius: u16,
+            amount_milli: u16,
+            threshold: u8,
+        ) -> Result<CandidateWire>;
+        // The scalar CXX boundary mirrors the four RGBA channels explicitly;
+        // grouping them would introduce a new public bridge DTO solely for lint shape.
+        #[allow(clippy::too_many_arguments)]
+        fn session_propose_raster_drop_shadow(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            offset_x: i32,
+            offset_y: i32,
+            blur_radius: u16,
+            red: u8,
+            green: u8,
+            blue: u8,
+            alpha: u8,
         ) -> Result<CandidateWire>;
         fn session_candidates(self: &DesktopSession) -> Vec<CandidateWire>;
         fn session_accept_candidate(

@@ -10,7 +10,7 @@ Button {
     property string accessibleName: toolTipText
     property bool primary: false
     property bool selected: false
-    property int buttonSize: 28
+    property int buttonSize: Theme.compactControlHeight
     property int iconSize: 17
 
     implicitWidth: buttonSize
@@ -21,19 +21,19 @@ Button {
     Accessible.name: accessibleName
 
     background: Rectangle {
-        radius: 6
+        radius: Theme.compactControlRadius
         border.width: control.primary ? 0 : 1
         border.color: control.selected ? Theme.accent : "transparent"
         color: {
-            if (!control.enabled) return control.primary ? Theme.raised : "transparent"
+            if (!control.enabled) return Theme.transparent
             if (control.primary) {
-                return control.down ? Qt.darker(Theme.accent, 1.1)
+                return control.down ? Theme.accentPressed
                                     : control.hovered ? Theme.accentHover : Theme.accent
             }
             if (control.selected) return Theme.accentSoft
-            if (control.down) return Theme.selected
-            if (control.hovered) return Theme.raisedHover
-            return "transparent"
+            if (control.down) return Theme.buttonGhostPressed
+            if (control.hovered) return Theme.buttonGhostHover
+            return Theme.transparent
         }
 
         Rectangle {
@@ -43,7 +43,7 @@ Button {
             radius: parent.radius + 2
             color: "transparent"
             border.width: 1
-            border.color: Theme.accent
+            border.color: Theme.focusRing
         }
     }
 

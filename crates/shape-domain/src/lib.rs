@@ -8,8 +8,12 @@
 //! - [`artifact`] owns creative identity and immutable accepted revisions;
 //! - [`audio`] owns portable audio values, family ports, and voice authorization;
 //! - [`ai_image`] owns provider-neutral generative image families and authored parameters;
+//! - [`image_blur`] owns deterministic alpha-aware blur parameters;
 //! - [`image_crop`] owns the first stable image Operator contract;
+//! - [`image_drop_shadow`] owns deterministic flattened shadow bounds and tint;
 //! - [`image_resize`] owns deterministic resize dimensions and policies;
+//! - [`image_transform`] owns lossless raster orientation transforms;
+//! - [`image_unsharp_mask`] owns deterministic alpha-aware sharpening;
 //! - [`operator_graph`] owns typed Source/Operator/Output scene structure;
 //! - [`scene`] owns stable Scene identity, immutable accepted graph revisions,
 //!   and named output publication;
@@ -25,9 +29,13 @@ mod audio;
 mod content;
 mod error;
 mod ids;
+mod image_blur;
 mod image_crop;
+mod image_drop_shadow;
 mod image_raster;
 mod image_resize;
+mod image_transform;
+mod image_unsharp_mask;
 mod operator_graph;
 mod project;
 mod scene;
@@ -53,9 +61,21 @@ pub use audio::{
 pub use content::{ContentDigest, ContentDigestParseError, ContentRef};
 pub use error::DomainError;
 pub use ids::{ArtifactId, ProjectId, RevisionId, SceneId, SceneRevisionId, TransformationId};
+pub use image_blur::{
+    IMAGE_BLUR_DATA_TYPE, IMAGE_BLUR_MAX_PIXELS, IMAGE_BLUR_MAX_RADIUS, IMAGE_BLUR_OPERATOR_TYPE,
+    IMAGE_BLUR_PARAMETERS_REVISION, ImageBlurContractError, ImageBlurOperator, PreparedImageBlur,
+    RasterGaussianBlur,
+};
 pub use image_crop::{
     IMAGE_CROP_DATA_TYPE, IMAGE_CROP_OPERATOR_TYPE, IMAGE_CROP_PARAMETERS_REVISION,
     ImageCropContractError, ImageCropOperator, PreparedImageCrop, RasterCrop,
+};
+pub use image_drop_shadow::{
+    IMAGE_DROP_SHADOW_DATA_TYPE, IMAGE_DROP_SHADOW_MAX_BLUR_RADIUS,
+    IMAGE_DROP_SHADOW_MAX_DIMENSION, IMAGE_DROP_SHADOW_MAX_OFFSET, IMAGE_DROP_SHADOW_MAX_PIXELS,
+    IMAGE_DROP_SHADOW_OPERATOR_TYPE, IMAGE_DROP_SHADOW_PARAMETERS_REVISION,
+    ImageDropShadowContractError, ImageDropShadowOperator, PreparedImageDropShadow,
+    RasterDropShadow, RasterShadowColor,
 };
 pub use image_raster::{
     IMAGE_RASTER_CONTRACT_REVISION, ImageAlphaMode, ImageColorPrimaries, ImageColorProfile,
@@ -67,6 +87,16 @@ pub use image_resize::{
     IMAGE_RESIZE_OPERATOR_TYPE, IMAGE_RESIZE_PARAMETERS_REVISION, ImageResizeContractError,
     ImageResizeOperator, PreparedImageResize, RasterResize, RasterResizeAspectPolicy,
     RasterResizeDimensions, RasterResizeResampling,
+};
+pub use image_transform::{
+    IMAGE_TRANSFORM_DATA_TYPE, IMAGE_TRANSFORM_OPERATOR_TYPE, IMAGE_TRANSFORM_PARAMETERS_REVISION,
+    ImageTransformContractError, ImageTransformOperator, PreparedImageTransform, RasterTransform,
+};
+pub use image_unsharp_mask::{
+    IMAGE_UNSHARP_MASK_DATA_TYPE, IMAGE_UNSHARP_MASK_MAX_AMOUNT_MILLI,
+    IMAGE_UNSHARP_MASK_MAX_PIXELS, IMAGE_UNSHARP_MASK_MAX_RADIUS, IMAGE_UNSHARP_MASK_OPERATOR_TYPE,
+    IMAGE_UNSHARP_MASK_PARAMETERS_REVISION, ImageUnsharpMaskContractError,
+    ImageUnsharpMaskOperator, PreparedImageUnsharpMask, RasterUnsharpMask,
 };
 pub use operator_graph::{
     OperatorDataTypeId, OperatorGraph, OperatorGraphEdge, OperatorGraphNode, OperatorNodeBinding,

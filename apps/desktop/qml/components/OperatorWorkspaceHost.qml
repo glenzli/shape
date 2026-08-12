@@ -127,6 +127,10 @@ Rectangle {
             case "image.edit":
             case "image.crop":
             case "image.resize":
+            case "image.transform":
+            case "image.blur":
+            case "image.unsharp_mask":
+            case "image.drop_shadow":
                 return qsTr("Image editing");
             case "audio.speech_synthesize":
                 return qsTr("Turn text into speech");

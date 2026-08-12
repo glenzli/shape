@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use serde_json::json;
+use serde_json::{Value, json};
 use shape_core::ShapeProject;
 use shape_domain::{ArtifactKind, IntentSpec};
 use uuid::Uuid;
@@ -67,11 +67,22 @@ fn fake_runtime() -> (String, thread::JoinHandle<()>) {
     let address = listener.local_addr().expect("runtime has address");
     let worker = thread::spawn(move || {
         let (mut contract, _) = listener.accept().expect("contract connects");
-        assert!(read_request(&mut contract).starts_with("GET /infer/v1/contract HTTP/1.1"));
+        let contract_request = read_request(&mut contract);
+        assert!(contract_request.starts_with("GET /infer/v1/contract HTTP/1.1"));
+        assert_eq!(
+            contract_request
+                .matches(&format!(
+                    "infer-consumer-contract: {}\r\n",
+                    shape_execution::INFER_RUNTIME_CONTRACT_VERSION
+                ))
+                .count(),
+            1
+        );
         write_response(
             &mut contract,
             &json!({
                 "contract_version": shape_execution::INFER_RUNTIME_CONTRACT_VERSION,
+                "supported_contract_versions": [shape_execution::INFER_RUNTIME_CONTRACT_VERSION],
                 "capability_scale_version": "20260811.1",
                 "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
             })
@@ -81,14 +92,33 @@ fn fake_runtime() -> (String, thread::JoinHandle<()>) {
         let (mut responses, _) = listener.accept().expect("Responses request connects");
         let request = read_request(&mut responses);
         assert!(request.starts_with("POST /v1/responses HTTP/1.1"));
-        assert!(request.contains(r"Creative text transform mode: expand\nMake it more vivid."));
+        assert_eq!(
+            request
+                .matches(&format!(
+                    "infer-consumer-contract: {}\r\n",
+                    shape_execution::INFER_RUNTIME_CONTRACT_VERSION
+                ))
+                .count(),
+            1
+        );
+        let body = request.split_once("\r\n\r\n").expect("request has body").1;
+        let request: Value = serde_json::from_str(body).expect("request parses");
+        assert_eq!(request["model"], "text.edit");
+        assert_eq!(
+            request["input"],
+            "Return only the complete replacement text.\n\nCreative instruction:\nCreative text transform mode: expand\nMake it more vivid.\nTone: warm at balanced intensity. Audience: general audience. Style: literary.\n\nCurrent accepted text:\nAccepted before Infer."
+        );
+        assert_eq!(
+            request["metadata"]["infer.deployment_ids"],
+            "ollama_qwen3_5_4b"
+        );
         write_response(
             &mut responses,
             &json!({
                 "id": "resp_bridge_test",
                 "object": "response",
                 "created_at": 1_786_383_600_u64,
-                "model": "language.respond",
+                "model": "text.edit",
                 "status": "completed",
                 "output": [{
                     "type": "message",
@@ -97,8 +127,82 @@ fn fake_runtime() -> (String, thread::JoinHandle<()>) {
             })
             .to_string(),
         );
+
+        let (mut job, _) = listener.accept().expect("Job request connects");
+        let request = read_request(&mut job);
+        assert!(request.starts_with("GET /infer/v1/jobs/resp_bridge_test HTTP/1.1"));
+        assert_eq!(
+            request
+                .matches(&format!(
+                    "infer-consumer-contract: {}\r\n",
+                    shape_execution::INFER_RUNTIME_CONTRACT_VERSION
+                ))
+                .count(),
+            1
+        );
+        write_response(&mut job, &candidate_four_job().to_string());
     });
     (format!("http://{address}"), worker)
+}
+
+fn candidate_four_job() -> Value {
+    json!({
+        "id": "resp_bridge_test",
+        "app_id": "shape",
+        "intent": "text.edit",
+        "provider": "ollama-local",
+        "deployment": "ollama_qwen3_5_4b",
+        "model_profile": "qwen3_5_4b",
+        "model_build": "qwen3_5_4b_q4_k_m",
+        "physical_model": "qwen3.5:4b",
+        "placement": "local",
+        "capability_level": "foundational",
+        "evaluation_status": "provisional",
+        "resource_class": "standard",
+        "state": "succeeded",
+        "policy": "local-first",
+        "priority": "interactive",
+        "constraints": {
+            "policy": "local-first",
+            "priority": "interactive",
+            "provider_access_class": null,
+            "placement": "local_only",
+            "prefer": "local",
+            "offline_required": true,
+            "latency": null,
+            "fallback": "none",
+            "max_cost_usd": 0.0,
+            "deadline_ms": null,
+            "capability_floor": "foundational",
+            "named_route": {
+                "kind": "deployment",
+                "ordered_ids": ["ollama_qwen3_5_4b"]
+            }
+        },
+        "routing": {
+            "capability_floor": "foundational",
+            "named_route": {
+                "kind": "deployment",
+                "ordered_ids": ["ollama_qwen3_5_4b"]
+            },
+            "candidates": [{
+                "provider": "ollama-local",
+                "deployment": "ollama_qwen3_5_4b",
+                "status": "eligible",
+                "rank": 1,
+                "reason_codes": []
+            }]
+        },
+        "attempts": [{
+            "number": 1,
+            "provider": "ollama-local",
+            "deployment": "ollama_qwen3_5_4b",
+            "outcome": "succeeded",
+            "trigger": "initial",
+            "error_kind": null
+        }],
+        "error": null
+    })
 }
 
 #[test]
@@ -183,7 +287,7 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
     );
     assert_eq!(
         accepted.artifacts[0].transformation_intent,
-        "Expand text: Make it more vivid.\nTone: warm. Style: literary."
+        "Expand text: Make it more vivid.\nTone: warm at balanced intensity. Audience: general audience. Style: literary."
     );
     assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
     assert_eq!(

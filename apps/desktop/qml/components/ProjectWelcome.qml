@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 //! Empty-launch entry for a real project session.
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
 
@@ -15,36 +14,35 @@ Rectangle {
     signal newProjectRequested()
     signal openProjectRequested()
 
-    color: Theme.background
+    color: Theme.canvas
 
     Rectangle {
         anchors.centerIn: parent
-        width: Math.min(560, parent.width - 56)
-        implicitHeight: welcomeContent.implicitHeight + 56
-        radius: Theme.radiusLarge
-        color: Theme.surface
+        width: Math.min(620, parent.width - 64)
+        implicitHeight: welcomeContent.implicitHeight + 64
+        radius: Theme.cardRadius
+        color: Theme.panelRaised
         border.color: Theme.border
 
         ColumnLayout {
             id: welcomeContent
             anchors.fill: parent
-            anchors.margins: 28
-            spacing: 14
+            anchors.margins: 32
+            spacing: 16
 
             Rectangle {
-                Layout.preferredWidth: 46
-                Layout.preferredHeight: 46
+                Layout.preferredWidth: 52
+                Layout.preferredHeight: 52
                 Layout.alignment: Qt.AlignHCenter
-                radius: 14
-                color: Theme.accentSoft
-                border.color: Theme.accent
+                radius: 15
+                color: Theme.accentSurfaceQuiet
+                border.color: Theme.accentBorder
 
-                Text {
+                ShapeIcon {
                     anchors.centerIn: parent
-                    text: "◇"
+                    source: "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
+                    size: 22
                     color: Theme.accent
-                    font.pixelSize: 23
-                    font.weight: Font.DemiBold
                 }
             }
 
@@ -52,7 +50,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: qsTr("What do you want to make?")
                 color: Theme.text
-                font.pixelSize: 22
+                font.pixelSize: 24
                 font.weight: Font.DemiBold
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -61,7 +59,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: qsTr("Start a project, then choose a creative goal. Shape will build the workflow for you and keep every adopted version safe.")
                 color: Theme.muted
-                font.pixelSize: 12
+                font.pixelSize: 13
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
                 lineHeight: 1.35
@@ -75,6 +73,7 @@ Rectangle {
                 ShapeButton {
                     objectName: "newProjectButton"
                     text: qsTr("Start a new project")
+                    iconSource: "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
                     primary: true
                     onClicked: welcome.newProjectRequested()
                 }
@@ -82,6 +81,8 @@ Rectangle {
                 ShapeButton {
                     objectName: "openProjectButton"
                     text: qsTr("Continue a project…")
+                    iconSource: "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
+                    quiet: false
                     onClicked: welcome.openProjectRequested()
                 }
             }

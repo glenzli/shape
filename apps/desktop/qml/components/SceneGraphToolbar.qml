@@ -32,61 +32,60 @@ Item {
         operatorPalette.openFor(addOperatorButton)
     }
 
-    implicitHeight: 62
+    implicitHeight: 64
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 18
-        anchors.rightMargin: 14
-        spacing: 10
+        anchors.leftMargin: 20
+        anchors.rightMargin: 16
+        spacing: 12
 
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
 
             Text {
-                text: qsTr("SCENE NODE GRAPH")
+                text: toolbar.sceneName.length > 0
+                      ? toolbar.sceneName : qsTr("Untitled work")
                 color: Theme.text
-                font.pixelSize: 14
+                font.pixelSize: Theme.fontHeading
                 font.weight: Font.DemiBold
+                elide: Text.ElideRight
             }
 
             Text {
                 Layout.fillWidth: true
-                text: qsTr("%1 › %2 › %3")
+                text: qsTr("%1  ·  Node graph  ·  %2")
                       .arg(toolbar.projectName.length > 0
                            ? toolbar.projectName : qsTr("Project"))
-                      .arg(toolbar.sceneName.length > 0
-                           ? toolbar.sceneName : qsTr("Work"))
                       .arg(toolbar.sceneKind)
                 color: Theme.muted
-                font.pixelSize: 10
+                font.pixelSize: Theme.fontMeta
                 elide: Text.ElideRight
             }
         }
 
         Rectangle {
             Layout.preferredWidth: graphSummary.implicitWidth + 20
-            Layout.preferredHeight: 26
-            radius: 13
-            color: Theme.raised
-            border.color: Theme.border
+            Layout.preferredHeight: 28
+            radius: 14
+            color: Theme.surfaceSubtle
 
             Text {
                 id: graphSummary
                 anchors.centerIn: parent
-                text: qsTr("%1 steps · %2 ready · %3 new versions")
+                text: qsTr("%1 nodes · %2 drafts · %3 versions")
                       .arg(toolbar.nodeCount)
                       .arg(toolbar.draftCount).arg(toolbar.candidateCount)
                 color: Theme.muted
-                font.pixelSize: 10
+                font.pixelSize: Theme.fontMeta
             }
         }
 
         Rectangle {
             Layout.preferredWidth: 1
             Layout.preferredHeight: 20
-            color: Theme.border
+            color: Theme.separatorStrong
         }
 
         ShapeIconButton {

@@ -67,6 +67,18 @@ Rectangle {
         return ""
     }
 
+    function itemIcon(item) : url {
+        if (!item) return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
+        const kindKey = item.kindKey !== undefined ? String(item.kindKey) : ""
+        if (kindKey === "audio_clip") {
+            return "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
+        }
+        if (kindKey === "image_raster" || kindKey === "image_composite") {
+            return "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
+        }
+        return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
+    }
+
     function candidateCount(itemId) : int {
         let count = 0
         for (let index = 0; index < candidates.length; ++index) {
@@ -113,15 +125,24 @@ Rectangle {
         return qsTr("New content")
     }
 
-    implicitWidth: 196
-    radius: Theme.radiusMedium
-    color: Theme.surface
-    border.color: Theme.border
+    implicitWidth: 216
+    color: Theme.panel
+
+    Rectangle {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        width: 1
+        color: Theme.border
+    }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 8
+        anchors.leftMargin: 12
+        anchors.rightMargin: 13
+        anchors.topMargin: 12
+        anchors.bottomMargin: 12
+        spacing: 10
 
         RowLayout {
             Layout.fillWidth: true
@@ -136,7 +157,7 @@ Rectangle {
                     text: rail.projectOpen && rail.projectName.length > 0
                           ? rail.projectName : qsTr("Shape Project")
                     color: Theme.text
-                    font.pixelSize: 12
+                    font.pixelSize: 13
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -145,7 +166,7 @@ Rectangle {
                 text: rail.projectOpen ? qsTr("YOUR PROJECT")
                                            : qsTr("NO PROJECT")
                     color: Theme.muted
-                    font.pixelSize: 8
+                    font.pixelSize: Theme.fontMicro
                     font.weight: Font.DemiBold
                     font.letterSpacing: 0.7
                 }
@@ -170,7 +191,7 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: 4
 
             Repeater {
                 model: ["scenes", "components", "assets"]
@@ -181,14 +202,14 @@ Rectangle {
                     required property string modelData
 
                     Layout.fillWidth: true
-                    implicitHeight: 28
+                    implicitHeight: 32
                     padding: 4
                     checked: rail.currentSection === modelData
                     Accessible.name: rail.sectionLabel(modelData)
                     onClicked: rail.sectionRequested(modelData)
 
                     background: Rectangle {
-                        radius: Theme.radiusSmall
+                        radius: Theme.compactControlRadius
                         color: sectionButton.checked ? Theme.selected
                                                      : sectionButton.hovered
                                                        ? Theme.raisedHover : "transparent"
@@ -197,7 +218,7 @@ Rectangle {
                     contentItem: Text {
                         text: rail.sectionLabel(sectionButton.modelData)
                         color: sectionButton.checked ? Theme.text : Theme.muted
-                        font.pixelSize: 9
+                        font.pixelSize: Theme.fontMeta
                         font.weight: sectionButton.checked ? Font.DemiBold : Font.Normal
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -218,7 +239,7 @@ Rectangle {
             Text {
                 text: rail.sectionLabel(rail.currentSection).toUpperCase()
                 color: Theme.muted
-                font.pixelSize: 9
+                font.pixelSize: Theme.fontMeta
                 font.weight: Font.DemiBold
                 font.letterSpacing: 0.6
             }
@@ -228,7 +249,7 @@ Rectangle {
             Text {
                 text: rail.currentItems.length
                 color: Theme.disabled
-                font.pixelSize: 9
+                font.pixelSize: Theme.fontMeta
             }
         }
 
@@ -238,7 +259,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            spacing: 3
+            spacing: 4
             model: rail.currentItems
 
             ScrollBar.vertical: ScrollBar {
@@ -255,16 +276,16 @@ Rectangle {
                 readonly property int pendingCount: rail.candidateCount(stableId)
 
                 width: ListView.view.width
-                height: 50
-                leftPadding: 8
-                rightPadding: 8
+                height: 58
+                leftPadding: 9
+                rightPadding: 9
                 highlighted: rail.selectedItemId === stableId
                 Accessible.name: rail.itemName(modelData)
                 onClicked: rail.activate(stableId, index, false)
                 onDoubleClicked: rail.activate(stableId, index, true)
 
                 background: Rectangle {
-                    radius: Theme.radiusSmall
+                    radius: Theme.controlRadius
                     color: itemDelegate.highlighted ? Theme.selected
                                                     : itemDelegate.hovered
                                                       ? Theme.raisedHover : "transparent"
@@ -276,20 +297,17 @@ Rectangle {
                     spacing: 7
 
                     Rectangle {
-                        Layout.preferredWidth: 26
-                        Layout.preferredHeight: 26
-                        radius: 7
+                        Layout.preferredWidth: 30
+                        Layout.preferredHeight: 30
+                        radius: 8
                         color: itemDelegate.highlighted ? Theme.accentSoft : Theme.raised
                         border.color: itemDelegate.pendingCount > 0 ? Theme.accent : Theme.border
 
-                        Text {
+                        ShapeIcon {
                             anchors.centerIn: parent
-                            text: rail.itemName(itemDelegate.modelData).length > 0
-                                  ? rail.itemName(itemDelegate.modelData).charAt(0).toUpperCase()
-                                  : "·"
+                            source: rail.itemIcon(itemDelegate.modelData)
+                            size: 16
                             color: itemDelegate.highlighted ? Theme.accent : Theme.muted
-                            font.pixelSize: 10
-                            font.weight: Font.DemiBold
                         }
                     }
 
@@ -301,7 +319,7 @@ Rectangle {
                             Layout.fillWidth: true
                             text: rail.itemName(itemDelegate.modelData)
                             color: Theme.text
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.fontBody
                             font.weight: itemDelegate.highlighted ? Font.DemiBold : Font.Normal
                             elide: Text.ElideRight
                         }
@@ -312,7 +330,7 @@ Rectangle {
                                   ? qsTr("%1 new version(s)").arg(itemDelegate.pendingCount)
                                   : rail.itemKind(itemDelegate.modelData)
                             color: itemDelegate.pendingCount > 0 ? Theme.accent : Theme.muted
-                            font.pixelSize: 8
+                            font.pixelSize: Theme.fontMeta
                             elide: Text.ElideRight
                         }
                     }
@@ -325,7 +343,7 @@ Rectangle {
                 visible: rail.currentItems.length === 0
                 text: rail.emptyLabel(rail.currentSection)
                 color: Theme.muted
-                font.pixelSize: 10
+                font.pixelSize: Theme.fontBody
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }
@@ -334,7 +352,7 @@ Rectangle {
         ShapeButton {
             objectName: "railCreateItemButton"
             Layout.fillWidth: true
-            implicitHeight: 30
+            implicitHeight: Theme.controlHeight
             iconSource: rail.currentSection === "assets"
                         ? "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
                         : "qrc:/qt/qml/Shape/Desktop/icons/add.svg"

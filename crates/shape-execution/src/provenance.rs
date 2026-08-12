@@ -3,12 +3,31 @@
 //! These values remain part of a transient [`crate::ExecutionOutput`] until a
 //! future project-schema migration defines how acceptance persists them.
 
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 
 const MAX_PROVENANCE_TEXT_BYTES: usize = 256;
 const MAX_ROUTING_CANDIDATES: usize = 64;
 const MAX_ATTEMPTS: usize = 16;
 const MAX_REASON_CODES: usize = 32;
+const MAX_NAMED_ROUTE_IDS: usize = 16;
+
+/// Ordered, authorized Runtime route targets captured from one Job decision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExternalNamedRouteProvenance {
+    pub kind: String,
+    pub ordered_ids: Vec<String>,
+}
+
+impl ExternalNamedRouteProvenance {
+    fn is_bounded(&self) -> bool {
+        matches!(self.kind.as_str(), "deployment" | "model_profile")
+            && (1..=MAX_NAMED_ROUTE_IDS).contains(&self.ordered_ids.len())
+            && self.ordered_ids.iter().all(|id| bounded_text(id))
+            && self.ordered_ids.iter().collect::<BTreeSet<_>>().len() == self.ordered_ids.len()
+    }
+}
 
 /// One payload-free physical attempt returned by an external runtime.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,9 +64,7 @@ pub struct ExternalExecutionProvenance {
     pub model_build: String,
     pub physical_model: String,
     pub placement: String,
-    #[serde(alias = "quality_grade")]
     pub capability_level: String,
-    #[serde(alias = "rating_status")]
     pub evaluation_status: String,
     pub resource_class: String,
     pub policy: String,
@@ -62,8 +79,9 @@ pub struct ExternalExecutionProvenance {
     pub fallback: String,
     pub requested_deadline_ms: Option<u64>,
     pub max_cost_microusd: u64,
-    #[serde(alias = "quality_floor")]
     pub capability_floor: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub named_route: Option<ExternalNamedRouteProvenance>,
     pub routing_candidates: Vec<ExternalRoutingCandidate>,
     pub attempts: Vec<ExternalAttemptProvenance>,
 }
@@ -100,6 +118,10 @@ impl ExternalExecutionProvenance {
                 .as_deref()
                 .is_none_or(bounded_text)
             && self.requested_latency.as_deref().is_none_or(bounded_text)
+            && self
+                .named_route
+                .as_ref()
+                .is_none_or(ExternalNamedRouteProvenance::is_bounded)
             && self.routing_candidates.len() <= MAX_ROUTING_CANDIDATES
             && !self.attempts.is_empty()
             && self.attempts.len() <= MAX_ATTEMPTS

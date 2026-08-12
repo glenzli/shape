@@ -11,11 +11,12 @@ use shape_core::{
     ShapeProject, TEXT_DOCUMENT_DATA_TYPE, TEXT_EDIT_OPERATOR_TYPE, TEXT_TRANSFORM_OPERATOR_TYPE,
 };
 use shape_domain::{
-    AUDIO_CLIP_DATA_TYPE, Artifact, ArtifactId, ArtifactKind, IMAGE_CROP_OPERATOR_TYPE,
-    IMAGE_RESIZE_OPERATOR_TYPE, OperatorDataTypeId, OperatorGraph, OperatorGraphEdge,
-    OperatorGraphNode, OperatorNodeBinding, OperatorNodeId, OperatorNodeRole, OperatorPort,
-    OperatorPortId, OperatorTypeId, RevisionId, Transformation, TransformationKind,
-    TransformationOperation,
+    AUDIO_CLIP_DATA_TYPE, Artifact, ArtifactId, ArtifactKind, IMAGE_BLUR_OPERATOR_TYPE,
+    IMAGE_CROP_OPERATOR_TYPE, IMAGE_DROP_SHADOW_OPERATOR_TYPE, IMAGE_RESIZE_OPERATOR_TYPE,
+    IMAGE_TRANSFORM_OPERATOR_TYPE, IMAGE_UNSHARP_MASK_OPERATOR_TYPE, OperatorDataTypeId,
+    OperatorGraph, OperatorGraphEdge, OperatorGraphNode, OperatorNodeBinding, OperatorNodeId,
+    OperatorNodeRole, OperatorPort, OperatorPortId, OperatorTypeId, RevisionId, Transformation,
+    TransformationKind, TransformationOperation,
 };
 
 use crate::ffi;
@@ -387,6 +388,14 @@ fn operator_type(
     let identifier = match (&transformation.operation, transformation.kind, output_kind) {
         (Some(TransformationOperation::RasterCrop(_)), _, _) => IMAGE_CROP_OPERATOR_TYPE,
         (Some(TransformationOperation::RasterResize(_)), _, _) => IMAGE_RESIZE_OPERATOR_TYPE,
+        (Some(TransformationOperation::RasterTransform(_)), _, _) => IMAGE_TRANSFORM_OPERATOR_TYPE,
+        (Some(TransformationOperation::RasterGaussianBlur(_)), _, _) => IMAGE_BLUR_OPERATOR_TYPE,
+        (Some(TransformationOperation::RasterDropShadow(_)), _, _) => {
+            IMAGE_DROP_SHADOW_OPERATOR_TYPE
+        }
+        (Some(TransformationOperation::RasterUnsharpMask(_)), _, _) => {
+            IMAGE_UNSHARP_MASK_OPERATOR_TYPE
+        }
         (Some(TransformationOperation::AudioSpeechSynthesis(_)), _, _) => "audio.speech_synthesize",
         (Some(TransformationOperation::AiImageGenerate(_)), _, _) => "image.generate",
         (_, TransformationKind::TextRewrite, _) => TEXT_EDIT_OPERATOR_TYPE,

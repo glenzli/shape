@@ -1,4 +1,4 @@
-//! Authenticated candidate.3 text-to-image Responses executor.
+//! Authenticated candidate.4 text-to-image Responses executor.
 //!
 //! The Runtime contract is deliberately narrower than Shape's provider-neutral
 //! AI Image domain. This first adapter accepts only source-less `image.generate`,
@@ -22,8 +22,8 @@ use crate::{
 };
 
 use super::{
-    INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient, InferRuntimeClientError,
-    InferRuntimeContractRevision, InferRuntimeCredential, InferRuntimeEndpointResolver,
+    INFER_RUNTIME_CONTRACT_HEADER, INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient,
+    InferRuntimeClientError, InferRuntimeCredential, InferRuntimeEndpointResolver,
     ResolvedInferRuntimeEndpoint,
     job_provenance::{JobPolicyProfile, JobProvenanceError, parse_job_snapshot, valid_job_id},
     should_retry_endpoint, validate_discovered_contract,
@@ -49,7 +49,7 @@ const MAX_JOB_READ_BYTES: u64 = 1024 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(500);
 const REQUEST_TIMEOUT: Duration = Duration::from_mins(10);
 
-/// Exact candidate.3 Consumer for one source-less generated raster.
+/// Exact candidate.4 Consumer for one source-less generated raster.
 pub struct InferRuntimeImageGenerationExecutor {
     identity: ExecutorIdentity,
     resolver: InferRuntimeEndpointResolver,
@@ -113,20 +113,9 @@ impl InferRuntimeImageGenerationExecutor {
         let contract = InferRuntimeClient::new(&endpoint.origin)
             .and_then(|client| client.probe_contract_for_route("POST", RESPONSES_ROUTE))
             .map_err(|error| ImageAttemptFailure::from_contract(&error))?;
-        let revision = validate_discovered_contract(endpoint, &contract)
+        validate_discovered_contract(endpoint, &contract)
             .map_err(|error| ImageAttemptFailure::from_contract(&error))?;
-        if revision != InferRuntimeContractRevision::Candidate3 {
-            return Err(ImageAttemptFailure::new(
-                "infer_incompatible_contract",
-                false,
-                false,
-            ));
-        }
-        ImageGenerationClient::new(&endpoint.origin)?.create_image(
-            &self.credential,
-            parameters,
-            revision,
-        )
+        ImageGenerationClient::new(&endpoint.origin)?.create_image(&self.credential, parameters)
     }
 }
 
@@ -209,13 +198,16 @@ impl ImageGenerationClient {
         &self,
         credential: &InferRuntimeCredential,
         parameters: &AiImageGenerateParameters,
-        revision: InferRuntimeContractRevision,
     ) -> Result<ExecutionOutput, ImageAttemptFailure> {
-        let request = ImageGenerationRequest::candidate_three(parameters.instruction());
+        let request = ImageGenerationRequest::current(parameters.instruction());
         let response = self
             .client
             .post(self.responses_endpoint.clone())
             .header(CONTENT_TYPE, "application/json")
+            .header(
+                INFER_RUNTIME_CONTRACT_HEADER,
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
             .bearer_auth(credential.expose())
             .json(&request)
             .send()
@@ -245,7 +237,7 @@ impl ImageGenerationClient {
             ));
         }
         let parsed = parse_image_response(&bytes, parameters)?;
-        let provenance = self.job_provenance(credential, &parsed.job_id, revision)?;
+        let provenance = self.job_provenance(credential, &parsed.job_id)?;
         Ok(ExecutionOutput {
             bytes: parsed.png,
             media_type: IMAGE_MEDIA_TYPE.to_owned(),
@@ -259,7 +251,6 @@ impl ImageGenerationClient {
         &self,
         credential: &InferRuntimeCredential,
         job_id: &str,
-        revision: InferRuntimeContractRevision,
     ) -> Result<crate::ExternalExecutionProvenance, ImageAttemptFailure> {
         let endpoint = self
             .origin
@@ -268,6 +259,10 @@ impl ImageGenerationClient {
         let response = self
             .client
             .get(endpoint)
+            .header(
+                INFER_RUNTIME_CONTRACT_HEADER,
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
             .bearer_auth(credential.expose())
             .send()
             .map_err(|_| ImageAttemptFailure::new("infer_unavailable", true, false))?;
@@ -289,10 +284,9 @@ impl ImageGenerationClient {
             ));
         }
         parse_job_snapshot(
-            revision,
             job_id,
             IMAGE_INTENT,
-            JobPolicyProfile::ShapeCloudImageInteractive,
+            JobPolicyProfile::CloudImageInteractive,
             &bytes,
         )
         .map_err(ImageAttemptFailure::from_job_provenance)
@@ -310,7 +304,7 @@ struct ImageGenerationRequest<'a> {
 }
 
 impl<'a> ImageGenerationRequest<'a> {
-    fn candidate_three(input: &'a str) -> Self {
+    fn current(input: &'a str) -> Self {
         Self {
             model: IMAGE_INTENT,
             input,
