@@ -31,7 +31,8 @@ base64 = "0.22.1"
 blake3 = "1.8.5"
 cxx = "=1.0.198"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
-reqwest = { version = "0.12.28", default-features = false, features = ["blocking", "json"] }
+infer-runtime-client = { git = "https://github.com/glenzli/infer-runtime.git", rev = "8588a945047cedaea62035969e479e7fb7ff795c" }
+reqwest = { version = "0.12.28", default-features = false }
 rustix = { version = "1.1.4", features = ["fs", "process"] }
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -43,8 +44,8 @@ shape-execution = { path = "crates/shape-execution" }
 shape-store = { path = "crates/shape-store" }
 thiserror = "2.0.18"
 time = { version = "0.3.55", features = ["formatting", "parsing"] }
+tokio = { version = "1.49.0", features = ["rt", "time"] }
 uuid = { version = "1.23.2", features = ["serde", "std", "v7"] }
-zeroize = "1.9.0"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

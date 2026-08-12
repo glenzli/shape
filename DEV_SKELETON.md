@@ -60,32 +60,28 @@ The first real desktop edit path now owns one additional `shape-desktop-bridge`.
 collection. Candidates project newest-first through CXX without UI policy. Successful in-place
 acceptance clears siblings prepared against the old head; branching and discard consume only the
 chosen candidate. Acceptance still crosses the existing `shape-core` use case and `shape-store`
-compare-and-swap commit boundary. `shape-execution::infer_runtime` now owns the first real Infer
-Runtime consumer. Its `discovery` owner validates the owner-only
-`infra.discovery.registration@20260812.1` manifest, exact Consumer offer, generation, and canonical
-numeric-loopback endpoint. The manifest is a stable candidate declaration without a lease or
-liveness timestamp: connection failure causes one immediate re-read and only a changed generation,
-offer, or endpoint is reconsidered. The HTTP owner then performs a bounded, proxy-free,
-redirect-free public-contract probe. Explicit diagnostics override remains first; the fixed 8787
-origin is only a temporary final migration fallback. Its separate `credential` owner atomically
-loads and rotates only a managed 256-bit token from Shape's owner-only secret store. The `responses`
-owner implements the first real `text.generate` executor with candidate.4 `text.edit`, an
-interactive `infer.capability_floor=foundational`, and the authorized Runtime Deployment
-`ollama_qwen3_5_4b`, using a local-first/local-only/offline/no-fallback/zero-cost request. Shape
-implements only the candidate.4 Consumer contract; older offers, HTTP manifests, request
-vocabularies, and persisted provenance are incompatible and require upgrading Runtime or recreating
-debug data. Every protected contract, execution, and Job request sends the exact
-`Infer-Consumer-Contract: 0.1.0-candidate.4` header, and the manifest must publish exactly that one
-supported version. A success is not trusted from the Response envelope alone: the
-adapter reads the same authenticated Job and requires matching Shape App, Intent, policy,
-Deployment, Model Profile, final Attempt, and singular named-route evidence before returning a
-payload-free execution receipt. Runtime success remains only a Shape Candidate.
-`shape-core::propose_generated_text` owns the generative transformation and
+compare-and-swap commit boundary. `shape-execution::infer_runtime` owns the real Infer Runtime
+consumer while the frozen official `infer-runtime-client` SDK owns
+`infra.discovery.registration@20260812.1`, generation-aware endpoint selection, canonical
+numeric-loopback validation, proxy/redirect policy, owner-only credential loading, exact
+`infer-runtime.consumer-core@20260813.1` and
+`infer-runtime.capability-catalog@20260813.1` negotiation, capability headers, and public error
+decoding. `infer_runtime::sdk` is only the synchronous `Executor` adaptation consumed by the probe,
+Responses, speech, image generation, and Job clients; it does not recreate wire contracts. An
+explicit development endpoint may override Discovery, but there is no product fixed-port fallback.
+The separate Shape `credential` owner continues only the existing managed-token install/status
+lifecycle; token bytes are handed to the SDK by owner-only file path.
+
+The `responses` owner requests the stable `text.edit` Intent with
+`infer.deployment_ids=ollama_qwen3_5_4b`, `capability_floor=foundational`, and an exact
+local-first/local-only/offline/no-fallback/zero-cost policy. It reads the typed SDK Job back and
+copies exact Core/Capability, named routing, and successful Attempt facts into the payload-free
+receipt, but Runtime success remains only a Shape Candidate. `shape-core::propose_generated_text`
+owns the generative transformation and
 accepted-text context; `shape-desktop-bridge::infer_text` prepares a candidate outside the live
 session and `DesktopSession` revalidates its expected head before adopting it. Detailed provenance
-inspection beyond the verified Job facts, additional Intents, media bridges, capability registry, and project dependency resolver
-remain deferred until real product paths consume them. Do not create empty crates for roadmap
-boxes.
+UI, additional Intents, and the project dependency resolver remain deferred until real product
+paths consume them. Do not create empty crates for roadmap boxes.
 
 The first raster path extends those existing owners instead of introducing a media-kernel crate.
 `shape-domain::image_raster` owns the platform-independent RGBA8, alpha, orientation, color, and
@@ -135,11 +131,11 @@ roles. Both have one logical image output, so requested variants belong to the C
 never change graph port arity. The exact `20260811.1` parameter codec rejects model/provider/sampler
 fields, unknown revisions, duplicate materials, unanchored preserve constraints, and unsafe canvas
 or candidate bounds. `shape-execution::infer_runtime::image_generation` is the first physical
-consumer for the source-less form: it accepts only the exact candidate.4 Responses contract,
-disables redirects and proxies, bounds the JSON envelope to 32 MiB, revalidates the canonical
-Base64 PNG against the 20 MiB/4096-axis/16,777,216-pixel limits, and requires a successful
-cloud/subscription Job with no fallback. `infer_runtime::job_provenance` owns the shared bounded Job
-vocabulary used by speech and image adapters. `shape-core::project::image::ai_generate` keeps the
+consumer for the source-less form: it uses the SDK's exact `infer.responses@20260812.1` capability,
+revalidates canonical Base64 PNG against the 20 MiB/4096-axis/16,777,216-pixel limits, and requires
+a successful cloud/subscription Job with no fallback. `infer_runtime::job_provenance` validates
+Shape policy over the SDK's typed Job vocabulary used by text, speech, and image adapters.
+`shape-core::project::image::ai_generate` keeps the
 normalized PNG, typed operation, and receipt transient; explicit Accept alone advances an existing
 unaccepted ImageRaster source identity to its first immutable revision. The desktop atomically
 creates that identity together with a zero-input Working Graph, persists the exact prompt/canvas,
@@ -149,16 +145,17 @@ consumer present one comprehensive Source Operator. The draft remains recoverabl
 are transient and is cleared only after acceptance. The live Shape App ACL does not currently
 authorize the required `image.generate`/subscription/balanced/cloud-only execution policy, so real
 generation fails closed without changing accepted history. Material-conditioned execution remains
-unavailable until Infer publishes a real typed raster-output edit/conditioned-generation contract;
-a text-only or image-description route must not be substituted.
+unavailable until Infer publishes a stable typed raster-output provider, Capability Schema, and SDK
+client; a mock, text-only, or image-description route must not be substituted.
 
 The first audio foundation continues those same dependency directions without introducing a media
 kernel. `shape-domain::audio` owns `audio.generate`,
 `audio.speech_synthesize`, and `audio.transform` port contracts, exact accepted WAV interpretation,
 versioned preset aliases, and the local-only consent/disclosure boundary for Voice References.
-`shape-execution::audio` validates exact PCM S16 LE WAV bytes; `infer_runtime::speech` is the first
-real preset-only `speech.synthesize` consumer and returns bounded payload-free Job/routing/Attempt
-facts. `shape-core::project::audio` keeps synthesized bytes transient and creates a new AudioClip
+`shape-execution::audio` validates exact PCM S16 LE WAV bytes; `infer_runtime::speech` uses the
+official `infer.audio.speech@20260811.1` unary WAV client, requests only
+`mlx_qwen3_tts_custom_voice_1_7b`, and returns bounded payload-free Core/Capability/Job/routing/
+Attempt facts. `shape-core::project::audio` keeps synthesized bytes transient and creates a new AudioClip
 only through `shape-store` acceptance. Schema `20260811.2` re-parses bytes, persists provenance in
 the immutable receipt, and transactionally verifies that the accepted text input is still current.
 `shape-desktop-bridge::infer_speech` prepares the move-only result outside the live session;

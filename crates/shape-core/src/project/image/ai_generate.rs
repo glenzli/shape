@@ -95,7 +95,7 @@ impl ShapeProject {
     /// # Errors
     ///
     /// Rejects unsupported physical request shapes, malformed or mismatched PNG
-    /// output, missing current-contract Job provenance, or executor failure.
+    /// output, missing stable Core/Capability Job provenance, or executor failure.
     pub fn propose_generated_image(
         &self,
         artifact_id: ArtifactId,
@@ -184,6 +184,8 @@ impl ShapeProject {
 fn valid_provenance(provenance: &ExternalExecutionProvenance) -> bool {
     provenance.is_bounded()
         && provenance.contract_revision == INFER_RUNTIME_CONTRACT_VERSION
+        && provenance.capability_contract.as_deref()
+            == Some(shape_execution::INFER_RUNTIME_RESPONSES_CAPABILITY)
         && provenance.app_id == "shape"
         && provenance.intent == IMAGE_GENERATE_CAPABILITY
         && provenance.placement == "cloud"

@@ -2,11 +2,10 @@
 //!
 //! The domain crate explains *why* content changes. This crate records *how* one
 //! attempt ran, without importing provider-specific HTTP or model types. Its
-//! Infer Runtime consumer resolves an owner-only Infra Discovery registration
-//! and verifies the public contract gate. Shape's owner-only credential store,
-//! local-first Responses adapter, and preset-only speech synthesis adapter
-//! remain behind the same narrow [`Executor`] interface as deterministic
-//! built-ins.
+//! Infer Runtime consumers use the frozen official SDK for Discovery, dated
+//! Core/Capability negotiation, transport, credentials, errors, and typed
+//! requests. Shape-owned creative adapters remain behind the same narrow
+//! [`Executor`] interface as deterministic built-ins.
 
 mod audio;
 mod coordinator;
@@ -27,11 +26,11 @@ pub use executor::{
 pub use ids::{AttemptId, JobId};
 pub use infer_runtime::{
     AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, IMAGE_GENERATE_CAPABILITY,
-    INFER_RUNTIME_COMPATIBILITY_ENDPOINT, INFER_RUNTIME_CONTRACT_VERSION,
+    INFER_RUNTIME_CAPABILITY_CATALOG, INFER_RUNTIME_CONTRACT_VERSION,
+    INFER_RUNTIME_RESPONSES_CAPABILITY, INFER_RUNTIME_SPEECH_CAPABILITY,
     INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
-    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1, InferRuntimeClient, InferRuntimeClientError,
-    InferRuntimeContract, InferRuntimeCredential, InferRuntimeCredentialError,
-    InferRuntimeCredentialStore, InferRuntimeEndpointResolver, InferRuntimeEndpointSource,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1, InferRuntimeClientError, InferRuntimeContract,
+    InferRuntimeCredentialError, InferRuntimeCredentialStore, InferRuntimeEndpointSource,
     InferRuntimeExecutor, InferRuntimeImageGenerationExecutor, InferRuntimeProbe,
     InferRuntimeSpeechExecutor, ResolvedInferRuntimeEndpoint, probe_infer_runtime_contract,
 };

@@ -3,8 +3,9 @@ use std::{fs, path::PathBuf};
 use shape_core::ShapeProject;
 use shape_domain::{ArtifactKind, IntentSpec};
 use shape_execution::{
-    INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClientError, InferRuntimeContract,
-    InferRuntimeEndpointSource, InferRuntimeProbe, ResolvedInferRuntimeEndpoint,
+    INFER_RUNTIME_CAPABILITY_CATALOG, INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClientError,
+    InferRuntimeContract, InferRuntimeEndpointSource, InferRuntimeProbe,
+    ResolvedInferRuntimeEndpoint,
 };
 use uuid::Uuid;
 
@@ -20,6 +21,7 @@ fn infer_probe_wire_preserves_compatibility_without_diagnostics_payloads() {
         endpoint: Some(discovered_endpoint()),
         contract: Ok(InferRuntimeContract {
             contract_version: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
+            capability_catalog: INFER_RUNTIME_CAPABILITY_CATALOG.to_owned(),
         }),
     });
     assert!(compatible.reachable);
@@ -27,25 +29,25 @@ fn infer_probe_wire_preserves_compatibility_without_diagnostics_payloads() {
     assert_eq!(compatible.contract_version, INFER_RUNTIME_CONTRACT_VERSION);
     assert!(compatible.error_code.is_empty());
     assert_eq!(compatible.endpoint_source, "discovery");
-    assert_eq!(compatible.endpoint_origin, "http://127.0.0.1:8787");
+    assert_eq!(compatible.endpoint_origin, "http://127.0.0.1:43129");
     assert_eq!(compatible.runtime_instance_id, "local");
     assert_eq!(compatible.runtime_generation, "generation-test");
 
     let incompatible = infer_runtime_probe_wire(InferRuntimeProbe {
         endpoint: Some(discovered_endpoint()),
         contract: Err(InferRuntimeClientError::IncompatibleContract {
-            actual: "0.1.0-candidate.99".to_owned(),
+            actual: "consumer_core_unsupported".to_owned(),
         }),
     });
     assert!(incompatible.reachable);
     assert!(!incompatible.compatible);
-    assert_eq!(incompatible.contract_version, "0.1.0-candidate.99");
+    assert_eq!(incompatible.contract_version, "consumer_core_unsupported");
     assert_eq!(incompatible.error_code, "incompatible_contract");
 
     let unavailable = infer_runtime_probe_wire(InferRuntimeProbe {
         endpoint: Some(ResolvedInferRuntimeEndpoint {
-            origin: "http://127.0.0.1:8787".to_owned(),
-            source: InferRuntimeEndpointSource::CompatibilityFallback,
+            origin: "http://127.0.0.1:43129".to_owned(),
+            source: InferRuntimeEndpointSource::ExplicitOverride,
             instance_id: None,
             generation: None,
             contract_version: None,
@@ -56,13 +58,13 @@ fn infer_probe_wire_preserves_compatibility_without_diagnostics_payloads() {
     assert!(!unavailable.compatible);
     assert!(unavailable.contract_version.is_empty());
     assert_eq!(unavailable.error_code, "unavailable");
-    assert_eq!(unavailable.endpoint_source, "compatibility_fallback");
+    assert_eq!(unavailable.endpoint_source, "explicit_override");
     assert!(unavailable.runtime_generation.is_empty());
 }
 
 fn discovered_endpoint() -> ResolvedInferRuntimeEndpoint {
     ResolvedInferRuntimeEndpoint {
-        origin: "http://127.0.0.1:8787".to_owned(),
+        origin: "http://127.0.0.1:43129".to_owned(),
         source: InferRuntimeEndpointSource::Discovery,
         instance_id: Some("local".to_owned()),
         generation: Some("generation-test".to_owned()),

@@ -84,6 +84,7 @@ fn parameters() -> AiImageGenerateParameters {
 fn provenance() -> ExternalExecutionProvenance {
     ExternalExecutionProvenance {
         contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
+        capability_contract: Some(shape_execution::INFER_RUNTIME_RESPONSES_CAPABILITY.to_owned()),
         app_id: "shape".to_owned(),
         intent: IMAGE_GENERATE_CAPABILITY.to_owned(),
         provider: "codex-subscription".to_owned(),

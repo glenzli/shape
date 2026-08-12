@@ -378,8 +378,9 @@ Scene Operator Graph：Source / Operator / Output，负责创作编排
 Source Operator；后者至少有一个 `input.materials`，每个输入固定接受 Revision 与角色。两者都只有
 一个逻辑图片输出；一次执行得到的多个结果进入 Candidate Shelf，而不是把节点输出端口数量变成
 “模型生成了几张”。若 Runtime 只有纯文本生图，UI 必须把带素材生成标记为 capability unavailable，
-不能把文本理解或图片描述接口冒充图像编辑器。零素材形态已经拥有 candidate.4-only 的 Infer
-执行器、严格 PNG/Job provenance 复验，以及 Core 内“先 Candidate、后显式 Accept”的纵向回路。
+不能把文本理解或图片描述接口冒充图像编辑器。零素材形态已经通过冻结官方 SDK 使用稳定
+Consumer Core 与 `infer.responses@20260812.1`，并拥有严格 PNG/typed Job provenance 复验，以及
+Core 内“先 Candidate、后显式 Accept”的纵向回路。
 桌面现在也能原子创建 Scene 级零输入 Draft，恢复精确 prompt/canvas，并通过独立异步控制器把
 结果放入 Candidate Shelf；但当前 Shape App ACL 尚未授权所需的
 subscription/balanced/cloud-only 策略，因此真实在线执行继续 fail closed，且不会污染已接受历史。
@@ -800,7 +801,8 @@ planned → admitted → queued → running → validating → succeeded
 
 ## 8. 与现有 Infer Runtime 的集成
 
-本节以 2026-08-12 的 `infer-runtime` tracked candidate.4 合同与既有本机实证为快照。Shape 必须按运行时的 contract
+本节以 2026-08-13 冻结的 `infer-runtime` SDK/合同为集成基线；真实 deployment 可用性仍需在
+统一切换后验证。Shape 必须按运行时的 contract
 manifest、typed route 和 App ACL 启用功能，不能把本机工作树或当前 daemon 的配置当作已经
 发布的跨机器合同。
 
@@ -810,17 +812,18 @@ manifest、typed route 和 App ACL 启用功能，不能把本机工作树或当
 
 | 能力族 | 当前能力 | Shape 用途 | 状态判断 |
 | --- | --- | --- | --- |
-| Text Responses | `text.edit`、`text.summarize`、`text.proofread`、`language.respond`、`reasoning.solve` | 有界文本编辑、Intent 解析辅助、文案、故事、结构化建议 | candidate.4 增加具名路由；首个 `text.edit` 只授权本地 4B Deployment |
+| Text Responses | `text.edit`、`text.summarize`、`text.proofread`、`language.respond`、`reasoning.solve` | Intent 解析辅助、文案、故事、结构化建议 | `infer-runtime.consumer-core@20260813.1` + `infer.responses@20260812.1`；Shape 当前只执行具名 `text.edit` |
 | Local/Cloud routing | Ollama、本地 MLX/ONNX、DeepSeek cloud、Codex subscription bridge | 本地优先、质量优先、显式订阅模型 | 已有；App ACL 决定能否使用 |
 | Audio | `audio.transcribe`、`audio.align` | Echo 音频文字、字幕、定位 | 已有类型化 endpoint |
-| Speech | `speech.synthesize` | preset 旁白 Audio Candidate | Shape 已完成桌面生成、按需试听、接受/重开与真实本机验证；alias/ACL 尚未由 Infer 提交发布 |
+| Speech | `speech.synthesize` | preset 旁白 Audio Candidate | 稳定 `infer.audio.speech@20260811.1` SDK 路径与具名 `mlx_qwen3_tts_custom_voice_1_7b` grant 已接入；统一切换后的真实 smoke 待执行 |
 | Face | `vision.detect_faces`、`vision.embed_face` | 身份保持验证的辅助证据 | Experimental；SensitiveBiometric、local-only |
 | Cross-modal embedding | `vision.embed_image`、`vision.embed_text` | Reference 检索、相似候选、素材发现 | Experimental；当前 768d shared space、local-only |
 | Image+text reasoning | `multimodal.respond` / VL 路线 | 理解画面、验证部分约束、生成 Change proposal | 当前处于工作树演进中；只在新合同冻结并 probe 成功后启用 |
-| Image/video generation | 无稳定 typed family | 生成、编辑、视频 | 初期走 Shape 外部执行器；形成多 consumer 需求后再提议进入 Infer Runtime |
+| Image generation | `image.generate`（Responses 内的 source-less 精确形状） | 零素材单图生成 | SDK Responses 路径已接入；仍受 Shape App cloud/subscription ACL gate |
+| Image edit/video | 无稳定 typed family | 有素材生成、编辑、视频 | `image.edit` 继续 dependency gate；没有真实 raster provider/Capability/SDK 时不 mock |
 
 当前物理部署快照如下。它用于估算可行性和规划 Adapter，不应进入 Project 的创作语义。Shape 的
-creative graph 仍只保存 Intent；candidate.4 Consumer 可在执行边界按 App 授权请求 Runtime
+creative graph 仍只保存 Intent；官方 SDK Consumer 可在执行边界按 App 授权请求 Runtime
 Deployment 或 Model Profile，但不能请求 provider、Build 或物理模型字符串：
 
 | 数据面 | 当前已登记实现 | Shape 采用原则 |
@@ -835,7 +838,10 @@ Deployment 或 Model Profile，但不能请求 provider、Build 或物理模型�
 | 本地人脸 | YuNet 2026May + SFace 2021Dec ONNX | 仅 local-only experimental evidence；不成为默认创作身份机制 |
 | 本地图文向量 | SigLIP 2 Base patch16 224 image/text ONNX，共享 768d space | 用于本地 Reference 检索；必须按完全相同的 embedding space 做索引版本化 |
 
-Consumer 使用 inference API `http://127.0.0.1:8787`；Web Console 端口不是 Shape 数据面。Shape token 只能由 Runtime 生成并写入 Shape 自己的 owner-only secret store，不能写进 Project、设置导出、命令行参数或日志。
+Consumer endpoint 由官方 SDK 从 `infra.discovery.registration@20260812.1` 解析；显式开发
+numeric-loopback override 可以覆盖 Discovery，但产品不保留固定端口 fallback。Shape token 只能由
+Runtime 生成并写入 Shape 自己的 owner-only secret store；SDK 以文件路径读取，token 不能写进
+Project、设置导出、命令行参数或日志。
 
 ### 8.2 为什么不把所有 AI 都直接塞进 Infer Runtime
 
@@ -891,9 +897,10 @@ cost 组成 App 全局安全上限，任何 Intent 都不能突破。`apps.shape
 返回 `409 no_candidate`。`fallback=none` 只允许第一个具名目标，只有显式 `equivalent` 才可按授权
 列表尝试后续等价目标。
 
-注意：tracked 规划不等于 live 配置已经启用。正式接入仍要由 Infer Runtime owner 发布 candidate.4、
-通过 Console-owned 流程重启，再单独修改 ignored live `apps.shape` ACL；managed token 只保存在
-Shape owner-only secret store，不能进入 Project、设置导出或日志。
+注意：tracked 规划不等于 live daemon 已切换到冻结合同。真实 smoke 要等 Infer Runtime owner
+发布匹配的 Core/Catalog 并通过 Console-owned 流程重启；本迁移不修改既有 `apps.shape` ACL、具名
+Deployment grant 或 managed token。token 只保存在 Shape owner-only secret store，不能进入
+Project、设置导出或日志。
 
 云图像与 subscription 必须是第二次显式授权：
 

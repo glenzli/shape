@@ -1,208 +1,51 @@
-use std::{
-    fs,
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
-    path::PathBuf,
-    thread,
-    time::Duration,
-};
+use std::fs;
 
-use serde_json::{Value, json};
-use shape_core::ShapeProject;
+use shape_core::{ShapeProject, TextTransformMode, TextTransformParameters};
 use shape_domain::{ArtifactKind, IntentSpec};
+use shape_execution::{
+    CapabilityId, ExecutionFailure, ExecutionOutput, ExecutionRequest, Executor, ExecutorIdentity,
+    INFER_RUNTIME_CONTRACT_VERSION,
+};
 use uuid::Uuid;
 
 use super::*;
 use crate::open_desktop_session;
 
-fn credential_path() -> PathBuf {
-    std::env::temp_dir()
-        .join(format!("shape-bridge-credential-{}", Uuid::now_v7()))
-        .join("infer-runtime.token")
+struct FakeTextExecutor {
+    identity: ExecutorIdentity,
 }
 
-fn read_request(stream: &mut TcpStream) -> String {
-    stream
-        .set_read_timeout(Some(Duration::from_secs(2)))
-        .expect("read timeout configures");
-    let mut bytes = Vec::new();
-    let mut buffer = [0_u8; 1024];
-    loop {
-        let read = stream.read(&mut buffer).expect("request reads");
-        if read == 0 {
-            break;
-        }
-        bytes.extend_from_slice(&buffer[..read]);
-        let Some(header_end) = bytes.windows(4).position(|window| window == b"\r\n\r\n") else {
-            continue;
-        };
-        let header_end = header_end + 4;
-        let headers = String::from_utf8_lossy(&bytes[..header_end]);
-        let content_length = headers
-            .lines()
-            .find_map(|line| {
-                line.to_ascii_lowercase()
-                    .strip_prefix("content-length: ")
-                    .and_then(|value| value.parse::<usize>().ok())
-            })
-            .unwrap_or(0);
-        if bytes.len() >= header_end + content_length {
-            break;
+impl FakeTextExecutor {
+    fn new() -> Self {
+        Self {
+            identity: ExecutorIdentity::new(
+                "shape.test.fake-text-sdk",
+                "1",
+                INFER_RUNTIME_CONTRACT_VERSION,
+            )
+            .unwrap(),
         }
     }
-    String::from_utf8(bytes).expect("request is UTF-8")
 }
 
-fn write_response(stream: &mut TcpStream, body: &str) {
-    write!(
-        stream,
-        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
-    )
-    .expect("response writes");
-}
+impl Executor for FakeTextExecutor {
+    fn identity(&self) -> &ExecutorIdentity {
+        &self.identity
+    }
 
-fn fake_runtime() -> (String, thread::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("fake runtime binds");
-    let address = listener.local_addr().expect("runtime has address");
-    let worker = thread::spawn(move || {
-        let (mut contract, _) = listener.accept().expect("contract connects");
-        let contract_request = read_request(&mut contract);
-        assert!(contract_request.starts_with("GET /infer/v1/contract HTTP/1.1"));
-        assert_eq!(
-            contract_request
-                .matches(&format!(
-                    "infer-consumer-contract: {}\r\n",
-                    shape_execution::INFER_RUNTIME_CONTRACT_VERSION
-                ))
-                .count(),
-            1
-        );
-        write_response(
-            &mut contract,
-            &json!({
-                "contract_version": shape_execution::INFER_RUNTIME_CONTRACT_VERSION,
-                "supported_contract_versions": [shape_execution::INFER_RUNTIME_CONTRACT_VERSION],
-                "capability_scale_version": "20260811.1",
-                "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
-            })
-            .to_string(),
-        );
+    fn supports(&self, capability: &CapabilityId) -> bool {
+        capability.as_str() == "text.generate"
+    }
 
-        let (mut responses, _) = listener.accept().expect("Responses request connects");
-        let request = read_request(&mut responses);
-        assert!(request.starts_with("POST /v1/responses HTTP/1.1"));
-        assert_eq!(
-            request
-                .matches(&format!(
-                    "infer-consumer-contract: {}\r\n",
-                    shape_execution::INFER_RUNTIME_CONTRACT_VERSION
-                ))
-                .count(),
-            1
-        );
-        let body = request.split_once("\r\n\r\n").expect("request has body").1;
-        let request: Value = serde_json::from_str(body).expect("request parses");
-        assert_eq!(request["model"], "text.edit");
-        assert_eq!(
-            request["input"],
-            "Return only the complete replacement text.\n\nCreative instruction:\nCreative text transform mode: expand\nMake it more vivid.\nTone: warm at balanced intensity. Audience: general audience. Style: literary.\n\nCurrent accepted text:\nAccepted before Infer."
-        );
-        assert_eq!(
-            request["metadata"]["infer.deployment_ids"],
-            "ollama_qwen3_5_4b"
-        );
-        write_response(
-            &mut responses,
-            &json!({
-                "id": "resp_bridge_test",
-                "object": "response",
-                "created_at": 1_786_383_600_u64,
-                "model": "text.edit",
-                "status": "completed",
-                "output": [{
-                    "type": "message",
-                    "content": [{"type": "output_text", "text": "A generated bridge candidate."}]
-                }]
-            })
-            .to_string(),
-        );
-
-        let (mut job, _) = listener.accept().expect("Job request connects");
-        let request = read_request(&mut job);
-        assert!(request.starts_with("GET /infer/v1/jobs/resp_bridge_test HTTP/1.1"));
-        assert_eq!(
-            request
-                .matches(&format!(
-                    "infer-consumer-contract: {}\r\n",
-                    shape_execution::INFER_RUNTIME_CONTRACT_VERSION
-                ))
-                .count(),
-            1
-        );
-        write_response(&mut job, &candidate_four_job().to_string());
-    });
-    (format!("http://{address}"), worker)
-}
-
-fn candidate_four_job() -> Value {
-    json!({
-        "id": "resp_bridge_test",
-        "app_id": "shape",
-        "intent": "text.edit",
-        "provider": "ollama-local",
-        "deployment": "ollama_qwen3_5_4b",
-        "model_profile": "qwen3_5_4b",
-        "model_build": "qwen3_5_4b_q4_k_m",
-        "physical_model": "qwen3.5:4b",
-        "placement": "local",
-        "capability_level": "foundational",
-        "evaluation_status": "provisional",
-        "resource_class": "standard",
-        "state": "succeeded",
-        "policy": "local-first",
-        "priority": "interactive",
-        "constraints": {
-            "policy": "local-first",
-            "priority": "interactive",
-            "provider_access_class": null,
-            "placement": "local_only",
-            "prefer": "local",
-            "offline_required": true,
-            "latency": null,
-            "fallback": "none",
-            "max_cost_usd": 0.0,
-            "deadline_ms": null,
-            "capability_floor": "foundational",
-            "named_route": {
-                "kind": "deployment",
-                "ordered_ids": ["ollama_qwen3_5_4b"]
-            }
-        },
-        "routing": {
-            "capability_floor": "foundational",
-            "named_route": {
-                "kind": "deployment",
-                "ordered_ids": ["ollama_qwen3_5_4b"]
-            },
-            "candidates": [{
-                "provider": "ollama-local",
-                "deployment": "ollama_qwen3_5_4b",
-                "status": "eligible",
-                "rank": 1,
-                "reason_codes": []
-            }]
-        },
-        "attempts": [{
-            "number": 1,
-            "provider": "ollama-local",
-            "deployment": "ollama_qwen3_5_4b",
-            "outcome": "succeeded",
-            "trigger": "initial",
-            "error_kind": null
-        }],
-        "error": null
-    })
+    fn execute(&self, _request: &ExecutionRequest) -> Result<ExecutionOutput, ExecutionFailure> {
+        Ok(ExecutionOutput {
+            bytes: b"A generated bridge candidate.".to_vec(),
+            media_type: "text/plain; charset=utf-8".into(),
+            executor_job_id: Some("resp_bridge_test".into()),
+            external_provenance: None,
+            content_contract: None,
+        })
+    }
 }
 
 #[test]
@@ -244,21 +87,25 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
         .expect("text transform draft config persists");
     drop(draft_session);
 
-    let secret_path = credential_path();
-    let token = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    InferRuntimeCredentialStore::new(&secret_path)
-        .install(token)
-        .expect("credential installs");
-    let (origin, worker) = fake_runtime();
-    let generated = generate_infer_text_candidate(
-        project_path.to_str().expect("portable project path"),
-        &artifact.id.to_string(),
-        &draft.draft_id,
-        secret_path.to_str().expect("portable secret path"),
-        &origin,
+    let project = ShapeProject::open(&project_path).expect("project reopens for fake execution");
+    let expected_head = project.snapshot().unwrap().artifacts[0]
+        .accepted_revision
+        .expect("accepted text head exists");
+    let parameters = TextTransformParameters::new(
+        TextTransformMode::Expand,
+        "Make it more vivid.\nTone: warm at balanced intensity. Audience: general audience. Style: literary.",
     )
-    .expect("generation succeeds");
-    worker.join().expect("fake runtime exits");
+    .unwrap();
+    let candidate = project
+        .propose_text_transform(
+            artifact.id,
+            expected_head,
+            &parameters,
+            Vec::new(),
+            &FakeTextExecutor::new(),
+        )
+        .expect("fake SDK execution prepares a transient candidate");
+    let generated = Box::new(InferTextCandidate { candidate });
 
     let mut session = open_desktop_session(project_path.to_str().expect("portable project path"))
         .expect("session opens");
@@ -296,6 +143,4 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
     );
     drop(session);
     fs::remove_dir_all(project_path).expect("fixture removes");
-    fs::remove_dir_all(secret_path.parent().expect("secret has parent"))
-        .expect("secret fixture removes");
 }

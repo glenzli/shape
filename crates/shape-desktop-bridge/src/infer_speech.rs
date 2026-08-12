@@ -3,7 +3,7 @@
 
 use shape_core::{AudioCandidate, CoreError, ShapeProject};
 use shape_domain::{ArtifactId, OperatorNodeId};
-use shape_execution::{ExecutionError, InferRuntimeCredentialStore, InferRuntimeSpeechExecutor};
+use shape_execution::{ExecutionError, InferRuntimeSpeechExecutor};
 
 use crate::operator_catalog::{AUDIO_SPEECH_OPERATOR, audio_speech_operation_from_draft};
 
@@ -66,10 +66,8 @@ pub(super) fn generate_infer_speech_candidate(
     let operation = audio_speech_operation_from_draft(draft)
         .map_err(|_| "invalid_speech_request".to_owned())?
         .ok_or_else(|| "speech_draft_unconfigured".to_owned())?;
-    let credential = InferRuntimeCredentialStore::new(credential_path)
-        .load()
-        .map_err(|error| crate::infer_runtime_access::credential_error_code(&error).to_owned())?;
-    let executor = InferRuntimeSpeechExecutor::new(explicit_override, credential)
+    let credential_path = crate::infer_runtime_access::sdk_credential_path(credential_path)?;
+    let executor = InferRuntimeSpeechExecutor::new(explicit_override, credential_path)
         .map_err(|_| "executor_invalid".to_owned())?;
     let candidate = project
         .propose_speech_synthesis(

@@ -107,28 +107,25 @@ capability adapters. The first planned external-edit route is Shadow-backed crea
 the desktop will open a pinned Shape revision under an explicit representation/color contract and
 will treat returned bytes plus receipt as a Candidate, never as an in-place database mutation.
 
-`InferRuntimeController` runs the bounded public-contract probe away from the UI thread and projects
-only checking, reachable, compatible, contract-version, endpoint-source, instance/generation, and
-stable-error state. Rust selects endpoints in this order: canonical numeric-loopback
-`SHAPE_INFER_RUNTIME_URL` override, live owner-only
-`infer-runtime.consumer@0.1.0-candidate.4` Infra Discovery offer, then the temporary
-`http://127.0.0.1:8787` migration fallback. It validates the exact Discovery schema, filesystem
-ownership and modes, generation, offer binding, and raw endpoint before HTTP. The
-`infra.discovery.registration@20260812.1` manifest has no lease or liveness timestamp; a failed
-connection causes a stable-manifest re-read without repairing or deleting provider state.
-Every protected contract, inference, and Job request carries
-`Infer-Consumer-Contract: 0.1.0-candidate.4`; Shape rejects a manifest whose supported-version set
-contains anything else.
+`InferRuntimeController` runs the bounded official-SDK contract probe away from the UI thread and
+projects only checking, reachable, compatible, contract-version, endpoint-source,
+instance/generation, and stable-error state. The SDK selects a canonical numeric-loopback
+`SHAPE_INFER_RUNTIME_URL` development override or the live owner-only
+`infer-runtime.consumer-core@20260813.1` Infra Discovery offer. There is no fixed-port product
+fallback. The SDK validates the unchanged `infra.discovery.registration@20260812.1` document,
+filesystem ownership/modes, generation, binding, Core OpenAPI digest, dated Capability Catalog, and
+the exact Responses/speech capability records without repairing or deleting provider state. Each
+data-plane call additionally verifies its capability schema before transport.
 
 `InferTextController` separately owns one asynchronous authenticated generation lifecycle. Settings
 can copy the one-time managed token for Infer App `shape` into
 `AppConfigLocation/secrets/infer-runtime.token`; Rust atomically maintains its owner-only directory
 and file and never puts the token in QSettings, a project, exported settings, arguments, environment,
-or diagnostics. The request is fixed to candidate.4 `text.edit` with an interactive
-`infer.capability_floor=foundational`, the authorized `ollama_qwen3_5_4b` Deployment, local-first,
-local-only, offline, no-fallback, and zero cloud cost. Shape does not negotiate or deserialize older
-Consumer vocabularies; a retired Runtime requires an upgrade. Proxies, redirects, hostnames, and
-remote origins are rejected.
+or diagnostics. The request uses stable `text.edit`, the ACL-authorized
+`infer.deployment_ids=ollama_qwen3_5_4b`, interactive `capability_floor=foundational`, local-first,
+local-only, offline, no-fallback, and zero cost. The SDK sends the exact Core and Responses
+capability headers and reads back typed Job/Attempt/named-routing provenance. Candidate contracts
+are not retained. Proxies, redirects, hostnames, and remote origins are rejected by the SDK.
 The worker opens a read-only project view and returns an opaque generated candidate; the UI-thread
 `DesktopSession` rechecks expected-head identity before adding it to the transient shelf. Only the
 existing accept operation advances durable history. Infer App/ACL creation and daemon restart remain
@@ -147,7 +144,8 @@ speech drafts receive and persist the validated default on open, and generation 
 draft identity instead of accepting UI parameters as execution authority. This is a preview surface,
 not the future Echo-backed composition/render engine.
 
-`InferImageController` owns the separate high-payload candidate.4 image generation lifecycle.
+`InferImageController` owns the separate high-payload source-less image generation lifecycle over
+the stable Core and Responses capability.
 Rust reopens the exact zero-input draft and validates its prompt/canvas before credential access,
 then requires cloud/subscription Job provenance before returning an opaque Candidate. The desktop
 never sends provider, model, sampler, or checkpoint choices. `AiImageOperatorWorkspace.qml` owns the
@@ -155,6 +153,8 @@ central canvas and compact output-size choice, while `OperatorIntentSidebar.qml`
 comprehensive intent consumer. Candidate PNG bytes cross only for selected preview. Current Infer
 App authority does not yet admit this cloud route, so the UI reports the permission failure without
 fabricating a result or changing project history.
+Material-conditioned `image.edit` remains unavailable because Runtime has not published a stable
+raster-output provider/Capability/SDK contract; the desktop does not substitute text output.
 
 `UiPreferences` is the process-level owner for appearance, effective system color scheme,
 translation lifecycle, and persistence. `MainTitleBar.qml` owns the fused toolbar/title region.

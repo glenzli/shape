@@ -1,234 +1,218 @@
-use serde_json::{Value, json};
+use infer_runtime_client::{
+    AttemptSnapshot, CandidateDecision, JobSnapshot, NamedRouteDecision, RoutingDecision,
+};
+use serde_json::json;
 
-use super::*;
+use super::{
+    JobPolicyProfile, JobProvenanceError, SPEECH_DEPLOYMENT, TEXT_EDIT_DEPLOYMENT,
+    parse_job_snapshot,
+};
+use crate::infer_runtime::{
+    INFER_RUNTIME_CONTRACT_VERSION, INFER_RUNTIME_RESPONSES_CAPABILITY,
+    INFER_RUNTIME_SPEECH_CAPABILITY,
+};
 
-struct ProfileValues {
-    provider: &'static str,
-    deployment: &'static str,
-    model_profile: &'static str,
-    placement: &'static str,
-    policy: &'static str,
-    provider_access: Value,
-    requested_placement: &'static str,
-    prefer: &'static str,
-    offline: bool,
-    latency: Value,
-    capability_floor: &'static str,
-    named_route: Value,
-}
-
-fn profile_values(profile: JobPolicyProfile) -> ProfileValues {
-    match profile {
-        JobPolicyProfile::LocalInteractive => ProfileValues {
-            provider: "mlx-audio",
-            deployment: "qwen-local",
-            model_profile: "qwen-local",
-            placement: "local",
-            policy: "local-first",
-            provider_access: Value::Null,
-            requested_placement: "local_only",
-            prefer: "local",
-            offline: true,
-            latency: json!("interactive"),
-            capability_floor: "capable",
-            named_route: Value::Null,
+fn local_job(intent: &str, deployment: &str, capability: &str, floor: &str) -> JobSnapshot {
+    let named_route = NamedRouteDecision {
+        kind: "deployment".into(),
+        ordered_ids: vec![deployment.into()],
+    };
+    JobSnapshot {
+        id: "resp_shape_job".into(),
+        app_id: "shape".into(),
+        intent: intent.into(),
+        consumer_core_contract: INFER_RUNTIME_CONTRACT_VERSION.into(),
+        capability_contract: Some(capability.into()),
+        provider: "local-provider".into(),
+        deployment: deployment.into(),
+        model_profile: "local-profile".into(),
+        model_build: "local-build".into(),
+        physical_model: "local/model".into(),
+        placement: "local".into(),
+        capability_level: floor.into(),
+        evaluation_status: "provisional".into(),
+        resource_class: "standard".into(),
+        state: "succeeded".into(),
+        policy: "local-first".into(),
+        priority: "interactive".into(),
+        constraints: json!({
+            "policy": "local-first",
+            "priority": "interactive",
+            "provider_access_class": "standard",
+            "placement": "local_only",
+            "prefer": "local",
+            "offline_required": true,
+            "capability_floor": floor,
+            "latency": "interactive",
+            "max_cost_usd": 0.0,
+            "fallback": "none",
+            "deadline_ms": null,
+            "named_route": {"kind":"deployment","ordered_ids":[deployment]}
+        }),
+        routing: RoutingDecision {
+            capability_floor: floor.into(),
+            named_route: Some(named_route),
+            candidates: vec![CandidateDecision {
+                deployment: deployment.into(),
+                provider: "local-provider".into(),
+                status: "eligible".into(),
+                rank: Some(0),
+                reason_codes: Vec::new(),
+            }],
         },
-        JobPolicyProfile::LocalTextEdit => ProfileValues {
-            provider: "ollama-local",
-            deployment: "ollama_qwen3_5_4b",
-            model_profile: "qwen3_5_4b",
-            placement: "local",
-            policy: "local-first",
-            provider_access: Value::Null,
-            requested_placement: "local_only",
-            prefer: "local",
-            offline: true,
-            latency: Value::Null,
-            capability_floor: "foundational",
-            named_route: json!({
-                "kind": "deployment",
-                "ordered_ids": ["ollama_qwen3_5_4b"]
-            }),
-        },
-        JobPolicyProfile::CloudImageInteractive => ProfileValues {
-            provider: "codex-subscription",
-            deployment: "codex_gpt_5_6_luna",
-            model_profile: "codex_gpt_5_6_luna",
-            placement: "cloud",
-            policy: "balanced",
-            provider_access: json!("subscription"),
-            requested_placement: "cloud_only",
-            prefer: "cloud",
-            offline: false,
-            latency: Value::Null,
-            capability_floor: "capable",
-            named_route: Value::Null,
-        },
+        attempts: vec![AttemptSnapshot {
+            number: 1,
+            provider: "local-provider".into(),
+            deployment: deployment.into(),
+            outcome: "succeeded".into(),
+            trigger: "initial".into(),
+            error_kind: None,
+            error: None,
+        }],
+        error: None,
     }
 }
 
-fn succeeded_job(intent: &str, profile: JobPolicyProfile) -> Value {
-    let values = profile_values(profile);
-    json!({
-        "id": "resp_shape_1",
-        "app_id": "shape",
-        "intent": intent,
-        "provider": values.provider,
-        "deployment": values.deployment,
-        "model_profile": values.model_profile,
-        "model_build": format!("{}_build", values.deployment),
-        "physical_model": "physical-model",
-        "placement": values.placement,
-        "capability_level": values.capability_floor,
-        "evaluation_status": "provisional",
-        "resource_class": "standard",
-        "state": "succeeded",
-        "policy": values.policy,
+pub(crate) fn text_job() -> JobSnapshot {
+    local_job(
+        "text.edit",
+        TEXT_EDIT_DEPLOYMENT,
+        INFER_RUNTIME_RESPONSES_CAPABILITY,
+        "foundational",
+    )
+}
+
+pub(crate) fn speech_job() -> JobSnapshot {
+    local_job(
+        "speech.synthesize",
+        SPEECH_DEPLOYMENT,
+        INFER_RUNTIME_SPEECH_CAPABILITY,
+        "capable",
+    )
+}
+
+pub(crate) fn image_job() -> JobSnapshot {
+    let mut job = local_job(
+        "image.generate",
+        "codex_gpt_5_6_luna",
+        INFER_RUNTIME_RESPONSES_CAPABILITY,
+        "capable",
+    );
+    job.provider = "codex-app-server".into();
+    job.placement = "cloud".into();
+    job.policy = "balanced".into();
+    job.constraints = json!({
+        "policy": "balanced",
         "priority": "interactive",
-        "constraints": {
-            "policy": values.policy,
-            "priority": "interactive",
-            "provider_access_class": values.provider_access,
-            "placement": values.requested_placement,
-            "prefer": values.prefer,
-            "offline_required": values.offline,
-            "latency": values.latency,
-            "fallback": "none",
-            "max_cost_usd": 0.0,
-            "deadline_ms": null,
-            "capability_floor": values.capability_floor,
-            "named_route": values.named_route.clone()
-        },
-        "routing": {
-            "capability_floor": values.capability_floor,
-            "named_route": values.named_route,
-            "candidates": [{
-                "provider": values.provider,
-                "deployment": values.deployment,
-                "status": "eligible",
-                "rank": 1,
-                "reason_codes": []
-            }]
-        },
-        "attempts": [{
-            "number": 1,
-            "provider": values.provider,
-            "deployment": values.deployment,
-            "outcome": "succeeded",
-            "trigger": "initial",
-            "error_kind": null
-        }],
-        "error": null
-    })
+        "provider_access_class": "subscription",
+        "placement": "cloud_only",
+        "prefer": "cloud",
+        "offline_required": false,
+        "capability_floor": "capable",
+        "latency": null,
+        "max_cost_usd": 0.0,
+        "fallback": "none",
+        "deadline_ms": null,
+        "named_route": null
+    });
+    job.routing.named_route = None;
+    job.routing.candidates[0].provider = job.provider.clone();
+    job.attempts[0].provider = job.provider.clone();
+    job
 }
 
 #[test]
-fn current_text_edit_requires_the_exact_authorized_named_route() {
-    let job = succeeded_job("text.edit", JobPolicyProfile::LocalTextEdit);
+fn typed_sdk_job_maps_exact_core_capability_and_named_route() {
     let provenance = parse_job_snapshot(
-        "resp_shape_1",
+        "resp_shape_job",
         "text.edit",
         JobPolicyProfile::LocalTextEdit,
-        &serde_json::to_vec(&job).unwrap(),
+        text_job(),
     )
-    .expect("current named text route validates");
-    assert_eq!(provenance.capability_floor, "foundational");
-    assert_eq!(provenance.deployment, "ollama_qwen3_5_4b");
+    .expect("frozen SDK Job is accepted");
+    assert_eq!(provenance.contract_revision, INFER_RUNTIME_CONTRACT_VERSION);
     assert_eq!(
-        provenance.named_route,
-        Some(ExternalNamedRouteProvenance {
-            kind: "deployment".to_owned(),
-            ordered_ids: vec!["ollama_qwen3_5_4b".to_owned()],
-        })
+        provenance.capability_contract.as_deref(),
+        Some(INFER_RUNTIME_RESPONSES_CAPABILITY)
     );
-
-    let mut wrong_route = job;
-    wrong_route["constraints"]["named_route"]["ordered_ids"] = json!(["other"]);
-    assert_eq!(
-        parse_job_snapshot(
-            "resp_shape_1",
-            "text.edit",
-            JobPolicyProfile::LocalTextEdit,
-            &serde_json::to_vec(&wrong_route).unwrap(),
-        ),
-        Err(JobProvenanceError::InvalidResponse)
-    );
+    assert_eq!(provenance.deployment, TEXT_EDIT_DEPLOYMENT);
+    let named_route = provenance
+        .named_route
+        .as_ref()
+        .expect("text edit persists named routing");
+    assert_eq!(named_route.ordered_ids.len(), 1);
+    assert_eq!(named_route.ordered_ids[0], TEXT_EDIT_DEPLOYMENT);
+    assert!(provenance.offline_required);
+    assert_eq!(provenance.fallback, "none");
 }
 
 #[test]
-fn cloud_image_profile_preserves_exact_requested_and_actual_provenance() {
-    let bytes = serde_json::to_vec(&succeeded_job(
-        "image.generate",
-        JobPolicyProfile::CloudImageInteractive,
-    ))
-    .unwrap();
-    let provenance = parse_job_snapshot(
-        "resp_shape_1",
-        "image.generate",
-        JobPolicyProfile::CloudImageInteractive,
-        &bytes,
-    )
-    .unwrap();
-    assert_eq!(provenance.provider, "codex-subscription");
-    assert_eq!(provenance.placement, "cloud");
-    assert_eq!(provenance.requested_policy, "balanced");
-    assert_eq!(
-        provenance.requested_provider_access_class.as_deref(),
-        Some("subscription")
-    );
-    assert!(!provenance.offline_required);
-    assert_eq!(provenance.attempts.len(), 1);
-}
-
-#[test]
-fn mismatched_intent_route_attempt_and_policy_fail_closed() {
-    let base = succeeded_job("image.generate", JobPolicyProfile::CloudImageInteractive);
-    for mutation in [
-        ("intent", json!("wrong.intent")),
-        ("placement", json!("local")),
-    ] {
-        let mut job = base.clone();
-        job[mutation.0] = mutation.1;
-        assert!(
+fn core_capability_and_app_identity_fail_closed() {
+    let mutators: [fn(&mut JobSnapshot); 3] = [
+        |job: &mut JobSnapshot| job.app_id = "other".into(),
+        |job: &mut JobSnapshot| job.consumer_core_contract = "unsupported-core".into(),
+        |job: &mut JobSnapshot| job.capability_contract = None,
+    ];
+    for mutate in mutators {
+        let mut job = text_job();
+        mutate(&mut job);
+        assert_eq!(
             parse_job_snapshot(
-                "resp_shape_1",
-                "image.generate",
-                JobPolicyProfile::CloudImageInteractive,
-                &serde_json::to_vec(&job).unwrap(),
-            )
-            .is_err()
+                "resp_shape_job",
+                "text.edit",
+                JobPolicyProfile::LocalTextEdit,
+                job,
+            ),
+            Err(JobProvenanceError::InvalidResponse)
         );
     }
+}
 
-    let mut fallback = base.clone();
-    fallback["attempts"][0]["trigger"] = json!("fallback");
+#[test]
+fn local_policy_and_named_deployment_cannot_be_widened() {
+    let mut fallback = speech_job();
+    fallback.constraints["fallback"] = json!("allow");
     assert_eq!(
         parse_job_snapshot(
-            "resp_shape_1",
-            "image.generate",
-            JobPolicyProfile::CloudImageInteractive,
-            &serde_json::to_vec(&fallback).unwrap(),
+            "resp_shape_job",
+            "speech.synthesize",
+            JobPolicyProfile::LocalSpeech,
+            fallback,
         ),
         Err(JobProvenanceError::PolicyViolation)
     );
 
-    let mut mismatch = base;
-    mismatch["attempts"][0]["deployment"] = json!("other-deployment");
+    let mut wrong_route = speech_job();
+    wrong_route
+        .routing
+        .named_route
+        .as_mut()
+        .unwrap()
+        .ordered_ids = vec!["other".into()];
     assert_eq!(
         parse_job_snapshot(
-            "resp_shape_1",
-            "image.generate",
-            JobPolicyProfile::CloudImageInteractive,
-            &serde_json::to_vec(&mismatch).unwrap(),
+            "resp_shape_job",
+            "speech.synthesize",
+            JobPolicyProfile::LocalSpeech,
+            wrong_route,
         ),
-        Err(JobProvenanceError::InvalidResponse)
+        Err(JobProvenanceError::PolicyViolation)
     );
 }
 
 #[test]
-fn job_identity_is_bounded_to_a_response_id_path_segment() {
-    assert!(valid_job_id("resp_shape_image_1"));
-    assert!(valid_job_id("job_shape_speech_1"));
-    assert!(!valid_job_id("resp_../operator"));
-    assert!(!valid_job_id("resp_query?elsewhere"));
+fn source_less_image_job_remains_cloud_only_without_named_route() {
+    let provenance = parse_job_snapshot(
+        "resp_shape_job",
+        "image.generate",
+        JobPolicyProfile::CloudImageInteractive,
+        image_job(),
+    )
+    .expect("source-less image generation keeps its separate cloud policy");
+    assert!(!provenance.offline_required);
+    assert!(provenance.named_route.is_none());
+    assert_eq!(
+        provenance.requested_provider_access_class.as_deref(),
+        Some("subscription")
+    );
 }

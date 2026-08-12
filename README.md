@@ -68,12 +68,12 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   unexecuted draft restores on reopen without entering immutable accepted history; execution turns
   it into a transient Candidate, and only explicit acceptance publishes durable history. The
   desktop keeps text and image candidates on one typed shelf while each medium owns
-  its central workspace. It resolves Infer Runtime through strict owner-only
-  Infra Discovery, imports a Shape-specific managed credential into an owner-only secret store,
-  and can execute one local-only candidate.4 `text.edit` request through the authorized 4B
-  Deployment as a transient candidate. Older Consumer contracts and provenance are intentionally
-  unsupported while Shape remains in debug development. Contract probes, inference, and Job
-  readback all send the exact candidate.4 negotiation header.
+  its central workspace. It uses the official Infer Runtime SDK frozen at revision
+  `8588a945047cedaea62035969e479e7fb7ff795c` for owner-only Infra Discovery,
+  `infer-runtime.consumer-core@20260813.1`, the dated Capability Catalog, transport, credentials,
+  and public errors. Shape imports its existing managed credential into an owner-only secret store
+  and requests local-only `text.edit` through the ACL-authorized
+  `ollama_qwen3_5_4b` Deployment as a transient candidate.
   The `audio.speech_synthesize` desktop workspace consumes immutable accepted text and creates a
   transient audio Candidate through a single versioned preset. The selected Candidate can be
   auditioned from an in-memory WAV device and becomes a new `audio.clip` only after explicit
@@ -104,16 +104,18 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
 - AI image semantics are split deliberately. `image.generate` is a zero-material Source Operator;
   `image.generate_from_materials` requires accepted raster materials with explicit roles. Both have
   one logical output and place multiple generated options on the Candidate Shelf. The typed domain
-  contract exists now. The source-less form also has a strict Infer Runtime candidate.4 executor
-  and a Core Candidate/explicit-Accept path: PNG payloads and cloud Job provenance are revalidated,
+  contract exists now. The source-less form uses the stable Core plus
+  `infer.responses@20260812.1` SDK client and a Core Candidate/explicit-Accept path: PNG payloads
+  and typed cloud Job provenance are revalidated,
   and no accepted revision is written before user acceptance. The desktop can atomically create a
   source-less AI Image Scene, restore its exact prompt/canvas draft, and open its dedicated canvas
   plus Intent sidebar. Live execution remains fail-closed under the current Shape App ACL until
   Infer explicitly grants the required subscription/balanced/cloud-only authority.
-  Material-conditioned execution stays unavailable until Infer exposes a real raster-output
-  edit/conditioned-generation contract.
+  Material-conditioned `image.edit` execution stays unavailable until Infer publishes a stable
+  typed raster-output provider, Capability Schema, and SDK client; text output or a mock route is
+  not substituted.
 - Deferred: desktop editing of the new persistent Scene graph, GraphComponent instances, Infer-side
-  App provisioning, Job/explain provenance inspection, pinned or durable explorations,
+  App provisioning, operator-facing Job/explain inspection, pinned or durable explorations,
   composite/layer image structure, waveform editing, recording, Voice Reference execution,
   `audio.generate`/`audio.transform`, Shadow/Echo suite adapters and external-edit sessions,
   project imports/exports and material-conditioned image execution.

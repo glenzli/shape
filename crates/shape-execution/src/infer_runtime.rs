@@ -1,25 +1,24 @@
-//! Infer Runtime endpoint discovery and public consumer-contract validation.
+//! Infer Runtime official-SDK integration and Shape-owned execution adapters.
 
-use std::{io::Read, net::SocketAddr, time::Duration};
+use std::path::PathBuf;
 
-use reqwest::{Url, blocking::Client, redirect::Policy};
-use serde::Deserialize;
+use infer_runtime_client::{
+    CAPABILITY_CATALOG_SCHEMA, CAPABILITY_CATALOG_VERSION, CONSUMER_CORE, CONSUMER_CORE_PROTOCOL,
+    DiscoveryResolver, Error as SdkError, ResolvedEndpoint,
+};
 use thiserror::Error;
 
 mod credential;
-mod discovery;
 mod image_generation;
 mod job_provenance;
 mod responses;
+mod sdk;
 mod speech;
 
-pub use credential::{
-    InferRuntimeCredential, InferRuntimeCredentialError, InferRuntimeCredentialStore,
-};
-pub use discovery::{
-    INFER_RUNTIME_COMPATIBILITY_ENDPOINT, InferRuntimeEndpointResolver, InferRuntimeEndpointSource,
-    ResolvedInferRuntimeEndpoint,
-};
+#[cfg(test)]
+mod test_support;
+
+pub use credential::{InferRuntimeCredentialError, InferRuntimeCredentialStore};
 pub use image_generation::{IMAGE_GENERATE_CAPABILITY, InferRuntimeImageGenerationExecutor};
 pub use responses::InferRuntimeExecutor;
 pub use speech::{
@@ -28,51 +27,90 @@ pub use speech::{
     InferRuntimeSpeechExecutor,
 };
 
-/// Preferred Infer Runtime wire contract implemented by this Shape build.
-pub const INFER_RUNTIME_CONTRACT_VERSION: &str = "0.1.0-candidate.4";
+use sdk::{InferRuntimeSdk, OfficialSdkClient, SdkAdapterError};
 
-const INFER_RUNTIME_CONTRACT_HEADER: &str = "infer-consumer-contract";
-const INFER_RUNTIME_CAPABILITY_SCALE_VERSION: &str = "20260811.1";
+/// Exact Consumer Core identity implemented by the frozen official SDK.
+pub const INFER_RUNTIME_CONTRACT_VERSION: &str = CONSUMER_CORE;
+/// Exact Capability Catalog identity required by this Shape build.
+pub const INFER_RUNTIME_CAPABILITY_CATALOG: &str = "infer-runtime.capability-catalog@20260813.1";
 
-const CONTRACT_PATH: &str = "infer/v1/contract";
-const MAX_CONTRACT_BYTES: u64 = 64 * 1024;
-const CONNECT_TIMEOUT: Duration = Duration::from_millis(300);
-const REQUEST_TIMEOUT: Duration = Duration::from_millis(1_200);
+/// Exact stable Responses capability consumed by Shape.
+pub const INFER_RUNTIME_RESPONSES_CAPABILITY: &str = "infer.responses@20260812.1";
+/// Exact stable unary speech capability consumed by Shape.
+pub const INFER_RUNTIME_SPEECH_CAPABILITY: &str = "infer.audio.speech@20260811.1";
 
-/// Validated public capabilities of one compatible Infer Runtime instance.
+/// Validated public contracts of one compatible Infer Runtime instance.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InferRuntimeContract {
-    /// Exact version returned by the runtime contract manifest.
+    /// Exact dated Consumer Core identity.
     pub contract_version: String,
+    /// Exact dated Capability Catalog identity.
+    pub capability_catalog: String,
 }
 
 /// Final endpoint identity and public contract result from one bounded probe.
 #[derive(Debug)]
 pub struct InferRuntimeProbe {
-    /// Endpoint ultimately attempted, absent only for invalid explicit config.
+    /// Endpoint selected by the official SDK resolver.
     pub endpoint: Option<ResolvedInferRuntimeEndpoint>,
-    /// Compatible public contract or a payload-free stable failure.
+    /// Compatible Core/Catalog or a payload-free stable failure.
     pub contract: Result<InferRuntimeContract, InferRuntimeClientError>,
 }
 
-/// Stable failures for public contract discovery. Response payloads and URLs
-/// are deliberately excluded so diagnostics cannot capture credentials later.
+/// Authority used by the official SDK to select the Consumer endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InferRuntimeEndpointSource {
+    /// Explicit development or diagnostics override.
+    ExplicitOverride,
+    /// Owner-only Infra Discovery registration.
+    Discovery,
+}
+
+impl InferRuntimeEndpointSource {
+    /// Returns a language-neutral discriminator for the desktop projection.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::ExplicitOverride => "explicit_override",
+            Self::Discovery => "discovery",
+        }
+    }
+}
+
+/// Payload-free projection of the endpoint selected by the official SDK.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedInferRuntimeEndpoint {
+    /// Canonical numeric-loopback origin.
+    pub origin: String,
+    /// Selection authority.
+    pub source: InferRuntimeEndpointSource,
+    /// Discovery instance identity, absent for an explicit override.
+    pub instance_id: Option<String>,
+    /// Discovery generation, absent for an explicit override.
+    pub generation: Option<String>,
+    /// Exact selected Consumer Core identity.
+    pub contract_version: Option<String>,
+}
+
+/// Stable failures for the desktop availability projection.
+///
+/// SDK error messages and HTTP bodies never enter this type.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum InferRuntimeClientError {
-    /// Only a canonical numeric-loopback HTTP origin is accepted.
-    #[error("Infer Runtime endpoint must be a canonical numeric-loopback HTTP origin")]
+    /// The explicit endpoint or Discovery registration was rejected by the SDK.
+    #[error("Infer Runtime endpoint or Discovery registration is invalid")]
     InvalidEndpoint,
     /// No valid HTTP response arrived within the bounded request window.
     #[error("Infer Runtime is unavailable")]
     Unavailable,
-    /// The public contract endpoint returned a non-success status.
-    #[error("Infer Runtime contract endpoint returned HTTP {status}")]
-    UnexpectedStatus { status: u16 },
-    /// The response was oversized, malformed, or lacked the required route.
-    #[error("Infer Runtime returned an invalid contract manifest")]
+    /// The Runtime returned a stable public API error other than incompatibility.
+    #[error("Infer Runtime contract endpoint returned HTTP {status} with code {code}")]
+    UnexpectedStatus { status: u16, code: String },
+    /// The response was malformed or failed an immutable schema digest check.
+    #[error("Infer Runtime returned an invalid contract artifact")]
     InvalidContract,
-    /// The runtime is reachable but speaks a different contract revision.
-    #[error("Infer Runtime contract {actual} is not supported")]
+    /// The Runtime does not implement the exact dated Consumer Core.
+    #[error("Infer Runtime contract is not supported: {actual}")]
     IncompatibleContract { actual: String },
 }
 
@@ -90,132 +128,12 @@ impl InferRuntimeClientError {
     }
 }
 
-/// Bounded HTTP client for Infer Runtime's unauthenticated public contract.
-///
-/// This owner does not load credentials or submit inference. Redirects are
-/// disabled, proxies are bypassed, and the raw origin must be canonical
-/// numeric loopback so a configuration mistake cannot turn a future probe into
-/// an arbitrary network request.
-#[derive(Debug, Clone)]
-pub struct InferRuntimeClient {
-    base_url: Url,
-    client: Client,
-}
-
-impl InferRuntimeClient {
-    /// Creates a loopback-only client with bounded connect and response time.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`InferRuntimeClientError::InvalidEndpoint`] unless `base_url`
-    /// is a canonical numeric IPv4 or IPv6 loopback HTTP origin with an
-    /// explicit non-zero port and no trailing slash.
-    pub fn new(base_url: &str) -> Result<Self, InferRuntimeClientError> {
-        let base_url = canonical_loopback_url(base_url)?;
-        let client = Client::builder()
-            .connect_timeout(CONNECT_TIMEOUT)
-            .timeout(REQUEST_TIMEOUT)
-            .redirect(Policy::none())
-            .no_proxy()
-            .user_agent("shape/0.1 infer-contract-probe")
-            .build()
-            .map_err(|_| InferRuntimeClientError::InvalidEndpoint)?;
-        Ok(Self { base_url, client })
-    }
-
-    /// Reads and validates the public contract manifest.
-    ///
-    /// Unknown response fields are ignored for forward compatibility. The
-    /// exact supported revision and the stable text Responses route must both
-    /// be present before the runtime becomes eligible for later execution.
-    ///
-    /// # Errors
-    ///
-    /// Returns a stable discovery error without including response payloads.
-    pub fn probe_contract(&self) -> Result<InferRuntimeContract, InferRuntimeClientError> {
-        self.probe_contract_for_route("POST", "/v1/responses")
-    }
-
-    /// Validates the exact runtime revision and one required Consumer route.
-    pub(crate) fn probe_contract_for_route(
-        &self,
-        method: &str,
-        path: &str,
-    ) -> Result<InferRuntimeContract, InferRuntimeClientError> {
-        let endpoint = self
-            .base_url
-            .join(CONTRACT_PATH)
-            .map_err(|_| InferRuntimeClientError::InvalidEndpoint)?;
-        let response = self
-            .client
-            .get(endpoint)
-            .header(
-                INFER_RUNTIME_CONTRACT_HEADER,
-                INFER_RUNTIME_CONTRACT_VERSION,
-            )
-            .send()
-            .map_err(|_| InferRuntimeClientError::Unavailable)?;
-        if !response.status().is_success() {
-            return Err(InferRuntimeClientError::UnexpectedStatus {
-                status: response.status().as_u16(),
-            });
-        }
-        let mut bytes = Vec::new();
-        response
-            .take(MAX_CONTRACT_BYTES + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|_| InferRuntimeClientError::InvalidContract)?;
-        if bytes.len() as u64 > MAX_CONTRACT_BYTES {
-            return Err(InferRuntimeClientError::InvalidContract);
-        }
-        let manifest: ContractManifest =
-            serde_json::from_slice(&bytes).map_err(|_| InferRuntimeClientError::InvalidContract)?;
-        if manifest.contract_version.is_empty() {
-            return Err(InferRuntimeClientError::InvalidContract);
-        }
-        if manifest.contract_version != INFER_RUNTIME_CONTRACT_VERSION {
-            return Err(InferRuntimeClientError::IncompatibleContract {
-                actual: manifest.contract_version,
-            });
-        }
-        if manifest.supported_contract_versions != [INFER_RUNTIME_CONTRACT_VERSION] {
-            return Err(InferRuntimeClientError::InvalidContract);
-        }
-        if manifest.capability_scale_version.as_deref()
-            != Some(INFER_RUNTIME_CAPABILITY_SCALE_VERSION)
-        {
-            return Err(InferRuntimeClientError::InvalidContract);
-        }
-        let has_required_route = manifest
-            .consumer_routes
-            .iter()
-            .any(|route| route.method.eq_ignore_ascii_case(method) && route.path == path);
-        if !has_required_route {
-            return Err(InferRuntimeClientError::InvalidContract);
-        }
-        Ok(InferRuntimeContract {
-            contract_version: manifest.contract_version,
-        })
-    }
-}
-
-/// Resolves Infer Runtime and validates its public contract in one bounded
-/// Consumer lifecycle.
-///
-/// A transport failure triggers one immediate Discovery re-read. Shape retries
-/// only when that produces a different endpoint, application contract, or
-/// Discovery generation; the stable manifest is never treated as liveness
-/// evidence, and the temporary migration fallback never causes a duplicate hit
-/// to the same failed address.
+/// Resolves Infer Runtime with the official SDK and validates exact Core,
+/// Catalog, Responses, and unary speech artifacts.
 #[must_use]
 pub fn probe_infer_runtime_contract(explicit_override: &str) -> InferRuntimeProbe {
-    let resolver = InferRuntimeEndpointResolver::from_environment(explicit_override);
-    probe_with_resolver(&resolver)
-}
-
-fn probe_with_resolver(resolver: &InferRuntimeEndpointResolver) -> InferRuntimeProbe {
-    let mut endpoint = match resolver.resolve() {
-        Ok(endpoint) => endpoint,
+    let (resolver, source) = match sdk_resolver(explicit_override) {
+        Ok(resolved) => resolved,
         Err(error) => {
             return InferRuntimeProbe {
                 endpoint: None,
@@ -223,93 +141,118 @@ fn probe_with_resolver(resolver: &InferRuntimeEndpointResolver) -> InferRuntimeP
             };
         }
     };
-    let mut contract = probe_endpoint(&endpoint);
-    if matches!(contract, Err(InferRuntimeClientError::Unavailable))
-        && let Ok(rediscovered) = resolver.resolve_after_connection_failure(&endpoint)
-        && should_retry_endpoint(&endpoint, &rediscovered)
-    {
-        endpoint = rediscovered;
-        contract = probe_endpoint(&endpoint);
-    }
+    let endpoint = match resolver.resolve() {
+        Ok(endpoint) => endpoint_projection(endpoint, source),
+        Err(error) => {
+            return InferRuntimeProbe {
+                endpoint: None,
+                contract: Err(map_probe_sdk_error(SdkAdapterError::Sdk(error))),
+            };
+        }
+    };
+    let sdk = match OfficialSdkClient::new(resolver, None) {
+        Ok(sdk) => sdk,
+        Err(error) => {
+            return InferRuntimeProbe {
+                endpoint: Some(endpoint),
+                contract: Err(map_probe_sdk_error(error)),
+            };
+        }
+    };
     InferRuntimeProbe {
         endpoint: Some(endpoint),
-        contract,
+        contract: probe_contract_with_sdk(&sdk),
     }
 }
 
-fn should_retry_endpoint(
-    failed: &ResolvedInferRuntimeEndpoint,
-    candidate: &ResolvedInferRuntimeEndpoint,
-) -> bool {
-    candidate.origin != failed.origin
-        || (candidate.source == InferRuntimeEndpointSource::Discovery
-            && (candidate.generation != failed.generation
-                || candidate.contract_version != failed.contract_version))
-}
-
-fn probe_endpoint(
-    endpoint: &ResolvedInferRuntimeEndpoint,
+fn probe_contract_with_sdk(
+    sdk: &dyn InferRuntimeSdk,
 ) -> Result<InferRuntimeContract, InferRuntimeClientError> {
-    let contract = InferRuntimeClient::new(&endpoint.origin)?.probe_contract()?;
-    validate_discovered_contract(endpoint, &contract)?;
-    Ok(contract)
+    let manifest = sdk.contract().map_err(map_probe_sdk_error)?;
+    let catalog = sdk.capabilities().map_err(map_probe_sdk_error)?;
+    catalog
+        .require_exact(INFER_RUNTIME_RESPONSES_CAPABILITY)
+        .and_then(|()| catalog.require_exact(INFER_RUNTIME_SPEECH_CAPABILITY))
+        .map_err(|error| map_probe_sdk_error(SdkAdapterError::Sdk(error)))?;
+    Ok(InferRuntimeContract {
+        contract_version: manifest.core_contract,
+        capability_catalog: format!("{CAPABILITY_CATALOG_SCHEMA}@{CAPABILITY_CATALOG_VERSION}"),
+    })
 }
 
-fn validate_discovered_contract(
-    endpoint: &ResolvedInferRuntimeEndpoint,
-    contract: &InferRuntimeContract,
-) -> Result<(), InferRuntimeClientError> {
-    if contract.contract_version != INFER_RUNTIME_CONTRACT_VERSION {
-        return Err(InferRuntimeClientError::IncompatibleContract {
-            actual: contract.contract_version.clone(),
-        });
+fn sdk_resolver(
+    explicit_override: &str,
+) -> Result<(DiscoveryResolver, InferRuntimeEndpointSource), InferRuntimeClientError> {
+    if explicit_override.is_empty() {
+        return Ok((
+            DiscoveryResolver::local(),
+            InferRuntimeEndpointSource::Discovery,
+        ));
     }
-    if endpoint
-        .contract_version
-        .as_deref()
-        .is_some_and(|advertised| advertised != contract.contract_version)
-    {
-        return Err(InferRuntimeClientError::InvalidContract);
-    }
-    Ok(())
+    DiscoveryResolver::local()
+        .with_explicit_endpoint(explicit_override)
+        .map(|resolver| (resolver, InferRuntimeEndpointSource::ExplicitOverride))
+        .map_err(|_| InferRuntimeClientError::InvalidEndpoint)
 }
 
-#[derive(Debug, Deserialize)]
-struct ContractManifest {
-    contract_version: String,
-    supported_contract_versions: Vec<String>,
-    #[serde(default)]
-    capability_scale_version: Option<String>,
-    #[serde(default)]
-    consumer_routes: Vec<ConsumerRoute>,
+fn official_sdk(
+    explicit_override: &str,
+    credential_path: PathBuf,
+) -> Result<OfficialSdkClient, SdkAdapterError> {
+    let (resolver, _) =
+        sdk_resolver(explicit_override).map_err(|_| SdkAdapterError::InvalidEndpoint)?;
+    OfficialSdkClient::new(resolver, Some(credential_path))
 }
 
-#[derive(Debug, Deserialize)]
-struct ConsumerRoute {
-    method: String,
-    path: String,
+fn endpoint_projection(
+    endpoint: ResolvedEndpoint,
+    source: InferRuntimeEndpointSource,
+) -> ResolvedInferRuntimeEndpoint {
+    let discovered = source == InferRuntimeEndpointSource::Discovery;
+    ResolvedInferRuntimeEndpoint {
+        origin: endpoint.endpoint,
+        source,
+        instance_id: discovered.then_some(endpoint.instance_id),
+        generation: discovered.then_some(endpoint.generation),
+        contract_version: Some(format!(
+            "{CONSUMER_CORE_PROTOCOL}@{}",
+            endpoint.core_version
+        )),
+    }
 }
 
-fn canonical_loopback_url(origin: &str) -> Result<Url, InferRuntimeClientError> {
-    if origin.is_empty() || origin.trim() != origin {
-        return Err(InferRuntimeClientError::InvalidEndpoint);
+fn map_probe_sdk_error(error: SdkAdapterError) -> InferRuntimeClientError {
+    match error {
+        SdkAdapterError::InvalidEndpoint | SdkAdapterError::RuntimeUnavailable => {
+            InferRuntimeClientError::InvalidEndpoint
+        }
+        SdkAdapterError::Timeout | SdkAdapterError::Sdk(SdkError::Transport(_)) => {
+            InferRuntimeClientError::Unavailable
+        }
+        SdkAdapterError::Sdk(SdkError::Discovery(_)) => InferRuntimeClientError::InvalidEndpoint,
+        SdkAdapterError::Sdk(SdkError::ContractMismatch) => {
+            InferRuntimeClientError::IncompatibleContract {
+                actual: "contract_mismatch".to_owned(),
+            }
+        }
+        SdkAdapterError::Sdk(SdkError::Api { code, .. })
+            if matches!(
+                code.as_str(),
+                "consumer_core_unsupported" | "capability_contract_unsupported"
+            ) =>
+        {
+            InferRuntimeClientError::IncompatibleContract { actual: code }
+        }
+        SdkAdapterError::Sdk(SdkError::Api { status, code, .. }) => {
+            InferRuntimeClientError::UnexpectedStatus {
+                status: status.as_u16(),
+                code,
+            }
+        }
+        SdkAdapterError::Sdk(
+            SdkError::MalformedResponse(_) | SdkError::Credential(_) | SdkError::Input(_),
+        ) => InferRuntimeClientError::InvalidContract,
     }
-    let authority = origin
-        .strip_prefix("http://")
-        .ok_or(InferRuntimeClientError::InvalidEndpoint)?;
-    if authority.is_empty()
-        || authority.contains(['/', '?', '#', '@'])
-        || authority.chars().any(char::is_whitespace)
-    {
-        return Err(InferRuntimeClientError::InvalidEndpoint);
-    }
-    let address = authority
-        .parse::<SocketAddr>()
-        .map_err(|_| InferRuntimeClientError::InvalidEndpoint)?;
-    if !address.ip().is_loopback() || address.port() == 0 || format!("http://{address}") != origin {
-        return Err(InferRuntimeClientError::InvalidEndpoint);
-    }
-    Url::parse(origin).map_err(|_| InferRuntimeClientError::InvalidEndpoint)
 }
 
 #[cfg(test)]

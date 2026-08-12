@@ -3,9 +3,7 @@
 
 use shape_core::{AiImageCandidate, CoreError, ShapeProject};
 use shape_domain::{ArtifactId, ArtifactKind, OperatorNodeId};
-use shape_execution::{
-    ExecutionError, InferRuntimeCredentialStore, InferRuntimeImageGenerationExecutor,
-};
+use shape_execution::{ExecutionError, InferRuntimeImageGenerationExecutor};
 
 use crate::operator_catalog::{IMAGE_GENERATE_OPERATOR, ai_image_generate_parameters_from_draft};
 
@@ -76,10 +74,8 @@ pub(super) fn generate_infer_image_candidate(
 
     // Credential access deliberately occurs only after the exact persisted
     // draft and zero-input target have been revalidated.
-    let credential = InferRuntimeCredentialStore::new(credential_path)
-        .load()
-        .map_err(|error| crate::infer_runtime_access::credential_error_code(&error).to_owned())?;
-    let executor = InferRuntimeImageGenerationExecutor::new(explicit_override, credential)
+    let credential_path = crate::infer_runtime_access::sdk_credential_path(credential_path)?;
+    let executor = InferRuntimeImageGenerationExecutor::new(explicit_override, credential_path)
         .map_err(|_| "executor_invalid".to_owned())?;
     let candidate = project
         .propose_generated_image(artifact_id, &parameters, &executor)

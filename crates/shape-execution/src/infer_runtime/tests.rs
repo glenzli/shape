@@ -1,348 +1,144 @@
-use std::{
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
-    thread,
-    time::Duration,
+use infer_runtime_client::{
+    CAPABILITY_CATALOG_SCHEMA, CAPABILITY_CATALOG_VERSION, CONSUMER_CORE, CONSUMER_OPENAPI_SHA256,
+    CapabilityCatalog, CapabilityEntry, CapabilityRoute, CapabilitySchemaReference,
+    ContractManifest, Stability,
 };
-
-#[cfg(unix)]
-use std::{fs, os::unix::fs::PermissionsExt, path::Path};
-
-#[cfg(unix)]
-use serde_json::json;
-#[cfg(unix)]
-use uuid::Uuid;
 
 use super::{
-    INFER_RUNTIME_CAPABILITY_SCALE_VERSION, INFER_RUNTIME_CONTRACT_VERSION, InferRuntimeClient,
-    InferRuntimeClientError, InferRuntimeEndpointResolver, InferRuntimeEndpointSource,
-    ResolvedInferRuntimeEndpoint, probe_with_resolver, should_retry_endpoint,
+    INFER_RUNTIME_CAPABILITY_CATALOG, INFER_RUNTIME_CONTRACT_VERSION,
+    INFER_RUNTIME_RESPONSES_CAPABILITY, INFER_RUNTIME_SPEECH_CAPABILITY, InferRuntimeClientError,
+    InferRuntimeEndpointSource, probe_contract_with_sdk,
+    sdk::{SdkAdapterError, execution_failure},
+    sdk_resolver,
+    test_support::FakeSdk,
 };
 
-fn fake_runtime(status: u16, body: String) -> (String, thread::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("fake runtime binds");
-    let address = listener.local_addr().expect("fake runtime has address");
-    let worker = thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("probe connects");
-        stream
-            .set_read_timeout(Some(Duration::from_secs(2)))
-            .expect("read timeout configures");
-        let request = read_request(&mut stream);
-        assert!(request.starts_with("GET /infer/v1/contract HTTP/1.1\r\n"));
-        assert_eq!(
-            request
-                .matches(&format!(
-                    "infer-consumer-contract: {INFER_RUNTIME_CONTRACT_VERSION}\r\n"
-                ))
-                .count(),
-            1
-        );
-        let reason = if status == 200 { "OK" } else { "Error" };
-        write!(
-            stream,
-            "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        )
-        .expect("response writes");
-    });
-    (format!("http://{address}"), worker)
+fn manifest() -> ContractManifest {
+    serde_json::from_value(serde_json::json!({
+        "schema": "infer-runtime.consumer-core",
+        "schema_version": "20260813.1",
+        "core_contract": CONSUMER_CORE,
+        "supported_core_contracts": [CONSUMER_CORE],
+        "capability_catalog": {
+            "schema": CAPABILITY_CATALOG_SCHEMA,
+            "schema_version": CAPABILITY_CATALOG_VERSION,
+            "url": "/infer/v1/capabilities"
+        },
+        "openapi_url": "/infer/v1/openapi.json",
+        "openapi_sha256": CONSUMER_OPENAPI_SHA256,
+        "error_codes": ["consumer_core_unsupported"],
+        "consumer_routes": []
+    }))
+    .unwrap()
 }
 
-fn read_request(stream: &mut TcpStream) -> String {
-    let mut bytes = Vec::new();
-    let mut buffer = [0_u8; 512];
-    while !bytes.windows(4).any(|window| window == b"\r\n\r\n") {
-        let read = stream.read(&mut buffer).expect("request reads");
-        if read == 0 {
-            break;
-        }
-        bytes.extend_from_slice(&buffer[..read]);
+fn capability(id: &str, version: &str, url: &str, digest: &str, path: &str) -> CapabilityEntry {
+    CapabilityEntry {
+        id: id.into(),
+        schema_version: version.into(),
+        stability: Stability::Stable,
+        schema: CapabilitySchemaReference {
+            format: "openapi-3.1".into(),
+            url: url.into(),
+            sha256: digest.into(),
+        },
+        routes: vec![CapabilityRoute {
+            method: "POST".into(),
+            path: path.into(),
+            execution_modes: vec!["unary".into()],
+        }],
     }
-    String::from_utf8(bytes).expect("request is HTTP text")
 }
 
-fn compatible_manifest() -> String {
-    format!(
-        r#"{{
-            "contract_version":"{INFER_RUNTIME_CONTRACT_VERSION}",
-            "supported_contract_versions":["{INFER_RUNTIME_CONTRACT_VERSION}"],
-            "capability_scale_version":"{INFER_RUNTIME_CAPABILITY_SCALE_VERSION}",
-            "consumer_routes":[{{"method":"POST","path":"/v1/responses","future":true}}],
-            "future_manifest_field":{{"enabled":true}}
-        }}"#
-    )
+fn catalog() -> CapabilityCatalog {
+    CapabilityCatalog {
+        schema: CAPABILITY_CATALOG_SCHEMA.into(),
+        schema_version: CAPABILITY_CATALOG_VERSION.into(),
+        core_contract: CONSUMER_CORE.into(),
+        capabilities: vec![
+            capability(
+                "infer.responses",
+                "20260812.1",
+                "/infer/v1/capability-schemas/infer.responses/20260812.1/openapi.json",
+                "abfb3b4b9a3c5d3831d56bb877ecfdd43d62b4442ba101a5ef071ec2740adbd5",
+                "/v1/responses",
+            ),
+            capability(
+                "infer.audio.speech",
+                "20260811.1",
+                "/infer/v1/capability-schemas/infer.audio.speech/20260811.1/openapi.json",
+                "19d29d6799a6cee1a6d24a63f9a9aab73ab925dd2e79f7181fbfe922f6906c68",
+                "/v1/audio/speech",
+            ),
+        ],
+    }
 }
 
 #[test]
-fn compatible_contract_accepts_unknown_response_fields() {
-    let (base_url, worker) = fake_runtime(200, compatible_manifest());
-    let contract = InferRuntimeClient::new(&base_url)
-        .expect("endpoint validates")
-        .probe_contract()
-        .expect("contract validates");
+fn sdk_fixture_requires_exact_core_catalog_and_consumed_capabilities() {
+    let fake = FakeSdk::new();
+    fake.contract.lock().unwrap().push_back(Ok(manifest()));
+    fake.capabilities.lock().unwrap().push_back(Ok(catalog()));
+    let contract = probe_contract_with_sdk(&fake).expect("frozen SDK fixture is compatible");
     assert_eq!(contract.contract_version, INFER_RUNTIME_CONTRACT_VERSION);
-    worker.join().expect("fake runtime exits");
-}
-
-#[test]
-fn failed_probe_retries_only_a_distinct_transport_or_discovery_generation() {
-    let failed = ResolvedInferRuntimeEndpoint {
-        origin: "http://127.0.0.1:8787".to_owned(),
-        source: InferRuntimeEndpointSource::Discovery,
-        instance_id: Some("local".to_owned()),
-        generation: Some("generation-a".to_owned()),
-        contract_version: Some(INFER_RUNTIME_CONTRACT_VERSION.to_owned()),
-    };
-    let same_address_fallback = ResolvedInferRuntimeEndpoint {
-        origin: failed.origin.clone(),
-        source: InferRuntimeEndpointSource::CompatibilityFallback,
-        instance_id: None,
-        generation: None,
-        contract_version: None,
-    };
-    assert!(!should_retry_endpoint(&failed, &same_address_fallback));
-
-    let new_generation = ResolvedInferRuntimeEndpoint {
-        generation: Some("generation-b".to_owned()),
-        ..failed.clone()
-    };
-    assert!(should_retry_endpoint(&failed, &new_generation));
-
-    let changed_contract = ResolvedInferRuntimeEndpoint {
-        contract_version: Some("0.1.0-retired".to_owned()),
-        ..failed.clone()
-    };
-    assert!(should_retry_endpoint(&failed, &changed_contract));
-
-    let new_address_fallback = ResolvedInferRuntimeEndpoint {
-        origin: "http://127.0.0.1:8788".to_owned(),
-        ..same_address_fallback
-    };
-    assert!(should_retry_endpoint(&failed, &new_address_fallback));
-}
-
-#[cfg(unix)]
-#[test]
-fn resolved_probe_uses_the_discovered_generation_and_contract() {
-    let (base_url, worker) = fake_runtime(200, compatible_manifest());
-    let root = std::env::temp_dir().join(format!("shape-live-discovery-{}", Uuid::now_v7()));
-    fs::create_dir_all(root.join("registrations")).expect("registration directory creates");
-    fs::create_dir_all(root.join("sockets")).expect("socket directory creates");
-    set_mode(&root, 0o700);
-    set_mode(&root.join("registrations"), 0o700);
-    set_mode(&root.join("sockets"), 0o700);
-    let registration = json!({
-        "schema": "infra.discovery.registration",
-        "schema_version": "20260812.1",
-        "service": {
-            "kind": "infer-runtime",
-            "instance_id": "local",
-            "generation": "generation-integration"
-        },
-        "offers": [{
-            "protocol": "infer-runtime.consumer",
-            "protocol_versions": [INFER_RUNTIME_CONTRACT_VERSION],
-            "binding": "infer-runtime.http-loopback",
-            "endpoint": base_url
-        }]
-    });
-    let manifest = root.join("registrations/infer-runtime--local.json");
-    fs::write(
-        &manifest,
-        serde_json::to_vec(&registration).expect("registration serializes"),
-    )
-    .expect("registration writes");
-    set_mode(&manifest, 0o600);
-    let resolver =
-        InferRuntimeEndpointResolver::with_runtime_root("", root.clone(), "http://127.0.0.1:9");
-
-    let probe = probe_with_resolver(&resolver);
-    let endpoint = probe.endpoint.expect("probe retains endpoint identity");
-    assert_eq!(endpoint.source, InferRuntimeEndpointSource::Discovery);
     assert_eq!(
-        endpoint.generation.as_deref(),
-        Some("generation-integration")
+        contract.capability_catalog,
+        INFER_RUNTIME_CAPABILITY_CATALOG
     );
     assert_eq!(
-        probe.contract.expect("contract validates").contract_version,
-        INFER_RUNTIME_CONTRACT_VERSION
+        INFER_RUNTIME_RESPONSES_CAPABILITY,
+        "infer.responses@20260812.1"
     );
-
-    worker.join().expect("fake runtime exits");
-    fs::remove_dir_all(root).expect("fixture removes");
+    assert_eq!(
+        INFER_RUNTIME_SPEECH_CAPABILITY,
+        "infer.audio.speech@20260811.1"
+    );
 }
 
-#[cfg(unix)]
 #[test]
-fn discovered_offer_and_http_contract_must_match() {
-    let retired_manifest = r#"{"contract_version":"0.1.0-retired","supported_contract_versions":["0.1.0-retired"],"consumer_routes":[{"method":"POST","path":"/v1/responses"}]}"#;
-    let (base_url, worker) = fake_runtime(200, retired_manifest.to_owned());
-    let root = std::env::temp_dir().join(format!("shape-version-mismatch-{}", Uuid::now_v7()));
-    fs::create_dir_all(root.join("registrations")).expect("registration directory creates");
-    fs::create_dir_all(root.join("sockets")).expect("socket directory creates");
-    set_mode(&root, 0o700);
-    set_mode(&root.join("registrations"), 0o700);
-    set_mode(&root.join("sockets"), 0o700);
-    let registration = json!({
-        "schema": "infra.discovery.registration",
-        "schema_version": "20260812.1",
-        "service": {
-            "kind": "infer-runtime",
-            "instance_id": "local",
-            "generation": "generation-mismatch"
-        },
-        "offers": [{
-            "protocol": "infer-runtime.consumer",
-            "protocol_versions": [INFER_RUNTIME_CONTRACT_VERSION],
-            "binding": "infer-runtime.http-loopback",
-            "endpoint": base_url
-        }]
-    });
-    let manifest = root.join("registrations/infer-runtime--local.json");
-    fs::write(&manifest, serde_json::to_vec(&registration).unwrap()).unwrap();
-    set_mode(&manifest, 0o600);
-    let resolver =
-        InferRuntimeEndpointResolver::with_runtime_root("", root.clone(), "http://127.0.0.1:9");
-
-    let probe = probe_with_resolver(&resolver);
+fn missing_consumed_capability_fails_closed() {
+    let fake = FakeSdk::new();
+    let mut catalog = catalog();
+    catalog
+        .capabilities
+        .retain(|entry| entry.id != "infer.audio.speech");
+    fake.contract.lock().unwrap().push_back(Ok(manifest()));
+    fake.capabilities.lock().unwrap().push_back(Ok(catalog));
     assert_eq!(
-        probe.contract,
+        probe_contract_with_sdk(&fake),
         Err(InferRuntimeClientError::IncompatibleContract {
-            actual: "0.1.0-retired".to_owned()
+            actual: "contract_mismatch".into()
         })
     );
-
-    worker.join().expect("fake runtime exits");
-    fs::remove_dir_all(root).expect("fixture removes");
 }
 
 #[test]
-fn contract_revision_and_required_route_fail_closed() {
-    let incompatible = r#"{
-        "contract_version":"0.1.0-candidate.99",
-        "supported_contract_versions":["0.1.0-candidate.99"],
-        "consumer_routes":[{"method":"POST","path":"/v1/responses"}]
-    }"#;
-    let (base_url, worker) = fake_runtime(200, incompatible.to_owned());
-    assert_eq!(
-        InferRuntimeClient::new(&base_url)
-            .expect("endpoint validates")
-            .probe_contract(),
-        Err(InferRuntimeClientError::IncompatibleContract {
-            actual: "0.1.0-candidate.99".to_owned()
-        })
-    );
-    worker.join().expect("fake runtime exits");
-
-    let mixed_supported_versions = format!(
-        r#"{{"contract_version":"{INFER_RUNTIME_CONTRACT_VERSION}","supported_contract_versions":["{INFER_RUNTIME_CONTRACT_VERSION}","0.1.0-retired"],"capability_scale_version":"{INFER_RUNTIME_CAPABILITY_SCALE_VERSION}","consumer_routes":[{{"method":"POST","path":"/v1/responses"}}]}}"#
-    );
-    let (base_url, worker) = fake_runtime(200, mixed_supported_versions);
-    assert_eq!(
-        InferRuntimeClient::new(&base_url)
-            .expect("endpoint validates")
-            .probe_contract(),
-        Err(InferRuntimeClientError::InvalidContract)
-    );
-    worker.join().expect("fake runtime exits");
-
-    let missing_route = format!(
-        r#"{{"contract_version":"{INFER_RUNTIME_CONTRACT_VERSION}","supported_contract_versions":["{INFER_RUNTIME_CONTRACT_VERSION}"],"capability_scale_version":"{INFER_RUNTIME_CAPABILITY_SCALE_VERSION}","consumer_routes":[]}}"#
-    );
-    let (base_url, worker) = fake_runtime(200, missing_route);
-    assert_eq!(
-        InferRuntimeClient::new(&base_url)
-            .expect("endpoint validates")
-            .probe_contract(),
-        Err(InferRuntimeClientError::InvalidContract)
-    );
-    worker.join().expect("fake runtime exits");
-}
-
-#[test]
-fn retired_contract_requires_a_runtime_upgrade() {
-    let manifest = format!(
-        r#"{{"contract_version":"0.1.0-retired","supported_contract_versions":["0.1.0-retired"],"capability_scale_version":"{INFER_RUNTIME_CAPABILITY_SCALE_VERSION}","consumer_routes":[{{"method":"POST","path":"/v1/responses"}}]}}"#
-    );
-    let (base_url, worker) = fake_runtime(200, manifest);
-    assert_eq!(
-        InferRuntimeClient::new(&base_url)
-            .expect("endpoint validates")
-            .probe_contract(),
-        Err(InferRuntimeClientError::IncompatibleContract {
-            actual: "0.1.0-retired".to_owned()
-        })
-    );
-    worker.join().expect("fake runtime exits");
-}
-
-#[test]
-fn current_contract_requires_the_frozen_capability_scale_identity() {
-    let manifest = format!(
-        r#"{{"contract_version":"{INFER_RUNTIME_CONTRACT_VERSION}","supported_contract_versions":["{INFER_RUNTIME_CONTRACT_VERSION}"],"consumer_routes":[{{"method":"POST","path":"/v1/responses"}}]}}"#
-    );
-    let (base_url, worker) = fake_runtime(200, manifest);
-    assert_eq!(
-        InferRuntimeClient::new(&base_url)
-            .expect("endpoint validates")
-            .probe_contract(),
-        Err(InferRuntimeClientError::InvalidContract)
-    );
-    worker.join().expect("fake runtime exits");
-}
-
-#[test]
-fn probe_rejects_noncanonical_origins_and_oversized_manifests() {
-    for endpoint in [
-        "https://127.0.0.1:8787",
-        "http://localhost:8787",
-        "http://example.com:8787",
-        "http://127.0.0.1",
-        "http://127.0.0.1:8787/",
-        "http://127.0.0.1:8787/nested",
-        "http://user@127.0.0.1:8787",
+fn explicit_override_is_strict_and_never_implies_a_fixed_port_fallback() {
+    let (_, source) = sdk_resolver("http://127.0.0.1:43129").unwrap();
+    assert_eq!(source, InferRuntimeEndpointSource::ExplicitOverride);
+    for invalid in [
+        "https://127.0.0.1:43129",
+        "http://localhost:43129",
+        "http://127.0.0.1:43129/",
+        "http://example.com:43129",
     ] {
         assert!(matches!(
-            InferRuntimeClient::new(endpoint),
+            sdk_resolver(invalid),
             Err(InferRuntimeClientError::InvalidEndpoint)
         ));
     }
-
-    let oversized = " ".repeat(65 * 1024);
-    let (base_url, worker) = fake_runtime(200, oversized);
-    assert_eq!(
-        InferRuntimeClient::new(&base_url)
-            .expect("endpoint validates")
-            .probe_contract(),
-        Err(InferRuntimeClientError::InvalidContract)
-    );
-    worker.join().expect("fake runtime exits");
+    let (_, source) = sdk_resolver("").unwrap();
+    assert_eq!(source, InferRuntimeEndpointSource::Discovery);
 }
 
 #[test]
-fn http_and_transport_failures_have_stable_codes() {
-    let (base_url, worker) = fake_runtime(503, "{}".to_owned());
-    let error = InferRuntimeClient::new(&base_url)
-        .expect("endpoint validates")
-        .probe_contract()
-        .expect_err("status fails");
-    assert_eq!(error.code(), "unexpected_status");
-    worker.join().expect("fake runtime exits");
-
-    let listener = TcpListener::bind("127.0.0.1:0").expect("unused port binds");
-    let base_url = format!(
-        "http://{}",
-        listener.local_addr().expect("unused port has address")
-    );
-    drop(listener);
-    let error = InferRuntimeClient::new(&base_url)
-        .expect("endpoint validates")
-        .probe_contract()
-        .expect_err("closed port fails");
-    assert_eq!(error.code(), "unavailable");
-}
-
-#[cfg(unix)]
-fn set_mode(path: &Path, mode: u32) {
-    fs::set_permissions(path, fs::Permissions::from_mode(mode)).expect("fixture mode sets");
+fn sdk_error_mapping_uses_machine_codes_without_messages() {
+    let (code, retryable) =
+        execution_failure(SdkAdapterError::Sdk(infer_runtime_client::Error::Api {
+            status: reqwest::StatusCode::UPGRADE_REQUIRED,
+            code: "consumer_core_unsupported".into(),
+            message: "old daemon detail".into(),
+        }));
+    assert_eq!(code, "consumer_core_unsupported");
+    assert!(!retryable);
 }

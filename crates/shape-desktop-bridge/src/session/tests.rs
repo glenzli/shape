@@ -155,6 +155,7 @@ fn bridge_speech_operation() -> SpeechSynthesisOperation {
 fn bridge_provenance() -> ExternalExecutionProvenance {
     ExternalExecutionProvenance {
         contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
+        capability_contract: Some(shape_execution::INFER_RUNTIME_SPEECH_CAPABILITY.to_owned()),
         app_id: "shape".to_owned(),
         intent: "speech.synthesize".to_owned(),
         provider: "mlx-audio-local".to_owned(),
@@ -200,6 +201,8 @@ fn bridge_provenance() -> ExternalExecutionProvenance {
 
 fn bridge_image_provenance() -> ExternalExecutionProvenance {
     let mut provenance = bridge_provenance();
+    provenance.capability_contract =
+        Some(shape_execution::INFER_RUNTIME_RESPONSES_CAPABILITY.to_owned());
     provenance.intent = IMAGE_GENERATE_CAPABILITY.to_owned();
     provenance.provider = "codex-subscription".to_owned();
     provenance.deployment = "codex_gpt_5_6_luna".to_owned();
