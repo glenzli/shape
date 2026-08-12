@@ -8,36 +8,8 @@ use std::{
 
 use thiserror::Error;
 use uuid::Uuid;
-use zeroize::Zeroizing;
 
 const MANAGED_TOKEN_LENGTH: usize = 64;
-
-/// A validated Infer Runtime credential whose debug form never reveals bytes.
-pub struct InferRuntimeCredential {
-    token: Zeroizing<String>,
-}
-
-impl std::fmt::Debug for InferRuntimeCredential {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("InferRuntimeCredential")
-            .field("token", &"[REDACTED]")
-            .finish()
-    }
-}
-
-impl InferRuntimeCredential {
-    pub(super) fn expose(&self) -> &str {
-        self.token.as_str()
-    }
-
-    #[cfg(test)]
-    pub(super) fn from_test_token(token: &str) -> Self {
-        Self {
-            token: Zeroizing::new(token.to_owned()),
-        }
-    }
-}
 
 /// Shape-owned location for the one-time managed token copied from Infer
 /// Console. The path itself is configuration; token bytes never enter project
@@ -61,8 +33,8 @@ impl InferRuntimeCredentialStore {
     /// Returns an error for an unsafe path or malformed token. Absence is a
     /// normal unconfigured state.
     pub fn is_available(&self) -> Result<bool, InferRuntimeCredentialError> {
-        match self.load() {
-            Ok(_) => Ok(true),
+        match self.validate_installed() {
+            Ok(()) => Ok(true),
             Err(InferRuntimeCredentialError::Io { source, .. })
                 if source.kind() == ErrorKind::NotFound =>
             {
@@ -72,21 +44,24 @@ impl InferRuntimeCredentialStore {
         }
     }
 
-    /// Loads and validates a managed token without exposing it through debug
-    /// output or error text.
+    /// Returns the absolute managed credential path for the official SDK.
     ///
     /// # Errors
     ///
-    /// Returns an error for a missing, unsafe, oversized, or malformed secret.
-    pub fn load(&self) -> Result<InferRuntimeCredential, InferRuntimeCredentialError> {
+    /// Returns an error when the configured path is not absolute. The SDK owns
+    /// opening, owner/mode verification, loading, and HTTP authentication.
+    pub fn credential_path(&self) -> Result<PathBuf, InferRuntimeCredentialError> {
+        validate_absolute_secret_path(&self.path)?;
+        Ok(self.path.clone())
+    }
+
+    fn validate_installed(&self) -> Result<(), InferRuntimeCredentialError> {
         validate_absolute_secret_path(&self.path)?;
         let bytes = read_owner_only_secret(&self.path)?;
         let token =
             String::from_utf8(bytes).map_err(|_| InferRuntimeCredentialError::InvalidToken)?;
         validate_token(&token)?;
-        Ok(InferRuntimeCredential {
-            token: Zeroizing::new(token),
-        })
+        Ok(())
     }
 
     /// Atomically installs or rotates the one-time managed token in Shape's
@@ -100,7 +75,7 @@ impl InferRuntimeCredentialStore {
         validate_absolute_secret_path(&self.path)?;
         validate_token(token)?;
         write_owner_only_secret(&self.path, token.as_bytes())?;
-        self.load().map(|_| ())
+        self.validate_installed()
     }
 }
 

@@ -107,6 +107,7 @@ fn operation() -> SpeechSynthesisOperation {
 fn provenance() -> ExternalExecutionProvenance {
     ExternalExecutionProvenance {
         contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
+        capability_contract: Some(shape_execution::INFER_RUNTIME_SPEECH_CAPABILITY.to_owned()),
         app_id: "shape".to_owned(),
         intent: "speech.synthesize".to_owned(),
         provider: "mlx-audio-local".to_owned(),

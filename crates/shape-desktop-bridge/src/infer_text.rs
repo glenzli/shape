@@ -5,7 +5,7 @@ use shape_core::{
     CoreError, ShapeProject, TextCandidate, TextTransformMode, TextTransformParameters,
 };
 use shape_domain::{ArtifactId, ArtifactKind, OperatorNodeId};
-use shape_execution::{ExecutionError, InferRuntimeCredentialStore, InferRuntimeExecutor};
+use shape_execution::{ExecutionError, InferRuntimeExecutor};
 
 use crate::operator_catalog::{
     compiled_instruction_from_draft, is_text_workspace_operator, mode_from_draft,
@@ -74,10 +74,8 @@ pub(super) fn generate_infer_text_candidate(
         compiled_instruction_from_draft(draft).map_err(|_| "invalid_prompt".to_owned())?;
     let parameters =
         TextTransformParameters::new(mode, instruction).map_err(|_| "invalid_prompt".to_owned())?;
-    let credential = InferRuntimeCredentialStore::new(credential_path)
-        .load()
-        .map_err(|error| crate::infer_runtime_access::credential_error_code(&error).to_owned())?;
-    let executor = InferRuntimeExecutor::new(explicit_override, credential)
+    let credential_path = crate::infer_runtime_access::sdk_credential_path(credential_path)?;
+    let executor = InferRuntimeExecutor::new(explicit_override, credential_path)
         .map_err(|_| "executor_invalid".to_owned())?;
     let candidate = project
         .propose_text_transform(

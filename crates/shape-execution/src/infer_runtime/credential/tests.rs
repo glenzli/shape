@@ -18,15 +18,14 @@ fn credential_path(label: &str) -> PathBuf {
 }
 
 #[test]
-fn install_creates_owner_only_storage_and_loads_a_redacted_credential() {
+fn install_creates_owner_only_storage_for_the_official_sdk() {
     let path = credential_path("install");
     let store = InferRuntimeCredentialStore::new(&path);
     assert!(!store.is_available().expect("absence is valid"));
 
     store.install(TOKEN).expect("credential installs");
     assert!(store.is_available().expect("credential validates"));
-    assert_eq!(store.load().expect("credential loads").expose(), TOKEN);
-    assert!(!format!("{:?}", store.load().expect("credential loads")).contains(TOKEN));
+    assert_eq!(store.credential_path().expect("SDK path validates"), path);
     assert_eq!(
         fs::metadata(path.parent().expect("secret has parent"))
             .expect("directory metadata reads")
@@ -59,7 +58,7 @@ fn malformed_insecure_and_symlink_credentials_fail_closed() {
     store.install(TOKEN).expect("credential installs");
     fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).expect("permissions change");
     assert!(matches!(
-        store.load(),
+        store.is_available(),
         Err(InferRuntimeCredentialError::UnsafeObject)
     ));
 
@@ -68,7 +67,7 @@ fn malformed_insecure_and_symlink_credentials_fail_closed() {
     fs::write(&target, TOKEN).expect("target writes");
     fs::set_permissions(&target, fs::Permissions::from_mode(0o600)).expect("target secures");
     symlink(&target, &path).expect("symlink creates");
-    assert!(store.load().is_err());
+    assert!(store.is_available().is_err());
 
     fs::remove_dir_all(path.parent().expect("secret has parent")).expect("fixture removes");
 }
@@ -80,7 +79,7 @@ fn rotation_replaces_exact_bytes_without_leaving_temporary_files() {
     store.install(TOKEN).expect("initial credential installs");
     let rotated = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
     store.install(rotated).expect("credential rotates");
-    assert_eq!(store.load().expect("credential loads").expose(), rotated);
+    assert!(store.is_available().expect("rotated credential validates"));
     assert_eq!(
         fs::read_dir(path.parent().expect("secret has parent"))
             .expect("directory reads")

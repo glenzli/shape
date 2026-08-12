@@ -1,6 +1,6 @@
 //! Shared owner-only Infer credential access for authenticated desktop consumers.
 
-use std::io::ErrorKind;
+use std::{io::ErrorKind, path::PathBuf};
 
 use shape_execution::{InferRuntimeCredentialError, InferRuntimeCredentialStore};
 
@@ -22,6 +22,19 @@ pub(super) fn infer_runtime_credential_status(path: &str) -> ffi::InferRuntimeCr
 pub(super) fn install_infer_runtime_credential(path: &str, token: &str) -> Result<(), String> {
     InferRuntimeCredentialStore::new(path)
         .install(token)
+        .map_err(|error| credential_error_code(&error).to_owned())
+}
+
+pub(super) fn sdk_credential_path(path: &str) -> Result<PathBuf, String> {
+    let store = InferRuntimeCredentialStore::new(path);
+    if !store
+        .is_available()
+        .map_err(|error| credential_error_code(&error).to_owned())?
+    {
+        return Err("credential_missing".to_owned());
+    }
+    store
+        .credential_path()
         .map_err(|error| credential_error_code(&error).to_owned())
 }
 

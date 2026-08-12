@@ -52,6 +52,7 @@ fn historical_candidate_two_fields_deserialize_but_serialize_with_current_names(
     assert_eq!(provenance.capability_level, "general");
     assert_eq!(provenance.evaluation_status, "provisional");
     assert_eq!(provenance.capability_floor, "general");
+    assert!(provenance.capability_contract.is_none());
     assert!(provenance.is_bounded());
 
     let current = serde_json::to_value(provenance).expect("current provenance serializes");

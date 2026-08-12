@@ -1,26 +1,32 @@
-//! Bounded decoding of authenticated Infer Runtime Job provenance.
+//! Shape-policy validation of official SDK Job provenance.
 //!
-//! This owner validates the shared candidate.2/candidate.3 Job vocabulary and
-//! the exact Shape request policy that produced a result. Media adapters own
-//! transport and payload handling; this module never sees prompts, media, or
-//! credentials.
+//! The SDK owns Core decoding and additive response compatibility. This owner
+//! enforces only Shape's App identity, request narrowing, no-fallback policy,
+//! and the successful physical Attempt copied into a payload-free receipt.
 
-use serde::Deserialize;
+use infer_runtime_client::{JobSnapshot, NamedRouteDecision};
 use serde_json::Value;
 
 use crate::{ExternalAttemptProvenance, ExternalExecutionProvenance, ExternalRoutingCandidate};
 
-use super::InferRuntimeContractRevision;
+use super::{
+    INFER_RUNTIME_CONTRACT_VERSION, INFER_RUNTIME_RESPONSES_CAPABILITY,
+    INFER_RUNTIME_SPEECH_CAPABILITY,
+};
 
 const MAX_PROVENANCE_TEXT_BYTES: usize = 256;
 const MAX_ATTEMPTS: usize = 16;
 const MAX_ROUTING_CANDIDATES: usize = 64;
 const MAX_REASON_CODES: usize = 32;
 
+pub(super) const TEXT_EDIT_DEPLOYMENT: &str = "ollama_qwen3_5_4b";
+pub(super) const SPEECH_DEPLOYMENT: &str = "mlx_qwen3_tts_custom_voice_1_7b";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum JobPolicyProfile {
-    ShapeLocalInteractive,
-    ShapeCloudImageInteractive,
+    LocalTextEdit,
+    LocalSpeech,
+    CloudImageInteractive,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,74 +44,18 @@ impl JobProvenanceError {
     }
 }
 
-#[derive(Deserialize)]
-struct JobSnapshot {
-    id: String,
-    app_id: String,
-    intent: String,
-    provider: String,
-    deployment: String,
-    model_profile: String,
-    model_build: String,
-    physical_model: String,
-    placement: String,
-    #[serde(alias = "quality_grade")]
-    capability_level: String,
-    #[serde(alias = "rating_status")]
-    evaluation_status: String,
-    resource_class: String,
-    state: String,
-    policy: String,
-    priority: String,
-    constraints: Value,
-    routing: RoutingDecision,
-    attempts: Vec<Attempt>,
-    error: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct RoutingDecision {
-    #[serde(alias = "quality_floor")]
-    capability_floor: String,
-    candidates: Vec<RoutingCandidate>,
-}
-
-#[derive(Deserialize)]
-struct RoutingCandidate {
-    deployment: String,
-    provider: String,
-    status: String,
-    rank: Option<u32>,
-    #[serde(default)]
-    reason_codes: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct Attempt {
-    number: u32,
-    provider: String,
-    deployment: String,
-    outcome: String,
-    trigger: String,
-    error_kind: Option<String>,
-}
-
 pub(super) fn parse_job_snapshot(
-    revision: InferRuntimeContractRevision,
     expected_job_id: &str,
     expected_intent: &str,
     profile: JobPolicyProfile,
-    bytes: &[u8],
+    snapshot: JobSnapshot,
 ) -> Result<ExternalExecutionProvenance, JobProvenanceError> {
-    let raw: Value =
-        serde_json::from_slice(bytes).map_err(|_| JobProvenanceError::InvalidResponse)?;
-    validate_job_vocabulary(revision, &raw)?;
-    let snapshot: JobSnapshot =
-        serde_json::from_value(raw).map_err(|_| JobProvenanceError::InvalidResponse)?;
+    let expected_capability = profile.capability_contract();
     let scalar_fields = [
         snapshot.id.as_str(),
         snapshot.app_id.as_str(),
         snapshot.intent.as_str(),
+        snapshot.consumer_core_contract.as_str(),
         snapshot.provider.as_str(),
         snapshot.deployment.as_str(),
         snapshot.model_profile.as_str(),
@@ -122,10 +72,12 @@ pub(super) fn parse_job_snapshot(
     if snapshot.id != expected_job_id
         || snapshot.app_id != "shape"
         || snapshot.intent != expected_intent
+        || snapshot.consumer_core_contract != INFER_RUNTIME_CONTRACT_VERSION
+        || snapshot.capability_contract.as_deref() != Some(expected_capability)
         || snapshot.state != "succeeded"
         || snapshot.error.is_some()
         || scalar_fields.iter().any(|value| !bounded_text(value))
-        || !revision.valid_capability_level(&snapshot.capability_level)
+        || !valid_capability_level(&snapshot.capability_level)
         || !matches!(
             snapshot.evaluation_status.as_str(),
             "provisional" | "benchmarked"
@@ -137,7 +89,8 @@ pub(super) fn parse_job_snapshot(
     {
         return Err(JobProvenanceError::InvalidResponse);
     }
-    let requested = validate_shape_policy(revision, &snapshot, profile)?;
+
+    let requested = validate_shape_policy(&snapshot, profile)?;
     let attempts = external_attempts(snapshot.attempts)?;
     let Some(final_attempt) = attempts.last() else {
         return Err(JobProvenanceError::InvalidResponse);
@@ -151,6 +104,7 @@ pub(super) fn parse_job_snapshot(
     if attempts.iter().any(|attempt| attempt.trigger == "fallback") {
         return Err(JobProvenanceError::PolicyViolation);
     }
+
     let routing_candidates = external_routing_candidates(snapshot.routing.candidates)?;
     if !routing_candidates.iter().any(|candidate| {
         candidate.provider == snapshot.provider
@@ -161,7 +115,8 @@ pub(super) fn parse_job_snapshot(
     }
 
     Ok(ExternalExecutionProvenance {
-        contract_revision: revision.as_str().to_owned(),
+        contract_revision: snapshot.consumer_core_contract,
+        capability_contract: snapshot.capability_contract,
         app_id: snapshot.app_id,
         intent: snapshot.intent,
         provider: snapshot.provider,
@@ -191,6 +146,30 @@ pub(super) fn parse_job_snapshot(
     })
 }
 
+impl JobPolicyProfile {
+    const fn capability_contract(self) -> &'static str {
+        match self {
+            Self::LocalTextEdit | Self::CloudImageInteractive => INFER_RUNTIME_RESPONSES_CAPABILITY,
+            Self::LocalSpeech => INFER_RUNTIME_SPEECH_CAPABILITY,
+        }
+    }
+
+    const fn named_deployment(self) -> Option<&'static str> {
+        match self {
+            Self::LocalTextEdit => Some(TEXT_EDIT_DEPLOYMENT),
+            Self::LocalSpeech => Some(SPEECH_DEPLOYMENT),
+            Self::CloudImageInteractive => None,
+        }
+    }
+
+    const fn capability_floor(self) -> &'static str {
+        match self {
+            Self::LocalTextEdit => "foundational",
+            Self::LocalSpeech | Self::CloudImageInteractive => "capable",
+        }
+    }
+}
+
 struct ValidatedShapePolicy {
     policy: String,
     priority: String,
@@ -204,7 +183,6 @@ struct ValidatedShapePolicy {
 }
 
 fn validate_shape_policy(
-    revision: InferRuntimeContractRevision,
     snapshot: &JobSnapshot,
     profile: JobPolicyProfile,
 ) -> Result<ValidatedShapePolicy, JobProvenanceError> {
@@ -222,18 +200,21 @@ fn validate_shape_policy(
         .and_then(Value::as_bool)
         .ok_or(JobProvenanceError::InvalidResponse)?;
     let fallback = constraint_string(constraints, "fallback")?;
-    let capability_floor = constraint_string(constraints, revision.job_capability_floor_key())?;
+    let capability_floor = constraint_string(constraints, "capability_floor")?;
     let latency = optional_constraint_string(constraints, "latency")?;
     let deadline_ms = optional_constraint_u64(constraints, "deadline_ms")?;
     let max_cost_usd = constraints
         .get("max_cost_usd")
         .and_then(Value::as_f64)
         .ok_or(JobProvenanceError::InvalidResponse)?;
+
     let valid_profile = match profile {
-        JobPolicyProfile::ShapeLocalInteractive => {
+        JobPolicyProfile::LocalTextEdit | JobPolicyProfile::LocalSpeech => {
             policy == "local-first"
                 && priority == "interactive"
-                && provider_access_class.is_none()
+                && provider_access_class
+                    .as_deref()
+                    .is_none_or(|value| value == "standard")
                 && placement == "local_only"
                 && preference == "local"
                 && offline_required
@@ -242,7 +223,7 @@ fn validate_shape_policy(
                 && snapshot.policy == "local-first"
                 && snapshot.priority == "interactive"
         }
-        JobPolicyProfile::ShapeCloudImageInteractive => {
+        JobPolicyProfile::CloudImageInteractive => {
             policy == "balanced"
                 && priority == "interactive"
                 && provider_access_class.as_deref() == Some("subscription")
@@ -258,12 +239,20 @@ fn validate_shape_policy(
     if !valid_profile
         || fallback != "none"
         || max_cost_usd != 0.0
-        || capability_floor != revision.capable_level()
+        || capability_floor != profile.capability_floor()
         || deadline_ms.is_some()
         || capability_floor != snapshot.routing.capability_floor
     {
         return Err(JobProvenanceError::PolicyViolation);
     }
+
+    validate_named_route(
+        constraints.get("named_route"),
+        snapshot.routing.named_route.as_ref(),
+        profile.named_deployment(),
+        &snapshot.deployment,
+    )?;
+
     Ok(ValidatedShapePolicy {
         policy,
         priority,
@@ -277,57 +266,55 @@ fn validate_shape_policy(
     })
 }
 
-fn validate_job_vocabulary(
-    revision: InferRuntimeContractRevision,
-    snapshot: &Value,
+fn validate_named_route(
+    constraint: Option<&Value>,
+    routing: Option<&NamedRouteDecision>,
+    expected_deployment: Option<&str>,
+    selected_deployment: &str,
 ) -> Result<(), JobProvenanceError> {
-    let object = snapshot
-        .as_object()
-        .ok_or(JobProvenanceError::InvalidResponse)?;
-    let constraints = object
-        .get("constraints")
-        .and_then(Value::as_object)
-        .ok_or(JobProvenanceError::InvalidResponse)?;
-    let routing = object
-        .get("routing")
-        .and_then(Value::as_object)
-        .ok_or(JobProvenanceError::InvalidResponse)?;
-    let valid = match revision {
-        InferRuntimeContractRevision::Candidate2 => {
-            object.contains_key("quality_grade")
-                && object.contains_key("rating_status")
-                && !object.contains_key("capability_level")
-                && !object.contains_key("evaluation_status")
-                && constraints.contains_key("quality_floor")
-                && !constraints.contains_key("capability_floor")
-                && routing.contains_key("quality_floor")
-                && !routing.contains_key("capability_floor")
+    let constraint = constraint.filter(|value| !value.is_null());
+    match expected_deployment {
+        Some(expected) => {
+            let constraint = constraint
+                .and_then(Value::as_object)
+                .ok_or(JobProvenanceError::PolicyViolation)?;
+            let constraint_kind = constraint.get("kind").and_then(Value::as_str);
+            let constraint_ids = constraint.get("ordered_ids").and_then(Value::as_array);
+            let expected_ids = [expected];
+            let constraint_matches = constraint_kind == Some("deployment")
+                && constraint_ids
+                    .is_some_and(|ids| ids.len() == 1 && ids[0].as_str() == Some(expected));
+            let routing_matches = routing.is_some_and(|route| {
+                route.kind == "deployment"
+                    && route
+                        .ordered_ids
+                        .iter()
+                        .map(String::as_str)
+                        .eq(expected_ids)
+            });
+            if !constraint_matches || !routing_matches || selected_deployment != expected {
+                return Err(JobProvenanceError::PolicyViolation);
+            }
         }
-        InferRuntimeContractRevision::Candidate3 => {
-            object.contains_key("capability_level")
-                && object.contains_key("evaluation_status")
-                && !object.contains_key("quality_grade")
-                && !object.contains_key("rating_status")
-                && constraints.contains_key("capability_floor")
-                && !constraints.contains_key("quality_floor")
-                && routing.contains_key("capability_floor")
-                && !routing.contains_key("quality_floor")
+        None if constraint.is_some() || routing.is_some() => {
+            return Err(JobProvenanceError::PolicyViolation);
         }
-    };
-    valid
-        .then_some(())
-        .ok_or(JobProvenanceError::InvalidResponse)
+        None => {}
+    }
+    Ok(())
 }
 
 fn external_attempts(
-    attempts: Vec<Attempt>,
+    attempts: Vec<infer_runtime_client::AttemptSnapshot>,
 ) -> Result<Vec<ExternalAttemptProvenance>, JobProvenanceError> {
-    let mut previous_number = 0;
+    let mut previous_number = 0_u32;
     attempts
         .into_iter()
         .map(|attempt| {
-            if attempt.number == 0
-                || attempt.number <= previous_number
+            let number =
+                u32::try_from(attempt.number).map_err(|_| JobProvenanceError::InvalidResponse)?;
+            if number == 0
+                || number <= previous_number
                 || !bounded_text(&attempt.provider)
                 || !bounded_text(&attempt.deployment)
                 || !matches!(
@@ -345,9 +332,9 @@ fn external_attempts(
             {
                 return Err(JobProvenanceError::InvalidResponse);
             }
-            previous_number = attempt.number;
+            previous_number = number;
             Ok(ExternalAttemptProvenance {
-                number: attempt.number,
+                number,
                 provider: attempt.provider,
                 deployment: attempt.deployment,
                 outcome: attempt.outcome,
@@ -359,7 +346,7 @@ fn external_attempts(
 }
 
 fn external_routing_candidates(
-    candidates: Vec<RoutingCandidate>,
+    candidates: Vec<infer_runtime_client::CandidateDecision>,
 ) -> Result<Vec<ExternalRoutingCandidate>, JobProvenanceError> {
     candidates
         .into_iter()
@@ -378,11 +365,16 @@ fn external_routing_candidates(
             {
                 return Err(JobProvenanceError::InvalidResponse);
             }
+            let rank = candidate
+                .rank
+                .map(u32::try_from)
+                .transpose()
+                .map_err(|_| JobProvenanceError::InvalidResponse)?;
             Ok(ExternalRoutingCandidate {
                 provider: candidate.provider,
                 deployment: candidate.deployment,
                 status: candidate.status,
-                rank: candidate.rank,
+                rank,
                 reason_codes: candidate.reason_codes,
             })
         })
@@ -425,6 +417,13 @@ fn optional_constraint_u64(
     }
 }
 
+fn valid_capability_level(value: &str) -> bool {
+    matches!(
+        value,
+        "foundational" | "capable" | "advanced" | "expert" | "exceptional"
+    )
+}
+
 pub(super) fn bounded_text(value: &str) -> bool {
     !value.is_empty() && value.len() <= MAX_PROVENANCE_TEXT_BYTES && value.is_ascii()
 }
@@ -437,4 +436,4 @@ pub(super) fn valid_job_id(value: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

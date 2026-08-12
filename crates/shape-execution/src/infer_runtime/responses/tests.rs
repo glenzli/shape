@@ -1,295 +1,101 @@
-use std::{
-    fs,
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
-    thread,
-    time::Duration,
-};
+use std::collections::BTreeMap;
 
-use serde_json::{Value, json};
-use uuid::Uuid;
-
+use infer_runtime_client::{Error as SdkError, ResponsesResult};
+use serde_json::json;
 use shape_domain::TransformationId;
 
-use super::super::INFER_RUNTIME_CAPABILITY_SCALE_VERSION;
-use super::*;
-use crate::InferRuntimeCredentialStore;
-use crate::{ExecutionCoordinator, ExecutionRequest};
+use super::{InferRuntimeExecutor, TEXT_EDIT_DEPLOYMENT, local_text_request};
+use crate::{CapabilityId, ExecutionRequest, Executor as _};
 
-const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-
-fn read_request(stream: &mut TcpStream) -> String {
-    stream
-        .set_read_timeout(Some(Duration::from_secs(2)))
-        .expect("read timeout configures");
-    let mut bytes = Vec::new();
-    let mut buffer = [0_u8; 1024];
-    let mut content_length = None;
-    loop {
-        let read = stream.read(&mut buffer).expect("request reads");
-        if read == 0 {
-            break;
-        }
-        bytes.extend_from_slice(&buffer[..read]);
-        if let Some(header_end) = bytes.windows(4).position(|window| window == b"\r\n\r\n") {
-            let header_end = header_end + 4;
-            if content_length.is_none() {
-                let headers = String::from_utf8_lossy(&bytes[..header_end]);
-                content_length = headers.lines().find_map(|line| {
-                    line.strip_prefix("content-length: ")
-                        .or_else(|| line.strip_prefix("Content-Length: "))
-                        .and_then(|value| value.parse::<usize>().ok())
-                });
-            }
-            if bytes.len() >= header_end + content_length.unwrap_or(0) {
-                break;
-            }
-        }
-    }
-    String::from_utf8(bytes).expect("request is UTF-8")
-}
-
-fn write_response(stream: &mut TcpStream, status: u16, body: &str) {
-    let reason = if status == 200 { "OK" } else { "Error" };
-    write!(
-        stream,
-        "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
-    )
-    .expect("response writes");
-}
-
-fn executor_with_fake_runtime(
-    revision: InferRuntimeContractRevision,
-    response_status: u16,
-    response_body: Value,
-) -> (InferRuntimeExecutor, thread::JoinHandle<()>) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("fake runtime binds");
-    let address = listener.local_addr().expect("runtime has address");
-    let worker = thread::spawn(move || {
-        let (mut contract_stream, _) = listener.accept().expect("contract probe connects");
-        let contract_request = read_request(&mut contract_stream);
-        assert!(contract_request.starts_with("GET /infer/v1/contract HTTP/1.1\r\n"));
-        write_response(
-            &mut contract_stream,
-            200,
-            &json!({
-                "contract_version": revision.as_str(),
-                "capability_scale_version": INFER_RUNTIME_CAPABILITY_SCALE_VERSION,
-                "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
-            })
-            .to_string(),
-        );
-
-        let (mut response_stream, _) = listener.accept().expect("Responses request connects");
-        let response_request = read_request(&mut response_stream);
-        assert!(response_request.starts_with("POST /v1/responses HTTP/1.1\r\n"));
-        assert!(response_request.contains(&format!("authorization: Bearer {TOKEN}")));
-        let body = response_request
-            .split_once("\r\n\r\n")
-            .expect("request has body")
-            .1;
-        let request: Value = serde_json::from_str(body).expect("request JSON parses");
-        assert_eq!(request["model"], revision.text_intent());
-        assert_eq!(request["input"], "Rewrite this paragraph clearly.");
-        assert_eq!(request["stream"], false);
-        assert_eq!(request["metadata"]["infer.policy"], "local-first");
-        assert_eq!(request["metadata"]["infer.placement"], "local_only");
-        assert_eq!(request["metadata"]["infer.offline_required"], "true");
-        assert_eq!(request["metadata"]["infer.fallback"], "none");
-        assert_eq!(request["metadata"]["infer.max_cost_usd"], "0");
-        assert_eq!(
-            request["metadata"][revision.capability_floor_metadata_key()],
-            revision.interactive_text_floor()
-        );
-        let obsolete_floor = match revision {
-            InferRuntimeContractRevision::Candidate2 => "infer.capability_floor",
-            InferRuntimeContractRevision::Candidate3 => "infer.quality_floor",
-        };
-        assert!(request["metadata"].get(obsolete_floor).is_none());
-        write_response(
-            &mut response_stream,
-            response_status,
-            &response_body.to_string(),
-        );
-    });
-    let origin = format!("http://{address}");
-    let credential = InferRuntimeCredential::from_test_token(TOKEN);
-    let resolver = InferRuntimeEndpointResolver::with_runtime_root(
-        &origin,
-        std::env::temp_dir(),
-        "http://127.0.0.1:9",
-    );
-    (
-        InferRuntimeExecutor::with_resolver(credential, resolver),
-        worker,
-    )
-}
+use crate::infer_runtime::{
+    job_provenance::tests::text_job, sdk::SdkAdapterError, test_support::FakeSdk,
+};
 
 fn request() -> ExecutionRequest {
     ExecutionRequest::new(
         TransformationId::new(),
-        CapabilityId::new(TEXT_GENERATE_CAPABILITY).expect("capability is valid"),
+        CapabilityId::new("text.generate").unwrap(),
         Vec::new(),
         b"Rewrite this paragraph clearly.".to_vec(),
-        TEXT_MEDIA_TYPE,
+        "text/plain; charset=utf-8",
     )
-    .expect("request is valid")
+    .unwrap()
 }
 
-#[test]
-fn authenticated_local_first_response_becomes_transient_output_with_runtime_job_identity() {
-    let (executor, worker) = executor_with_fake_runtime(
-        InferRuntimeContractRevision::Candidate3,
-        200,
-        json!({
-            "id": "resp_shape_test",
-            "object": "response",
-            "created_at": 1_786_383_600_u64,
-            "model": InferRuntimeContractRevision::Candidate3.text_intent(),
-            "status": "completed",
-            "output": [{
-                "type": "message",
-                "role": "assistant",
-                "content": [{"type": "output_text", "text": "A clearer paragraph."}]
-            }],
-            "future_field": true
-        }),
-    );
-    let executed =
-        ExecutionCoordinator::execute(&executor, &request()).expect("execution succeeds");
-    assert_eq!(executed.output.bytes, b"A clearer paragraph.");
-    assert_eq!(
-        executed.receipt.executor_job_id.as_deref(),
-        Some("resp_shape_test")
-    );
-    worker.join().expect("fake runtime exits");
-}
-
-#[test]
-fn error_handling_uses_only_http_status_and_machine_code() {
-    let (executor, worker) = executor_with_fake_runtime(
-        InferRuntimeContractRevision::Candidate3,
-        403,
-        json!({
-            "error": {
-                "message": format!("do not expose {TOKEN}"),
-                "type": "invalid_request_error",
-                "code": "intent_forbidden"
-            }
-        }),
-    );
-    let error =
-        ExecutionCoordinator::execute(&executor, &request()).expect_err("request is denied");
-    let rendered = error.to_string();
-    assert!(rendered.contains("intent_forbidden"));
-    assert!(!rendered.contains(TOKEN));
-    assert!(!rendered.contains("do not expose"));
-    worker.join().expect("fake runtime exits");
-}
-
-#[test]
-fn malformed_or_empty_success_envelopes_fail_closed() {
-    for response in [
-        json!({
-            "id": "resp_wrong_model",
-            "object": "response",
-            "created_at": 1,
-            "model": "physical-model",
-            "output": [{"type":"message","content":[{"type":"output_text","text":"bad"}]}]
-        }),
-        json!({
-            "id": "resp_empty",
-            "object": "response",
-            "created_at": 1,
-            "model": InferRuntimeContractRevision::Candidate3.text_intent(),
-            "output": []
-        }),
-    ] {
-        let (executor, worker) =
-            executor_with_fake_runtime(InferRuntimeContractRevision::Candidate3, 200, response);
-        assert!(ExecutionCoordinator::execute(&executor, &request()).is_err());
-        worker.join().expect("fake runtime exits");
+fn response() -> ResponsesResult {
+    ResponsesResult {
+        id: "resp_shape_job".into(),
+        object: "response".into(),
+        created_at: 1,
+        model: "text.edit".into(),
+        status: "completed".into(),
+        output: vec![json!({
+            "type":"message",
+            "content":[{"type":"output_text","text":"A clearer paragraph."}]
+        })],
+        extra: BTreeMap::default(),
     }
 }
 
 #[test]
-fn candidate_two_offer_uses_only_the_candidate_two_vocabulary() {
-    let revision = InferRuntimeContractRevision::Candidate2;
-    let listener = TcpListener::bind("127.0.0.1:0").expect("fake runtime binds");
-    let address = listener.local_addr().expect("runtime has address");
-    let worker = thread::spawn(move || {
-        let (mut contract_stream, _) = listener.accept().expect("contract probe connects");
-        let _ = read_request(&mut contract_stream);
-        write_response(
-            &mut contract_stream,
-            200,
-            &json!({
-                "contract_version": revision.as_str(),
-                "consumer_routes": [{"method": "POST", "path": "/v1/responses"}]
-            })
-            .to_string(),
-        );
-        let (mut response_stream, _) = listener.accept().expect("Responses request connects");
-        let request_text = read_request(&mut response_stream);
-        let body = request_text.split_once("\r\n\r\n").expect("body exists").1;
-        let request: Value = serde_json::from_str(body).expect("request parses");
-        assert_eq!(request["model"], revision.text_intent());
-        assert_eq!(request["metadata"]["infer.quality_floor"], "general");
-        assert!(request["metadata"].get("infer.capability_floor").is_none());
-        write_response(
-            &mut response_stream,
-            200,
-            &json!({
-                "id": "resp_candidate_two",
-                "object": "response",
-                "created_at": 1,
-                "model": revision.text_intent(),
-                "status": "completed",
-                "output": [{
-                    "type": "message",
-                    "content": [{"type": "output_text", "text": "Candidate two."}]
-                }]
-            })
-            .to_string(),
-        );
-    });
-    let resolver = InferRuntimeEndpointResolver::with_runtime_root(
-        &format!("http://{address}"),
-        std::env::temp_dir(),
-        "http://127.0.0.1:9",
-    );
-    let executor = InferRuntimeExecutor::with_resolver(
-        InferRuntimeCredential::from_test_token(TOKEN),
-        resolver,
-    );
-    let executed =
-        ExecutionCoordinator::execute(&executor, &request()).expect("candidate.2 request succeeds");
-    assert_eq!(executed.output.bytes, b"Candidate two.");
-    worker.join().expect("fake runtime exits");
-}
-
-#[test]
-fn candidate_three_text_uses_the_foundational_interactive_floor() {
-    let request = ResponsesRequest::local_text(
-        "Rewrite this paragraph clearly.",
-        InferRuntimeContractRevision::Candidate3,
-    );
-    assert_eq!(request.model, "language.respond");
+fn request_uses_text_edit_and_exact_local_named_narrowing() {
+    let request = local_text_request("bounded fixture");
+    assert_eq!(request.model, "text.edit");
+    assert!(!request.stream);
+    assert!(!request.background);
+    assert!(request.tools.is_empty());
     assert_eq!(
-        request.metadata.get("infer.capability_floor"),
-        Some(&"foundational")
+        request
+            .metadata
+            .get("infer.deployment_ids")
+            .map(String::as_str),
+        Some(TEXT_EDIT_DEPLOYMENT)
     );
-    assert!(!request.metadata.contains_key("infer.quality_floor"));
+    assert_eq!(request.metadata["infer.placement"], "local_only");
+    assert_eq!(request.metadata["infer.offline_required"], "true");
+    assert_eq!(request.metadata["infer.fallback"], "none");
+    assert_eq!(request.metadata["infer.max_cost_usd"], "0");
 }
 
 #[test]
-fn credential_fixture_never_enters_the_worktree() {
-    let path = std::env::temp_dir()
-        .join(format!("shape-response-secret-{}", Uuid::now_v7()))
-        .join("infer-runtime.token");
-    let store = InferRuntimeCredentialStore::new(&path);
-    store.install(TOKEN).expect("credential installs");
-    assert!(store.is_available().expect("credential validates"));
-    fs::remove_dir_all(path.parent().expect("secret has parent")).expect("fixture removes");
+fn sdk_response_and_typed_job_become_only_a_shape_execution_output() {
+    let fake = FakeSdk::new().response(response()).job(text_job());
+    let executor = InferRuntimeExecutor::with_sdk(Box::new(fake));
+    let output = executor
+        .execute(&request())
+        .expect("fake SDK execution succeeds");
+    assert_eq!(output.bytes, b"A clearer paragraph.");
+    assert_eq!(output.executor_job_id.as_deref(), Some("resp_shape_job"));
+    let provenance = output.external_provenance.expect("typed Job is copied");
+    assert_eq!(provenance.intent, "text.edit");
+    assert_eq!(provenance.deployment, TEXT_EDIT_DEPLOYMENT);
+}
+
+#[test]
+fn sdk_machine_error_code_is_preserved_without_message_parsing() {
+    let fake = FakeSdk::new();
+    fake.responses
+        .lock()
+        .unwrap()
+        .push_back(Err(SdkAdapterError::Sdk(SdkError::Api {
+            status: reqwest::StatusCode::FORBIDDEN,
+            code: "intent_forbidden".into(),
+            message: "provider detail must not be parsed".into(),
+        })));
+    let error = InferRuntimeExecutor::with_sdk(Box::new(fake))
+        .execute(&request())
+        .expect_err("ACL denial fails closed");
+    assert_eq!(error.code, "intent_forbidden");
+    assert!(!error.retryable);
+    assert!(!error.message.contains("provider detail"));
+}
+
+#[test]
+fn malformed_prompt_is_rejected_before_sdk_transport() {
+    let mut request = request();
+    request.instruction.clear();
+    let error = InferRuntimeExecutor::with_sdk(Box::new(FakeSdk::new()))
+        .execute(&request)
+        .expect_err("empty prompt is rejected");
+    assert_eq!(error.code, "invalid_prompt");
 }

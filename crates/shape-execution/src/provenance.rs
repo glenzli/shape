@@ -37,6 +37,10 @@ pub struct ExternalRoutingCandidate {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExternalExecutionProvenance {
     pub contract_revision: String,
+    /// Exact capability identity used by dated Consumer Core Jobs. Historical
+    /// candidate receipts omit it and remain readable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capability_contract: Option<String>,
     pub app_id: String,
     pub intent: String,
     pub provider: String,
@@ -95,6 +99,7 @@ impl ExternalExecutionProvenance {
             self.capability_floor.as_str(),
         ];
         scalar_fields.iter().all(|value| bounded_text(value))
+            && self.capability_contract.as_deref().is_none_or(bounded_text)
             && self
                 .requested_provider_access_class
                 .as_deref()
