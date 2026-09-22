@@ -14,6 +14,8 @@ constexpr auto kAppearanceSettingsKey = "ui/appearanceMode";
 constexpr auto kLanguageSettingsKey = "ui/language";
 constexpr auto kTextModelSettingsKey = "infer/textModel";
 constexpr auto kImageModelSettingsKey = "infer/imageModel";
+constexpr auto kTextEffortSettingsKey = "infer/textEffort";
+constexpr auto kImageEffortSettingsKey = "infer/imageEffort";
 
 int normalizeAppearanceMode(const int mode) {
     if (mode >= static_cast<int>(UiPreferences::AppearanceMode::System)
@@ -42,6 +44,19 @@ QString normalizeImageModel(const QString& model) {
         return model;
     }
     return QStringLiteral("gpt_5_6_luna");
+}
+
+QString normalizeEffort(const QString& model, const QString& effort, const bool automatic) {
+    if (automatic && effort.isEmpty()) {
+        return {};
+    }
+    if (effort == QStringLiteral("low") || effort == QStringLiteral("medium")
+        || effort == QStringLiteral("high") || effort == QStringLiteral("xhigh")
+        || effort == QStringLiteral("max")
+        || (effort == QStringLiteral("ultra") && model == QStringLiteral("gpt_6_sol"))) {
+        return effort;
+    }
+    return automatic ? QString{} : QStringLiteral("low");
 }
 
 QString systemLanguage() {
@@ -77,6 +92,10 @@ UiPreferences::UiPreferences(QGuiApplication& application, QObject* parent)
     image_model_ = normalizeImageModel(
         settings_->value(QString::fromLatin1(kImageModelSettingsKey), image_model_).toString()
     );
+    text_effort_ = normalizeEffort(text_model_, settings_->value(
+        QString::fromLatin1(kTextEffortSettingsKey), text_effort_).toString(), false);
+    image_effort_ = normalizeEffort(image_model_, settings_->value(
+        QString::fromLatin1(kImageEffortSettingsKey), image_effort_).toString(), true);
 
     QObject::connect(
         application_.styleHints(),
@@ -157,6 +176,7 @@ void UiPreferences::setTextModel(const QString& model) {
     text_model_ = normalized;
     settings_->setValue(QString::fromLatin1(kTextModelSettingsKey), text_model_);
     emit textModelChanged();
+    setTextEffort(text_effort_);
 }
 
 QString UiPreferences::imageModel() const {
@@ -171,6 +191,35 @@ void UiPreferences::setImageModel(const QString& model) {
     image_model_ = normalized;
     settings_->setValue(QString::fromLatin1(kImageModelSettingsKey), image_model_);
     emit imageModelChanged();
+    setImageEffort(image_effort_);
+}
+
+QString UiPreferences::textEffort() const {
+    return text_effort_;
+}
+
+void UiPreferences::setTextEffort(const QString& effort) {
+    const QString normalized = normalizeEffort(text_model_, effort, false);
+    if (normalized == text_effort_) {
+        return;
+    }
+    text_effort_ = normalized;
+    settings_->setValue(QString::fromLatin1(kTextEffortSettingsKey), text_effort_);
+    emit textEffortChanged();
+}
+
+QString UiPreferences::imageEffort() const {
+    return image_effort_;
+}
+
+void UiPreferences::setImageEffort(const QString& effort) {
+    const QString normalized = normalizeEffort(image_model_, effort, true);
+    if (normalized == image_effort_) {
+        return;
+    }
+    image_effort_ = normalized;
+    settings_->setValue(QString::fromLatin1(kImageEffortSettingsKey), image_effort_);
+    emit imageEffortChanged();
 }
 
 void UiPreferences::attachEngine(QQmlEngine& engine) {

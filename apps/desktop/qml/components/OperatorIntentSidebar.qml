@@ -28,6 +28,7 @@ Rectangle {
     property string primaryActionText: qsTr("Create a version")
     property bool primaryActionEnabled: true
     property string defaultModelKey: "gpt_5_6_luna"
+    property string defaultEffortKey: ""
     property string modelContextId: ""
     property string modelOverride: ""
     readonly property string selectedModelKey: modelPicker.effectiveModelKey
@@ -278,6 +279,7 @@ Rectangle {
             objectName: "imageModelPicker"
             family: "image"
             defaultModelKey: sidebar.defaultModelKey
+            defaultEffortKey: sidebar.defaultEffortKey
             overrideKey: sidebar.modelOverride
             effortOverrideKey: sidebar.effortOverride
             enabled: sidebar.editable && !sidebar.running

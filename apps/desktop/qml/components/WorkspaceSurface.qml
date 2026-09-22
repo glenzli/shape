@@ -34,6 +34,7 @@ Item {
     property string inferTextErrorCode: ""
     property bool inferRuntimeCompatible: false
     property string defaultTextModel: "local_qwen"
+    property string defaultTextEffort: "low"
     property int currentMode: 0
     property string selectedNodeId: ""
 
@@ -428,6 +429,7 @@ Item {
             runtimeCompatible: surface.inferRuntimeCompatible
             credentialConfigured: surface.inferCredentialConfigured
             defaultTextModel: surface.defaultTextModel
+            defaultTextEffort: surface.defaultTextEffort
             onGenerationRequested: (artifactId, draftId, modelKey, effortKey) =>
                 surface.authoringGenerationRequested(artifactId, draftId, modelKey, effortKey)
             onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
@@ -637,6 +639,7 @@ Item {
                 onNodeSelected: nodeId => surface.selectArtifactForNode(nodeId)
                 onNodeOpened: nodeId => surface.openNode(nodeId)
                 onNodeOutputRequested: nodeId => surface.selectArtifactForNode(nodeId)
+                onFinalFileExportRequested: artifactId => surface.audioExportRequested(artifactId, "")
                 onDraftRequested: operatorTypeKey => {
                     if (operatorTypeKey === "image.edit") surface.openImageEditor()
                     else surface.operatorDraftRequested(operatorTypeKey)

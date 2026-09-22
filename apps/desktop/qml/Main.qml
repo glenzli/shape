@@ -434,6 +434,7 @@ ApplicationWindow {
                     selectedCandidate: window.selectedCandidate
                     selectedCandidateId: window.selectedCandidateId
                     defaultTextModel: window.uiPreferences.textModel
+                    defaultTextEffort: window.uiPreferences.textEffort
                     compareMode: window.compareMode
                     acceptedImageSource: window.backend.acceptedImageSource
                     candidateImageSource: window.backend.candidateImageSource
@@ -575,7 +576,8 @@ ApplicationWindow {
                             window.inferText.generate(
                                 window.backend.bundlePath, artifactId, draftId,
                                 window.uiPreferences.textModel,
-                                window.uiPreferences.textModel === "local_qwen" ? "" : "low")
+                                window.uiPreferences.textModel === "local_qwen"
+                                    ? "" : window.uiPreferences.textEffort)
                         }
                     }
                     onTextCandidateLockRequested: candidateId =>
@@ -597,6 +599,7 @@ ApplicationWindow {
                     Layout.fillHeight: true
                     visible: workspaceSurface.aiImageIntentActive
                     defaultModelKey: window.uiPreferences.imageModel
+                    defaultEffortKey: window.uiPreferences.imageEffort
                     modelContextId: workspaceSurface.selectedDraft !== null
                                     ? workspaceSurface.selectedDraft.id : ""
                     operatorTitle: qsTr("Create an image")

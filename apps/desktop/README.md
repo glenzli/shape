@@ -207,7 +207,10 @@ comprehensive Intent/Change/Preserve/Reference nodes and is instantiated for the
 `VariantsPanel.qml` remain packaged compatibility components but are no longer the main shell.
 `BranchArtifactDialog.qml` owns branch naming and submission;
 `SceneOperatorGraphWorkspace.qml` owns typed graph layout, zoom, single-selection, and open/review
-intent; `CreativeGraphNodeCard.qml` owns accepted media- and role-specific node content,
+intent. Its separate final-file bar renders an accepted audio revision to a WAV through the existing
+`AudioExportController`; it is not a Scene node or a durable Project Export. Other file formats can
+use the same presentation boundary when their export controllers exist.
+`CreativeGraphNodeCard.qml` owns accepted media- and role-specific node content,
 `CreativeDraftNodeCard.qml` owns mutable step affordances, and
 `CreativeCandidateNodeCard.qml` owns transient generated-version presentation. Keeping those cards
 separate prevents the graph layout owner from also becoming the visual-state owner. Text Source and
@@ -336,7 +339,7 @@ The Rust node catalog exposes six text-edit task templates and the zero-input im
 Templates reuse `text.edit` input/output/CAS semantics and store their task in authoring configuration.
 The image consumer pins the selected, allowlisted deployment (`codex_gpt_5_6_luna` by default), compiles the preferred canvas into its model instructions,
 and checks the bounded PNG and named route. Native pixels and actual dimensions are retained;
-exact sizing belongs to an image editing node. No model fallback is requested. Text editing defaults to local Qwen; GPT-6 Luna/Sol are explicit cloud subscription choices. Settings hold model defaults; `AiModelPicker.qml` allows model and reasoning effort choices for the current text or image run without changing settings or the project draft. Each request snapshots both choices. The local text model uses its Runtime effort; cloud text defaults to low, while image generation defaults to Runtime effort. The picker limits `ultra` to Sol and rejects unsupported effort choices at the bridge and executor boundaries. Shape verifies the selected named deployment in the returned Job before creating a Candidate.
+exact sizing belongs to an image editing node. No model fallback is requested. Text editing defaults to local Qwen; GPT-6 Luna/Sol are explicit cloud subscription choices. Settings hold model and effort defaults for text and image; `AiModelPicker.qml` presents both controls on one row and allows per-run overrides without changing settings or the project draft. Each request snapshots both choices. The local text model uses its Runtime effort; cloud text defaults to low, while image generation defaults to Runtime effort. Settings and the picker limit `ultra` to Sol; the bridge and executor reject unsupported effort choices. Shape verifies the selected named deployment in the returned Job before creating a Candidate.
 `--smoke-image-generation DIRECTORY` exercises the real controller, candidate preview, explicit
 acceptance and project reopening; it is an opt-in live test, not part of ordinary desktop smoke.
 

@@ -53,6 +53,8 @@ Rectangle {
     readonly property real minimumZoom: 0.65
     readonly property real maximumZoom: 1.5
     readonly property bool currentResultPreviewAvailable: (artifactKindKey === "image_raster" && acceptedImageSource.toString().length > 0) || artifactKindKey === "text_document" || artifactKindKey === "audio_clip"
+    // A file is a rendered snapshot of an accepted result, not another Scene node.
+    readonly property string finalFileFormat: artifactKindKey === "audio_clip" ? "WAV" : ""
     readonly property var inspectedNode: nodeForId(selectedNodeId)
     readonly property var inspectedDraft: draftForId(selectedNodeId)
     readonly property var inspectedCandidate: candidateForId(selectedCandidateId)
@@ -114,6 +116,7 @@ Rectangle {
     signal draftOpened(string draftId)
     signal draftDiscardRequested(string draftId)
     signal nodeOutputRequested(string nodeId)
+    signal finalFileExportRequested(string artifactId)
 
     function nodeIndex(nodeId): int {
         for (let index = 0; index < nodes.length; ++index) {
@@ -799,6 +802,60 @@ Rectangle {
                         color: Theme.muted
                         font.pixelSize: 10
                     }
+                }
+            }
+        }
+
+        Rectangle {
+            objectName: "finalFileOutput"
+            visible: graph.finalFileFormat.length > 0
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? 72 : 0
+            color: Theme.panelRaised
+            border.color: Theme.border
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 14
+
+                Rectangle {
+                    Layout.preferredWidth: 36
+                    Layout.preferredHeight: 36
+                    radius: 10
+                    color: Theme.accentSurfaceQuiet
+                    Text {
+                        anchors.centerIn: parent
+                        text: "↓"
+                        color: Theme.accent
+                        font.pixelSize: 19
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    Text {
+                        text: qsTr("Final file · %1 audio").arg(graph.finalFileFormat)
+                        color: Theme.text
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: graph.hasAcceptedRevision
+                              ? qsTr("Save the accepted audio as a file outside this project.")
+                              : qsTr("Accept an audio version before exporting a final file.")
+                        color: Theme.muted
+                        font.pixelSize: Theme.fontMeta
+                        elide: Text.ElideRight
+                    }
+                }
+                ShapeButton {
+                    objectName: "finalFileExportButton"
+                    text: qsTr("Export WAV…")
+                    enabled: graph.hasAcceptedRevision && graph.selectedArtifactId.length > 0
+                    onClicked: graph.finalFileExportRequested(graph.selectedArtifactId)
                 }
             }
         }

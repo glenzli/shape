@@ -241,12 +241,33 @@ Item {
 
                             ShapeComboBox {
                                 objectName: "textModelSelector"
-                                Layout.preferredWidth: 210
+                                Layout.preferredWidth: 190
                                 model: [qsTr("Local Qwen 3.5"), "GPT-6 Luna", "GPT-6 Sol"]
                                 currentIndex: Math.max(0, ["local_qwen", "gpt_6_luna", "gpt_6_sol"]
                                                             .indexOf(overlay.uiPreferences.textModel))
                                 onActivated: index => overlay.uiPreferences.textModel =
                                                  ["local_qwen", "gpt_6_luna", "gpt_6_sol"][index]
+                            }
+
+                            Text {
+                                visible: overlay.uiPreferences.textModel !== "local_qwen"
+                                text: qsTr("Effort")
+                                color: Theme.muted
+                            }
+
+                            ShapeComboBox {
+                                objectName: "textEffortSelector"
+                                property var effortKeys: overlay.uiPreferences.textModel === "gpt_6_sol"
+                                                         ? ["low", "medium", "high", "xhigh", "max", "ultra"]
+                                                         : ["low", "medium", "high", "xhigh", "max"]
+                                visible: overlay.uiPreferences.textModel !== "local_qwen"
+                                Layout.preferredWidth: 142
+                                model: [qsTr("Low"), qsTr("Medium"), qsTr("High"),
+                                        qsTr("Extra high"), qsTr("Max")]
+                                       .concat(overlay.uiPreferences.textModel === "gpt_6_sol"
+                                               ? [qsTr("Ultra")] : [])
+                                currentIndex: Math.max(0, effortKeys.indexOf(overlay.uiPreferences.textEffort))
+                                onActivated: index => overlay.uiPreferences.textEffort = effortKeys[index]
                             }
                         }
 
@@ -262,12 +283,31 @@ Item {
 
                             ShapeComboBox {
                                 objectName: "imageModelSelector"
-                                Layout.preferredWidth: 210
+                                Layout.preferredWidth: 190
                                 model: ["GPT-5.6 Luna", "GPT-6 Luna", "GPT-6 Sol"]
                                 currentIndex: Math.max(0, ["gpt_5_6_luna", "gpt_6_luna", "gpt_6_sol"]
                                                             .indexOf(overlay.uiPreferences.imageModel))
                                 onActivated: index => overlay.uiPreferences.imageModel =
                                                  ["gpt_5_6_luna", "gpt_6_luna", "gpt_6_sol"][index]
+                            }
+
+                            Text {
+                                text: qsTr("Effort")
+                                color: Theme.muted
+                            }
+
+                            ShapeComboBox {
+                                objectName: "imageEffortSelector"
+                                property var effortKeys: overlay.uiPreferences.imageModel === "gpt_6_sol"
+                                                         ? ["", "low", "medium", "high", "xhigh", "max", "ultra"]
+                                                         : ["", "low", "medium", "high", "xhigh", "max"]
+                                Layout.preferredWidth: 142
+                                model: [qsTr("Runtime default"), qsTr("Low"), qsTr("Medium"),
+                                        qsTr("High"), qsTr("Extra high"), qsTr("Max")]
+                                       .concat(overlay.uiPreferences.imageModel === "gpt_6_sol"
+                                               ? [qsTr("Ultra")] : [])
+                                currentIndex: Math.max(0, effortKeys.indexOf(overlay.uiPreferences.imageEffort))
+                                onActivated: index => overlay.uiPreferences.imageEffort = effortKeys[index]
                             }
                         }
                     }

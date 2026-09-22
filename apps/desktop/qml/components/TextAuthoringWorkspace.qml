@@ -29,6 +29,7 @@ Item {
     property bool credentialConfigured: false
     property string generationErrorCode: ""
     property string defaultTextModel: "local_qwen"
+    property string defaultTextEffort: "low"
     property string modelOverride: ""
     readonly property string selectedModelKey: modelPicker.effectiveModelKey
     property string effortOverride: ""
@@ -325,6 +326,7 @@ Item {
                     visible: !workspace.reviewing && workspace.entry !== "manual"
                     family: "text"
                     defaultModelKey: workspace.defaultTextModel
+                    defaultEffortKey: workspace.defaultTextEffort
                     overrideKey: workspace.modelOverride
                     effortOverrideKey: workspace.effortOverride
                     enabled: !workspace.generationRunning
@@ -422,10 +424,21 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: Math.max(220, Math.min(420, workspace.height * 0.6))
                     }
-                    SpeechScriptReadingView {
+                    ScrollView {
+                        id: scriptReadingScroll
+                        objectName: "scriptReadingScroll"
                         visible: !workspace.showSource && workspace.scriptMode
                         Layout.fillWidth: true
-                        preview: workspace.preview
+                        Layout.preferredHeight: Math.max(220, Math.min(420, workspace.height * 0.6))
+                        contentWidth: availableWidth
+                        clip: true
+                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                        ScrollBar.vertical.policy: contentHeight > availableHeight
+                                                   ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                        SpeechScriptReadingView {
+                            width: scriptReadingScroll.availableWidth
+                            preview: workspace.preview
+                        }
                     }
                     RowLayout {
                         Layout.fillWidth: true

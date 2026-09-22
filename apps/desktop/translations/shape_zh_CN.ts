@@ -3088,6 +3088,10 @@
 </context>
 <context>
     <name>SceneOperatorGraphWorkspace</name>
+    <message><source>Final file · %1 audio</source><translation>最终文件 · %1 音频</translation></message>
+    <message><source>Save the accepted audio as a file outside this project.</source><translation>将已采用的音频保存为项目外的文件。</translation></message>
+    <message><source>Accept an audio version before exporting a final file.</source><translation>先采用一个音频版本，再导出最终文件。</translation></message>
+    <message><source>Export WAV…</source><translation>导出 WAV…</translation></message>
     <message>
         <source>Earlier version</source>
         <translation>较早版本</translation>
@@ -3543,6 +3547,14 @@
 </context>
 <context>
     <name>ShapeSettingsDialog</name>
+    <message><source>Effort</source><translation>推理投入</translation></message>
+    <message><source>Runtime default</source><translation>运行时默认</translation></message>
+    <message><source>Low</source><translation>低</translation></message>
+    <message><source>Medium</source><translation>中</translation></message>
+    <message><source>High</source><translation>高</translation></message>
+    <message><source>Extra high</source><translation>很高</translation></message>
+    <message><source>Max</source><translation>最高</translation></message>
+    <message><source>Ultra</source><translation>极高</translation></message>
     <message>
         <location filename="../qml/ShapeSettingsDialog.qml" line="+94"/>
         <source>Shape settings</source>

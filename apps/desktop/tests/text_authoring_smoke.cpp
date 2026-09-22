@@ -246,6 +246,18 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
     if (!check(evaluate(*writer, QStringLiteral("checkpoint()")).toBool(), "save authored draft"))
         return false;
     evaluate(*writer, QStringLiteral("updatePreview()"));
+    evaluate(*writer, QStringLiteral("reviewing = true; showSource = false"));
+    auto* readingScroll = writer->findChild<QObject*>(QStringLiteral("scriptReadingScroll"));
+    if (!check(
+            readingScroll && waitUntil([&] {
+                return readingScroll->property("visible").toBool()
+                       && readingScroll->property("height").toDouble() <= 420
+                       && readingScroll->property("contentHeight").toDouble()
+                              > readingScroll->property("availableHeight").toDouble();
+            }),
+            "script reading stays in its own bounded scroll area"
+        ))
+        return false;
     const QString artifactId = writer->property("artifactId").toString();
     if (!check(
             backend.textAuthoringContent(artifactId, QString()).isEmpty(),
