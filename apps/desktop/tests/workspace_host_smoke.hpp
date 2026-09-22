@@ -26,6 +26,8 @@ bool verifyLocalization(QObject& root_object, UiPreferences& ui_preferences);
 
 bool verifyProjectWelcome(QObject& root_object);
 
+bool verifyRecentProjects();
+
 bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend);
 
 } // namespace workspace_host_smoke
