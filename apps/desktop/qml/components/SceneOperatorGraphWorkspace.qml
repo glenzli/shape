@@ -42,7 +42,7 @@ Rectangle {
 
     readonly property real nodeWidth: 212
     readonly property real nodeHeight: 132
-    readonly property real columnGap: 50
+    readonly property real columnGap: 100
     readonly property real rowGap: 30
     readonly property real graphMargin: 28
     readonly property int acceptedMaxStage: maximumAcceptedStage()
