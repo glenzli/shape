@@ -7,18 +7,14 @@ ports expose a `+` insertion affordance, and focused work happens only after the
 The current artifact-as-Scene implementation remains a compatibility projection while a real
 Scene-owned mutable graph is added; it must not be mistaken for the final multi-source persistence
 model.
-A blank or non-text compatibility canvas still exposes the AI Text Editor in the node library.
-Choosing it creates an unaccepted text target plus a durable zero-input `text.edit` Working Graph,
-so the node and its authored intent exist before any material does. The focused workspace clearly
-shows “waiting for materials” and keeps generation disabled. This is a migration bridge, not a
-claim that the current artifact-as-Scene model can already persist arbitrary cross-media edges.
-A text work starts as one atomic accepted source revision and immediately enters a recoverable
-writing draft; an AI image work atomically creates an unaccepted raster identity and its zero-input
-`image.generate` Working Graph, then opens the image workspace directly. The shell can
-also open a bundle at startup, display its validated project metadata and artifact list, and render
-bounded accepted text or an on-demand verified raster preview supplied by Rust. Text documents can
-accumulate multiple transient candidates, compare and accept them in place, or branch one into a
-new artifact. An 8-bit PNG/JPEG can be imported into a canonical `image.raster` revision, cropped,
+The text and speech workflow uses the [node contract](../../docs/NODE_MODEL.md).
+Text creation starts empty and offers plain/script formats before the user writes. Text editing requires
+an accepted original and allocates an independent output, with rewrite, translate, summarize and script
+preparation tasks. Both open `TextAuthoringWorkspace.qml`; optional tone, audience and style settings
+reuse `TextExpressionPalette.qml`. `TextFormatPanel.qml` exposes the format and writing presets.
+Rules are displayed as examples and a copyable offline guide. Speech consumes the adopted document's
+persisted format and owns only delivery settings. Stable text/speech nodes survive repeated acceptance.
+An 8-bit PNG/JPEG can be imported into a canonical `image.raster` revision, cropped,
 resized, losslessly reoriented, blurred, or given a flattened drop shadow; every edit is compared
 as a transient Candidate before its exact versioned operation is accepted and reopened.
 Accepted text can also enter the preset-only Speech Synthesis workspace, produce a transient
@@ -47,31 +43,18 @@ media workspace. Rust projects accepted Revision/Transformation history as
 QML lays out and draws that graph without becoming semantic authority. Scene selection is shared
 across the navigator, graph, workspace, and inspector. The graph provides real zoom/fit controls,
 a compact selection summary, and a searchable media-compatible Operator palette. Palette selection
-uses a Rust-owned Operator catalog for source-bound actions; the always-authorable AI Text Editor
-either reuses a compatible text draft or creates the detached compatibility target described above.
-The selection immediately enters the dedicated Operator workspace. Unexecuted drafts are stored in the
-project's mutable Working Graph, restore with the same identity on reopen, and remain outside
-accepted history. Text transformation is presented as an AI Text Editor node and a dedicated
-`AiTextEditingWorkspace.qml`. The workspace keeps connected material context outside the editor,
-then owns quick actions, optional prompt, readable tone samples, style, audience, one-or-three Candidate pacing, selectable
-output, targeted follow-up preparation, and explicit output locking. Compatibility work uses
-canonical `text.edit`; `shape.operator-draft.text-transform@20260813.1` checkpoints
-rewrite/expand/polish/shorten/summarize, exact authored instruction, one-or-two tone facets,
-subtle/balanced/strong intensity, preset or authored audience, style, and bounded variant count.
-Built-in tones pair Shape-owned marks with a plain-language description and one expression sample;
-selection order explicitly means primary and supporting tone. A bounded personal tone library lives
-in the application preferences, but the selected name, instruction, example, and visual mark are
-copied into the project draft so later library edits never change old node intent. The previous
-`20260812.2` expression schema and older `text.transform` drafts remain readable. The Infer Text
-controller receives only the draft identity; Rust reopens the Working Graph, compiles the persisted
-intent, and revalidates it before execution.
+uses the Rust-owned Operator catalog for both source-free creation and source-bound editing.
+Text and speech graphs use stable node identities and explicit source bindings; generation history
+is inspected separately. Both text actions use the same workspace. Writing presets, tone, audience,
+style and exact buffers are stored in the authoring configuration. Personal presets are snapshots,
+not live dependencies. Infer receives a persisted node identity and revalidates its exact configuration.
 Raster authoring is likewise presented as one Image Editing action. Its workspace exposes Frame and
 Size as internal tools backed by the existing exact `image.crop` and `image.resize` contracts;
 choosing one does not invent a generic executor or erase the accepted Transformation identity.
 When either tool produces a Candidate, sibling crop/resize drafts are retired together so the one
 product stage cannot leave a stale hidden draft. Material-aware AI assistance stays visibly
 unavailable until Infer exposes a real typed image-edit execution surface.
-Image and audio compatibility executions may still retire their tool draft after producing a
+Image compatibility executions may still retire their tool draft after producing a
 Candidate. AI text execution deliberately does not: the node Draft is reusable authored intent,
 while each exact generated result belongs to the Candidate Shelf. Locking a text Candidate advances
 immutable history and rebases the same draft to the new accepted head.
@@ -144,6 +127,28 @@ speech drafts receive and persist the validated default on open, and generation 
 draft identity instead of accepting UI parameters as execution authority. This is a preview surface,
 not the future Echo-backed composition/render engine.
 
+The speech workspace exposes nine Runtime voice aliases (catalogue `20260922.1`), with automatic
+mixed-language detection by default and an independent explicit language override. Existing authored
+`20260811.1` Chinese presets remain readable. Narration accepts up to 64 KiB of UTF-8 text, splits
+around sentence/word boundaries at 240 characters, and assembles at most 128 MiB of matching PCM WAV.
+Leading/trailing whitespace stays attached to spoken segments. Progress reports completed segments;
+Stop finishes the active request first. Retrying the same source and settings in the same app session
+reuses successful segments. Changes to text, voice, language, pace, or disclosure invalidate that
+cache; completed narration releases it. Runtime failures never publish partial audio or accepted
+history. The local Qwen worker applies pitch-preserving pace after synthesis.
+
+`AudioExportController` independently owns export. The toolbar opens a native WAV save dialog for
+selected candidate or accepted audio. It writes the exact verified bytes through `QSaveFile`, with
+no direct-write fallback, and rejects destinations inside a project bundle. Export does not accept a
+Candidate. `AudioExportDialog.qml` owns destination selection and localized completion/error feedback.
+
+An opt-in real-service check is available on the built desktop binary:
+`shape-desktop --smoke-speech-live /absolute/existing/output-directory`.
+It requires configured Shape credentials and an available local Runtime, creates its own project,
+and exercises packaged QML voice/language choice, multi-segment mixed-language synthesis, a second
+voice, actual playback/seek, byte-exact candidate/accepted export, bundle-path rejection, explicit
+acceptance and reopen. It is deliberately excluded from offline CTest smoke checks.
+
 `InferImageController` owns the separate high-payload source-less image generation lifecycle over
 the stable Core and Responses capability.
 Rust reopens the exact zero-input draft and validates its prompt/canvas before credential access,
@@ -177,7 +182,7 @@ their accepted Transformation records the exact versioned parameters, while QML 
 history, or executor policy. Rust remains the exact pixel, draft, and persistence authority.
 `WorkbenchProjectRail.qml` now owns the compact Scene/Component/Asset navigation surface while
 accepted Artifact projection remains the temporary Scene compatibility model. Entering an Operator
-keeps `SceneGraphContextStrip.qml` visible above the media workspace; it emits identity-based open
+uses `SceneGraphContextStrip.qml` above general media workspaces; guided writing and speech keep a compact return action. The strip it emits identity-based open
 intent without owning the graph. `CandidateFilmstrip.qml` replaces the permanent dashboard shelf
 with horizontal, identity-addressed Select/Compare/Accept/Discard/Branch actions wired to the same
 session authority. `OperatorIntentSidebar.qml` is the extracted presentation owner for
@@ -225,7 +230,11 @@ For the stable Shadow/Echo-style local launch path, build, validate, promote, an
 ./scripts/run_debug.sh [/path/to/project.shape]
 ```
 
-Promotion copies a complete candidate bundle into an immutable external release and atomically
+The default promotion is intentionally fast: it checks finished Simplified Chinese translations,
+builds the packaged desktop app, and runs the two packaged desktop smoke paths before advancing
+`current-debug`. Use `./scripts/build_and_promote_debug.sh --full` before commits, cross-module
+handoffs, or release-like checkpoints to also run Rust formatting, workspace Clippy, and all Rust
+tests. Promotion copies a complete candidate bundle into an immutable external release and atomically
 advances `current-debug`; it never modifies a running application in place. `run_debug.sh` detaches
 by default, supports `--foreground` and `--check`, and writes its log under the sibling
 `.shape-local-build` directory.
@@ -251,3 +260,49 @@ draft and dedicated workspace, and reopens the same draft identity without conta
 
 The shell requires Qt 6.9 or newer for the cross-platform expanded client area. Platform-specific
 code is isolated to native window-control alignment; QML layout, themes, and settings are shared.
+
+`SpeechScriptPanel.qml` presents the full accepted-source parse, binds role voices and resolves sequential cues. `session/speech_script.rs` owns project-backed authoring and full-source preview; the backend imports bounded cue files on a worker and commits their immutable content reference on the UI session. The portable grammar belongs to `shape-domain::speech_script`; PCM assembly and validation belong to `shape-execution::speech_script`. Both core proposal and durable store acceptance validate the same source-bound timeline. See [script rules](../../docs/SPEECH_SCRIPT.md).
+
+`SpeechScriptHelpDialog.qml` exposes the packaged script rules and AI writing prompt from the speech workspace, including plain-text mode. `SpeechScriptDocumentation` reads the canonical `docs/SPEECH_SCRIPT*.md` resources and copies their exact text; no source checkout or network access is required at runtime.
+
+The New Content dialog exposes Free Writing and Narration Script before requesting text. Listening,
+narration and dialogue templates open `TextAuthoringWorkspace.qml` with an empty persisted draft.
+AI drafting, adapting reference text and manual writing share explicit candidate acceptance. The
+writing workspace offers the rules before content entry, full-text reading/source review and a direct
+handoff to voices with script parsing enabled. Returning to writing retains the profile and voice
+settings; a new accepted text revision invalidates transient speech previews without changing saved
+recordings. `SpeechScriptReadingView.qml` renders Rust's parser projection rather than parsing QML text.
+
+`operator_catalog/text_authoring.rs` owns the versioned authoring configuration and compiles the
+bundled rules into existing Infer text requests. `session/text_authoring.rs` owns empty-source creation,
+buffer persistence, complete-text retrieval, manual proposals and speech handoff. Its source transition
+uses an unaccepted artifact plus zero-input graph; the first explicit acceptance creates an editable
+accepted-input graph. No placeholder text revision is stored. Native text-authoring smoke covers the
+packaged entry, pre-writing help, invalid grammar, manual acceptance and return to writing.
+`--smoke-text-authoring DIRECTORY` separately exercises real AI drafting, valid script adoption,
+Qwen speech and byte-verified WAV export in an isolated project; it requires configured Infer access.
+
+`ShapeButton`, `ShapeTextField`, `ShapeTextArea`, `ShapeComboBox` and `ShapeDialog` own shared theme,
+focus, padding and popup treatment. Loading indicators stay inside the existing button geometry.
+
+### Production scripts
+
+Script format `20260922.2` declares production purpose, role identities, delivery and sound cues before
+playback. `ScriptProductionSettings.qml` presents writing-time cast, performance, exact play count,
+between-play silence, answering time and optional beep. The adjacent bridge authoring `production`
+owner compiles those requirements into the AI instruction and checks the resulting document; the
+configured preview and explicit adoption use that same check. Handwritten scripts use their own
+declarations. `ScriptPresentation.js` owns shared localized diagnostics and control labels.
+
+`shape-domain::speech_script::production` owns portable delivery and declaration values. The parser
+resolves scoped language/delivery, validates declared names and bounded repeat blocks, and preserves
+control events in the document plan. `SpeechScriptReadingView` shows the controls without duplicating
+the text. `SpeechScriptPanel` requires every named role to have an explicit voice, shows shared-voice
+warnings, and uses declared built-in cues or user-bound WAV resources. The help dialog includes visual
+examples, the copyable AI prompt and the full offline specification.
+
+The execution compiler emits one speech action per unique utterance plus replay references. Assembly
+copies prior PCM ranges in the final bounded WAV buffer; receipt validation rejects changed replay
+bytes even when their digest is recomputed. Global/role/local delivery is sent through the existing
+Infer speech `instructions` field and Qwen worker `instruct` parameter. Repetition guarantees exact
+bytes within the recording; new synthesis of different sentences still requires listening review.

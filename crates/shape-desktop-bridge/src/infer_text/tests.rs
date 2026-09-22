@@ -105,7 +105,10 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
             &FakeTextExecutor::new(),
         )
         .expect("fake SDK execution prepares a transient candidate");
-    let generated = Box::new(InferTextCandidate { candidate });
+    let generated = Box::new(InferTextCandidate {
+        candidate,
+        request_draft: None,
+    });
 
     let mut session = open_desktop_session(project_path.to_str().expect("portable project path"))
         .expect("session opens");
@@ -143,4 +146,69 @@ fn background_infer_result_adopts_as_transient_candidate_before_acceptance() {
     );
     drop(session);
     fs::remove_dir_all(project_path).expect("fixture removes");
+}
+
+#[test]
+fn zero_input_ai_writing_stays_transient_and_rejects_changed_intent() {
+    use crate::operator_catalog::text_authoring::TextAuthoring;
+    let path = std::env::temp_dir().join(format!("shape-writing-infer-{}", Uuid::now_v7()));
+    let mut session = crate::create_desktop_project(path.to_str().unwrap(), "AI writing").unwrap();
+    let snapshot = session
+        .session_create_text_authoring("New text", "plain")
+        .unwrap();
+    let artifact = snapshot.artifacts[0].id.parse::<ArtifactId>().unwrap();
+    let draft_id = session.session_operator_drafts()[0].draft_id.clone();
+    let mut state = TextAuthoring::new("plain").unwrap();
+    state.instruction = "Write a short paragraph about the park.".into();
+    session
+        .session_update_text_authoring(&draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
+    let project = ShapeProject::open(&path).unwrap();
+    let request_draft = project.artifact_working_graphs().unwrap()[0].operators()[0].clone();
+    let prepare = || {
+        project
+            .propose_generated_text(
+                artifact,
+                None,
+                &state.compiled_instruction().unwrap(),
+                IntentSpec::new("Create prose from intent").unwrap(),
+                Vec::new(),
+                &FakeTextExecutor::new(),
+            )
+            .unwrap()
+    };
+    let candidate = prepare();
+    let stale_candidate = prepare();
+    let adopted = session
+        .session_adopt_infer_text(Box::new(InferTextCandidate {
+            candidate,
+            request_draft: Some(request_draft.clone()),
+        }))
+        .unwrap();
+    assert!(!session.session_snapshot().unwrap().artifacts[0].has_accepted_revision);
+    state.instruction = "Write about the beach instead.".into();
+    session
+        .session_update_text_authoring(&draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
+    assert_eq!(
+        session
+            .session_adopt_infer_text(Box::new(InferTextCandidate {
+                candidate: stale_candidate,
+                request_draft: Some(request_draft),
+            }))
+            .unwrap_err(),
+        "stale_candidate"
+    );
+    let accepted = session
+        .session_accept_candidate(&adopted.candidate_id)
+        .unwrap();
+    assert!(accepted.artifacts[0].has_accepted_revision);
+    assert!(
+        !session.session_operator_drafts()[0]
+            .text_authoring_json
+            .is_empty()
+    );
+    drop(project);
+    drop(session);
+    fs::remove_dir_all(path).unwrap();
 }

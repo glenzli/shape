@@ -64,7 +64,12 @@ fn working_graph_save_rejects_a_stale_accepted_head() {
         store.save_artifact_working_graph(&graph),
         Err(StoreError::RevisionConflict { .. })
     ));
-    assert!(store.artifact_working_graphs().unwrap().is_empty());
+    let retained = store.artifact_working_graphs().unwrap();
+    assert_eq!(retained.len(), 1);
+    assert_ne!(
+        retained[0].expected_revision_id(),
+        graph.expected_revision_id()
+    );
     std::fs::remove_dir_all(root).unwrap();
 }
 

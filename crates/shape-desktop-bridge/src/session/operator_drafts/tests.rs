@@ -75,7 +75,7 @@ fn detached_text_editor_is_zero_input_and_keeps_exact_default_intent() {
     let draft = drafts
         .begin_detached_text_editor(&text)
         .expect("detached editor begins");
-    assert_eq!(draft.operator_type().as_str(), TEXT_EDIT_OPERATOR);
+    assert_eq!(draft.operator_type().as_str(), TEXT_CREATE_OPERATOR);
     assert!(draft.input_data_type().is_none());
     assert_eq!(draft.output_data_type().as_str(), "text.document");
     assert_eq!(mode_from_draft(&draft).unwrap(), "rewrite");

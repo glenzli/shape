@@ -20,6 +20,7 @@ use shape_domain::{
 };
 
 use crate::ffi;
+mod authored;
 
 const VALUE_INPUT_PORT: &str = "input.value";
 const VALUE_OUTPUT_PORT: &str = "output.value";
@@ -34,6 +35,14 @@ pub(crate) fn project_operator_graph(
     artifact: &Artifact,
     project_artifacts: &[Artifact],
 ) -> Result<OperatorGraphProjection, String> {
+    if let Some(graph) = project
+        .artifact_working_graphs()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|g| g.context_artifact_id() == artifact.id && authored::is_authored_text_output(g))
+    {
+        return authored::project_authored(project, artifact, project_artifacts, &graph);
+    }
     let Some(head) = artifact.accepted_revision else {
         return Ok(OperatorGraphProjection {
             nodes: Vec::new(),

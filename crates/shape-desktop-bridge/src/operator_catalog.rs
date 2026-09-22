@@ -8,6 +8,7 @@ use shape_domain::ArtifactKind;
 mod ai_image_generate;
 mod audio_speech;
 mod image_resize;
+pub(crate) mod text_authoring;
 mod text_transform;
 
 use ai_image_generate::validate_ai_image_generate_configuration;
@@ -17,7 +18,7 @@ pub(crate) use ai_image_generate::{
 };
 use audio_speech::validate_audio_speech_configuration;
 pub(crate) use audio_speech::{
-    audio_speech_operation_from_draft, configuration_for_audio_speech,
+    audio_speech_operation_from_draft, configuration_for_audio_speech, configuration_with_script,
     default_audio_speech_configuration,
 };
 use image_resize::validate_image_resize_configuration;
@@ -35,6 +36,7 @@ pub(crate) const AUDIO_SPEECH_OPERATOR: &str = "audio.speech_synthesize";
 pub(crate) const IMAGE_CROP_OPERATOR: &str = "image.crop";
 pub(crate) const IMAGE_GENERATE_OPERATOR: &str = "image.generate";
 pub(crate) const IMAGE_RESIZE_OPERATOR: &str = "image.resize";
+pub(crate) const TEXT_CREATE_OPERATOR: &str = "text.create";
 pub(crate) const TEXT_EDIT_OPERATOR: &str = "text.edit";
 pub(crate) const TEXT_TRANSFORM_OPERATOR: &str = "text.transform";
 
@@ -52,7 +54,15 @@ pub(crate) struct OperatorDescriptor {
     pub(crate) icon_key: &'static str,
 }
 
-const DESCRIPTORS: [OperatorDescriptor; 4] = [
+const DESCRIPTORS: [OperatorDescriptor; 5] = [
+    OperatorDescriptor {
+        type_key: TEXT_CREATE_OPERATOR,
+        source_kind: ArtifactKind::TextDocument,
+        input_data_type: "",
+        output_data_type: TEXT_DOCUMENT_DATA,
+        category_key: "text",
+        icon_key: "edit",
+    },
     OperatorDescriptor {
         type_key: TEXT_EDIT_OPERATOR,
         source_kind: ArtifactKind::TextDocument,
@@ -90,9 +100,15 @@ const DESCRIPTORS: [OperatorDescriptor; 4] = [
 pub(crate) fn compatible_descriptors(
     source_kind: ArtifactKind,
 ) -> impl Iterator<Item = &'static OperatorDescriptor> {
+    DESCRIPTORS.iter().filter(move |descriptor| {
+        descriptor.source_kind == source_kind || descriptor.input_data_type.is_empty()
+    })
+}
+
+pub(crate) fn source_descriptors() -> impl Iterator<Item = &'static OperatorDescriptor> {
     DESCRIPTORS
         .iter()
-        .filter(move |descriptor| descriptor.source_kind == source_kind)
+        .filter(|descriptor| descriptor.input_data_type.is_empty())
 }
 
 pub(crate) fn descriptor_for(
@@ -111,7 +127,10 @@ pub(crate) fn descriptor_for(
 }
 
 pub(crate) fn is_text_workspace_operator(operator_type: &str) -> bool {
-    matches!(operator_type, TEXT_EDIT_OPERATOR | TEXT_TRANSFORM_OPERATOR)
+    matches!(
+        operator_type,
+        TEXT_CREATE_OPERATOR | TEXT_EDIT_OPERATOR | TEXT_TRANSFORM_OPERATOR
+    )
 }
 
 pub(crate) fn is_image_edit_workspace_operator(operator_type: &str) -> bool {
@@ -125,7 +144,12 @@ pub(crate) fn validate_draft_configuration(
         (AUDIO_SPEECH_OPERATOR, configuration) => {
             validate_audio_speech_configuration(configuration)
         }
-        (TEXT_EDIT_OPERATOR | TEXT_TRANSFORM_OPERATOR, configuration) => {
+        (TEXT_CREATE_OPERATOR | TEXT_EDIT_OPERATOR | TEXT_TRANSFORM_OPERATOR, configuration) => {
+            if let Some(configuration) = configuration
+                && configuration.schema().as_str() == text_authoring::SCHEMA
+            {
+                return text_authoring::TextAuthoring::from_json(configuration.json()).map(|_| ());
+            }
             validate_text_transform_configuration(configuration)
         }
         (IMAGE_RESIZE_OPERATOR, configuration) => {

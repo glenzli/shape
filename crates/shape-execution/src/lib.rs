@@ -16,6 +16,7 @@ mod infer_runtime;
 mod job;
 mod provenance;
 mod raster;
+pub mod speech_script;
 
 pub use audio::parse_pcm_s16le_wav;
 pub use coordinator::{ExecutedCandidate, ExecutionCoordinator};
@@ -28,16 +29,18 @@ pub use infer_runtime::{
     AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, IMAGE_GENERATE_CAPABILITY,
     INFER_RUNTIME_CAPABILITY_CATALOG, INFER_RUNTIME_CONTRACT_VERSION,
     INFER_RUNTIME_RESPONSES_CAPABILITY, INFER_RUNTIME_SPEECH_CAPABILITY,
-    INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
-    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1, InferRuntimeClientError, InferRuntimeContract,
-    InferRuntimeCredentialError, InferRuntimeCredentialStore, InferRuntimeEndpointSource,
-    InferRuntimeExecutor, InferRuntimeImageGenerationExecutor, InferRuntimeProbe,
-    InferRuntimeSpeechExecutor, ResolvedInferRuntimeEndpoint, probe_infer_runtime_contract,
+    INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION, INFER_SPEECH_VOICE_CATALOG_REVISION,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+    InferRuntimeClientError, InferRuntimeContract, InferRuntimeCredentialError,
+    InferRuntimeCredentialStore, InferRuntimeEndpointSource, InferRuntimeExecutor,
+    InferRuntimeImageGenerationExecutor, InferRuntimeProbe, InferRuntimeSpeechExecutor,
+    ResolvedInferRuntimeEndpoint, SPEECH_PRESETS, SpeechPreset, SpeechSynthesisControl,
+    probe_infer_runtime_contract, supported_speech_operation,
 };
 pub use job::{ExecutionJob, ExecutionOutcome, ExecutionReceipt, JobState};
 pub use provenance::{
     ExternalAttemptProvenance, ExternalExecutionProvenance, ExternalNamedRouteProvenance,
-    ExternalRoutingCandidate,
+    ExternalRoutingCandidate, SpeechSegmentProvenance,
 };
 pub use raster::{
     RASTER_BLUR_CAPABILITY, RASTER_CROP_CAPABILITY, RASTER_DROP_SHADOW_CAPABILITY,

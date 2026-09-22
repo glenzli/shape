@@ -42,7 +42,7 @@ Item {
                     Layout.fillHeight: true
                     clip: true
 
-                    TextArea {
+                    ShapeTextArea {
                         readOnly: true
                         text: comparison.acceptedText
                         color: Theme.textSoft
@@ -81,7 +81,7 @@ Item {
                     Layout.fillHeight: true
                     clip: true
 
-                    TextArea {
+                    ShapeTextArea {
                         readOnly: true
                         text: comparison.candidateText
                         color: Theme.text

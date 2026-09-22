@@ -24,6 +24,8 @@ use shape_store::{AcceptedCommit, NewArtifactCommit};
 use super::ShapeProject;
 use crate::CoreError;
 
+mod node;
+
 /// Stable creative Operator identity projected into the Scene Graph.
 pub const TEXT_EDIT_OPERATOR_TYPE: &str = "text.edit";
 /// Stable creative Operator identity for provider-backed text transformation.
@@ -177,6 +179,9 @@ pub struct TextCandidate {
     receipt: ExecutionReceipt,
     output_text: String,
     output_media_type: String,
+    content_contract: shape_domain::TextDocumentContract,
+    input_heads: Vec<(ArtifactId, RevisionId)>,
+    request_node: Option<shape_domain::WorkingOperatorDraft>,
 }
 
 impl fmt::Debug for TextCandidate {
@@ -190,11 +195,20 @@ impl fmt::Debug for TextCandidate {
             .field("receipt", &self.receipt)
             .field("output_byte_length", &self.output_text.len())
             .field("output_media_type", &self.output_media_type)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
 impl TextCandidate {
+    #[must_use]
+    pub fn request_node(&self) -> Option<&shape_domain::WorkingOperatorDraft> {
+        self.request_node.as_ref()
+    }
+
+    #[must_use]
+    pub const fn content_contract(&self) -> &shape_domain::TextDocumentContract {
+        &self.content_contract
+    }
     /// Returns the target artifact identity.
     #[must_use]
     pub const fn artifact_id(&self) -> ArtifactId {
@@ -453,15 +467,21 @@ impl ShapeProject {
     ///
     /// Returns an error when its expected head is stale or durable publication fails.
     pub fn accept_text(&mut self, candidate: TextCandidate) -> Result<ArtifactRevision, CoreError> {
-        Ok(self.store.accept(AcceptedCommit {
-            artifact_id: candidate.artifact_id,
-            expected_head: candidate.expected_head,
-            transformation: candidate.transformation,
-            receipt: candidate.receipt,
-            output_bytes: candidate.output_text.into_bytes().into(),
-            output_media_type: candidate.output_media_type,
-            content_contract: None,
-        })?)
+        Ok(self.store.accept_with_node(
+            AcceptedCommit {
+                artifact_id: candidate.artifact_id,
+                expected_head: candidate.expected_head,
+                transformation: candidate.transformation,
+                receipt: candidate.receipt,
+                output_bytes: candidate.output_text.into_bytes().into(),
+                output_media_type: candidate.output_media_type,
+                content_contract: Some(shape_domain::ArtifactContentContract::TextDocument(
+                    candidate.content_contract,
+                )),
+            },
+            &candidate.input_heads,
+            candidate.request_node.as_ref(),
+        )?)
     }
 
     /// Accepts a text Candidate as a newly named artifact without advancing its source.
@@ -601,6 +621,9 @@ fn text_candidate(
         receipt,
         output_text,
         output_media_type: output.media_type,
+        content_contract: shape_domain::TextDocumentContract::Plain,
+        input_heads: Vec::new(),
+        request_node: None,
     })
 }
 

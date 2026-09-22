@@ -385,6 +385,10 @@ impl PresetVoiceSelection {
 /// Persisted creative parameters of one speech synthesis Operator.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpeechSynthesisOperation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery: Option<crate::speech_script::SpeechDelivery>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub script: Option<crate::speech_script::SpeechScriptOptions>,
     pub language: String,
     pub voice: SpeechVoiceSelection,
     /// Playback-rate multiplier in thousandths (`1000` means 1.0x).
@@ -405,6 +409,8 @@ impl SpeechSynthesisOperation {
         synthetic_disclosure_required: bool,
     ) -> Result<Self, DomainError> {
         let operation = Self {
+            script: None,
+            delivery: None,
             language: language.into(),
             voice,
             speed_milli,
@@ -427,7 +433,11 @@ impl SpeechSynthesisOperation {
                     && reference.scope == VoiceAuthorizationScope::SpeechSynthesis
             }
         };
-        if self.language.is_empty()
+        if self
+            .script
+            .as_ref()
+            .is_some_and(|script| !script.is_valid())
+            || self.language.is_empty()
             || self.language.len() > MAX_LANGUAGE_TAG_BYTES
             || !self
                 .language

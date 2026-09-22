@@ -83,6 +83,8 @@ fn parameters() -> AiImageGenerateParameters {
 
 fn provenance() -> ExternalExecutionProvenance {
     ExternalExecutionProvenance {
+        speech_segments: Vec::new(),
+        speech_script: None,
         contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
         capability_contract: Some(shape_execution::INFER_RUNTIME_RESPONSES_CAPABILITY.to_owned()),
         app_id: "shape".to_owned(),

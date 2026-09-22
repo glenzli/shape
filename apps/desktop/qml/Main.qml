@@ -17,6 +17,7 @@ ApplicationWindow {
     required property InferSpeechController inferSpeech
     required property InferImageController inferImage
     required property AudioPreviewController audioPreview
+    required property AudioExportController audioExport
     required property UiPreferences uiPreferences
 
     property int selectedArtifactIndex: 0
@@ -63,6 +64,32 @@ ApplicationWindow {
         return matches
     }
 
+    function startTextAuthoring(profile) : void {
+        const names = {plain: qsTr("Untitled text"), listening: qsTr("Untitled listening exercise"),
+            narration: qsTr("Untitled narration"), dialogue: qsTr("Untitled dialogue")}
+        if (!backend.createTextAuthoring(names[profile] || names.plain, profile)) return
+        selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
+        selectedCandidateId = ""
+        compareMode = false
+        Qt.callLater(function() {
+            if (!window.hasSelectedArtifact) return
+            const drafts = window.draftsForArtifact(window.selectedArtifact.id)
+            if (drafts.length > 0) workspaceSurface.openOperatorDraft(drafts[0].id)
+        })
+    }
+
+    function openAuthoringSpeech(artifactId) : void {
+        openDraftTarget(backend.beginAuthoringSpeech(artifactId))
+    }
+
+    function returnToWriting(artifactId, scriptMode) : void {
+        const index = artifactIndex(artifactId)
+        if (index < 0) return
+        const draftId = backend.beginTextAuthoring(artifactId, scriptMode ? "narration" : "plain")
+        if (draftId.length === 0) return
+        openDraftTarget(draftId)
+    }
+
     function draftsForArtifact(artifactId) : var {
         const matches = []
         for (let index = 0; index < backend.operatorDrafts.length; ++index) {
@@ -80,33 +107,19 @@ ApplicationWindow {
         return -1
     }
 
+    function openDraftTarget(draftId) : void {
+        const draft = backend.operatorDrafts.find(d => d.id === draftId)
+        if (!draft) return
+        selectedArtifactIndex = artifactIndex(draft.contextArtifactId)
+        selectedCandidateId = ""
+        compareMode = false
+        Qt.callLater(() => workspaceSurface.openOperatorDraft(draftId))
+    }
+
     function addOrOpenTextEditorNode() : void {
-        if (window.hasSelectedArtifact
-                && window.selectedArtifact.kindKey === "text_document") {
-            const existingDrafts = window.draftsForArtifact(window.selectedArtifact.id)
-            for (let index = 0; index < existingDrafts.length; ++index) {
-                if (existingDrafts[index].operatorTypeKey === "text.edit"
-                        || existingDrafts[index].operatorTypeKey === "text.transform") {
-                    workspaceSurface.openOperatorDraft(existingDrafts[index].id)
-                    return
-                }
-            }
-            if (window.selectedArtifact.hasAcceptedRevision) {
-                const draftId = window.backend.beginOperatorDraft(
-                    window.selectedArtifact.id, "text.edit")
-                if (draftId.length > 0) workspaceSurface.openOperatorDraft(draftId)
-                return
-            }
-        }
-        if (!window.backend.createDetachedTextEditor(qsTr("Untitled AI text"))) return
-        window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
-        window.selectedCandidateId = ""
-        window.compareMode = false
-        Qt.callLater(function() {
-            if (!window.hasSelectedArtifact) return
-            const drafts = window.draftsForArtifact(window.selectedArtifact.id)
-            if (drafts.length > 0) workspaceSurface.openOperatorDraft(drafts[0].id)
-        })
+        if (!hasSelectedArtifact || !selectedArtifact.hasAcceptedRevision
+                || selectedArtifact.kindKey !== "text_document") return
+        openDraftTarget(backend.beginOperatorDraft(selectedArtifact.id, "text.edit"))
     }
 
     function activateCandidate(candidateId) : bool {
@@ -232,6 +245,11 @@ ApplicationWindow {
         inferText: window.inferText
     }
 
+    AudioExportDialog {
+        id: audioExportDialog
+        controller: window.audioExport
+    }
+
     CreateProjectDialog {
         id: createProjectDialog
         backend: window.backend
@@ -246,7 +264,7 @@ ApplicationWindow {
 
     CreateSceneTypeDialog {
         id: createSceneTypeDialog
-        onTextSceneRequested: createTextSceneDialog.openForCreation()
+        onTextAuthoringRequested: profile => window.startTextAuthoring(profile)
         onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
         onImportImageRequested: imageImportDialog.open()
     }
@@ -265,7 +283,7 @@ ApplicationWindow {
                 }
                 const draftId = window.backend.beginOperatorDraft(
                     window.selectedArtifact.id, "text.edit")
-                if (draftId.length > 0) workspaceSurface.openOperatorDraft(draftId)
+                if (draftId.length > 0) window.openDraftTarget(draftId)
                 else workspaceSurface.showGraph()
             })
         }
@@ -331,6 +349,13 @@ ApplicationWindow {
     }
 
     header: MainTitleBar {
+        exportAvailable: !window.audioExport.running && ((window.selectedCandidate !== null && window.selectedCandidate.hasAudioPreview) || (window.hasSelectedArtifact && window.selectedArtifact.kindKey === "audio_clip" && window.selectedArtifact.hasAcceptedRevision))
+        onExportRequested: {
+            if (window.selectedCandidate !== null && window.selectedCandidate.hasAudioPreview)
+                audioExportDialog.openForAudio(window.selectedArtifact.id, window.selectedCandidate.id)
+            else if (window.hasSelectedArtifact)
+                audioExportDialog.openForAudio(window.selectedArtifact.id, "")
+        }
         hostWindow: window
         projectOpen: window.backend.projectOpen
         projectName: window.backend.projectName
@@ -385,10 +410,10 @@ ApplicationWindow {
             SceneGraphContextStrip {
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? 78 : 0
-                visible: workspaceSurface.focusActive
+                visible: workspaceSurface.focusActive && !workspaceSurface.guidedAuthoringActive
                 sceneName: window.hasSelectedArtifact ? window.selectedArtifact.name : ""
                 nodes: workspaceSurface.graphNodes
-                drafts: window.artifactDrafts
+                drafts: window.artifactDrafts.filter(d => !workspaceSurface.graphNodes.some(n => n.id === d.id))
                 candidateCount: window.artifactCandidates.length
                 selectedNodeId: workspaceSurface.selectedNodeId
                 onGraphRequested: workspaceSurface.showGraph()
@@ -415,13 +440,14 @@ ApplicationWindow {
                     operatorDrafts: window.artifactDrafts
                     operatorDescriptors: window.hasSelectedArtifact
                                          ? window.backend.compatibleOperators(
-                                               window.selectedArtifact.id) : []
+                                               window.selectedArtifact.id) : window.backend.compatibleOperators("")
                     selectedCandidate: window.selectedCandidate
                     selectedCandidateId: window.selectedCandidateId
                     compareMode: window.compareMode
                     acceptedImageSource: window.backend.acceptedImageSource
                     candidateImageSource: window.backend.candidateImageSource
                     inferImage: window.inferImage
+                    backend: window.backend
                     inferSpeech: window.inferSpeech
                     audioPreview: window.audioPreview
                     projectPath: window.backend.bundlePath
@@ -524,6 +550,7 @@ ApplicationWindow {
                             draftId, instruction, outputWidth, outputHeight)
                     }
                     onOperatorDraftRequested: operatorTypeKey => {
+                        if (operatorTypeKey === "text.create") { window.startTextAuthoring("plain"); return }
                         if (operatorTypeKey === "text.edit"
                                 || operatorTypeKey === "text.transform") {
                             window.addOrOpenTextEditorNode()
@@ -532,9 +559,7 @@ ApplicationWindow {
                         if (!window.hasSelectedArtifact) return
                         const draftId = window.backend.beginOperatorDraft(
                             window.selectedArtifact.id, operatorTypeKey)
-                        if (draftId.length > 0) {
-                            workspaceSurface.openOperatorDraft(draftId)
-                        }
+                        if (draftId.length > 0) window.openDraftTarget(draftId)
                     }
                     onOperatorDraftDiscardRequested: draftId => {
                         if (window.backend.discardOperatorDraft(draftId)) {
@@ -559,6 +584,11 @@ ApplicationWindow {
                     }
                     onTextCandidateLockRequested: candidateId =>
                                                       window.acceptCandidate(candidateId)
+                    onAuthoringGenerationRequested: (artifactId, draftId) =>
+                        window.inferText.generate(window.backend.bundlePath, artifactId, draftId)
+                    onAuthoringSpeechRequested: artifactId => window.openAuthoringSpeech(artifactId)
+                    onWritingRequested: (artifactId, scriptMode) => window.returnToWriting(artifactId, scriptMode)
+                    onAudioExportRequested: (artifactId, candidateId) => audioExportDialog.openForAudio(artifactId, candidateId)
                     onInferAccessSetupRequested: settingsDialog.open()
                 }
 
@@ -616,6 +646,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? 150 : 0
                 visible: workspaceSurface.focusActive
+                         && (!workspaceSurface.guidedAuthoringActive || window.artifactCandidates.length > 0)
                 candidates: window.artifactCandidates
                 selectedCandidateId: window.selectedCandidateId
                 acceptedRevisionId: window.hasSelectedArtifact

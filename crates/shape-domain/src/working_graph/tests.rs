@@ -125,10 +125,9 @@ fn accepted_input_graph_rebases_without_losing_reusable_intent() {
     assert_eq!(graph.operators()[0].id(), &draft_id);
 
     let mut source = ArtifactWorkingGraph::new_source(ArtifactId::new());
-    assert!(matches!(
-        source.rebase_accepted_input(next_head),
-        Err(DomainError::InvalidWorkingGraphAnchor)
-    ));
+    source.rebase_accepted_input(next_head).unwrap();
+    assert_eq!(source.expected_revision_id(), Some(next_head));
+    assert!(source.operators().is_empty());
 }
 
 #[test]

@@ -1,4 +1,4 @@
-//! Mutable compatibility-Scene Working Graph persistence.
+//! Mutable producer graphs, reserved outputs and atomic acceptance coordination.
 
 use rusqlite::{OptionalExtension, params};
 use shape_domain::{Artifact, ArtifactId, ArtifactWorkingGraph};
@@ -7,6 +7,26 @@ use super::ProjectStore;
 use crate::StoreError;
 
 impl ProjectStore {
+    /// Removes a node graph and its empty reserved output atomically.
+    /// Accepted output material is retained.
+    /// # Errors
+    /// Returns storage errors without changing accepted history.
+    pub fn discard_output_working_graph(
+        &mut self,
+        artifact_id: ArtifactId,
+    ) -> Result<(), StoreError> {
+        let transaction = self.connection.transaction()?;
+        transaction.execute(
+            "DELETE FROM artifact_working_graphs WHERE artifact_id = ?1",
+            [artifact_id.to_string()],
+        )?;
+        transaction.execute(
+            "DELETE FROM artifacts WHERE id = ?1 AND accepted_revision IS NULL",
+            [artifact_id.to_string()],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
     /// Loads one persisted compatibility-Scene Working Graph.
     ///
     /// # Errors
@@ -113,7 +133,7 @@ impl ProjectStore {
         Ok(())
     }
 
-    /// Atomically creates one unaccepted Artifact and its zero-input Source draft.
+    /// Atomically reserves an output Artifact and its producer graph.
     ///
     /// # Errors
     ///
@@ -171,6 +191,34 @@ impl ProjectStore {
         )?;
         Ok(())
     }
+}
+
+pub(super) fn acceptance_graph(
+    transaction: &rusqlite::Transaction<'_>,
+    artifact_id: ArtifactId,
+    expected_head: Option<shape_domain::RevisionId>,
+    expected_node: Option<&shape_domain::WorkingOperatorDraft>,
+) -> Result<Option<ArtifactWorkingGraph>, StoreError> {
+    let graph_json: Option<String> = transaction
+        .query_row(
+            "SELECT graph_json FROM artifact_working_graphs WHERE artifact_id = ?1",
+            [artifact_id.to_string()],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let graph = graph_json
+        .map(|json| serde_json::from_str::<shape_domain::ArtifactWorkingGraph>(&json))
+        .transpose()?;
+    if let Some(node) = expected_node
+        && !graph.as_ref().is_some_and(|g| {
+            g.expected_revision_id() == expected_head && g.operators().contains(node)
+        })
+    {
+        return Err(StoreError::InvalidCommit(
+            "the authored node changed after execution",
+        ));
+    }
+    Ok(graph)
 }
 
 #[cfg(test)]

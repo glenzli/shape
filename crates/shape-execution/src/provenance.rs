@@ -6,6 +6,7 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
+use shape_domain::ContentDigest;
 
 const MAX_PROVENANCE_TEXT_BYTES: usize = 256;
 const MAX_ROUTING_CANDIDATES: usize = 64;
@@ -55,6 +56,12 @@ pub struct ExternalRoutingCandidate {
 /// Payload-free physical facts copied from a runtime-owned Job snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExternalExecutionProvenance {
+    /// Exact ordered segment receipts for a locally assembled narration. Older
+    /// single-request receipts omit this additive field and remain readable.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub speech_segments: Vec<SpeechSegmentProvenance>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speech_script: Option<crate::speech_script::SpeechScriptAssembly>,
     pub contract_revision: String,
     /// Exact capability identity used by dated Consumer Core Jobs. Historical
     /// candidate receipts omit it and remain readable.
@@ -93,7 +100,62 @@ pub struct ExternalExecutionProvenance {
     pub attempts: Vec<ExternalAttemptProvenance>,
 }
 
+/// One successful speech request bound to its exact source slice and WAV bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpeechSegmentProvenance {
+    pub job_id: String,
+    pub input_start: u32,
+    pub input_end: u32,
+    pub input_digest: ContentDigest,
+    pub output_digest: ContentDigest,
+    pub frames: u64,
+    pub runtime: Box<ExternalExecutionProvenance>,
+}
+
 impl ExternalExecutionProvenance {
+    fn valid_speech_segments(&self) -> bool {
+        self.speech_segments.len() <= 512
+            && self
+                .speech_segments
+                .iter()
+                .map(|part| &part.job_id)
+                .collect::<BTreeSet<_>>()
+                .len()
+                == self.speech_segments.len()
+            && self.speech_segments.iter().all(|segment| {
+                bounded_text(&segment.job_id)
+                    && segment.input_start < segment.input_end
+                    && segment.input_end <= 65_536
+                    && segment.frames > 0
+                    && segment.runtime.speech_segments.is_empty()
+                    && segment.runtime.speech_script.is_none()
+                    && segment.runtime.is_bounded()
+                    && segment.runtime.intent == "speech.synthesize"
+                    && segment.runtime.app_id == self.app_id
+                    && segment.runtime.contract_revision == self.contract_revision
+                    && segment.runtime.capability_contract == self.capability_contract
+                    && segment.runtime.deployment == self.deployment
+                    && segment.runtime.model_build == self.model_build
+                    && segment.runtime.policy == self.policy
+                    && segment.runtime.requested_policy == self.requested_policy
+                    && segment.runtime.requested_priority == self.requested_priority
+                    && segment.runtime.requested_preference == self.requested_preference
+                    && segment.runtime.placement == "local"
+                    && segment.runtime.requested_placement == "local_only"
+                    && segment.runtime.offline_required
+                    && segment.runtime.fallback == "none"
+                    && segment.runtime.max_cost_microusd == 0
+            })
+            && self
+                .speech_segments
+                .first()
+                .is_none_or(|first| first.input_start == 0)
+            && self
+                .speech_segments
+                .windows(2)
+                .all(|pair| pair[0].input_end == pair[1].input_start)
+    }
+
     /// Returns whether this fixed-schema provenance is bounded and payload-free.
     #[must_use]
     pub fn is_bounded(&self) -> bool {
@@ -119,7 +181,11 @@ impl ExternalExecutionProvenance {
             self.fallback.as_str(),
             self.capability_floor.as_str(),
         ];
-        scalar_fields.iter().all(|value| bounded_text(value))
+        self.speech_script
+            .as_ref()
+            .is_none_or(|script| script.is_bounded() && !self.speech_segments.is_empty())
+            && self.valid_speech_segments()
+            && scalar_fields.iter().all(|value| bounded_text(value))
             && self.capability_contract.as_deref().is_none_or(bounded_text)
             && self
                 .requested_provider_access_class

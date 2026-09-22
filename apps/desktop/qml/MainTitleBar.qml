@@ -18,6 +18,7 @@ ToolBar {
     required property bool compareActive
 
     signal compareRequested()
+    property bool exportAvailable: false
     signal exportRequested()
     signal settingsRequested()
 
@@ -139,7 +140,7 @@ ToolBar {
                 source: "qrc:/qt/qml/Shape/Desktop/icons/export.svg"
                 toolTipText: qsTr("Export")
                 accessibleName: toolTipText
-                enabled: false
+                enabled: titleBar.exportAvailable
                 onClicked: titleBar.exportRequested()
             }
 

@@ -154,6 +154,8 @@ fn bridge_speech_operation() -> SpeechSynthesisOperation {
 
 fn bridge_provenance() -> ExternalExecutionProvenance {
     ExternalExecutionProvenance {
+        speech_segments: Vec::new(),
+        speech_script: None,
         contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
         capability_contract: Some(shape_execution::INFER_RUNTIME_SPEECH_CAPABILITY.to_owned()),
         app_id: "shape".to_owned(),
@@ -271,37 +273,39 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
     let draft = session
         .session_begin_operator_draft(&artifact.id, "text.edit")
         .expect("draft begins");
-    assert_eq!(draft.context_artifact_id, artifact.id);
+    assert_ne!(draft.context_artifact_id, artifact.id);
+    assert_eq!(draft.input_artifact_id, artifact.id);
     assert_eq!(draft.operator_type_key, "text.edit");
     assert_eq!(session.session_operator_drafts().len(), 1);
     let repeated = session
         .session_begin_operator_draft(&artifact.id, "text.edit")
         .expect("draft reuses");
-    assert_eq!(repeated.draft_id, draft.draft_id);
+    assert_ne!(repeated.draft_id, draft.draft_id);
+    assert_ne!(repeated.context_artifact_id, draft.context_artifact_id);
     assert_eq!(
         session
             .session_operator_descriptors(&artifact.id)
             .expect("catalog projects")
             .len(),
-        2
+        3
     );
 
     drop(session);
     let mut session = open_desktop_session(path).expect("project reopens with Working Graph");
     let restored = session.session_operator_drafts();
-    assert_eq!(restored.len(), 1);
+    assert_eq!(restored.len(), 2);
     assert_eq!(restored[0].draft_id, draft.draft_id);
     assert_eq!(restored[0].operator_type_key, "text.edit");
 
     session
         .session_propose_text(&artifact.id, "A revised first line.")
         .expect("candidate executes");
-    assert_eq!(session.session_operator_drafts().len(), 1);
+    assert_eq!(session.session_operator_drafts().len(), 2);
     assert_eq!(session.session_candidates().len(), 1);
     drop(session);
 
     let reopened = open_desktop_session(path).expect("project reopens");
-    assert_eq!(reopened.session_operator_drafts().len(), 1);
+    assert_eq!(reopened.session_operator_drafts().len(), 2);
     assert!(reopened.session_candidates().is_empty());
     assert_eq!(
         reopened
@@ -432,13 +436,13 @@ fn detached_text_editor_can_be_authored_before_any_material_is_connected() {
     assert_eq!(artifact.name, "Untitled AI text");
     assert_eq!(artifact.kind_key, "text_document");
     assert!(!artifact.has_accepted_revision);
-    assert!(artifact.operator_graph_nodes.is_empty());
+    assert_eq!(artifact.operator_graph_nodes.len(), 2);
 
     let drafts = session.session_operator_drafts();
     assert_eq!(drafts.len(), 1);
     let draft = &drafts[0];
     assert_eq!(draft.context_artifact_id, artifact.id);
-    assert_eq!(draft.operator_type_key, "text.edit");
+    assert_eq!(draft.operator_type_key, "text.create");
     assert!(!draft.has_input_data_type);
     assert_eq!(draft.output_data_type_key, "text.document");
     assert_eq!(draft.text_transform_mode, "rewrite");
@@ -612,12 +616,9 @@ fn speech_draft_configuration_persists_and_failed_stale_save_rolls_back() {
     );
     assert_eq!(
         draft.audio_speech_preset_catalog_revision,
-        INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION
+        shape_execution::INFER_SPEECH_VOICE_CATALOG_REVISION
     );
-    assert_eq!(
-        draft.audio_speech_language,
-        INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE
-    );
+    assert_eq!(draft.audio_speech_language, "auto");
     assert_eq!(draft.audio_speech_speed_milli, 1_000);
     assert!(draft.audio_speech_disclosure_required);
     let updated = session
@@ -665,100 +666,116 @@ fn speech_draft_configuration_persists_and_failed_stale_save_rolls_back() {
                 900,
                 true,
             )
-            .is_err()
+            .is_ok()
     );
     assert_eq!(
         reopened.session_operator_drafts()[0].audio_speech_speed_milli,
-        1_150,
-        "a failed durable save restores the complete in-memory draft"
+        900,
+        "voice settings remain editable when the original is stale"
+    );
+    assert_ne!(
+        reopened.session_operator_drafts()[0].input_revision_id,
+        reopened
+            .project
+            .read_accepted(artifact_id)
+            .unwrap()
+            .unwrap()
+            .revision
+            .id
+            .to_string()
+    );
+    reopened
+        .session_refresh_text_input(&draft.draft_id)
+        .unwrap();
+    assert_eq!(
+        reopened.session_operator_drafts()[0].input_revision_id,
+        reopened
+            .project
+            .read_accepted(artifact_id)
+            .unwrap()
+            .unwrap()
+            .revision
+            .id
+            .to_string()
     );
     fs::remove_dir_all(root).expect("fixture removes");
 }
 
 #[test]
 fn candidate_is_transient_until_acceptance_and_survives_reopen_after_commit() {
+    use crate::operator_catalog::text_authoring::{TextAuthoring, WritingEntry};
     let root = test_root();
-    let artifact_id = seeded_project(&root);
-    let path = root.to_str().expect("portable path");
-    let mut session = open_desktop_session(path).expect("session opens");
-    let before = session.session_snapshot().expect("snapshot reads");
-    let before_artifact = before.artifacts.first().expect("artifact projected");
-    let before_revision = before_artifact.accepted_revision_id.clone();
+    let source_id = seeded_project(&root).to_string();
+    let mut session = open_desktop_session(root.to_str().unwrap()).unwrap();
+    let original_head = session.session_snapshot().unwrap().artifacts[0]
+        .accepted_revision_id
+        .clone();
+    let draft = session
+        .session_begin_operator_draft(&source_id, "text.edit")
+        .unwrap();
+    let mut state = TextAuthoring::from_json(&draft.text_authoring_json).unwrap();
+    state.entry = WritingEntry::Manual;
+    state.text = "A quiet summer afternoon.".into();
     session
-        .session_begin_operator_draft(&artifact_id.to_string(), "audio.speech_synthesize")
-        .expect("parallel speech draft begins");
-
+        .session_update_text_authoring(&draft.draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
     let candidate = session
-        .session_propose_text(&artifact_id.to_string(), "A quiet summer afternoon.")
-        .expect("candidate executes");
-    assert_eq!(candidate.artifact_id, artifact_id.to_string());
-    assert_eq!(candidate.text_preview, "A quiet summer afternoon.");
-    assert!(!candidate.text_preview_truncated);
-    assert_eq!(session.session_operator_drafts().len(), 1);
-
-    let still_accepted = session
-        .session_snapshot()
-        .expect("snapshot remains readable");
-    assert_eq!(
-        still_accepted.artifacts[0].accepted_revision_id,
-        before_revision
+        .session_propose_authored_text(&draft.draft_id)
+        .unwrap();
+    let before = session.session_snapshot().unwrap();
+    assert!(
+        !before
+            .artifacts
+            .iter()
+            .find(|a| a.id == draft.context_artifact_id)
+            .unwrap()
+            .has_accepted_revision
     );
-    assert_eq!(
-        still_accepted.artifacts[0].text_preview,
-        "A summer afternoon."
-    );
-
+    assert_eq!(before.graph_edges.len(), 1);
+    let nodes_before = before
+        .artifacts
+        .iter()
+        .find(|a| a.id == draft.context_artifact_id)
+        .unwrap()
+        .operator_graph_nodes
+        .iter()
+        .map(|n| n.node_id.clone())
+        .collect::<Vec<_>>();
     let accepted = session
         .session_accept_candidate(&candidate.candidate_id)
-        .expect("candidate accepts");
-    assert!(accepted.graph_edges.is_empty());
-    assert_ne!(accepted.artifacts[0].accepted_revision_id, before_revision);
+        .unwrap();
     assert_eq!(
-        accepted.artifacts[0].accepted_parent_revision_ids,
-        vec![before_revision.clone()]
+        accepted
+            .artifacts
+            .iter()
+            .find(|a| a.id == source_id)
+            .unwrap()
+            .accepted_revision_id,
+        original_head
     );
+    let output = accepted
+        .artifacts
+        .iter()
+        .find(|a| a.id == draft.context_artifact_id)
+        .unwrap();
+    assert_eq!(output.text_preview, state.text);
     assert_eq!(
-        accepted.artifacts[0].transformation_kind_key,
-        "text_rewrite"
-    );
-    assert_eq!(
-        accepted.artifacts[0].transformation_input_revision_ids,
-        vec![before_revision]
-    );
-    assert_eq!(
-        accepted.artifacts[0].text_preview,
-        "A quiet summer afternoon."
-    );
-    assert_eq!(accepted.artifacts[0].operator_graph_nodes.len(), 3);
-    assert_eq!(accepted.artifacts[0].operator_graph_edges.len(), 2);
-    assert_eq!(session.session_operator_drafts().len(), 1);
-    assert_eq!(
-        session.session_operator_drafts()[0].context_artifact_id,
-        accepted.artifacts[0].id
-    );
-    assert_eq!(
-        accepted.artifacts[0].operator_graph_nodes[1].operator_type_key,
-        "text.edit"
+        output
+            .operator_graph_nodes
+            .iter()
+            .map(|n| n.node_id.clone())
+            .collect::<Vec<_>>(),
+        nodes_before
     );
     drop(session);
-
-    let reopened = ShapeProject::open(&root).expect("project reopens");
-    let working_graphs = reopened
-        .artifact_working_graphs()
-        .expect("Working Graphs load");
-    assert_eq!(working_graphs.len(), 1);
+    let reopened = open_desktop_session(root.to_str().unwrap()).unwrap();
+    assert!(reopened.session_candidates().is_empty());
     assert_eq!(
-        working_graphs[0]
-            .expected_revision_id()
-            .map(|id| id.to_string()),
-        Some(accepted.artifacts[0].accepted_revision_id.clone())
+        reopened.session_operator_drafts()[0].draft_id,
+        draft.draft_id
     );
-    let content = reopened
-        .read_accepted(artifact_id)
-        .expect("accepted head reads")
-        .expect("accepted content exists");
-    assert_eq!(content.bytes, b"A quiet summer afternoon.");
-    fs::remove_dir_all(root).expect("test project removes");
+    assert_eq!(reopened.session_snapshot().unwrap().graph_edges.len(), 1);
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
@@ -1147,6 +1164,90 @@ fn transform_blur_unsharp_and_shadow_cross_the_desktop_candidate_boundary() {
 }
 
 #[test]
+fn deriving_another_text_preserves_original_audio_and_its_pending_candidates() {
+    use crate::operator_catalog::text_authoring::{TextAuthoring, WritingEntry};
+    let root = test_root();
+    let source_id = seeded_project(&root);
+    let path = root.to_str().unwrap();
+    let mut session = open_desktop_session(path).unwrap();
+    let writer = session
+        .session_begin_text_authoring(&source_id.to_string(), "plain")
+        .unwrap();
+    let speech_draft = session
+        .session_begin_authoring_speech(&source_id.to_string())
+        .unwrap();
+    let project = ShapeProject::open(&root).unwrap();
+    let head = project.snapshot().unwrap().artifacts[0]
+        .accepted_revision
+        .unwrap();
+    let make_speech = || {
+        project
+            .propose_speech_synthesis(
+                source_id,
+                head,
+                "Recording",
+                &bridge_speech_operation(),
+                Vec::new(),
+                &BridgeSpeechExecutor::new(),
+            )
+            .unwrap()
+    };
+    let accepted_candidate = make_speech();
+    let audio_id = accepted_candidate.artifact_id().to_string();
+    let audio_bytes = accepted_candidate.bytes().to_vec();
+    let preview_candidate = make_speech();
+    drop(project);
+    let wire = session
+        .session_adopt_infer_speech(Box::new(InferSpeechCandidate::new(accepted_candidate)))
+        .unwrap();
+    session
+        .session_accept_candidate(&wire.candidate_id)
+        .unwrap();
+    session
+        .session_adopt_infer_speech(Box::new(InferSpeechCandidate::new(preview_candidate)))
+        .unwrap();
+    assert_eq!(session.session_candidates().len(), 1);
+    let mut state = TextAuthoring::from_json(&writer.text_authoring_json).unwrap();
+    state.entry = WritingEntry::Manual;
+    state.text = "A revised recording script.".into();
+    session
+        .session_update_text_authoring(&writer.draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
+    let text = session
+        .session_propose_authored_text(&writer.draft_id)
+        .unwrap();
+    session
+        .session_accept_candidate(&text.candidate_id)
+        .unwrap();
+    assert_eq!(session.session_candidates().len(), 1);
+    let retained = session
+        .session_begin_authoring_speech(&source_id.to_string())
+        .unwrap();
+    assert_eq!(retained.draft_id, speech_draft.draft_id);
+    assert_eq!(
+        retained.audio_speech_preset_alias,
+        speech_draft.audio_speech_preset_alias
+    );
+    assert_eq!(
+        session
+            .session_audio_preview(&audio_id, "")
+            .unwrap()
+            .wav_bytes,
+        audio_bytes
+    );
+    drop(session);
+    let reopened = open_desktop_session(path).unwrap();
+    assert_eq!(
+        reopened
+            .session_audio_preview(&audio_id, "")
+            .unwrap()
+            .wav_bytes,
+        audio_bytes
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn speech_candidate_stays_source_scoped_until_acceptance_then_reopens_as_audio() {
     let root = test_root();
     let source_id = seeded_project(&root);
@@ -1218,4 +1319,96 @@ fn speech_candidate_stays_source_scoped_until_acceptance_then_reopens_as_audio()
         .expect("reopened WAV loads");
     assert_eq!(reopened_audio.wav_bytes, expected_bytes);
     fs::remove_dir_all(root).expect("fixture removes");
+}
+
+#[test]
+fn script_preview_reads_full_source_and_bindings_and_cue_bytes_survive_reopen() {
+    use shape_domain::speech_script::{SpeechCueAction, SpeechScriptOptions};
+    let root = test_root();
+    let path = root.to_str().unwrap();
+    let mut session = create_desktop_project(path, "Script").unwrap();
+    let text = format!(
+        "[role: Reader]\n[cue: End]\n# Script\n[speaker: Reader]\n{}\n[pause: 1.25s]\n[audio: End]\n",
+        "Hello world. ".repeat(2000)
+    );
+    let snapshot = session
+        .session_create_text_document("Source", &text)
+        .unwrap();
+    let artifact_id = snapshot.artifacts[0].id.clone();
+    let draft = session
+        .session_begin_operator_draft(&artifact_id, AUDIO_SPEECH_OPERATOR)
+        .unwrap();
+    session
+        .session_update_speech_script(
+            &draft.draft_id,
+            &serde_json::to_string(&SpeechScriptOptions::default()).unwrap(),
+        )
+        .unwrap();
+    let preview: serde_json::Value = serde_json::from_str(
+        &session
+            .session_speech_script_preview(&draft.draft_id)
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(preview["pause_ms"], 1250);
+    assert_eq!(preview["cues"][0], "End");
+    assert_eq!(preview["ready"], false);
+    let mut bindings = SpeechScriptOptions::default();
+    let SpeechVoiceSelection::Preset(mut voice) = bridge_speech_operation().voice else {
+        panic!()
+    };
+    voice.catalog_revision = shape_execution::INFER_SPEECH_VOICE_CATALOG_REVISION.into();
+    bindings.roles.insert("Reader".into(), voice);
+    session
+        .session_update_speech_script(&draft.draft_id, &serde_json::to_string(&bindings).unwrap())
+        .unwrap();
+    let updated = session
+        .session_import_speech_cue(&draft.draft_id, "End", &bridge_wav())
+        .unwrap();
+    let options: SpeechScriptOptions =
+        serde_json::from_str(&updated.audio_speech_script_json).unwrap();
+    let SpeechCueAction::Audio { content } = &options.cues["End"] else {
+        panic!("imported cue");
+    };
+    assert_eq!(
+        content.digest,
+        shape_domain::ContentDigest::from_bytes(&bridge_wav())
+    );
+    let updated = session
+        .session_update_audio_speech_draft(
+            &draft.draft_id,
+            INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
+            shape_execution::INFER_SPEECH_VOICE_CATALOG_REVISION,
+            "auto",
+            1150,
+            true,
+        )
+        .unwrap();
+    assert_eq!(
+        updated.audio_speech_script_json,
+        serde_json::to_string(&options).unwrap()
+    );
+    assert!(
+        session
+            .session_import_speech_cue(&draft.draft_id, "End", b"invalid WAV")
+            .is_err()
+    );
+    drop(session);
+    let reopened = open_desktop_session(path).unwrap();
+    assert_eq!(
+        reopened.session_operator_drafts()[0].audio_speech_script_json,
+        updated.audio_speech_script_json
+    );
+    let preview: serde_json::Value = serde_json::from_str(
+        &reopened
+            .session_speech_script_preview(&draft.draft_id)
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(preview["ready"], true);
+    assert_eq!(
+        reopened.project.import_speech_cue(&bridge_wav()).unwrap(),
+        *content
+    );
+    fs::remove_dir_all(root).unwrap();
 }

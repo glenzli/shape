@@ -115,6 +115,20 @@ struct BundleManifest {
 }
 
 impl ProjectStore {
+    /// Updates the display name of a stable output without touching its revisions.
+    /// # Errors
+    /// Rejects an invalid name, missing artifact or storage failure.
+    pub fn rename_artifact(&self, artifact_id: ArtifactId, name: &str) -> Result<(), StoreError> {
+        let artifact = self
+            .artifact(artifact_id)?
+            .ok_or(StoreError::UnknownArtifact(artifact_id))?;
+        Artifact::new(name, artifact.kind)?;
+        self.connection.execute(
+            "UPDATE artifacts SET name = ?2 WHERE id = ?1",
+            params![artifact_id.to_string(), name],
+        )?;
+        Ok(())
+    }
     /// Creates a new project bundle at a path that does not yet exist.
     ///
     /// # Errors
@@ -584,6 +598,31 @@ impl ProjectStore {
     ///
     /// Returns an error for inconsistent provenance, stale heads, or durable write failure.
     pub fn accept(&mut self, commit: AcceptedCommit) -> Result<ArtifactRevision, StoreError> {
+        self.accept_with_inputs(commit, &[])
+    }
+
+    /// Accepts a result only if its target and every frozen source still match.
+    ///
+    /// # Errors
+    /// Returns an error for stale heads or invalid content/provenance.
+    pub fn accept_with_inputs(
+        &mut self,
+        commit: AcceptedCommit,
+        expected_input_heads: &[(ArtifactId, RevisionId)],
+    ) -> Result<ArtifactRevision, StoreError> {
+        self.accept_with_node(commit, expected_input_heads, None)
+    }
+
+    /// Atomically checks authored intent as well as source and output heads.
+    ///
+    /// # Errors
+    /// Rejects obsolete nodes, stale heads and invalid commits.
+    pub fn accept_with_node(
+        &mut self,
+        commit: AcceptedCommit,
+        expected_input_heads: &[(ArtifactId, RevisionId)],
+        expected_node: Option<&shape_domain::WorkingOperatorDraft>,
+    ) -> Result<ArtifactRevision, StoreError> {
         validate_commit(&commit)?;
         let artifact = self
             .artifact(commit.artifact_id)?
@@ -609,6 +648,13 @@ impl ProjectStore {
         )?;
 
         let transaction = self.connection.transaction()?;
+        validate_expected_input_heads(&transaction, artifact.kind, expected_input_heads)?;
+        let mut graph = working_graph::acceptance_graph(
+            &transaction,
+            commit.artifact_id,
+            commit.expected_head,
+            expected_node,
+        )?;
         let actual_head: Option<String> = transaction
             .query_row(
                 "SELECT accepted_revision FROM artifacts WHERE id = ?1",
@@ -667,6 +713,16 @@ impl ProjectStore {
                 actual: actual_head,
             });
         }
+        if let Some(graph) = &mut graph {
+            graph.rebase_accepted_input(revision.id)?;
+            transaction.execute(
+                "UPDATE artifact_working_graphs SET graph_json = ?2 WHERE artifact_id = ?1",
+                params![
+                    commit.artifact_id.to_string(),
+                    serde_json::to_string(graph)?
+                ],
+            )?;
+        }
         transaction.commit()?;
         Ok(revision)
     }
@@ -685,6 +741,7 @@ impl ProjectStore {
         commit: NewArtifactCommit,
     ) -> Result<ArtifactRevision, StoreError> {
         validate_new_artifact_commit(&commit)?;
+        self.validate_script_commit(&commit)?;
         validate_content_contract(
             commit.artifact.kind,
             &commit.output_media_type,
@@ -936,6 +993,15 @@ fn validate_content_contract(
     output_bytes: &[u8],
 ) -> Result<(), StoreError> {
     match (artifact_kind, contract) {
+        (ArtifactKind::TextDocument, Some(ArtifactContentContract::TextDocument(contract))) => {
+            if media_type == "text/plain; charset=utf-8" && contract.accepts(output_bytes) {
+                Ok(())
+            } else {
+                Err(StoreError::InvalidCommit(
+                    "text bytes do not satisfy their declared format",
+                ))
+            }
+        }
         (ArtifactKind::ImageRaster, Some(ArtifactContentContract::ImageRaster(_)))
             if media_type == "image/png" =>
         {

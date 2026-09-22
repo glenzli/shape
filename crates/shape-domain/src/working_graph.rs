@@ -1,8 +1,7 @@
 //! Durable, mutable Operator entries that have not crossed acceptance.
 //!
-//! The current desktop adapts one accepted Artifact as one compatibility
-//! Scene. This contract preserves its unexecuted Operator entries across
-//! sessions without placing them in immutable Artifact or Scene history.
+//! Each output owns its producing nodes. Explicit source bindings connect
+//! outputs into a project graph; execution history never replaces these nodes.
 
 use std::collections::HashSet;
 
@@ -106,13 +105,21 @@ impl WorkingOperatorConfiguration {
     }
 }
 
-/// One configured Operator that has not produced an accepted revision.
+/// Exact accepted material version bound to a required input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkingInput {
+    pub artifact_id: ArtifactId,
+    pub revision_id: RevisionId,
+}
+
+/// Stable authored operation, retained across candidate runs and acceptance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkingOperatorDraft {
     id: OperatorNodeId,
     operator_type: OperatorTypeId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     input_data_type: Option<OperatorDataTypeId>,
+    input: Option<WorkingInput>,
     output_data_type: OperatorDataTypeId,
     #[serde(default)]
     configuration: Option<WorkingOperatorConfiguration>,
@@ -136,6 +143,7 @@ impl WorkingOperatorDraft {
                 .expect("UUID-backed working Operator identity is portable"),
             operator_type,
             input_data_type: Some(input_data_type),
+            input: None,
             output_data_type,
             configuration: None,
         }
@@ -154,6 +162,7 @@ impl WorkingOperatorDraft {
                 .expect("UUID-backed working Operator identity is portable"),
             operator_type,
             input_data_type: None,
+            input: None,
             output_data_type,
             configuration: None,
         }
@@ -172,6 +181,11 @@ impl WorkingOperatorDraft {
     #[must_use]
     pub const fn input_data_type(&self) -> Option<&OperatorDataTypeId> {
         self.input_data_type.as_ref()
+    }
+
+    #[must_use]
+    pub const fn input(&self) -> Option<WorkingInput> {
+        self.input
     }
 
     #[must_use]
@@ -198,7 +212,7 @@ impl WorkingOperatorDraft {
     }
 }
 
-/// Project-backed mutable state for one compatibility Scene.
+/// Mutable producers associated with one stable output Artifact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactWorkingGraph {
     context_artifact_id: ArtifactId,
@@ -279,7 +293,35 @@ impl ArtifactWorkingGraph {
                 maximum: MAX_WORKING_OPERATORS,
             });
         }
-        let draft = WorkingOperatorDraft::new(operator_type, input_data_type, output_data_type);
+        let mut draft = WorkingOperatorDraft::new(operator_type, input_data_type, output_data_type);
+        draft.input = Some(WorkingInput {
+            artifact_id: self.context_artifact_id,
+            revision_id: self
+                .expected_revision_id
+                .ok_or(DomainError::InvalidWorkingGraphAnchor)?,
+        });
+        self.operators.push(draft.clone());
+        Ok(draft)
+    }
+
+    /// Adds a distinct operation whose source is independent of its output.
+    ///
+    /// # Errors
+    /// Rejects self-links and an oversized graph.
+    pub fn add_bound_operator(
+        &mut self,
+        operator_type: OperatorTypeId,
+        input_data_type: OperatorDataTypeId,
+        output_data_type: OperatorDataTypeId,
+        input: WorkingInput,
+    ) -> Result<WorkingOperatorDraft, DomainError> {
+        if input.artifact_id == self.context_artifact_id
+            || self.operators.len() >= MAX_WORKING_OPERATORS
+        {
+            return Err(DomainError::InvalidWorkingGraphAnchor);
+        }
+        let mut draft = WorkingOperatorDraft::new(operator_type, input_data_type, output_data_type);
+        draft.input = Some(input);
         self.operators.push(draft.clone());
         Ok(draft)
     }
@@ -341,19 +383,37 @@ impl ArtifactWorkingGraph {
         true
     }
 
-    /// Advances an accepted-input Working Graph to a newly locked head while
-    /// preserving reusable Operator intent and configuration.
+    /// Rebinds an existing required input to an explicitly chosen source revision.
+    pub fn set_operator_input(&mut self, draft_id: &OperatorNodeId, input: WorkingInput) -> bool {
+        if input.artifact_id == self.context_artifact_id {
+            return false;
+        }
+        let Some(draft) = self
+            .operators
+            .iter_mut()
+            .find(|d| d.id == *draft_id && d.input_data_type.is_some())
+        else {
+            return false;
+        };
+        draft.input = Some(input);
+        true
+    }
+
+    /// Advances the output head without changing producer identity or bound originals.
+    /// Same-artifact calibration tools also follow their updated input head.
     ///
     /// # Errors
-    ///
-    /// Rejects zero-input Source graphs, whose output acceptance completes the
-    /// source lifecycle instead of rebasing an input revision.
+    /// Rejects an invalid graph after updating its output anchor.
     pub fn rebase_accepted_input(
         &mut self,
         expected_revision_id: RevisionId,
     ) -> Result<(), DomainError> {
-        if self.expected_revision_id.is_none() {
-            return Err(DomainError::InvalidWorkingGraphAnchor);
+        for operator in &mut self.operators {
+            if let Some(input) = &mut operator.input
+                && input.artifact_id == self.context_artifact_id
+            {
+                input.revision_id = expected_revision_id;
+            }
         }
         self.expected_revision_id = Some(expected_revision_id);
         self.validate()
@@ -383,7 +443,7 @@ impl ArtifactWorkingGraph {
         }
         for operator in &self.operators {
             operator.validate()?;
-            if operator.input_data_type.is_some() != self.expected_revision_id.is_some() {
+            if operator.input_data_type.is_some() != operator.input.is_some() {
                 return Err(DomainError::InvalidWorkingGraphAnchor);
             }
         }

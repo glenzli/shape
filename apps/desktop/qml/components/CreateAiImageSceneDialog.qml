@@ -5,7 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
 
-Dialog {
+ShapeDialog {
     id: dialog
     objectName: "createAiImageSceneDialog"
 
@@ -37,7 +37,7 @@ Dialog {
     contentItem: ColumnLayout {
         spacing: 10
 
-        TextField {
+        ShapeTextField {
             id: sceneNameField
             objectName: "aiImageSceneNameField"
             Layout.fillWidth: true
@@ -45,7 +45,7 @@ Dialog {
             selectByMouse: true
         }
 
-        TextArea {
+        ShapeTextArea {
             id: instructionArea
             objectName: "aiImageInstructionField"
             Layout.fillWidth: true
@@ -55,7 +55,7 @@ Dialog {
             selectByMouse: true
         }
 
-        ComboBox {
+        ShapeComboBox {
             id: canvasPreset
             objectName: "aiImageCanvasPreset"
             Layout.fillWidth: true
@@ -82,12 +82,12 @@ Dialog {
     }
 
     footer: DialogButtonBox {
-        Button {
+        ShapeButton {
             text: qsTr("Cancel")
             DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
         }
 
-        Button {
+        ShapeButton {
             objectName: "confirmCreateAiImageSceneButton"
             text: qsTr("Open image studio")
             highlighted: true

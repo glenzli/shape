@@ -7,7 +7,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
 
-Dialog {
+ShapeDialog {
     id: dialog
     objectName: "createTextSceneDialog"
 
@@ -32,7 +32,7 @@ Dialog {
     contentItem: ColumnLayout {
         spacing: 10
 
-        TextField {
+        ShapeTextField {
             id: sceneNameField
             objectName: "sceneNameField"
             Layout.fillWidth: true
@@ -40,7 +40,7 @@ Dialog {
             selectByMouse: true
         }
 
-        TextArea {
+        ShapeTextArea {
             id: initialTextArea
             objectName: "initialSceneTextField"
             Layout.fillWidth: true
@@ -69,12 +69,12 @@ Dialog {
     }
 
     footer: DialogButtonBox {
-        Button {
+        ShapeButton {
             text: qsTr("Cancel")
             DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
         }
 
-        Button {
+        ShapeButton {
             objectName: "confirmCreateTextSceneButton"
             text: qsTr("Start writing")
             highlighted: true

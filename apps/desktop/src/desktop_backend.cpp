@@ -4,9 +4,12 @@
 #include <QByteArray>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QFutureWatcher>
 #include <QImage>
 #include <QVariantMap>
+#include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
 #include <cstdint>
@@ -98,8 +101,11 @@ QString operator_type_label(const QString& key) {
     if (key == QStringLiteral("image.resize")) {
         return DesktopBackend::tr("Image editing");
     }
+    if (key == QStringLiteral("text.create")) {
+        return DesktopBackend::tr("Text creation");
+    }
     if (key == QStringLiteral("text.edit")) {
-        return DesktopBackend::tr("AI text editor");
+        return DesktopBackend::tr("Text editing");
     }
     if (key == QStringLiteral("text.transform")) {
         return DesktopBackend::tr("AI text editor");
@@ -188,12 +194,15 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
     QVariantMap projected;
     projected.insert(QStringLiteral("id"), from_rust(draft.draft_id));
     projected.insert(QStringLiteral("contextArtifactId"), from_rust(draft.context_artifact_id));
+    projected.insert(QStringLiteral("inputArtifactId"), from_rust(draft.input_artifact_id));
+    projected.insert(QStringLiteral("inputRevisionId"), from_rust(draft.input_revision_id));
     projected.insert(QStringLiteral("operatorTypeKey"), operator_type_key);
     projected.insert(QStringLiteral("operatorTypeLabel"), operator_type_label(operator_type_key));
     projected.insert(QStringLiteral("hasInputDataType"), draft.has_input_data_type);
     projected.insert(QStringLiteral("inputDataTypeKey"), from_rust(draft.input_data_type_key));
     projected.insert(QStringLiteral("outputDataTypeKey"), from_rust(draft.output_data_type_key));
     projected.insert(QStringLiteral("configurationSchema"), from_rust(draft.configuration_schema));
+    projected.insert(QStringLiteral("textAuthoringJson"), from_rust(draft.text_authoring_json));
     projected.insert(QStringLiteral("textTransformMode"), from_rust(draft.text_transform_mode));
     projected.insert(
         QStringLiteral("textTransformInstruction"),
@@ -216,6 +225,10 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
     projected.insert(
         QStringLiteral("audioSpeechPresetCatalogRevision"),
         from_rust(draft.audio_speech_preset_catalog_revision)
+    );
+    projected.insert(
+        QStringLiteral("audioSpeechScriptJson"),
+        from_rust(draft.audio_speech_script_json)
     );
     projected.insert(QStringLiteral("audioSpeechLanguage"), from_rust(draft.audio_speech_language));
     projected.insert(
@@ -340,6 +353,7 @@ QVariantMap artifact_projection(const shape::desktop::ArtifactSummaryWire& artif
     projected.insert(QStringLiteral("imageWidth"), static_cast<qulonglong>(artifact.image_width));
     projected.insert(QStringLiteral("imageHeight"), static_cast<qulonglong>(artifact.image_height));
     projected.insert(QStringLiteral("hasAudioPreview"), artifact.has_audio_preview);
+    projected.insert(QStringLiteral("textFormat"), from_rust(artifact.text_format));
     projected.insert(
         QStringLiteral("audioDurationMillis"),
         static_cast<qulonglong>(artifact.audio_duration_millis)
@@ -637,6 +651,200 @@ bool DesktopBackend::createDetachedTextEditor(const QString& nodeName) {
     }
 }
 
+bool DesktopBackend::createTextAuthoring(const QString& name, const QString& profile) {
+    if (!session_)
+        return false;
+    try {
+        applySnapshot(
+            session_->session->session_create_text_authoring(to_utf8(name), to_utf8(profile))
+        );
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit projectChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not create the writing draft."));
+        return false;
+    }
+}
+
+QString DesktopBackend::beginTextAuthoring(const QString& artifactId, const QString& profile) {
+    if (!session_)
+        return {};
+    try {
+        const auto draft =
+            session_->session->session_begin_text_authoring(to_utf8(artifactId), to_utf8(profile));
+        if (std::none_of(artifacts_.cbegin(), artifacts_.cend(), [&draft](const QVariant& a) {
+                return a.toMap().value(QStringLiteral("id")).toString()
+                       == from_rust(draft.context_artifact_id);
+            })) {
+            session_->session->session_rename_artifact(
+                draft.context_artifact_id,
+                to_utf8(tr("Edited text"))
+            );
+        }
+        applySnapshot(session_->session->session_snapshot());
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit projectChanged();
+        emit operatorDraftsChanged();
+        return from_rust(draft.draft_id);
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not open the writing workspace."));
+        return {};
+    }
+}
+
+bool DesktopBackend::renameArtifact(const QString& artifactId, const QString& name) {
+    if (!session_)
+        return false;
+    try {
+        session_->session->session_rename_artifact(to_utf8(artifactId), to_utf8(name.trimmed()));
+        applySnapshot(session_->session->session_snapshot());
+        setLastError({});
+        emit projectChanged();
+        return true;
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not rename the output."));
+        return false;
+    }
+}
+
+QString DesktopBackend::textNodeInput(const QString& draftId) {
+    if (!session_)
+        return {};
+    try {
+        return from_rust(session_->session->session_text_node_input(to_utf8(draftId)));
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not read the original text."));
+        return {};
+    }
+}
+
+bool DesktopBackend::refreshTextInput(const QString& draftId) {
+    if (!session_)
+        return false;
+    try {
+        session_->session->session_refresh_text_input(to_utf8(draftId));
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        applyCandidates(session_->session->session_candidates());
+        setLastError({});
+        emit operatorDraftsChanged();
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not update the original text input."));
+        return false;
+    }
+}
+
+bool DesktopBackend::updateTextAuthoring(const QString& draftId, const QString& json) {
+    if (!session_)
+        return false;
+    try {
+        session_->session->session_update_text_authoring(to_utf8(draftId), to_utf8(json));
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        const QString code = QString::fromUtf8(error.what());
+        setLastError(
+            code == QStringLiteral("writing_draft_too_large")
+                ? tr("This draft is too large to save. Keep the draft and reference text under 48 "
+                     "KiB in total.")
+                : tr("Could not save the writing draft. Your text is still in the editor.")
+        );
+        return false;
+    }
+}
+
+QString
+DesktopBackend::textAuthoringContent(const QString& artifactId, const QString& candidateId) {
+    if (!session_)
+        return {};
+    try {
+        return from_rust(session_->session->session_text_authoring_content(
+            to_utf8(artifactId),
+            to_utf8(candidateId)
+        ));
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not read the complete text."));
+        return {};
+    }
+}
+
+QString DesktopBackend::textAuthoringPreview(const QString& profile, const QString& text) {
+    if (!session_)
+        return {};
+    try {
+        return from_rust(shape::desktop::text_authoring_preview(to_utf8(profile), to_utf8(text)));
+    } catch (const rust::Error&) {
+        return {};
+    }
+}
+
+QString
+DesktopBackend::textAuthoringConfiguredPreview(const QString& settings, const QString& text) {
+    if (!session_)
+        return {};
+    try {
+        return from_rust(
+            shape::desktop::text_authoring_configured_preview(to_utf8(settings), to_utf8(text))
+        );
+    } catch (const rust::Error&) {
+        return {};
+    }
+}
+
+bool DesktopBackend::proposeAuthoredText(const QString& draftId) {
+    if (!session_)
+        return false;
+    try {
+        const auto candidate = session_->session->session_propose_authored_text(to_utf8(draftId));
+        applyCandidates(session_->session->session_candidates(), from_rust(candidate.candidate_id));
+        setLastError(QString());
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error&) {
+        setLastError(tr("Check the text and script instructions before adopting this draft."));
+        return false;
+    }
+}
+
+QString DesktopBackend::beginAuthoringSpeech(const QString& artifactId) {
+    if (!session_)
+        return {};
+    try {
+        const auto draft = session_->session->session_begin_authoring_speech(to_utf8(artifactId));
+        if (std::none_of(artifacts_.cbegin(), artifacts_.cend(), [&draft](const QVariant& a) {
+                return a.toMap().value(QStringLiteral("id")).toString()
+                       == from_rust(draft.context_artifact_id);
+            })) {
+            QString sourceName;
+            for (const auto& item : artifacts_) {
+                const auto source = item.toMap();
+                if (source.value(QStringLiteral("id")).toString() == artifactId)
+                    sourceName = source.value(QStringLiteral("name")).toString();
+            }
+            session_->session->session_rename_artifact(
+                draft.context_artifact_id,
+                to_utf8(tr("%1 · Audio").arg(sourceName.left(24)))
+            );
+        }
+        applySnapshot(session_->session->session_snapshot());
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit projectChanged();
+        emit operatorDraftsChanged();
+        return from_rust(draft.draft_id);
+    } catch (const rust::Error&) {
+        setLastError(tr("Adopt a valid script before choosing voices."));
+        return {};
+    }
+}
+
 QString
 DesktopBackend::beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey) {
     if (session_ == nullptr || artifactId.isEmpty() || operatorTypeKey.isEmpty()) {
@@ -648,8 +856,23 @@ DesktopBackend::beginOperatorDraft(const QString& artifactId, const QString& ope
             to_utf8(artifactId),
             to_utf8(operatorTypeKey)
         );
+        if (operatorTypeKey == QStringLiteral("text.edit")
+            || operatorTypeKey == QStringLiteral("audio.speech_synthesize")) {
+            QString sourceName;
+            for (const auto& item : artifacts_) {
+                const auto source = item.toMap();
+                if (source.value(QStringLiteral("id")).toString() == artifactId)
+                    sourceName = source.value(QStringLiteral("name")).toString();
+            }
+            const auto name = operatorTypeKey == QStringLiteral("text.edit")
+                                  ? tr("%1 · Edited text").arg(sourceName.left(24))
+                                  : tr("%1 · Audio").arg(sourceName.left(24));
+            session_->session->session_rename_artifact(draft.context_artifact_id, to_utf8(name));
+        }
+        applySnapshot(session_->session->session_snapshot());
         applyOperatorDrafts(session_->session->session_operator_drafts());
         setLastError(QString());
+        emit projectChanged();
         emit operatorDraftsChanged();
         return from_rust(draft.draft_id);
     } catch (const rust::Error& error) {
@@ -660,7 +883,7 @@ DesktopBackend::beginOperatorDraft(const QString& artifactId, const QString& ope
 }
 
 QVariantList DesktopBackend::compatibleOperators(const QString& artifactId) {
-    if (session_ == nullptr || artifactId.isEmpty()) {
+    if (session_ == nullptr) {
         return {};
     }
     try {
@@ -741,6 +964,88 @@ bool DesktopBackend::updateAudioSpeechDraft(
     }
 }
 
+bool DesktopBackend::updateSpeechScript(const QString& draftId, const QString& optionsJson) {
+    if (!session_ || speech_cue_importing_)
+        return false;
+    try {
+        session_->session->session_update_speech_script(to_utf8(draftId), to_utf8(optionsJson));
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not save the narration script settings."));
+        return false;
+    }
+}
+
+QString DesktopBackend::speechScriptPreview(const QString& draftId) {
+    if (!session_ || draftId.isEmpty())
+        return QString();
+    try {
+        return from_rust(session_->session->session_speech_script_preview(to_utf8(draftId)));
+    } catch (const rust::Error&) {
+        return QString();
+    }
+}
+
+void DesktopBackend::importSpeechCue(
+    const QString& draftId,
+    const QString& label,
+    const QUrl& source
+) {
+    if (!session_ || speech_cue_importing_ || !source.isLocalFile())
+        return;
+    const QString project = project_id_;
+    const QString bundle = bundle_path_;
+    const QString preview = speechScriptPreview(draftId);
+    auto* watcher = new QFutureWatcher<QByteArray>(this);
+    speech_cue_importing_ = true;
+    emit speechCueImportingChanged();
+    connect(
+        watcher,
+        &QFutureWatcher<QByteArray>::finished,
+        this,
+        [this, watcher, project, bundle, preview, draftId, label]() {
+            const QByteArray bytes = watcher->result();
+            watcher->deleteLater();
+            speech_cue_importing_ = false;
+            emit speechCueImportingChanged();
+            if (!session_ || project_id_ != project || bundle_path_ != bundle
+                || speechScriptPreview(draftId) != preview)
+                return;
+            try {
+                if (bytes.isEmpty())
+                    throw std::runtime_error("invalid cue file");
+                session_->session->session_import_speech_cue(
+                    to_utf8(draftId),
+                    to_utf8(label),
+                    rust::Slice<const std::uint8_t>(
+                        reinterpret_cast<const std::uint8_t*>(bytes.constData()),
+                        static_cast<std::size_t>(bytes.size())
+                    )
+                );
+                applyOperatorDrafts(session_->session->session_operator_drafts());
+                setLastError(QString());
+                emit operatorDraftsChanged();
+            } catch (const std::exception&) {
+                setLastError(tr("Choose a 24 kHz mono PCM16 WAV file up to 8 MiB."));
+            }
+        }
+    );
+    watcher->setFuture(QtConcurrent::run([path = source.toLocalFile()]() {
+        constexpr qint64 limit = 8 * 1024 * 1024;
+        const QFileInfo info(path);
+        if (!info.isFile() || info.size() <= 44 || info.size() > limit)
+            return QByteArray();
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly))
+            return QByteArray();
+        QByteArray bytes = file.read(limit + 1);
+        return bytes.size() <= limit ? bytes : QByteArray();
+    }));
+}
+
 bool DesktopBackend::updateImageResizeDraft(
     const QString& draftId,
     int targetWidth,
@@ -811,8 +1116,12 @@ bool DesktopBackend::discardOperatorDraft(const QString& draftId) {
     }
     try {
         session_->session->session_discard_operator_draft(to_utf8(draftId));
+        applySnapshot(session_->session->session_snapshot());
+        applyCandidates(session_->session->session_candidates());
         applyOperatorDrafts(session_->session->session_operator_drafts());
         setLastError(QString());
+        emit projectChanged();
+        emit candidateChanged();
         emit operatorDraftsChanged();
         return true;
     } catch (const rust::Error& error) {

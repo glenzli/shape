@@ -54,7 +54,7 @@ Rectangle {
 
         Item { Layout.fillWidth: true }
 
-        ComboBox {
+        ShapeComboBox {
             id: canvasPicker
             objectName: "aiImageCanvasPicker"
             Layout.preferredWidth: 178

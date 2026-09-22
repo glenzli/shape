@@ -316,6 +316,39 @@ Item {
         return qsTr("Calm");
     }
 
+    function toneExample(tone): string {
+        if (tone.kind === "custom")
+            return tone.example || "";
+        for (let index = 0; index < builtInTones.length; ++index) {
+            if (builtInTones[index].key === tone.preset)
+                return builtInTones[index].example;
+        }
+        return "";
+    }
+
+    function primaryToneKey(): string {
+        const tone = selectedTones.length > 0 ? selectedTones[0] : defaultExpression().tones[0];
+        return tone.kind === "custom" ? "personal" : tone.preset;
+    }
+
+    function toneColor(visualKey): color {
+        if (visualKey === "glow")
+            return "#c98255";
+        if (visualKey === "embrace")
+            return "#aa7c9b";
+        if (visualKey === "ascent")
+            return "#668e9b";
+        if (visualKey === "spark")
+            return "#bf9655";
+        if (visualKey === "frame")
+            return "#77808d";
+        if (visualKey === "pillar")
+            return "#70768a";
+        if (visualKey === "pulse")
+            return "#bd6d70";
+        return "#6d97b5";
+    }
+
     function intensityLabel(): string {
         if (intensityKey === "subtle")
             return qsTr("Subtle intensity");
@@ -453,86 +486,74 @@ Item {
         }
     }
 
-    component ToneCard: Button {
-        id: card
+    component ToneOption: ShapeButton {
+        id: option
         required property string title
         required property string visualKey
         property string detail: ""
-        property string example: ""
         property string roleLabel: ""
+        property color semanticColor: Theme.muted
         property bool current: false
 
-        implicitHeight: 110
+        implicitHeight: 50
         focusPolicy: Qt.StrongFocus
         hoverEnabled: true
-        Accessible.name: [title, detail, example, roleLabel].filter(value => value.length > 0).join(". ")
+        Accessible.name: [title, detail, roleLabel].filter(value => value.length > 0).join(". ")
 
         background: Rectangle {
-            radius: Theme.controlRadius
-            color: card.current ? Theme.accentSoft : card.down ? Theme.buttonGhostPressed : card.hovered ? Theme.buttonGhostHover : Theme.control
-            border.width: card.current || card.visualFocus ? 1 : 0
-            border.color: card.visualFocus ? Theme.focusRing : Theme.accentBorder
+            radius: Theme.compactControlRadius
+            color: option.current ? Theme.accentSoft : option.down ? Theme.buttonGhostPressed : option.hovered ? Theme.buttonGhostHover : Theme.control
+            border.width: option.current || option.visualFocus ? 1 : 0
+            border.color: option.visualFocus ? Theme.focusRing : option.current ? Theme.accentBorder : Theme.border
         }
 
         contentItem: RowLayout {
-            spacing: 10
+            spacing: 7
 
-            ToneGlyph {
-                Layout.alignment: Qt.AlignTop
-                visualKey: card.visualKey
-                strokeColor: card.current ? Theme.accent : Theme.textSoft
+            Rectangle {
+                Layout.preferredWidth: 4
+                Layout.fillHeight: true
+                radius: 2
+                color: option.semanticColor
             }
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 0
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: 4
 
                     Text {
                         Layout.fillWidth: true
-                        text: card.title
-                        color: card.current ? Theme.accent : Theme.text
-                        font.pixelSize: Theme.fontBody
+                        text: option.title
+                        color: option.current ? Theme.accent : Theme.text
+                        font.pixelSize: Theme.fontMeta
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
                     Text {
-                        objectName: card.objectName + "-role"
-                        visible: card.roleLabel.length > 0
-                        text: card.roleLabel
+                        visible: option.roleLabel.length > 0
+                        text: option.roleLabel
                         color: Theme.accent
                         font.pixelSize: Theme.fontMicro
                         font.weight: Font.DemiBold
                     }
                 }
                 Text {
-                    objectName: card.objectName + "-description"
+                    objectName: option.objectName + "-description"
                     Layout.fillWidth: true
-                    text: card.detail
+                    text: option.detail
                     color: Theme.textSoft
-                    font.pixelSize: Theme.fontMeta
-                    elide: Text.ElideRight
-                }
-                Text {
-                    objectName: card.objectName + "-example"
-                    Layout.fillWidth: true
-                    visible: card.example.length > 0
-                    text: qsTr("“%1”").arg(card.example)
-                    color: Theme.muted
-                    font.pixelSize: Theme.fontMeta
-                    font.italic: true
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 2
+                    font.pixelSize: Theme.fontMicro
                     elide: Text.ElideRight
                 }
             }
         }
     }
 
-    component SegmentChip: Button {
+    component SegmentChip: ShapeButton {
         id: segment
         property bool current: false
         implicitHeight: Theme.compactControlHeight
@@ -596,49 +617,73 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: expressionSummaryText.implicitHeight + 20
-            radius: Theme.controlRadius
+            Layout.preferredHeight: 52
+            radius: Theme.compactControlRadius
             color: Theme.surfaceSubtle
             border.color: Theme.border
 
-            Text {
-                id: expressionSummaryText
-                objectName: "textExpressionSummaryText"
+            ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 10
-                text: palette.expressionSummary()
-                color: Theme.textSoft
-                font.pixelSize: Theme.fontMeta
-                font.weight: Font.DemiBold
-                wrapMode: Text.WordWrap
+                anchors.margins: 8
+                spacing: 1
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 5
+
+                    Text {
+                        id: expressionSummaryText
+                        objectName: "textExpressionSummaryText"
+                        Layout.fillWidth: true
+                        text: palette.expressionSummary()
+                        color: Theme.textSoft
+                        font.pixelSize: Theme.fontMicro
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        objectName: "textTone-" + palette.primaryToneKey() + "-role"
+                        text: qsTr("Primary")
+                        color: Theme.accent
+                        font.pixelSize: Theme.fontMicro
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                Text {
+                    objectName: "textTone-" + palette.primaryToneKey() + "-example"
+                    Layout.fillWidth: true
+                    text: qsTr("“%1”").arg(palette.toneExample(palette.selectedTones[0]))
+                    color: Theme.muted
+                    font.pixelSize: Theme.fontMicro
+                    font.italic: true
+                    elide: Text.ElideRight
+                }
             }
         }
 
-        ListView {
+        GridLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 116
-            orientation: ListView.Horizontal
-            spacing: 6
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            snapMode: ListView.SnapToItem
-            model: palette.builtInTones
+            columns: 2
+            columnSpacing: 6
+            rowSpacing: 6
 
-            delegate: ToneCard {
-                required property var modelData
-                width: Math.max(220, Math.min(260, ListView.view.width - 18))
-                objectName: "textTone-" + modelData.key
-                title: modelData.label
-                detail: modelData.description
-                example: modelData.example
-                visualKey: modelData.visual
-                current: palette.isPresetSelected(modelData.key)
-                roleLabel: palette.selectionRoleLabel(palette.presetSelectionIndex(modelData.key))
-                onClicked: palette.choosePreset(modelData.key)
-            }
+            Repeater {
+                model: palette.builtInTones
 
-            ScrollBar.horizontal: ScrollBar {
-                policy: ScrollBar.AsNeeded
+                delegate: ToneOption {
+                    required property var modelData
+                    objectName: "textTone-" + modelData.key
+                    Layout.fillWidth: true
+                    title: modelData.label
+                    detail: modelData.description
+                    visualKey: modelData.visual
+                    semanticColor: palette.toneColor(modelData.visual)
+                    current: palette.isPresetSelected(modelData.key)
+                    roleLabel: palette.selectionRoleLabel(palette.presetSelectionIndex(modelData.key))
+                    onClicked: palette.choosePreset(modelData.key)
+                }
             }
         }
 
@@ -655,31 +700,27 @@ Item {
                 font.letterSpacing: 0.6
             }
 
-            ListView {
+            GridLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 116
-                orientation: ListView.Horizontal
-                spacing: 6
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                snapMode: ListView.SnapToItem
-                model: personalLibrary.presets
+                columns: 2
+                columnSpacing: 6
+                rowSpacing: 6
 
-                delegate: ToneCard {
-                    required property var modelData
-                    width: Math.max(220, Math.min(260, ListView.view.width - 18))
-                    objectName: "customTone-" + modelData.id
-                    title: modelData.name
-                    detail: modelData.instruction
-                    example: modelData.example || ""
-                    visualKey: modelData.visualKey
-                    current: palette.isCustomSelected(modelData.name, modelData.instruction, modelData.example, modelData.visualKey)
-                    roleLabel: palette.selectionRoleLabel(palette.customSelectionIndex(modelData))
-                    onClicked: palette.chooseCustom(modelData)
-                }
+                Repeater {
+                    model: personalLibrary.presets
 
-                ScrollBar.horizontal: ScrollBar {
-                    policy: ScrollBar.AsNeeded
+                    delegate: ToneOption {
+                        required property var modelData
+                        objectName: "customTone-" + modelData.id
+                        Layout.fillWidth: true
+                        title: modelData.name
+                        detail: modelData.instruction
+                        visualKey: modelData.visualKey
+                        semanticColor: palette.toneColor(modelData.visualKey)
+                        current: palette.isCustomSelected(modelData.name, modelData.instruction, modelData.example, modelData.visualKey)
+                        roleLabel: palette.selectionRoleLabel(palette.customSelectionIndex(modelData))
+                        onClicked: palette.chooseCustom(modelData)
+                    }
                 }
             }
         }
@@ -726,7 +767,7 @@ Item {
             font.letterSpacing: 0.6
         }
 
-        ComboBox {
+        ShapeComboBox {
             id: audienceCombo
             objectName: "textAudienceSelector"
             Layout.fillWidth: true
@@ -742,7 +783,7 @@ Item {
             visible: palette.audienceKey === "custom"
             spacing: 6
 
-            TextField {
+            ShapeTextField {
                 id: customAudienceNameField
                 Layout.fillWidth: true
                 text: palette.customAudienceName
@@ -753,7 +794,7 @@ Item {
                     palette.notifyEdited();
                 }
             }
-            TextArea {
+            ShapeTextArea {
                 id: customAudienceInstructionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 62
@@ -801,14 +842,14 @@ Item {
                 font.pixelSize: Theme.fontMeta
                 wrapMode: Text.WordWrap
             }
-            TextField {
+            ShapeTextField {
                 id: customToneNameField
                 objectName: "customToneNameField"
                 Layout.fillWidth: true
                 placeholderText: qsTr("For example: quiet conviction")
                 maximumLength: 64
             }
-            TextArea {
+            ShapeTextArea {
                 id: customToneInstructionField
                 objectName: "customToneInstructionField"
                 Layout.fillWidth: true
@@ -816,7 +857,7 @@ Item {
                 placeholderText: qsTr("Describe how it should sound, and what it should avoid.")
                 wrapMode: TextEdit.Wrap
             }
-            TextArea {
+            ShapeTextArea {
                 id: customToneExampleField
                 objectName: "customToneExampleField"
                 Layout.fillWidth: true
@@ -835,7 +876,7 @@ Item {
                 Layout.fillWidth: true
                 Repeater {
                     model: ["ripple", "glow", "embrace", "ascent", "spark", "frame", "pillar", "pulse"]
-                    delegate: Button {
+                    delegate: ShapeButton {
                         id: visualChoice
                         required property string modelData
                         Layout.fillWidth: true

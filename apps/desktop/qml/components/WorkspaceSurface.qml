@@ -23,6 +23,7 @@ Item {
     property string acceptedImageSource: ""
     property string candidateImageSource: ""
     required property InferImageController inferImage
+    required property DesktopBackend backend
     required property InferSpeechController inferSpeech
     required property AudioPreviewController audioPreview
     property string projectPath: ""
@@ -40,6 +41,9 @@ Item {
                                       ? (selectedArtifact.operatorEdges || []) : []
     readonly property bool graphActive: currentMode === 0
     readonly property bool focusActive: currentMode === 1
+    readonly property bool guidedAuthoringActive: focusActive && (authoringRoute
+        || (workspaceRouteKey === "operator.audio.speech_synthesize"
+            && speechDraftForArtifact(operatorWorkspaceHost.openedArtifactId) !== null))
     readonly property bool editWorkspaceActive: focusActive
                                                 && operatorWorkspaceHost.openedRoleKey
                                                    === "operator"
@@ -113,6 +117,12 @@ Item {
                                          int variantCount)
     signal textCandidateLockRequested(string candidateId)
     signal inferAccessSetupRequested()
+    signal authoringGenerationRequested(string artifactId, string draftId)
+    signal authoringSpeechRequested(string artifactId)
+    signal writingRequested(string artifactId, bool scriptMode)
+    signal audioExportRequested(string artifactId, string candidateId)
+    readonly property var openedTextDraft: textDraftForArtifact(operatorWorkspaceHost.openedArtifactId)
+    readonly property bool authoringRoute: openedTextDraft !== null && (openedTextDraft.textAuthoringJson || "").length > 0
 
     function showArtifact() : bool {
         if (selectedCandidate !== null && selectedCandidate.hasAudioPreview) {
@@ -211,7 +221,7 @@ Item {
         for (let index = 0; index < drafts.length; ++index) {
             const draft = drafts[index]
             if (draft.contextArtifactId === artifactId
-                    && (draft.operatorTypeKey === "text.edit"
+                    && (draft.operatorTypeKey === "text.create" || draft.operatorTypeKey === "text.edit"
                         || draft.operatorTypeKey === "text.transform")) {
                 return draft
             }
@@ -256,6 +266,7 @@ Item {
             return
         }
         workspace.operatorDraftId = draft.id
+        workspace.scriptJson = draft.audioSpeechScriptJson
         workspace.presetAlias = draft.audioSpeechPresetAlias
         workspace.presetCatalogRevision = draft.audioSpeechPresetCatalogRevision
         workspace.language = draft.audioSpeechLanguage
@@ -268,6 +279,7 @@ Item {
     }
 
     function openNode(nodeId) : bool {
+        if (draftForId(nodeId) !== null) return openOperatorDraft(nodeId)
         const node = nodeForId(nodeId)
         if (node === null) return false
         selectedNodeId = nodeId
@@ -338,63 +350,28 @@ Item {
     }
 
     Component {
-        id: textEditOperatorWorkspace
-
-        AiTextEditingWorkspace {
-            property string nodeId: operatorWorkspaceHost.openedNodeId
-            property string revisionId: operatorWorkspaceHost.openedRevisionId
-            property string transformationId: operatorWorkspaceHost.openedTransformationId
-            property var textDraft: {
-                const exactDraft = surface.draftForId(operatorWorkspaceHost.openedNodeId)
-                if (exactDraft !== null) return exactDraft
-                if (operatorWorkspaceHost.openedRoleKey === "operator"
-                        && (operatorWorkspaceHost.openedOperatorTypeKey === "text.edit"
-                            || operatorWorkspaceHost.openedOperatorTypeKey
-                               === "text.transform")) {
-                    return surface.textDraftForArtifact(
-                                operatorWorkspaceHost.openedArtifactId)
-                }
-                return null
-            }
-
+        id: textAuthoringWorkspace
+        TextAuthoringWorkspace {
+            backend: surface.backend
             artifactId: operatorWorkspaceHost.openedArtifactId
             artifactName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
-            operatorDraftId: textDraft !== null ? textDraft.id : ""
-            acceptedText: surface.hasSelectedArtifact
-                          ? surface.selectedArtifact.textPreview : ""
-            hasAcceptedRevision: surface.hasSelectedArtifact
-                                 && surface.selectedArtifact.hasAcceptedRevision
-            candidates: surface.candidates
-            selectedCandidateId: surface.selectedCandidateId
+            draftId: surface.openedTextDraft !== null ? surface.openedTextDraft.id : ""
+            inputArtifactId: surface.openedTextDraft !== null ? (surface.openedTextDraft.inputArtifactId || "") : ""
+            inputRevisionId: surface.openedTextDraft !== null ? (surface.openedTextDraft.inputRevisionId || "") : ""
+            draftJson: surface.openedTextDraft !== null ? surface.openedTextDraft.textAuthoringJson : ""
+            hasAcceptedRevision: surface.hasSelectedArtifact && surface.selectedArtifact.hasAcceptedRevision
+            selectedCandidateId: surface.selectedCandidate !== null && surface.selectedCandidate.hasTextPreview ? surface.selectedCandidate.id : ""
             generationRunning: surface.inferTextRunning
             generationErrorCode: surface.inferTextErrorCode
             runtimeCompatible: surface.inferRuntimeCompatible
             credentialConfigured: surface.inferCredentialConfigured
-            persistedMode: textDraft !== null ? textDraft.textTransformMode : "rewrite"
-            persistedInstruction: textDraft !== null
-                                  ? textDraft.textTransformInstruction : ""
-            persistedExpressionJson: textDraft !== null
-                                     ? textDraft.textTransformExpressionJson : ""
-            persistedStyle: textDraft !== null ? textDraft.textTransformStyle : "natural"
-            persistedVariantCount: textDraft !== null
-                                   ? textDraft.textTransformVariantCount : 1
-            onDraftSaveRequested: (draftId, modeKey, instruction, expressionJson,
-                                   styleKey, variantCount) =>
-                                      surface.textStudioDraftSaveRequested(
-                                          draftId, modeKey, instruction, expressionJson,
-                                          styleKey, variantCount)
-            onGenerationRequested: (artifactId, draftId, modeKey, instruction,
-                                    expressionJson, styleKey, variantCount) =>
-                                       surface.textStudioGenerationRequested(
-                                           artifactId, draftId, modeKey, instruction,
-                                           expressionJson, styleKey, variantCount)
+            onGenerationRequested: (artifactId, draftId) => surface.authoringGenerationRequested(artifactId, draftId)
             onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
-            onCandidateLockRequested: candidateId =>
-                                          surface.textCandidateLockRequested(candidateId)
+            onSpeechRequested: artifactId => surface.authoringSpeechRequested(artifactId)
             onSetupRequested: surface.inferAccessSetupRequested()
-            onNewDraftRequested: surface.operatorDraftRequested("text.edit")
         }
     }
+
 
     Component {
         id: imageEditorWorkspace
@@ -481,26 +458,32 @@ Item {
             property bool selectedIsAcceptedAudio: surface.hasSelectedArtifact
                                                    && surface.selectedArtifact.kindKey
                                                       === "audio_clip"
-            property string sourceId: selectedIsAcceptedAudio
-                                      && surface.selectedArtifact
-                                                .transformationInputArtifactIds.length > 0
-                                      ? surface.selectedArtifact
-                                          .transformationInputArtifactIds[0]
-                                      : operatorWorkspaceHost.openedArtifactId
+            property var speechDraft: surface.speechDraftForArtifact(operatorWorkspaceHost.openedArtifactId)
+            property string sourceId: speechDraft !== null ? speechDraft.inputArtifactId
+                : selectedIsAcceptedAudio && surface.selectedArtifact.transformationInputArtifactIds.length > 0
+                  ? surface.selectedArtifact.transformationInputArtifactIds[0] : operatorWorkspaceHost.openedArtifactId
             property var sourceArtifact: surface.artifactForId(sourceId)
+            backend: surface.backend
             inferSpeech: surface.inferSpeech
             audioPreview: surface.audioPreview
             projectPath: surface.projectPath
             sourceArtifactId: sourceId
+            outputArtifactId: operatorWorkspaceHost.openedArtifactId
+            outputName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
             sourceName: sourceArtifact !== null ? sourceArtifact.name : ""
             sourceText: sourceArtifact !== null && sourceArtifact.hasTextPreview
                         ? sourceArtifact.textPreview : ""
-            canGenerate: !selectedIsAcceptedAudio && sourceArtifact !== null
+            canGenerate: sourceArtifact !== null
+                         && speechDraft !== null && speechDraft.inputRevisionId === sourceArtifact.acceptedRevisionId
                          && sourceArtifact.kindKey === "text_document"
                          && operatorDraftId.length > 0
             credentialConfigured: surface.inferCredentialConfigured
-            acceptedAudioArtifactId: selectedIsAcceptedAudio
+            acceptedAudioArtifactId: selectedIsAcceptedAudio && surface.selectedArtifact.hasAcceptedRevision
                                      ? surface.selectedArtifact.id : ""
+            sourceChanged: selectedIsAcceptedAudio && sourceArtifact !== null
+                           && surface.selectedArtifact.transformationInputRevisionIds.length > 0
+                           && surface.selectedArtifact.transformationInputRevisionIds[0]
+                              !== sourceArtifact.acceptedRevisionId
             acceptedDurationMillis: selectedIsAcceptedAudio
                                     ? surface.selectedArtifact.audioDurationMillis : 0
             acceptedSampleRateHz: selectedIsAcceptedAudio
@@ -509,6 +492,10 @@ Item {
                               ? surface.selectedArtifact.audioChannels : 0
             acceptedOriginKey: selectedIsAcceptedAudio
                                ? surface.selectedArtifact.audioOriginKey : ""
+            onWritingRequested: surface.writingRequested(sourceId, scriptMode)
+            onExportRequested: surface.audioExportRequested(
+                operatorWorkspaceHost.openedArtifactId,
+                candidate !== null ? candidate.id : "")
             candidate: surface.candidateForSelected
                        && surface.selectedCandidate.hasAudioPreview
                        ? surface.selectedCandidate : null
@@ -550,7 +537,7 @@ Item {
                 nodes: surface.graphNodes
                 edges: surface.graphEdges
                 candidates: surface.candidates
-                drafts: surface.operatorDrafts
+                drafts: surface.operatorDrafts.filter(d => !surface.graphNodes.some(n => n.id === d.id))
                 operatorDescriptors: surface.operatorDescriptors
                 artifactKindKey: surface.hasSelectedArtifact
                                  ? surface.selectedArtifact.kindKey : ""
@@ -587,10 +574,12 @@ Item {
 
             OperatorWorkspaceHost {
                 id: operatorWorkspaceHost
+                compactNavigation: surface.guidedAuthoringActive
                 selectedCandidateId: surface.selectedCandidateId
                 operatorWorkspaces: ({
-                    "text.edit": textEditOperatorWorkspace,
-                    "text.transform": textEditOperatorWorkspace,
+                    "text.create": textAuthoringWorkspace,
+                    "text.edit": textAuthoringWorkspace,
+                    "text.transform": textAuthoringWorkspace,
                     "image.edit": imageEditorWorkspace,
                     "image.crop": imageEditorWorkspace,
                     "image.resize": imageEditorWorkspace,

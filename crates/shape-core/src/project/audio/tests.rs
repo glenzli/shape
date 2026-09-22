@@ -106,6 +106,8 @@ fn operation() -> SpeechSynthesisOperation {
 
 fn provenance() -> ExternalExecutionProvenance {
     ExternalExecutionProvenance {
+        speech_segments: Vec::new(),
+        speech_script: None,
         contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
         capability_contract: Some(shape_execution::INFER_RUNTIME_SPEECH_CAPABILITY.to_owned()),
         app_id: "shape".to_owned(),
@@ -166,6 +168,70 @@ fn accepted_text(project: &mut ShapeProject) -> (ArtifactId, ArtifactRevision) {
         .unwrap();
     let revision = project.accept_text(candidate).unwrap();
     (artifact.id, revision)
+}
+
+#[test]
+fn speech_node_reuses_its_output_and_rejects_a_candidate_after_voice_changes() {
+    use shape_domain::{
+        ArtifactWorkingGraph, OperatorConfigurationSchemaId, OperatorDataTypeId, OperatorTypeId,
+        WorkingInput, WorkingOperatorConfiguration,
+    };
+    let root = test_root("stable-node");
+    let mut project = ShapeProject::create(&root, "Speech node").unwrap();
+    let (source, original) = accepted_text(&mut project);
+    let target = Artifact::new("Recording", ArtifactKind::AudioClip).unwrap();
+    let mut graph = ArtifactWorkingGraph::new_source(target.id);
+    let node = graph
+        .add_bound_operator(
+            OperatorTypeId::new("audio.speech_synthesize").unwrap(),
+            OperatorDataTypeId::new("text.document").unwrap(),
+            OperatorDataTypeId::new("audio.clip").unwrap(),
+            WorkingInput {
+                artifact_id: source,
+                revision_id: original.id,
+            },
+        )
+        .unwrap();
+    project
+        .create_source_artifact_draft(&target, &graph)
+        .unwrap();
+    let first = project
+        .propose_speech_node(target.id, &node, &operation(), &SpeechExecutor::new())
+        .unwrap();
+    let first_revision = project.accept_speech_synthesis(first).unwrap();
+    let second = project
+        .propose_speech_node(target.id, &node, &operation(), &SpeechExecutor::new())
+        .unwrap();
+    assert_eq!(second.review_artifact_id(), target.id);
+    let second_revision = project.accept_speech_synthesis(second).unwrap();
+    assert_eq!(second_revision.parents, [first_revision.id]);
+    assert_eq!(project.snapshot().unwrap().artifacts.len(), 2);
+    let obsolete = project
+        .propose_speech_node(target.id, &node, &operation(), &SpeechExecutor::new())
+        .unwrap();
+    let mut graph = project.artifact_working_graphs().unwrap().remove(0);
+    graph.set_operator_configuration(
+        node.id(),
+        Some(
+            WorkingOperatorConfiguration::new(
+                OperatorConfigurationSchemaId::new("speech.test").unwrap(),
+                "{\"pace\":1100}",
+            )
+            .unwrap(),
+        ),
+    );
+    project.save_artifact_working_graph(&graph).unwrap();
+    assert!(project.accept_speech_synthesis(obsolete).is_err());
+    assert_eq!(
+        project
+            .read_accepted(target.id)
+            .unwrap()
+            .unwrap()
+            .revision
+            .id,
+        second_revision.id
+    );
+    fs::remove_dir_all(root).unwrap();
 }
 
 fn file_count(root: &Path) -> usize {

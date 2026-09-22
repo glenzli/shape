@@ -8,7 +8,7 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import Shape.Desktop
 
-Dialog {
+ShapeDialog {
     id: dialog
     objectName: "createProjectDialog"
 
@@ -49,7 +49,7 @@ Dialog {
             font.letterSpacing: 0.6
         }
 
-        TextField {
+        ShapeTextField {
             id: projectNameField
             objectName: "projectNameField"
             Layout.fillWidth: true
@@ -70,7 +70,7 @@ Dialog {
             Layout.fillWidth: true
             spacing: 8
 
-            TextField {
+            ShapeTextField {
                 Layout.fillWidth: true
                 readOnly: true
                 text: dialog.selectedFolder.toString().replace("file://", "")
@@ -95,12 +95,12 @@ Dialog {
     }
 
     footer: DialogButtonBox {
-        Button {
+        ShapeButton {
             text: qsTr("Cancel")
             DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
         }
 
-        Button {
+        ShapeButton {
             objectName: "confirmCreateProjectButton"
             text: qsTr("Create project")
             highlighted: true

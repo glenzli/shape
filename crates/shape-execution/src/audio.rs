@@ -15,6 +15,13 @@ pub fn parse_pcm_s16le_wav(
     bytes: &[u8],
     origin: AudioOriginDisclosure,
 ) -> Result<AudioValueContract, ExecutionFailure> {
+    Ok(decode_pcm_s16le_wav(bytes, origin)?.0)
+}
+
+pub(crate) fn decode_pcm_s16le_wav(
+    bytes: &[u8],
+    origin: AudioOriginDisclosure,
+) -> Result<(AudioValueContract, &[u8]), ExecutionFailure> {
     if bytes.len() < 44 || bytes.len() > MAX_AUDIO_OUTPUT_BYTES {
         return Err(invalid_audio());
     }
@@ -52,7 +59,7 @@ pub fn parse_pcm_s16le_wav(
                 return Err(invalid_audio());
             }
             format = Some(WaveFormat::parse(payload)?);
-        } else if chunk_id == b"data" && data_bytes.replace(payload.len()).is_some() {
+        } else if chunk_id == b"data" && data_bytes.replace(payload).is_some() {
             return Err(invalid_audio());
         }
         position = payload_end
@@ -65,13 +72,107 @@ pub fn parse_pcm_s16le_wav(
 
     let format = format.ok_or_else(invalid_audio)?;
     let data_bytes = data_bytes.ok_or_else(invalid_audio)?;
-    if data_bytes == 0 || data_bytes % usize::from(format.block_align) != 0 {
+    if data_bytes.is_empty() || data_bytes.len() % usize::from(format.block_align) != 0 {
         return Err(invalid_audio());
     }
-    let frame_count =
-        u64::try_from(data_bytes / usize::from(format.block_align)).map_err(|_| invalid_audio())?;
-    AudioValueContract::pcm_s16le_wav(format.sample_rate_hz, format.channels, frame_count, origin)
-        .map_err(|_| invalid_audio())
+    let frame_count = u64::try_from(data_bytes.len() / usize::from(format.block_align))
+        .map_err(|_| invalid_audio())?;
+    let contract = AudioValueContract::pcm_s16le_wav(
+        format.sample_rate_hz,
+        format.channels,
+        frame_count,
+        origin,
+    )
+    .map_err(|_| invalid_audio())?;
+    Ok((contract, data_bytes))
+}
+
+/// Bounded assembly of validated, format-identical speech segments. No header bytes
+/// or lossy resampling enter the PCM timeline.
+#[derive(Debug, Default)]
+pub(crate) struct SpeechWaveAssembly {
+    format: Option<(u32, u16)>,
+    bytes: Vec<u8>,
+}
+
+impl SpeechWaveAssembly {
+    pub(crate) fn push(&mut self, wav: &[u8]) -> Result<(), ExecutionFailure> {
+        let (contract, pcm) = decode_pcm_s16le_wav(wav, AudioOriginDisclosure::SyntheticSpeech)?;
+        self.push_pcm(contract.sample_rate_hz, contract.channels, pcm)
+    }
+
+    pub(crate) fn push_pcm(
+        &mut self,
+        rate: u32,
+        channels: u16,
+        pcm: &[u8],
+    ) -> Result<(), ExecutionFailure> {
+        let format = (rate, channels);
+        if self.format.is_some_and(|expected| expected != format) {
+            return Err(ExecutionFailure::new(
+                "speech_format_changed",
+                "Speech segments have incompatible sample formats",
+                false,
+            ));
+        }
+        if self.format.is_none() {
+            self.bytes.resize(44, 0);
+            self.format = Some(format);
+        }
+        if self.bytes.len().saturating_add(pcm.len()) > MAX_AUDIO_OUTPUT_BYTES {
+            return Err(ExecutionFailure::new(
+                "speech_audio_too_large",
+                "Narration exceeds the supported audio size",
+                false,
+            ));
+        }
+        self.bytes.extend_from_slice(pcm);
+        Ok(())
+    }
+
+    pub(crate) fn pcm_len(&self) -> usize {
+        self.bytes.len().saturating_sub(44)
+    }
+
+    /// Replays an already assembled PCM range without a second temporary audio buffer.
+    pub(crate) fn replay_pcm(
+        &mut self,
+        range: std::ops::Range<usize>,
+    ) -> Result<(), ExecutionFailure> {
+        if range.start > range.end || range.end > self.pcm_len() {
+            return Err(invalid_audio());
+        }
+        if self.bytes.len().saturating_add(range.len()) > MAX_AUDIO_OUTPUT_BYTES {
+            return Err(ExecutionFailure::new(
+                "speech_audio_too_large",
+                "Narration exceeds the supported audio size",
+                false,
+            ));
+        }
+        self.bytes
+            .extend_from_within(range.start + 44..range.end + 44);
+        Ok(())
+    }
+
+    pub(crate) fn finish(mut self) -> Result<Vec<u8>, ExecutionFailure> {
+        let (sample_rate, channels) = self.format.ok_or_else(invalid_audio)?;
+        let data_size = u32::try_from(self.bytes.len() - 44).map_err(|_| invalid_audio())?;
+        let mut header = Vec::with_capacity(44);
+        header.extend_from_slice(b"RIFF");
+        header.extend_from_slice(&(data_size + 36).to_le_bytes());
+        header.extend_from_slice(b"WAVEfmt ");
+        header.extend_from_slice(&16_u32.to_le_bytes());
+        header.extend_from_slice(&1_u16.to_le_bytes());
+        header.extend_from_slice(&channels.to_le_bytes());
+        header.extend_from_slice(&sample_rate.to_le_bytes());
+        header.extend_from_slice(&(sample_rate * u32::from(channels) * 2).to_le_bytes());
+        header.extend_from_slice(&(channels * 2).to_le_bytes());
+        header.extend_from_slice(&16_u16.to_le_bytes());
+        header.extend_from_slice(b"data");
+        header.extend_from_slice(&data_size.to_le_bytes());
+        self.bytes[..44].copy_from_slice(&header);
+        Ok(self.bytes)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

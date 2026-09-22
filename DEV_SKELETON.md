@@ -155,7 +155,22 @@ versioned preset aliases, and the local-only consent/disclosure boundary for Voi
 `shape-execution::audio` validates exact PCM S16 LE WAV bytes; `infer_runtime::speech` uses the
 official `infer.audio.speech@20260811.1` unary WAV client, requests only
 `mlx_qwen3_tts_custom_voice_1_7b`, and returns bounded payload-free Core/Capability/Job/routing/
-Attempt facts. `shape-core::project::audio` keeps synthesized bytes transient and creates a new AudioClip
+Attempt facts. `speech::voices` owns the supported versioned preset catalogue;
+`speech::narration` owns sentence-aware segmentation, bounded progress, cancellation between
+segments, and an in-session retry cache keyed by exact source and operation. `SpeechWaveAssembly`
+validates equal sample formats and concatenates PCM while preserving each segment's receipt,
+source range, and content identities. The additive receipt field defaults empty for older files.
+`shape-domain::speech_script` owns the versioned instruction grammar and portable role/cue bindings.
+`shape-execution::speech_script` compiles spoken/local actions and validates source, operation and
+plan identities against the exact PCM timeline, including exact replay references. Production declarations
+and scoped delivery belong to the domain parser; authoring requirements and AI-output checks belong
+to the bridge text-authoring production owner. `speech::script` executes only unique spoken actions through
+Runtime. Core proposal and durable store acceptance share this validation. Imported cues are immutable
+project objects; no external path enters accepted history. `SpeechScriptPanel.qml` projects the full
+accepted-source parse through `session::speech_script` and never parses truncated preview text.
+The user-facing grammar and AI writing template are in `docs/SPEECH_SCRIPT.md` and
+`docs/SPEECH_SCRIPT_PROMPT.md`.
+`shape-core::project::audio` keeps synthesized bytes transient and creates a new AudioClip
 only through `shape-store` acceptance. Schema `20260811.2` re-parses bytes, persists provenance in
 the immutable receipt, and transactionally verifies that the accepted text input is still current.
 `shape-desktop-bridge::infer_speech` prepares the move-only result outside the live session;
@@ -163,8 +178,10 @@ the immutable receipt, and transactionally verifies that the accepted text input
 target Audio Artifact identity separate from source review context. Ordinary snapshots project only
 duration/sample/channel/origin metadata. `AudioPreviewController` fetches exact WAV bytes only for
 the selected Candidate or accepted clip, and owns the in-memory `QBuffer`/Qt Multimedia playback
-lifecycle. `AudioSpeechOperatorWorkspace.qml` owns preset, pace, disclosure, generation, and
-audition presentation. Recording, waveform editing, authorized-voice execution, general sound
+lifecycle. `AudioExportController` owns asynchronous atomic export of the selected verified WAV
+bytes outside the project bundle. QML receives paths/status, never encoded audio.
+`AudioSpeechOperatorWorkspace.qml` owns independent preset/language, pace, disclosure, generation,
+progress/stop, and audition presentation. Recording, waveform editing, authorized-voice execution, general sound
 generation, audio transforms, and Echo asset resolution remain deferred. The required Infer alias
 and Shape speech ACL are locally validated but not yet published by Infer.
 
@@ -188,12 +205,17 @@ node. The current artifact-as-Scene desktop projection is an explicit compatibil
 authority for future graph mutation. It must not be expanded to fake multi-source Scene membership;
 the next persistence revision needs a real Scene-owned Working Graph with node geometry, ports,
 edges, detached-node recovery, and output bindings.
-The current compatibility bridge now permits one honest detached `text.edit` entry: adding the AI
-Text Editor without a selected text source atomically creates an unaccepted `TextDocument` target
-and a zero-input Working Graph whose reusable intent is durable. The workspace labels it as waiting
-for materials and refuses execution. This proves node-before-material authoring without claiming
-that the compatibility Artifact is already a multi-node Scene or that typed connection mutation
-exists.
+Text creation and derivation follow [the node model](docs/NODE_MODEL.md). `text.create` has no required input;
+`text.edit` requires an explicit accepted original and owns a different output Artifact. Both use
+`TextAuthoringWorkspace.qml`, including the format/preset panel, optional expression controls, full-text
+review and explicit acceptance. `shape-domain::text_document` owns the persisted plain/script contract;
+`shape-domain::working_graph` owns stable producer identity and explicit input bindings.
+`shape-core::project::text::node` executes those bindings, and Store checks original head, target head
+and exact authored node in the acceptance transaction. Repeated acceptance updates the same output and
+retains node identity. `operator_graph::authored` projects that authored topology separately from history.
+`session::text_authoring` owns desktop creation/derivation, full original reads and speech handoff.
+Speech also reserves its own output; it reads the accepted text contract rather than a writing draft's
+profile. Candidates are transient and accepted recordings are immutable.
 `TextCompareWorkspace.qml` separately owns accepted-versus-candidate presentation; the C++
 `DesktopBackend` remains a presentation facade and never becomes the draft or persistence owner.
 The independent `InferRuntimeController` owns the asynchronous desktop probe lifecycle and exposes
@@ -224,22 +246,12 @@ show origin context, editing cards show their creative method family, and the cu
 renders the selected Artifact's actual text, image, or audio summary. `WorkspaceSurface.qml` owns
 Scene-graph-first navigation and the explicit node-focused workspace boundary. Selection only
 updates shared context, while explicit open/review intent enters the media-specific workspace.
-`AiTextEditingWorkspace.qml` owns the focused AI text-edit lifecycle: external material summary,
-quick action, authored prompt, sequential one-or-three Candidate generation, selectable
-output, targeted follow-up preparation, and explicit output lock. New compatibility drafts still use
-canonical `text.edit`, while legacy persisted `text.transform` drafts remain readable. The
-`TextExpressionPalette.qml` semantic owner presents readable built-in expression samples,
-primary/supporting one-or-two tone composition, intensity, audience, and personal preset authoring.
-`TextExpressionLibrary` owns the
-bounded preference lifecycle for those reusable personal presets; project drafts copy the selected
-authored meaning rather than retaining a live preference reference. The
-`shape.operator-draft.text-transform@20260813.1` codec persists
-rewrite/expand/polish/shorten/summarize, exact instruction, ordered tone facets, optional custom
-example, intensity, audience, style, and bounded variant count. The previous `20260812.2` expression
-schema remains readable.
-Generation re-reads that project-backed configuration; producing a Candidate no longer deletes
-reusable text-node intent, and locking a text Candidate rebases the Working Graph to the new accepted
-head. `ImageEditorWorkspace.qml`
+`TextAuthoringWorkspace.qml` is the single text editor for creation and derivation. Its optional
+`TextExpressionPalette.qml` preserves tone composition, intensity, audience and personal preset snapshots.
+The authoring codec combines those settings with editing task, text format, writing preset and exact buffers.
+`TextFormatPanel.qml` owns progressive disclosure of format and preset choices; the offline guide displays
+instruction examples and exposes the complete canonical rules and AI writing prompt for copying.
+`ImageEditorWorkspace.qml`
 presents one Image Editing stage; `image.crop` and `image.resize` remain exact internal contracts and
 accepted Transformation identities rather than separate palette entries;
 `AudioSpeechOperatorWorkspace.qml` serves preset-only `audio.speech_synthesize`; Source, Output,
@@ -248,36 +260,27 @@ authority.
 `VariantsPanel.qml` owns artifact-scoped Candidate Shelf selection and review controls, while
 candidate identity and mutation remain in Rust. QML never becomes durable graph authority.
 
-The desktop compatibility slice still treats every existing Artifact as one single-output Scene
-and derives its graph from immutable accepted history. Behind that projection,
+The desktop opens named Artifact outputs as workspaces. Text and speech topology comes from persisted
+producer nodes and explicit input bindings; the image slice still projects accepted operation history.
+Alongside these exercised paths,
 `shape-domain::scene` now owns stable Scene identity, immutable `SceneRevision`, and the requirement
 that every accepted Output node has one unique portable name. `shape-store` persists Scene heads and
 graph revisions with expected-head compare-and-swap, verifies that every durable node binding
 resolves to a real Artifact Revision or Transformation, and additively migrates initial and
 Scene-era schemas through the audio-capable and Working Graph revisions to schema `20260811.5`.
 `shape-core::project::scene` keeps graph candidates transient until explicit acceptance. Two Scenes
-can therefore evolve and reopen independently without sharing draft state. The desktop compatibility
-slice stores type-compatible Operator drafts in a mutable Artifact Working Graph keyed to the exact
-accepted head. Unexecuted drafts restore on reopen without becoming accepted nodes; stale saves fail
-closed. `shape-desktop-bridge::operator_catalog` owns the currently executable compatibility and
-machine routing descriptors, while QML owns localized labels and search. Working Graph anchors and
-input data types are optional only as one validated pair for a true zero-input Source Operator;
-accepted-input drafts preserve their previous serialized form. Full persistent Scene graph
-`shape-domain::working_graph` also owns a bounded versioned JSON envelope for mutable Operator-owned
-configuration without interpreting media semantics. `operator_catalog::text_transform` validates
-AI text-edit state: the exact rewrite/expand/polish/shorten/summarize mode, instruction, tone,
-intensity, audience, style, and variant-count contract, including all older configuration revisions and legacy
-`text.transform` draft identity. The visible catalog exposes one AI Text Editor action, while
-`operator_catalog::audio_speech` validates the preset, language, pace, and
-mandatory disclosure contract. Both Infer controllers execute from an exact project-backed draft
-identity and re-read its Working Graph configuration instead of trusting a QML projection. Full
-Scene-owned Working Graph mutation, durable typed connections, multi-material text pipeline
-compilation, durable unaccepted Explorations, a real multi-output flow, and reusable GraphComponent
-instances remain the next contract slice. The compatibility UI may expose node-first affordances,
-but it must label the current text-only executor boundary and must not claim that image/audio inputs
-participated before their real compiler stages exist.
+can therefore evolve and reopen independently without sharing draft state.
+The current desktop persists each text/speech producer with its named output and original binding.
+Source requirements and output family come from the Rust operator catalog. Text creation is available
+without a selected source; text editing requires accepted text and never silently becomes creation.
+Speech binds accepted text and owns voice, language, pace and cue settings. Both Infer controllers
+execute exact persisted node identities. General Scene geometry, arbitrary port rewiring, multi-material
+text compilation and reusable multi-output components remain separate future work.
 
-Developer launch lifecycle is a separate repository-tooling owner under `scripts/`. A validated
-candidate app is copied into an immutable revision-stamped release, then a product-side lock guards
-the atomic `current-debug` symlink advance. The stable launcher never points at an agent-specific
-candidate build and never overwrites a running application bundle.
+Developer launch lifecycle is a separate repository-tooling owner under `scripts/`. The default
+promotion gate validates translation completeness, a packaged desktop build, and its user-facing
+smoke paths so `current-debug` remains runnable during iterative work. `--full` adds repository-wide
+Rust formatting, Clippy, and tests for commits, cross-module handoffs, and release-like checkpoints.
+A validated candidate app is copied into an immutable revision-stamped release, then a product-side
+lock guards the atomic `current-debug` symlink advance. The stable launcher never points at an
+agent-specific candidate build and never overwrites a running application bundle.

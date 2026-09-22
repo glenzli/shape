@@ -34,60 +34,59 @@ Rectangle {
     property real zoomLevel: 1.0
     property string focusedSelectionKind: "node"
 
-    readonly property real nodeWidth: 240
-    readonly property real nodeHeight: 188
-    readonly property real columnGap: 64
-    readonly property real rowGap: 38
-    readonly property real graphMargin: 34
+    readonly property real nodeWidth: 212
+    readonly property real nodeHeight: 132
+    readonly property real columnGap: 50
+    readonly property real rowGap: 30
+    readonly property real graphMargin: 28
     readonly property int acceptedMaxStage: maximumAcceptedStage()
-    readonly property int projectedMaxStage: acceptedMaxStage
-                                             + (drafts.length + candidates.length > 0 ? 1 : 0)
+    readonly property int projectedMaxStage: acceptedMaxStage + (drafts.length + candidates.length > 0 ? 1 : 0)
     readonly property int projectedNodeCount: nodes.length + drafts.length + candidates.length
     readonly property real minimumZoom: 0.65
     readonly property real maximumZoom: 1.5
-    readonly property bool currentResultPreviewAvailable: (artifactKindKey === "image_raster"
-                                                            && acceptedImageSource.toString().length
-                                                               > 0)
-                                                           || artifactKindKey === "text_document"
-                                                           || artifactKindKey === "audio_clip"
+    readonly property bool currentResultPreviewAvailable: (artifactKindKey === "image_raster" && acceptedImageSource.toString().length > 0) || artifactKindKey === "text_document" || artifactKindKey === "audio_clip"
     readonly property var inspectedNode: nodeForId(selectedNodeId)
     readonly property var inspectedDraft: draftForId(selectedNodeId)
     readonly property var inspectedCandidate: candidateForId(selectedCandidateId)
     readonly property string inspectionKind: {
         if (focusedSelectionKind === "candidate" && inspectedCandidate !== null) {
-            return "candidate"
+            return "candidate";
         }
-        if (inspectedDraft !== null) return "draft"
-        if (inspectedNode !== null) return "node"
-        return "none"
+        if (inspectedDraft !== null)
+            return "draft";
+        if (inspectedNode !== null)
+            return "node";
+        return "none";
     }
     readonly property int operatorCount: {
-        let count = 0
+        let count = 0;
         for (let index = 0; index < nodes.length; ++index) {
-            if (nodes[index].roleKey === "operator") ++count
+            if (nodes[index].roleKey === "operator")
+                ++count;
         }
-        return count
+        return count;
     }
     readonly property string terminalNodeId: {
-        let outputId = ""
+        let outputId = "";
         for (let index = 0; index < nodes.length; ++index) {
             if (nodes[index].roleKey === "output") {
-                outputId = nodes[index].id
-                break
+                outputId = nodes[index].id;
+                break;
             }
         }
         for (let index = 0; index < edges.length; ++index) {
-            if (edges[index].targetNodeId === outputId) return edges[index].sourceNodeId
+            if (edges[index].targetNodeId === outputId)
+                return edges[index].sourceNodeId;
         }
-        return nodes.length > 0 ? nodes[nodes.length - 1].id : ""
+        return nodes.length > 0 ? nodes[nodes.length - 1].id : "";
     }
     readonly property int maximumLaneCount: {
-        let maximum = 1
+        let maximum = 1;
         for (let stage = 0; stage <= acceptedMaxStage; ++stage) {
-            maximum = Math.max(maximum, acceptedNodesAtStage(stage))
+            maximum = Math.max(maximum, acceptedNodesAtStage(stage));
         }
-        maximum = Math.max(maximum, drafts.length + candidates.length)
-        return maximum
+        maximum = Math.max(maximum, drafts.length + candidates.length);
+        return maximum;
     }
 
     signal nodeSelected(string nodeId)
@@ -100,305 +99,305 @@ Rectangle {
     signal draftDiscardRequested(string draftId)
     signal nodeOutputRequested(string nodeId)
 
-    function nodeIndex(nodeId) : int {
+    function nodeIndex(nodeId): int {
         for (let index = 0; index < nodes.length; ++index) {
-            if (nodes[index].id === nodeId) return index
+            if (nodes[index].id === nodeId)
+                return index;
         }
-        return -1
+        return -1;
     }
 
-    function selectedNodeIndex() : int {
-        return nodeIndex(selectedNodeId)
+    function selectedNodeIndex(): int {
+        return nodeIndex(selectedNodeId);
     }
 
-    function selectedDraftIndex() : int {
+    function selectedDraftIndex(): int {
         for (let index = 0; index < drafts.length; ++index) {
-            if (drafts[index].id === selectedNodeId) return index
+            if (drafts[index].id === selectedNodeId)
+                return index;
         }
-        return -1
+        return -1;
     }
 
-    function nodeForId(nodeId) : var {
-        const index = nodeIndex(nodeId)
-        return index >= 0 ? nodes[index] : null
+    function nodeForId(nodeId): var {
+        const index = nodeIndex(nodeId);
+        return index >= 0 ? nodes[index] : null;
     }
 
-    function draftForId(draftId) : var {
+    function draftForId(draftId): var {
         for (let index = 0; index < drafts.length; ++index) {
-            if (drafts[index].id === draftId) return drafts[index]
+            if (drafts[index].id === draftId)
+                return drafts[index];
         }
-        return null
+        return null;
     }
 
-    function candidateForId(candidateId) : var {
+    function candidateForId(candidateId): var {
         for (let index = 0; index < candidates.length; ++index) {
-            if (candidates[index].id === candidateId) return candidates[index]
+            if (candidates[index].id === candidateId)
+                return candidates[index];
         }
-        return null
+        return null;
     }
 
-    function selectAcceptedNode(nodeId) : void {
-        focusedSelectionKind = "node"
-        nodeSelected(nodeId)
+    function selectAcceptedNode(nodeId): void {
+        focusedSelectionKind = "node";
+        nodeSelected(nodeId);
     }
 
-    function selectDraft(draftId) : void {
-        focusedSelectionKind = "draft"
-        draftSelected(draftId)
+    function selectDraft(draftId): void {
+        focusedSelectionKind = "draft";
+        draftSelected(draftId);
     }
 
-    function selectCandidate(candidateId) : void {
-        focusedSelectionKind = "candidate"
-        candidateSelected(candidateId)
+    function selectCandidate(candidateId): void {
+        focusedSelectionKind = "candidate";
+        candidateSelected(candidateId);
     }
 
-    function setZoom(nextZoom) : void {
-        zoomLevel = Math.max(minimumZoom, Math.min(maximumZoom, nextZoom))
+    function setZoom(nextZoom): void {
+        zoomLevel = Math.max(minimumZoom, Math.min(maximumZoom, nextZoom));
     }
 
-    function fitGraph() : void {
-        if (viewport.width <= 0 || viewport.height <= 0) return
-        const horizontal = Math.max(minimumZoom,
-                                    (viewport.width - 36) / contentGraphWidth())
-        const vertical = Math.max(minimumZoom,
-                                  (viewport.height - 36) / contentGraphHeight())
-        setZoom(Math.min(1.0, horizontal, vertical))
-        viewport.contentX = 0
-        viewport.contentY = 0
+    function fitGraph(): void {
+        if (viewport.width <= 0 || viewport.height <= 0)
+            return;
+        const horizontal = Math.max(minimumZoom, (viewport.width - 36) / contentGraphWidth());
+        const vertical = Math.max(minimumZoom, (viewport.height - 36) / contentGraphHeight());
+        setZoom(Math.min(1.0, horizontal, vertical));
+        viewport.contentX = 0;
+        viewport.contentY = 0;
     }
 
-    function nodeStage(nodeId, trail) : int {
-        if (trail[nodeId] === true) return 0
-        const nextTrail = Object.assign({}, trail)
-        nextTrail[nodeId] = true
-        let stage = 0
+    function nodeStage(nodeId, trail): int {
+        if (trail[nodeId] === true)
+            return 0;
+        const nextTrail = Object.assign({}, trail);
+        nextTrail[nodeId] = true;
+        let stage = 0;
         for (let index = 0; index < edges.length; ++index) {
             if (edges[index].targetNodeId === nodeId) {
-                stage = Math.max(stage,
-                                 nodeStage(edges[index].sourceNodeId, nextTrail) + 1)
+                stage = Math.max(stage, nodeStage(edges[index].sourceNodeId, nextTrail) + 1);
             }
         }
-        return stage
+        return stage;
     }
 
-    function maximumAcceptedStage() : int {
-        let maximum = 0
+    function maximumAcceptedStage(): int {
+        let maximum = 0;
         for (let index = 0; index < nodes.length; ++index) {
-            maximum = Math.max(maximum, nodeStage(nodes[index].id, {}))
+            maximum = Math.max(maximum, nodeStage(nodes[index].id, {}));
         }
-        return maximum
+        return maximum;
     }
 
-    function acceptedNodesAtStage(stage) : int {
-        let count = 0
+    function acceptedNodesAtStage(stage): int {
+        let count = 0;
         for (let index = 0; index < nodes.length; ++index) {
-            if (nodeStage(nodes[index].id, {}) === stage) ++count
+            if (nodeStage(nodes[index].id, {}) === stage)
+                ++count;
         }
-        return count
+        return count;
     }
 
-    function acceptedNodeLane(index) : int {
-        const stage = nodeStage(nodes[index].id, {})
-        let lane = 0
+    function acceptedNodeLane(index): int {
+        const stage = nodeStage(nodes[index].id, {});
+        let lane = 0;
         for (let cursor = 0; cursor < index; ++cursor) {
-            if (nodeStage(nodes[cursor].id, {}) === stage) ++lane
+            if (nodeStage(nodes[cursor].id, {}) === stage)
+                ++lane;
         }
-        return lane
+        return lane;
     }
 
-    function projectedStage(index) : int {
+    function projectedStage(index): int {
         if (index < nodes.length) {
-            const stage = nodeStage(nodes[index].id, {})
-            return nodes[index].roleKey === "output"
-                    && drafts.length + candidates.length > 0 ? stage + 1 : stage
+            const stage = nodeStage(nodes[index].id, {});
+            return nodes[index].roleKey === "output" && drafts.length + candidates.length > 0 ? stage + 1 : stage;
         }
-        return acceptedMaxStage
+        return acceptedMaxStage;
     }
 
-    function projectedLane(index) : int {
-        if (index < nodes.length) return acceptedNodeLane(index)
-        return index - nodes.length
+    function projectedLane(index): int {
+        if (index < nodes.length)
+            return acceptedNodeLane(index);
+        return index - nodes.length;
     }
 
-    function contentGraphWidth() : real {
-        return graph.graphMargin * 2
-               + (graph.projectedMaxStage + 1) * graph.nodeWidth
-               + graph.projectedMaxStage * graph.columnGap
+    function contentGraphWidth(): real {
+        return graph.graphMargin * 2 + (graph.projectedMaxStage + 1) * graph.nodeWidth + graph.projectedMaxStage * graph.columnGap;
     }
 
-    function contentGraphHeight() : real {
-        return graph.graphMargin * 2
-               + graph.maximumLaneCount * graph.nodeHeight
-               + (graph.maximumLaneCount - 1) * graph.rowGap
+    function contentGraphHeight(): real {
+        return graph.graphMargin * 2 + graph.maximumLaneCount * graph.nodeHeight + (graph.maximumLaneCount - 1) * graph.rowGap;
     }
 
-    function nodeX(index) : real {
-        const available = Math.max(viewport.width / graph.zoomLevel, contentGraphWidth())
-        const used = contentGraphWidth() - graph.graphMargin * 2
-        const offset = Math.max(graph.graphMargin, (available - used) / 2)
-        return offset + projectedStage(index) * (graph.nodeWidth + graph.columnGap)
+    function nodeX(index): real {
+        const available = Math.max(viewport.width / graph.zoomLevel, contentGraphWidth());
+        const used = contentGraphWidth() - graph.graphMargin * 2;
+        const offset = Math.max(graph.graphMargin, (available - used) / 2);
+        return offset + projectedStage(index) * (graph.nodeWidth + graph.columnGap);
     }
 
-    function nodeY(index) : real {
-        const available = Math.max(viewport.height / graph.zoomLevel,
-                                   contentGraphHeight())
-        const used = graph.maximumLaneCount * graph.nodeHeight
-                     + (graph.maximumLaneCount - 1) * graph.rowGap
-        const offset = Math.max(graph.graphMargin, (available - used) / 2)
-        return offset + projectedLane(index) * (graph.nodeHeight + graph.rowGap)
+    function nodeY(index): real {
+        const available = Math.max(viewport.height / graph.zoomLevel, contentGraphHeight());
+        const used = graph.maximumLaneCount * graph.nodeHeight + (graph.maximumLaneCount - 1) * graph.rowGap;
+        const offset = Math.max(graph.graphMargin, (available - used) / 2);
+        return offset + projectedLane(index) * (graph.nodeHeight + graph.rowGap);
     }
 
-    function nodeTitle(node) : string {
+    function nodeTitle(node): string {
         if (node.roleKey === "source") {
-            return node.artifactName.length > 0 ? node.artifactName : qsTr("Starting material")
+            return node.artifactName.length > 0 ? node.artifactName : qsTr("Starting material");
         }
         if (node.roleKey === "output") {
-            return node.artifactName.length > 0
-                    ? qsTr("%1 / Current").arg(node.artifactName) : qsTr("Current result")
+            return node.artifactName.length > 0 ? qsTr("%1 / Current").arg(node.artifactName) : qsTr("Current result");
         }
-        return node.operatorTypeLabel
+        return node.operatorTypeLabel;
     }
 
-    function dataTypeLabel(dataTypeKey) : string {
-        if (dataTypeKey === "text.document") return qsTr("Text")
-        if (dataTypeKey === "image.raster") return qsTr("Image")
-        if (dataTypeKey === "audio.clip") return qsTr("Audio")
-        return qsTr("Creative content")
+    function dataTypeLabel(dataTypeKey): string {
+        if (dataTypeKey === "text.document")
+            return qsTr("Text");
+        if (dataTypeKey === "image.raster")
+            return qsTr("Image");
+        if (dataTypeKey === "audio.clip")
+            return qsTr("Audio");
+        return qsTr("Creative content");
     }
 
-    function roleLabel(node) : string {
-        if (node.roleKey === "source"
-                || (node.roleKey === "operator" && node.inputPorts.length === 0)) {
-            return qsTr("STARTING POINT")
+    function roleLabel(node): string {
+        if (node.roleKey === "source" || (node.roleKey === "operator" && node.inputPorts.length === 0)) {
+            return qsTr("STARTING POINT");
         }
-        if (node.roleKey === "output") return qsTr("CURRENT RESULT")
-        return qsTr("CREATIVE STEP")
+        if (node.roleKey === "output")
+            return qsTr("CURRENT RESULT");
+        return qsTr("CREATIVE STEP");
     }
 
-    function draftRoleLabel(draft) : string {
-        return draft.hasInputDataType ? qsTr("NEXT STEP") : qsTr("STARTING POINT")
+    function draftRoleLabel(draft): string {
+        return draft.hasInputDataType ? qsTr("NEXT STEP") : qsTr("STARTING POINT");
     }
 
-    function draftDetail(draft) : string {
+    function draftDetail(draft): string {
         if (!draft.hasInputDataType) {
-            return qsTr("Creates the first %1").arg(dataTypeLabel(draft.outputDataTypeKey))
+            return qsTr("Creates the first %1").arg(dataTypeLabel(draft.outputDataTypeKey));
         }
-        return qsTr("%1 to %2").arg(dataTypeLabel(draft.inputDataTypeKey))
-                .arg(dataTypeLabel(draft.outputDataTypeKey))
+        return qsTr("%1 to %2").arg(dataTypeLabel(draft.inputDataTypeKey)).arg(dataTypeLabel(draft.outputDataTypeKey));
     }
 
-    function nodeDetail(node) : string {
+    function nodeDetail(node): string {
         if (node.roleKey === "operator") {
-            return node.intent.length > 0 ? node.intent : node.operatorTypeLabel
+            return node.intent.length > 0 ? node.intent : node.operatorTypeLabel;
         }
-        const ports = node.roleKey === "source" ? node.outputPorts : node.inputPorts
-        return ports.length > 0 ? dataTypeLabel(ports[0].dataTypeKey)
-                                : qsTr("Creative content")
+        const ports = node.roleKey === "source" ? node.outputPorts : node.inputPorts;
+        return ports.length > 0 ? dataTypeLabel(ports[0].dataTypeKey) : qsTr("Creative content");
     }
 
-    function roleColor(roleKey) : color {
-        if (roleKey === "operator") return Theme.accent
-        if (roleKey === "output") return Theme.success
-        return Theme.muted
+    function roleColor(roleKey): color {
+        if (roleKey === "operator")
+            return Theme.accent;
+        if (roleKey === "output")
+            return Theme.success;
+        return Theme.muted;
     }
 
-    function roleIcon(roleKey) : url {
+    function roleIcon(roleKey): url {
         if (roleKey === "operator") {
-            return "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
+            return "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg";
         }
         if (roleKey === "output") {
-            return "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
+            return "qrc:/qt/qml/Shape/Desktop/icons/open.svg";
         }
-        return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
+        return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg";
     }
 
-    function inspectionTitle() : string {
-        if (inspectionKind === "node") return nodeTitle(inspectedNode)
-        if (inspectionKind === "draft") return inspectedDraft.operatorTypeLabel
-        if (inspectionKind === "candidate") return qsTr("New version")
-        return ""
+    function inspectionTitle(): string {
+        if (inspectionKind === "node")
+            return nodeTitle(inspectedNode);
+        if (inspectionKind === "draft")
+            return inspectedDraft.operatorTypeLabel;
+        if (inspectionKind === "candidate")
+            return qsTr("New version");
+        return "";
     }
 
-    function inspectionEyebrow() : string {
-        if (inspectionKind === "node") return roleLabel(inspectedNode)
-        if (inspectionKind === "draft") return draftRoleLabel(inspectedDraft)
-        if (inspectionKind === "candidate") return qsTr("OPTIONAL VERSION")
-        return ""
+    function inspectionEyebrow(): string {
+        if (inspectionKind === "node")
+            return roleLabel(inspectedNode);
+        if (inspectionKind === "draft")
+            return draftRoleLabel(inspectedDraft);
+        if (inspectionKind === "candidate")
+            return qsTr("OPTIONAL VERSION");
+        return "";
     }
 
-    function inspectionDetail() : string {
+    function inspectionDetail(): string {
         if (inspectionKind === "node") {
             if (inspectedNode.roleKey === "source") {
-                return qsTr("The original material this work starts from · %1")
-                        .arg(nodeDetail(inspectedNode))
+                return qsTr("The original material this work starts from · %1").arg(nodeDetail(inspectedNode));
             }
             if (inspectedNode.roleKey === "output") {
-                return qsTr("The version currently used by this work · %1")
-                        .arg(nodeDetail(inspectedNode))
+                return qsTr("The version currently used by this work · %1").arg(nodeDetail(inspectedNode));
             }
-            return qsTr("A creative step in this work · %1").arg(nodeDetail(inspectedNode))
+            return qsTr("A creative step in this work · %1").arg(nodeDetail(inspectedNode));
         }
         if (inspectionKind === "draft") {
-            return qsTr("Ready to configure · %1").arg(draftDetail(inspectedDraft))
+            return qsTr("Ready to configure · %1").arg(draftDetail(inspectedDraft));
         }
         if (inspectionKind === "candidate") {
-            return inspectedCandidate.hasImagePreview
-                    ? qsTr("Image result · %1 × %2")
-                          .arg(inspectedCandidate.imageWidth)
-                          .arg(inspectedCandidate.imageHeight)
-                    : inspectedCandidate.hasAudioPreview
-                      ? qsTr("Audio result ready for review")
-                      : inspectedCandidate.text
+            return inspectedCandidate.hasImagePreview ? qsTr("Image result · %1 × %2").arg(inspectedCandidate.imageWidth).arg(inspectedCandidate.imageHeight) : inspectedCandidate.hasAudioPreview ? qsTr("Audio result ready for review") : inspectedCandidate.text;
         }
-        return ""
+        return "";
     }
 
-    function inspectionIcon() : url {
-        if (inspectionKind === "node") return roleIcon(inspectedNode.roleKey)
+    function inspectionIcon(): url {
+        if (inspectionKind === "node")
+            return roleIcon(inspectedNode.roleKey);
         if (inspectionKind === "draft") {
-            return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg"
+            return "qrc:/qt/qml/Shape/Desktop/icons/edit.svg";
         }
         if (inspectionKind === "candidate") {
-            return inspectedCandidate.hasAudioPreview
-                    ? "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
-                    : "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
+            return inspectedCandidate.hasAudioPreview ? "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg" : "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg";
         }
-        return ""
+        return "";
     }
 
-    function inspectionColor() : color {
-        if (inspectionKind === "node") return roleColor(inspectedNode.roleKey)
-        if (inspectionKind === "candidate" || inspectionKind === "draft") return Theme.accent
-        return Theme.muted
+    function inspectionColor(): color {
+        if (inspectionKind === "node")
+            return roleColor(inspectedNode.roleKey);
+        if (inspectionKind === "candidate" || inspectionKind === "draft")
+            return Theme.accent;
+        return Theme.muted;
     }
 
-    function paintConnection(context, sourceIndex, targetIndex, dashed) : void {
-        if (sourceIndex < 0 || targetIndex < 0) return
-        const startX = nodeX(sourceIndex) + nodeWidth
-        const startY = nodeY(sourceIndex) + nodeHeight / 2
-        const endX = nodeX(targetIndex)
-        const endY = nodeY(targetIndex) + nodeHeight / 2
-        const direction = endX >= startX ? 1 : -1
-        const controlDistance = Math.max(36, Math.abs(endX - startX) * 0.48)
+    function paintConnection(context, sourceIndex, targetIndex, dashed): void {
+        if (sourceIndex < 0 || targetIndex < 0)
+            return;
+        const startX = nodeX(sourceIndex) + nodeWidth;
+        const startY = nodeY(sourceIndex) + nodeHeight / 2;
+        const endX = nodeX(targetIndex);
+        const endY = nodeY(targetIndex) + nodeHeight / 2;
+        const direction = endX >= startX ? 1 : -1;
+        const controlDistance = Math.max(36, Math.abs(endX - startX) * 0.48);
 
-        context.save()
-        context.strokeStyle = dashed ? Theme.accent : Theme.borderStrong
-        context.fillStyle = dashed ? Theme.accent : Theme.borderStrong
-        context.lineWidth = dashed ? 1.6 : 1.5
-        context.setLineDash(dashed ? [7, 6] : [])
-        context.beginPath()
-        context.moveTo(startX, startY)
-        context.bezierCurveTo(startX + direction * controlDistance, startY,
-                              endX - direction * controlDistance, endY, endX, endY)
-        context.stroke()
-        context.setLineDash([])
-        context.beginPath()
-        context.moveTo(endX, endY)
-        context.lineTo(endX - direction * 8, endY - 4)
-        context.lineTo(endX - direction * 8, endY + 4)
-        context.closePath()
-        context.fill()
-        context.restore()
+        context.save();
+        context.strokeStyle = dashed ? Theme.accent : Theme.borderStrong;
+        context.fillStyle = dashed ? Theme.accent : Theme.borderStrong;
+        context.lineWidth = dashed ? 1.6 : 1.5;
+        context.setLineDash(dashed ? [7, 6] : []);
+        context.beginPath();
+        context.moveTo(startX, startY);
+        context.bezierCurveTo(startX + direction * controlDistance, startY, endX - direction * controlDistance, endY, endX, endY);
+        context.stroke();
+        context.setLineDash([]);
+        context.beginPath();
+        context.moveTo(endX, endY);
+        context.lineTo(endX - direction * 8, endY - 4);
+        context.lineTo(endX - direction * 8, endY + 4);
+        context.closePath();
+        context.fill();
+        context.restore();
     }
 
     color: Theme.panel
@@ -450,21 +449,17 @@ Rectangle {
             }
 
             ScrollBar.horizontal: ScrollBar {
-                policy: viewport.contentWidth > viewport.width
-                        ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                policy: viewport.contentWidth > viewport.width ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
             }
             ScrollBar.vertical: ScrollBar {
-                policy: viewport.contentHeight > viewport.height
-                        ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                policy: viewport.contentHeight > viewport.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
             }
 
             Item {
                 id: graphCanvas
 
-                width: Math.max(viewport.width / graph.zoomLevel,
-                                graph.contentGraphWidth())
-                height: Math.max(viewport.height / graph.zoomLevel,
-                                 graph.contentGraphHeight())
+                width: Math.max(viewport.width / graph.zoomLevel, graph.contentGraphWidth())
+                height: Math.max(viewport.height / graph.zoomLevel, graph.contentGraphHeight())
                 scale: graph.zoomLevel
                 transformOrigin: Item.TopLeft
 
@@ -474,27 +469,31 @@ Rectangle {
                     anchors.fill: parent
 
                     onPaint: {
-                        const context = getContext("2d")
-                        context.clearRect(0, 0, width, height)
-                        context.fillStyle = Theme.canvasGrid
-                        const step = 24
+                        const context = getContext("2d");
+                        context.clearRect(0, 0, width, height);
+                        context.fillStyle = Theme.canvasGrid;
+                        const step = 24;
                         for (let y = step; y < height; y += step) {
                             for (let x = step; x < width; x += step) {
-                                context.fillRect(x, y, 1, 1)
+                                context.fillRect(x, y, 1, 1);
                             }
                         }
                     }
 
                     Connections {
                         target: graphCanvas
-                        function onWidthChanged() : void { gridCanvas.requestPaint() }
-                        function onHeightChanged() : void { gridCanvas.requestPaint() }
+                        function onWidthChanged(): void {
+                            gridCanvas.requestPaint();
+                        }
+                        function onHeightChanged(): void {
+                            gridCanvas.requestPaint();
+                        }
                     }
 
                     Connections {
                         target: Theme
-                        function onEffectiveDarkChanged() : void {
-                            gridCanvas.requestPaint()
+                        function onEffectiveDarkChanged(): void {
+                            gridCanvas.requestPaint();
                         }
                     }
                 }
@@ -505,40 +504,51 @@ Rectangle {
                     anchors.fill: parent
 
                     onPaint: {
-                        const context = getContext("2d")
-                        context.clearRect(0, 0, width, height)
+                        const context = getContext("2d");
+                        context.clearRect(0, 0, width, height);
                         for (let index = 0; index < graph.edges.length; ++index) {
-                            const edge = graph.edges[index]
-                            graph.paintConnection(context,
-                                                  graph.nodeIndex(edge.sourceNodeId),
-                                                  graph.nodeIndex(edge.targetNodeId), false)
+                            const edge = graph.edges[index];
+                            graph.paintConnection(context, graph.nodeIndex(edge.sourceNodeId), graph.nodeIndex(edge.targetNodeId), false);
                         }
-                        const terminalIndex = graph.nodeIndex(graph.terminalNodeId)
+                        const terminalIndex = graph.nodeIndex(graph.terminalNodeId);
                         for (let index = 0; index < graph.drafts.length; ++index) {
-                            graph.paintConnection(context, terminalIndex,
-                                                  graph.nodes.length + index, true)
+                            graph.paintConnection(context, terminalIndex, graph.nodes.length + index, true);
                         }
                         for (let index = 0; index < graph.candidates.length; ++index) {
-                            graph.paintConnection(context, terminalIndex,
-                                                  graph.nodes.length + graph.drafts.length + index,
-                                                  true)
+                            graph.paintConnection(context, terminalIndex, graph.nodes.length + graph.drafts.length + index, true);
                         }
                     }
 
                     Connections {
                         target: graph
-                        function onNodesChanged() : void { edgeCanvas.requestPaint() }
-                        function onEdgesChanged() : void { edgeCanvas.requestPaint() }
-                        function onDraftsChanged() : void { edgeCanvas.requestPaint() }
-                        function onCandidatesChanged() : void { edgeCanvas.requestPaint() }
-                        function onWidthChanged() : void { edgeCanvas.requestPaint() }
-                        function onHeightChanged() : void { edgeCanvas.requestPaint() }
-                        function onZoomLevelChanged() : void { edgeCanvas.requestPaint() }
+                        function onNodesChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
+                        function onEdgesChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
+                        function onDraftsChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
+                        function onCandidatesChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
+                        function onWidthChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
+                        function onHeightChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
+                        function onZoomLevelChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
                     }
 
                     Connections {
                         target: Theme
-                        function onEffectiveDarkChanged() : void { edgeCanvas.requestPaint() }
+                        function onEffectiveDarkChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
                     }
                 }
 
@@ -569,8 +579,7 @@ Rectangle {
                             hovered: draftNode.hovered
                             stageNumber: graph.acceptedMaxStage
                             draftIndex: draftNode.index
-                            onDiscardRequested: graph.draftDiscardRequested(
-                                                    draftNode.modelData.id)
+                            onDiscardRequested: graph.draftDiscardRequested(draftNode.modelData.id)
                         }
                     }
                 }
@@ -585,16 +594,7 @@ Rectangle {
                         required property int index
                         required property var modelData
                         readonly property bool currentNode: modelData.id === graph.selectedNodeId
-                        readonly property bool displaysCurrentPreview: modelData.roleKey === "output"
-                                                                       && ((graph.artifactKindKey
-                                                                            === "image_raster"
-                                                                            && graph.acceptedImageSource
-                                                                               .toString().length
-                                                                               > 0)
-                                                                           || graph.artifactKindKey
-                                                                              === "text_document"
-                                                                           || graph.artifactKindKey
-                                                                              === "audio_clip")
+                        readonly property bool displaysCurrentPreview: modelData.roleKey === "output" && ((graph.artifactKindKey === "image_raster" && graph.acceptedImageSource.toString().length > 0) || graph.artifactKindKey === "text_document" || graph.artifactKindKey === "audio_clip")
 
                         x: graph.nodeX(index)
                         y: graph.nodeY(index)
@@ -623,9 +623,9 @@ Rectangle {
                             artifactAudioChannels: graph.artifactAudioChannels
                             stageNumber: graph.nodeStage(acceptedNode.modelData.id, {})
                             onOutputNodeRequested: {
-                                graph.selectAcceptedNode(acceptedNode.modelData.id)
-                                graph.nodeOutputRequested(acceptedNode.modelData.id)
-                                graphToolbar.openNodeLibrary()
+                                graph.selectAcceptedNode(acceptedNode.modelData.id);
+                                graph.nodeOutputRequested(acceptedNode.modelData.id);
+                                graphToolbar.openNodeLibrary();
                             }
                         }
                     }
@@ -639,8 +639,7 @@ Rectangle {
 
                         required property int index
                         required property var modelData
-                        readonly property bool selected: modelData.id
-                                                         === graph.selectedCandidateId
+                        readonly property bool selected: modelData.id === graph.selectedCandidateId
 
                         x: graph.nodeX(graph.nodes.length + graph.drafts.length + index)
                         y: graph.nodeY(graph.nodes.length + graph.drafts.length + index)
@@ -660,13 +659,12 @@ Rectangle {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            Accessible.name: qsTr("Review version %1").arg(
-                                                     candidateNode.index + 1)
+                            Accessible.name: qsTr("Review version %1").arg(candidateNode.index + 1)
                             Accessible.role: Accessible.Button
                             onClicked: graph.selectCandidate(candidateNode.modelData.id)
                             onDoubleClicked: {
-                                graph.selectCandidate(candidateNode.modelData.id)
-                                graph.candidateReviewRequested(candidateNode.modelData.id)
+                                graph.selectCandidate(candidateNode.modelData.id);
+                                graph.candidateReviewRequested(candidateNode.modelData.id);
                             }
                         }
                     }
@@ -703,16 +701,14 @@ Rectangle {
             detail: graph.inspectionDetail()
             iconSource: graph.inspectionIcon()
             accentColor: graph.inspectionColor()
-            openAvailable: graph.inspectionKind === "node"
-                           || graph.inspectionKind === "draft"
+            openAvailable: graph.inspectionKind === "node" || graph.inspectionKind === "draft"
             reviewAvailable: graph.inspectionKind === "candidate"
-            discardAvailable: graph.inspectionKind === "draft"
-                              && graph.inspectedDraft.hasInputDataType
+            discardAvailable: graph.inspectionKind === "draft" && graph.inspectedDraft.hasInputDataType
             onOpenRequested: {
                 if (graph.inspectionKind === "draft") {
-                    graph.draftOpened(graph.selectedNodeId)
+                    graph.draftOpened(graph.selectedNodeId);
                 } else if (graph.inspectionKind === "node") {
-                    graph.nodeOpened(graph.selectedNodeId)
+                    graph.nodeOpened(graph.selectedNodeId);
                 }
             }
             onReviewRequested: graph.candidateReviewRequested(graph.selectedCandidateId)

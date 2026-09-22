@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
-//! Presentation for one transient generated version on the graph. Candidate
-//! selection and acceptance remain outside this component.
+//! Compact presentation for one transient generated version. Full comparison
+//! belongs to the review workspace rather than the graph.
 
 import QtQuick
 import QtQuick.Layouts
@@ -15,14 +15,21 @@ Item {
     property bool selected: false
     property bool hovered: false
 
+    function candidateSummary(): string {
+        if (candidateData.hasImagePreview) {
+            return qsTr("Image · %1 × %2").arg(candidateData.imageWidth).arg(candidateData.imageHeight);
+        }
+        if (candidateData.hasAudioPreview)
+            return qsTr("Audio ready for review");
+        return candidateData.text;
+    }
+
     Rectangle {
         anchors.fill: parent
-        radius: Theme.cardRadius
-        color: card.selected ? Theme.accentSoft
-                             : card.hovered ? Theme.raisedHover : Theme.panelRaised
+        radius: Theme.controlRadius
+        color: card.selected ? Theme.accentSoft : card.hovered ? Theme.raisedHover : Theme.panelRaised
         border.width: card.selected ? 2 : 1
         border.color: Theme.accent
-        opacity: 0.98
     }
 
     Rectangle {
@@ -45,101 +52,78 @@ Item {
         border.color: Theme.accent
     }
 
-    ColumnLayout {
+    Item {
         anchors.fill: parent
-        anchors.leftMargin: 17
-        anchors.rightMargin: 14
-        anchors.topMargin: 14
-        anchors.bottomMargin: 13
-        spacing: 10
+        anchors.leftMargin: 13
+        anchors.rightMargin: 12
+        anchors.topMargin: 11
+        anchors.bottomMargin: 10
+        clip: true
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 6
 
-            Rectangle {
-                Layout.preferredWidth: 32
-                Layout.preferredHeight: 32
-                radius: 9
-                color: Theme.accentSurfaceQuiet
-
-                ShapeIcon {
-                    anchors.centerIn: parent
-                    source: card.candidateData.hasAudioPreview
-                            ? "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
-                            : "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
-                    size: 17
-                    color: Theme.accent
-                }
-            }
-
-            ColumnLayout {
+            RowLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 8
 
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("NEW VERSION")
-                    color: Theme.accent
-                    font.pixelSize: Theme.fontMicro
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 0.65
+                Rectangle {
+                    Layout.preferredWidth: 26
+                    Layout.preferredHeight: 26
+                    radius: 8
+                    color: Theme.accentSurfaceQuiet
+
+                    ShapeIcon {
+                        anchors.centerIn: parent
+                        source: card.candidateData.hasAudioPreview ? "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg" : "qrc:/qt/qml/Shape/Desktop/icons/sparkle.svg"
+                        size: 14
+                        color: Theme.accent
+                    }
                 }
 
-                Text {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    text: qsTr("Option %1").arg(card.candidateIndex + 1)
-                    color: Theme.text
-                    font.pixelSize: Theme.fontHeading
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
+                    spacing: 0
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("NEW VERSION")
+                        color: Theme.accent
+                        font.pixelSize: Theme.fontMicro
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 0.55
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Option %1").arg(card.candidateIndex + 1)
+                        color: Theme.text
+                        font.pixelSize: Theme.fontBody
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
                 }
             }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumHeight: 54
-            radius: Theme.controlRadius
-            color: Theme.panelInset
-            border.color: Theme.border
 
             Text {
-                anchors.fill: parent
-                anchors.margins: 11
-                text: card.candidateData.hasImagePreview
-                      ? qsTr("Image result · %1 × %2")
-                          .arg(card.candidateData.imageWidth)
-                          .arg(card.candidateData.imageHeight)
-                      : card.candidateData.hasAudioPreview
-                        ? qsTr("Audio result ready for review")
-                        : card.candidateData.text
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                text: card.candidateSummary()
                 color: Theme.textSoft
                 font.pixelSize: Theme.fontMeta
                 wrapMode: Text.Wrap
                 elide: Text.ElideRight
-                maximumLineCount: 3
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-
-            Rectangle {
-                Layout.preferredWidth: 6
-                Layout.preferredHeight: 6
-                radius: 3
-                color: Theme.accent
+                maximumLineCount: 2
             }
 
             Text {
                 Layout.fillWidth: true
                 text: qsTr("Review before using")
                 color: Theme.accentSelectionText
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.fontMicro
                 font.weight: Font.Medium
+                elide: Text.ElideRight
             }
         }
     }

@@ -2,6 +2,8 @@
 
 mod candidate_shelf;
 mod operator_drafts;
+mod speech_script;
+mod text_authoring;
 
 use shape_core::{
     AiImageCandidate, AudioCandidate, ImageCandidate, ImageEditCandidate, ImageResizeCandidate,
@@ -169,6 +171,24 @@ impl DesktopSession {
         artifact_id: &str,
         operator_type: &str,
     ) -> Result<ffi::OperatorDraftWire, String> {
+        if operator_type == AUDIO_SPEECH_OPERATOR {
+            let id = parse_artifact_id(artifact_id)?;
+            let accepted = self
+                .project
+                .read_accepted(id)
+                .map_err(|e| e.to_string())?
+                .ok_or("missing_accepted_revision")?;
+            let script = matches!(
+                accepted.revision.content_contract,
+                Some(ArtifactContentContract::TextDocument(
+                    shape_domain::TextDocumentContract::SpeechScript { .. }
+                ))
+            );
+            return self.create_speech_derivation(artifact_id, script);
+        }
+        if operator_type == "text.edit" || operator_type == "text.transform" {
+            return self.create_text_derivation(artifact_id, "plain");
+        }
         let artifact_id = parse_artifact_id(artifact_id)?;
         let artifact = self
             .project
@@ -236,6 +256,11 @@ impl DesktopSession {
         &self,
         artifact_id: &str,
     ) -> Result<Vec<ffi::OperatorDescriptorWire>, String> {
+        if artifact_id.is_empty() {
+            return Ok(crate::operator_catalog::source_descriptors()
+                .map(operator_descriptor_wire)
+                .collect());
+        }
         let artifact_id = parse_artifact_id(artifact_id)?;
         let artifact = self
             .project
@@ -246,7 +271,9 @@ impl DesktopSession {
             .find(|artifact| artifact.id == artifact_id)
             .ok_or_else(|| "artifact does not exist in this project".to_owned())?;
         if artifact.accepted_revision.is_none() {
-            return Ok(Vec::new());
+            return Ok(crate::operator_catalog::source_descriptors()
+                .map(operator_descriptor_wire)
+                .collect());
         }
         Ok(compatible_descriptors(artifact.kind)
             .map(operator_descriptor_wire)
@@ -419,10 +446,18 @@ impl DesktopSession {
         }
         let previous = self.operator_drafts.clone();
         let artifact_id = self.operator_drafts.discard(draft_id)?;
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        let result = if self.operator_drafts.graph(artifact_id).is_none() {
+            self.project
+                .discard_output_working_graph(artifact_id)
+                .map_err(|e| e.to_string())
+        } else {
+            self.persist_operator_drafts(artifact_id)
+        };
+        if let Err(error) = result {
             self.operator_drafts = previous;
             return Err(error);
         }
+        self.candidates.discard_artifact(artifact_id);
         Ok(())
     }
 
@@ -694,7 +729,18 @@ impl DesktopSession {
     ) -> Result<ffi::ProjectSnapshotWire, String> {
         let candidate = self.candidates.clone_candidate(candidate_id)?;
         let artifact_id = candidate.artifact_id();
+        if let Candidate::Text(text) = &candidate {
+            for (id, draft) in self.operator_drafts.entries() {
+                if id == artifact_id
+                    && let Some(state) = crate::operator_catalog::text_authoring::from_draft(draft)?
+                {
+                    crate::operator_catalog::text_authoring::validate_output(&state, text.text())?;
+                }
+            }
+        }
         let preserves_text_intent = matches!(&candidate, Candidate::Text(_));
+        let preserves_node = preserves_text_intent
+            || matches!(&candidate, Candidate::Audio(a) if a.request_node().is_some());
         let accepted_revision = match candidate {
             Candidate::Text(candidate) => self
                 .project
@@ -722,7 +768,10 @@ impl DesktopSession {
                 .map_err(|error| error.to_string())?,
         };
         self.candidates.discard_artifact(artifact_id);
-        if preserves_text_intent
+        if preserves_text_intent {
+            self.candidates.discard_audio_from_source(artifact_id);
+        }
+        if preserves_node
             && self
                 .operator_drafts
                 .rebase_artifact(artifact_id, accepted_revision.id)
@@ -846,7 +895,7 @@ impl DesktopSession {
             let Candidate::Audio(candidate) = self.candidates.candidate(candidate_id)? else {
                 return Err("candidate is not an audio preview".to_owned());
             };
-            if candidate.source_artifact_id() != artifact_id {
+            if candidate.review_artifact_id() != artifact_id {
                 return Err("candidate does not belong to the selected review context".to_owned());
             }
             return Ok(ffi::AudioPreviewWire {
@@ -880,8 +929,17 @@ impl DesktopSession {
         &mut self,
         candidate: Box<InferTextCandidate>,
     ) -> Result<ffi::CandidateWire, String> {
+        let request_draft = candidate.request_draft.clone();
         let candidate = (*candidate).into_candidate();
         let artifact_id = candidate.artifact_id();
+        if let Some(request_draft) = request_draft
+            && self
+                .operator_drafts
+                .draft(artifact_id, request_draft.id().as_str())?
+                != &request_draft
+        {
+            return Err("stale_candidate".into());
+        }
         let snapshot = self.project.snapshot().map_err(|_| "project_unavailable")?;
         let artifact = snapshot
             .artifacts
@@ -894,8 +952,24 @@ impl DesktopSession {
         if self.candidates.contains_text(artifact_id, candidate.text()) {
             return Err("duplicate_candidate".to_owned());
         }
-        let expected_head = candidate.expected_head().ok_or("invalid_candidate")?;
-        self.validate_text_workspace_draft_head(artifact_id, expected_head)?;
+        if let Some(head) = candidate.expected_head() {
+            self.validate_text_workspace_draft_head(artifact_id, head)?;
+        } else {
+            let graph = self
+                .operator_drafts
+                .graph(artifact_id)
+                .ok_or("invalid_operator_draft")?;
+            if graph.expected_revision_id().is_some()
+                || !graph.operators().iter().any(|draft| {
+                    crate::operator_catalog::text_authoring::from_draft(draft)
+                        .ok()
+                        .flatten()
+                        .is_some()
+                })
+            {
+                return Err("invalid_operator_draft".into());
+            }
+        }
         let wire = text_candidate_wire(&candidate);
         self.candidates.push(Candidate::Text(candidate));
         Ok(wire)
@@ -917,20 +991,25 @@ impl DesktopSession {
         if source.accepted_revision != Some(candidate.expected_source_head()) {
             return Err("stale_candidate".to_owned());
         }
-        if snapshot
+        if let Some(node) = candidate.request_node() {
+            let target = snapshot
+                .artifacts
+                .iter()
+                .find(|a| a.id == candidate.artifact_id())
+                .ok_or("invalid_artifact")?;
+            if target.accepted_revision != candidate.expected_target_head()
+                || self.operator_drafts.draft(target.id, node.id().as_str())? != node
+            {
+                return Err("stale_candidate".into());
+            }
+        } else if snapshot
             .artifacts
             .iter()
-            .any(|artifact| artifact.id == candidate.artifact_id())
+            .any(|a| a.id == candidate.artifact_id())
         {
-            return Err("duplicate_candidate".to_owned());
+            return Err("duplicate_candidate".into());
         }
-        self.validate_operator_draft_head(
-            source_artifact_id,
-            AUDIO_SPEECH_OPERATOR,
-            candidate.expected_source_head(),
-        )?;
         let wire = audio_candidate_wire(&candidate);
-        self.finish_operator_draft(source_artifact_id, AUDIO_SPEECH_OPERATOR)?;
         self.candidates.push(Candidate::Audio(candidate));
         Ok(wire)
     }
@@ -968,26 +1047,6 @@ impl DesktopSession {
         Ok(wire)
     }
 
-    fn validate_operator_draft_head(
-        &self,
-        artifact_id: ArtifactId,
-        operator_type: &str,
-        current_head: shape_domain::RevisionId,
-    ) -> Result<(), String> {
-        let Some(graph) = self.operator_drafts.graph(artifact_id) else {
-            return Ok(());
-        };
-        if graph
-            .operators()
-            .iter()
-            .any(|draft| draft.operator_type().as_str() == operator_type)
-            && graph.expected_revision_id() != Some(current_head)
-        {
-            return Err("the Working Graph is based on a stale accepted source".to_owned());
-        }
-        Ok(())
-    }
-
     fn validate_text_workspace_draft_head(
         &self,
         artifact_id: ArtifactId,
@@ -1022,22 +1081,6 @@ impl DesktopSession {
             && graph.expected_revision_id() != Some(current_head)
         {
             return Err("the Working Graph is based on a stale accepted source".to_owned());
-        }
-        Ok(())
-    }
-
-    fn finish_operator_draft(
-        &mut self,
-        artifact_id: ArtifactId,
-        operator_type: &str,
-    ) -> Result<(), String> {
-        let previous = self.operator_drafts.clone();
-        if !self.operator_drafts.finish(artifact_id, operator_type) {
-            return Ok(());
-        }
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
-            self.operator_drafts = previous;
-            return Err(error);
         }
         Ok(())
     }
@@ -1105,6 +1148,12 @@ fn operator_draft_wire(
     ffi::OperatorDraftWire {
         draft_id: draft.id().to_string(),
         context_artifact_id: context_artifact_id.to_string(),
+        input_artifact_id: draft
+            .input()
+            .map_or_else(String::new, |i| i.artifact_id.to_string()),
+        input_revision_id: draft
+            .input()
+            .map_or_else(String::new, |i| i.revision_id.to_string()),
         operator_type_key: draft.operator_type().to_string(),
         has_input_data_type: draft.input_data_type().is_some(),
         input_data_type_key: draft
@@ -1112,6 +1161,11 @@ fn operator_draft_wire(
             .map_or_else(String::new, ToString::to_string),
         output_data_type_key: draft.output_data_type().to_string(),
         configuration_schema,
+        text_authoring_json: crate::operator_catalog::text_authoring::from_draft(draft)
+            .expect("validated authoring configuration")
+            .map_or_else(String::new, |state| {
+                serde_json::to_string(&state).expect("authoring serializes")
+            }),
         text_transform_mode: mode_from_draft(draft)
             .expect("session admits only validated Operator draft configurations"),
         text_transform_instruction: instruction_from_draft(draft)
@@ -1124,6 +1178,12 @@ fn operator_draft_wire(
             .expect("session admits only validated Operator draft configurations"),
         text_transform_variant_count: variant_count_from_draft(draft)
             .expect("session admits only validated Operator draft configurations"),
+        audio_speech_script_json: audio_speech_operation
+            .as_ref()
+            .and_then(|op| op.script.as_ref())
+            .map_or_else(String::new, |script| {
+                serde_json::to_string(script).expect("script serializes")
+            }),
         audio_speech_preset_alias,
         audio_speech_preset_catalog_revision,
         audio_speech_language: audio_speech_operation
@@ -1317,7 +1377,7 @@ fn audio_candidate_wire(candidate: &AudioCandidate) -> ffi::CandidateWire {
     ffi::CandidateWire {
         candidate_id: candidate.receipt().attempt_id.to_string(),
         artifact_id: candidate.artifact_id().to_string(),
-        context_artifact_id: candidate.source_artifact_id().to_string(),
+        context_artifact_id: candidate.review_artifact_id().to_string(),
         artifact_name: candidate.artifact_name().to_owned(),
         kind_key: "audio_clip".to_owned(),
         has_expected_head: true,

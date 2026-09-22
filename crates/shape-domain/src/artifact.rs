@@ -33,6 +33,7 @@ pub enum ArtifactKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "contract", rename_all = "snake_case")]
 pub enum ArtifactContentContract {
+    TextDocument(crate::TextDocumentContract),
     ImageRaster(ImageRasterContract),
     AudioClip(AudioValueContract),
 }

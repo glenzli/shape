@@ -5,9 +5,10 @@ import Shape.Desktop
 Button {
     id: control
 
-    property bool primary: false
+    property bool primary: highlighted
     property bool selected: false
-    property bool quiet: !primary && !selected
+    property bool quiet: false
+    property bool busy: false
     property url iconSource
     property int iconSize: 15
 
@@ -17,6 +18,7 @@ Button {
     leftPadding: 12
     rightPadding: 12
     focusPolicy: Qt.StrongFocus
+    hoverEnabled: enabled
 
     background: Rectangle {
         radius: Theme.controlRadius
@@ -59,6 +61,7 @@ Button {
 
         Row {
             id: buttonContent
+            opacity: control.busy ? 0 : 1
             anchors.centerIn: parent
             spacing: control.iconSource.toString().length > 0 && control.text.length > 0 ? 7 : 0
 
@@ -85,6 +88,13 @@ Button {
                 font.weight: control.primary || control.selected ? Font.DemiBold : Font.Normal
                 verticalAlignment: Text.AlignVCenter
             }
+        }
+        BusyIndicator {
+            anchors.centerIn: parent
+            width: 20
+            height: 20
+            visible: control.busy
+            running: control.busy
         }
     }
 }

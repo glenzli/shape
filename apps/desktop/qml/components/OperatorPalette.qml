@@ -21,8 +21,9 @@ Popup {
 
     function labelFor(typeKey) : string {
         switch (typeKey) {
+        case "text.create": return qsTr("Text creation")
         case "text.edit":
-        case "text.transform": return qsTr("AI text editor")
+        case "text.transform": return qsTr("Text editing")
         case "audio.speech_synthesize": return qsTr("Turn text into speech")
         case "image.edit":
         case "image.crop":
@@ -33,9 +34,10 @@ Popup {
 
     function descriptionFor(typeKey) : string {
         switch (typeKey) {
+        case "text.create": return qsTr("Start with an idea or write manually; choose plain text or a narration script.")
         case "text.edit":
         case "text.transform":
-            return qsTr("Combine graph materials with a reusable prompt, tone, style, and candidate workflow.")
+            return qsTr("Derive a separate text from an original: rewrite, translate, summarize, or prepare a script.")
         case "audio.speech_synthesize":
             return qsTr("Create a spoken version from the current text.")
         case "image.edit":
@@ -93,25 +95,10 @@ Popup {
     }
 
     function catalog() : var {
-        // The editor itself is graph-authorable before any material is
-        // selected. Compatibility descriptors add source-bound actions, but
-        // may never make the node library empty on a blank canvas.
-        const result = [{
-            "typeKey": "text.edit",
-            "objectName": palette.objectNameFor("text.edit"),
-            "label": palette.labelFor("text.edit"),
-            "description": palette.descriptionFor("text.edit"),
-            "category": palette.categoryFor("ai_text"),
-            "keywords": palette.keywordsFor("text.edit"),
-            "icon": palette.iconFor("sparkle"),
-            "inputDataTypeKey": "text.document",
-            "outputDataTypeKey": "text.document"
-        }]
+        const result = []
         let imageEditingAdded = false
         for (let index = 0; index < palette.operators.length; ++index) {
             const descriptor = palette.operators[index]
-            if (descriptor.typeKey === "text.edit"
-                    || descriptor.typeKey === "text.transform") continue
             if (descriptor.typeKey === "image.crop"
                     || descriptor.typeKey === "image.resize") {
                 if (imageEditingAdded) continue
@@ -236,7 +223,7 @@ Popup {
                 }
             }
 
-            TextField {
+            ShapeTextField {
                 id: searchField
                 objectName: "operatorSearchField"
                 Layout.fillWidth: true

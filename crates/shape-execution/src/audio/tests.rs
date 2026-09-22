@@ -1,5 +1,30 @@
 use shape_domain::AudioOriginDisclosure;
 
+#[test]
+fn speech_assembly_preserves_pcm_order_and_rejects_format_changes() {
+    let mut first = wav(24_000, 1, 3);
+    let mut second = wav(24_000, 1, 2);
+    first[44..].fill(17);
+    second[44..].fill(29);
+    let mut assembly = super::SpeechWaveAssembly::default();
+    assembly.push(&first).unwrap();
+    assembly.push(&second).unwrap();
+    let combined = assembly.finish().unwrap();
+    assert_eq!(&combined[44..], &[17, 17, 17, 17, 17, 17, 29, 29, 29, 29]);
+    assert_eq!(
+        super::parse_pcm_s16le_wav(&combined, AudioOriginDisclosure::SyntheticSpeech)
+            .unwrap()
+            .frame_count,
+        5
+    );
+    let mut assembly = super::SpeechWaveAssembly::default();
+    assembly.push(&first).unwrap();
+    assert_eq!(
+        assembly.push(&wav(48_000, 1, 3)).unwrap_err().code,
+        "speech_format_changed"
+    );
+}
+
 use super::parse_pcm_s16le_wav;
 
 fn wav(sample_rate_hz: u32, channels: u16, frames: u32) -> Vec<u8> {

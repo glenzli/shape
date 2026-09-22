@@ -11,6 +11,12 @@
 
 > 本文把早期 Shape 概念收敛为一套可实现、可验证、可演进的方案。它明确区分产品心智模型、创作文档模型、执行系统和外部生态，避免把 AI pipeline、媒体内核或第三方软件的内部结构泄漏成 Shape 的用户界面。
 
+2026-09-22 文本与配音节点切片按 [节点与文本工作流](docs/NODE_MODEL.md) 收敛：
+Source 提供素材，`text.create` 从空白创作，`text.edit` 引用原稿并产生独立输出，配音读取正式文本的格式契约。
+创作与编辑共用一个文本工作区；听力、口播、对话作为写作预设，AI 作为执行方式。
+已实现的持久化绑定与固定输出取代旧文本流程中“同一个 Artifact 同时充当原稿与结果”的假设。
+任意端口连线、多素材编译及 Scene 几何编辑仍在后续阶段。
+
 ---
 
 ## 0. 执行摘要
@@ -815,7 +821,7 @@ manifest、typed route 和 App ACL 启用功能，不能把本机工作树或当
 | Text Responses | `text.edit`、`text.summarize`、`text.proofread`、`language.respond`、`reasoning.solve` | Intent 解析辅助、文案、故事、结构化建议 | `infer-runtime.consumer-core@20260813.1` + `infer.responses@20260812.1`；Shape 当前只执行具名 `text.edit` |
 | Local/Cloud routing | Ollama、本地 MLX/ONNX、DeepSeek cloud、Codex subscription bridge | 本地优先、质量优先、显式订阅模型 | 已有；App ACL 决定能否使用 |
 | Audio | `audio.transcribe`、`audio.align` | Echo 音频文字、字幕、定位 | 已有类型化 endpoint |
-| Speech | `speech.synthesize` | preset 旁白 Audio Candidate | 稳定 `infer.audio.speech@20260811.1` SDK 路径与具名 `mlx_qwen3_tts_custom_voice_1_7b` grant 已接入；统一切换后的真实 smoke 待执行 |
+| Speech | `speech.synthesize` | preset 旁白和配音脚本 Audio Candidate | 已在本机验证九音色选择、长文本分段、自动语言、WAV 导出；制作脚本支持角色声明与固定选声、整体及局部语气、片段、同一录音重复播放、精确停顿、内置短音和顺序音效及解析预览。2026-09-22 真实双音色听力稿验证通过，尚未提交或发布 |
 | Face | `vision.detect_faces`、`vision.embed_face` | 身份保持验证的辅助证据 | Experimental；SensitiveBiometric、local-only |
 | Cross-modal embedding | `vision.embed_image`、`vision.embed_text` | Reference 检索、相似候选、素材发现 | Experimental；当前 768d shared space、local-only |
 | Image+text reasoning | `multimodal.respond` / VL 路线 | 理解画面、验证部分约束、生成 Change proposal | 当前处于工作树演进中；只在新合同冻结并 probe 成功后启用 |
@@ -1994,3 +2000,11 @@ Candidate/Accept、immutable Revision、source-head CAS、provenance 与 selecte
 因此实际开工顺序应当始终是：
 
 > **先证明 Preserve → Change → Explore → Accept 能形成自然、可靠的创作循环，再扩展执行器和媒体种类。**
+
+### 已实现：从空白写稿进入配音
+
+“新建内容”第一层区分自由文字与配音脚本，后者提供听力练习、通用口播、多人对话模板。
+第二层选择让 AI 起稿、整理现有文本或手写；不要求先提交正文。规则在写稿前可查阅，AI 请求
+自动携带统一规范，听力模板另外提供重复次数与题间停顿。第三层检查完整阅读预览或脚本源码，
+显式采用后进入配音与试听并自动开启脚本模式，音频可导出。草稿自动保存不等于采用；返回改稿
+并采用后，过期音频候选移除，已采用音频保留。图谱入口继续提供工程视图。

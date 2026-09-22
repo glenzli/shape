@@ -31,6 +31,29 @@ pub(super) fn validate_speech_synthesis_commit(
             "speech synthesis requires external execution provenance",
         ));
     };
+    if !provenance.speech_segments.is_empty()
+        && (provenance.speech_script.as_ref().map_or_else(
+            || {
+                provenance
+                    .speech_segments
+                    .iter()
+                    .try_fold(0_u64, |sum, part| sum.checked_add(part.frames))
+            },
+            shape_execution::speech_script::SpeechScriptAssembly::frames,
+        ) != Some(contract.frame_count)
+            || provenance.speech_segments.first().is_none_or(|part| {
+                Some(part.job_id.as_str()) != commit.receipt.executor_job_id.as_deref()
+            }))
+    {
+        return Err(StoreError::InvalidCommit(
+            "speech segment receipts do not match the assembled audio",
+        ));
+    }
+    if operation.script.is_some() != provenance.speech_script.is_some() {
+        return Err(StoreError::InvalidCommit(
+            "script operation and assembly receipt disagree",
+        ));
+    }
     if commit.transformation.kind != TransformationKind::GenerativeEdit
         || commit.transformation.inputs.len() != 1
         || commit.expected_input_heads.len() != 1
@@ -97,3 +120,58 @@ pub(super) fn validate_audio_content(
 
 #[cfg(test)]
 mod tests;
+
+impl super::ProjectStore {
+    /// Stores an immutable script cue without accepting an audio artifact.
+    /// # Errors
+    /// Rejects unsupported cues or content publication failures.
+    pub fn import_speech_cue(&self, bytes: &[u8]) -> Result<shape_domain::ContentRef, StoreError> {
+        shape_execution::speech_script::validate_cue(bytes).map_err(|_| {
+            StoreError::InvalidCommit("script cues require a PCM16 mono 24 kHz WAV up to 8 MiB")
+        })?;
+        self.objects.publish(bytes, "audio/wav")
+    }
+
+    pub(super) fn validate_script_commit(
+        &self,
+        commit: &NewArtifactCommit,
+    ) -> Result<(), StoreError> {
+        let Some(TransformationOperation::AudioSpeechSynthesis(operation)) =
+            &commit.transformation.operation
+        else {
+            return Ok(());
+        };
+        let Some(options) = &operation.script else {
+            return Ok(());
+        };
+        let invalid =
+            || StoreError::InvalidCommit("script source or timeline does not match accepted audio");
+        let revision = self.revision(*commit.transformation.inputs.first().ok_or_else(invalid)?)?;
+        let source = self.read_content(&revision.content)?;
+        let source = std::str::from_utf8(&source).map_err(|_| invalid())?;
+        let mut inputs = Vec::new();
+        for action in options.cues.values() {
+            if let shape_domain::speech_script::SpeechCueAction::Audio { content } = action {
+                inputs.push(
+                    shape_execution::ExecutionInput::materialized(
+                        content.clone(),
+                        self.read_content(content)?,
+                    )
+                    .map_err(|_| invalid())?,
+                );
+            }
+        }
+        shape_execution::speech_script::validate_output(
+            source,
+            operation,
+            &inputs,
+            commit
+                .receipt
+                .external_provenance
+                .as_ref()
+                .ok_or_else(invalid)?,
+            &commit.output_bytes,
+        )
+        .map_err(|_| invalid())
+    }
+}

@@ -1,3 +1,4 @@
+#include "audio_export_controller.hpp"
 #include "audio_preview_controller.hpp"
 #include "desktop_backend.hpp"
 #include "image_preview_provider.hpp"
@@ -5,6 +6,8 @@
 #include "infer_runtime_controller.hpp"
 #include "infer_speech_controller.hpp"
 #include "infer_text_controller.hpp"
+#include "speech_live_smoke.hpp"
+#include "text_authoring_smoke.hpp"
 #include "ui_preferences.hpp"
 #include "workspace_host_smoke.hpp"
 
@@ -40,6 +43,9 @@ struct Arguments {
     bool smoke_exit = false;
     bool smoke_text_cycle = false;
     bool smoke_raster_cycle = false;
+    std::optional<QString> speech_live_directory;
+    std::optional<QString> speech_script_directory;
+    std::optional<QString> text_authoring_directory;
 };
 
 std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
@@ -57,6 +63,12 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             arguments.smoke_text_cycle = true;
         } else if (argument == "--smoke-raster-cycle") {
             arguments.smoke_raster_cycle = true;
+        } else if (argument == "--smoke-speech-script" && index + 1 < argc) {
+            arguments.speech_script_directory = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--smoke-speech-live" && index + 1 < argc) {
+            arguments.speech_live_directory = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--smoke-text-authoring" && index + 1 < argc) {
+            arguments.text_authoring_directory = QString::fromLocal8Bit(argv[++index]);
         } else {
             return std::nullopt;
         }
@@ -690,7 +702,7 @@ bool verify_candidate_shelf_interaction(DesktopBackend& backend, QObject& root_o
             root_object,
             QStringLiteral("text.edit"),
             QStringLiteral("operator.text.edit"),
-            QStringLiteral("aiTextEditingWorkspace"),
+            QStringLiteral("textAuthoringWorkspace"),
             first_candidate_id
         )) {
         std::cerr << "desktop shelf smoke did not pass Candidate selection into the Host"
@@ -880,6 +892,7 @@ int main(int argc, char* argv[]) {
     InferSpeechController infer_speech(*backend, infer_credential_path, &application);
     InferImageController infer_image(*backend, infer_credential_path, &application);
     AudioPreviewController audio_preview(*backend, &application);
+    AudioExportController audio_export(*backend, &application);
     UiPreferences ui_preferences(application);
     QObject::connect(
         &ui_preferences,
@@ -908,6 +921,7 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("inferSpeech"), QVariant::fromValue(&infer_speech)},
         {QStringLiteral("inferImage"), QVariant::fromValue(&infer_image)},
         {QStringLiteral("audioPreview"), QVariant::fromValue(&audio_preview)},
+        {QStringLiteral("audioExport"), QVariant::fromValue(&audio_export)},
         {QStringLiteral("uiPreferences"), QVariant::fromValue(&ui_preferences)},
     });
     infer_runtime.refresh();
@@ -927,6 +941,45 @@ int main(int argc, char* argv[]) {
     installMacTitleBarAlignment(qobject_cast<QQuickWindow*>(root_object), title_bar_height);
 #endif
 
+    if (arguments->speech_script_directory.has_value()) {
+        QTimer::singleShot(0, &application, [&]() {
+            const bool passed = speech_live_smoke::run_script(
+                *backend,
+                infer_speech,
+                audio_preview,
+                audio_export,
+                *root_object,
+                *arguments->speech_script_directory
+            );
+            QCoreApplication::exit(passed ? 0 : 6);
+        });
+    }
+    if (arguments->text_authoring_directory.has_value()) {
+        QTimer::singleShot(0, &application, [&]() {
+            const bool passed = text_authoring_smoke::runLive(
+                *backend,
+                infer_text,
+                infer_speech,
+                audio_export,
+                *root_object,
+                *arguments->text_authoring_directory
+            );
+            QCoreApplication::exit(passed ? 0 : 7);
+        });
+    }
+    if (arguments->speech_live_directory.has_value()) {
+        QTimer::singleShot(0, &application, [&]() {
+            const bool passed = speech_live_smoke::run(
+                *backend,
+                infer_speech,
+                audio_preview,
+                audio_export,
+                *root_object,
+                *arguments->speech_live_directory
+            );
+            QCoreApplication::exit(passed ? 0 : 6);
+        });
+    }
     if (arguments->smoke_exit) {
         const bool began_without_project = !backend->projectOpen();
         if ((began_without_project && !workspace_host_smoke::verifyProjectWelcome(*root_object))
@@ -952,6 +1005,9 @@ int main(int argc, char* argv[]) {
             && (!arguments->project_path.has_value()
                 || !run_smoke_raster_cycle(*backend, *root_object, *arguments->project_path))) {
             return 5;
+        }
+        if (arguments->smoke_text_cycle && !text_authoring_smoke::verify(*backend, *root_object)) {
+            return 4;
         }
         QTimer::singleShot(0, &application, &QCoreApplication::quit);
     }

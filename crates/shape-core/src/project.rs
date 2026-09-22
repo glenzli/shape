@@ -38,6 +38,21 @@ pub struct AcceptedArtifactContent {
 }
 
 impl ShapeProject {
+    /// Renames a stable creative object; accepted content remains immutable.
+    /// # Errors
+    /// Rejects invalid names, missing objects and persistence failures.
+    pub fn rename_artifact(&self, artifact_id: ArtifactId, name: &str) -> Result<(), CoreError> {
+        Ok(self.store.rename_artifact(artifact_id, name)?)
+    }
+    /// Deletes mutable node state and its unaccepted reserved output.
+    /// # Errors
+    /// Returns persistence errors; accepted revisions remain intact.
+    pub fn discard_output_working_graph(
+        &mut self,
+        artifact_id: ArtifactId,
+    ) -> Result<(), CoreError> {
+        Ok(self.store.discard_output_working_graph(artifact_id)?)
+    }
     /// Creates a new `.shape` project bundle.
     ///
     /// # Errors
@@ -75,8 +90,8 @@ impl ShapeProject {
         Ok(artifact)
     }
 
-    /// Atomically creates an unaccepted Artifact together with its source-less
-    /// mutable Working Graph.
+    /// Atomically reserves an unaccepted output together with its producer graph.
+    /// Its required original binding, when present, is independent of the output head.
     ///
     /// # Errors
     ///

@@ -134,7 +134,7 @@ Item {
                     font.weight: Font.DemiBold
                 }
 
-                TextField {
+                ShapeTextField {
                     id: nameEditor
 
                     Layout.fillWidth: true

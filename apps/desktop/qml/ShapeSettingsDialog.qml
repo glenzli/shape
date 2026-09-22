@@ -243,7 +243,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: 8
 
-                        TextField {
+                        ShapeTextField {
                             id: inferCredential
                             objectName: "inferCredentialField"
 

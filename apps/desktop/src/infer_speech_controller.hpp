@@ -6,6 +6,8 @@
 #include <QMutex>
 #include <QObject>
 #include <QString>
+#include <QTimer>
+#include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
 #include <memory>
@@ -19,6 +21,10 @@ class InferSpeechController : public QObject {
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("InferSpeechController is created by the host application")
+    Q_PROPERTY(QVariantList presets READ presets CONSTANT)
+    Q_PROPERTY(int completedSegments READ completedSegments NOTIFY statusChanged)
+    Q_PROPERTY(int totalSegments READ totalSegments NOTIFY statusChanged)
+    Q_PROPERTY(bool cancelling READ cancelling NOTIFY statusChanged)
     Q_PROPERTY(bool running READ running NOTIFY statusChanged)
     Q_PROPERTY(QString errorCode READ errorCode NOTIFY statusChanged)
 
@@ -30,6 +36,11 @@ class InferSpeechController : public QObject {
     );
     ~InferSpeechController() override;
 
+    [[nodiscard]] QVariantList presets() const;
+    [[nodiscard]] int completedSegments() const;
+    [[nodiscard]] int totalSegments() const;
+    [[nodiscard]] bool cancelling() const;
+    Q_INVOKABLE void cancel();
     [[nodiscard]] bool running() const;
     [[nodiscard]] QString errorCode() const;
 
@@ -56,6 +67,9 @@ class InferSpeechController : public QObject {
     QFutureWatcher<void> watcher_;
     QMutex result_mutex_;
     std::unique_ptr<GenerationResult> pending_result_;
+    rust::Box<shape::desktop::SpeechSynthesisControl> control_;
+    QTimer progress_timer_;
+    bool cancelling_ = false;
     quint64 generation_ = 0;
     bool running_ = false;
     QString error_code_;

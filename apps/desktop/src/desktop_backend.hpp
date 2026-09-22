@@ -47,6 +47,7 @@ class DesktopBackend : public QObject {
     Q_PROPERTY(bool candidateTextTruncated READ candidateTextTruncated NOTIFY candidateChanged)
     Q_PROPERTY(QString acceptedImageSource READ acceptedImageSource NOTIFY imagePreviewChanged)
     Q_PROPERTY(QString candidateImageSource READ candidateImageSource NOTIFY imagePreviewChanged)
+    Q_PROPERTY(bool speechCueImporting READ speechCueImporting NOTIFY speechCueImportingChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
 
   public:
@@ -88,6 +89,18 @@ class DesktopBackend : public QObject {
         int outputHeight
     );
     Q_INVOKABLE bool createDetachedTextEditor(const QString& nodeName);
+    Q_INVOKABLE bool createTextAuthoring(const QString& name, const QString& profile);
+    Q_INVOKABLE QString beginTextAuthoring(const QString& artifactId, const QString& profile);
+    Q_INVOKABLE bool updateTextAuthoring(const QString& draftId, const QString& json);
+    Q_INVOKABLE QString textAuthoringContent(const QString& artifactId, const QString& candidateId);
+    Q_INVOKABLE QString
+    textAuthoringConfiguredPreview(const QString& settings, const QString& text);
+    Q_INVOKABLE QString textAuthoringPreview(const QString& profile, const QString& text);
+    Q_INVOKABLE QString textNodeInput(const QString& draftId);
+    Q_INVOKABLE bool refreshTextInput(const QString& draftId);
+    Q_INVOKABLE bool renameArtifact(const QString& artifactId, const QString& name);
+    Q_INVOKABLE bool proposeAuthoredText(const QString& draftId);
+    Q_INVOKABLE QString beginAuthoringSpeech(const QString& artifactId);
     Q_INVOKABLE QString
     beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey);
     Q_INVOKABLE QVariantList compatibleOperators(const QString& artifactId);
@@ -107,6 +120,13 @@ class DesktopBackend : public QObject {
         int speedMilli,
         bool syntheticDisclosureRequired
     );
+    [[nodiscard]] bool speechCueImporting() const {
+        return speech_cue_importing_;
+    }
+    Q_INVOKABLE bool updateSpeechScript(const QString& draftId, const QString& optionsJson);
+    Q_INVOKABLE QString speechScriptPreview(const QString& draftId);
+    Q_INVOKABLE void
+    importSpeechCue(const QString& draftId, const QString& label, const QUrl& source);
     Q_INVOKABLE bool updateImageResizeDraft(
         const QString& draftId,
         int targetWidth,
@@ -169,6 +189,7 @@ class DesktopBackend : public QObject {
     [[nodiscard]] std::shared_ptr<ImagePreviewStore> imagePreviewStore() const;
 
   signals:
+    void speechCueImportingChanged();
     void projectChanged();
     void candidateChanged();
     void operatorDraftsChanged();
@@ -191,6 +212,7 @@ class DesktopBackend : public QObject {
     [[nodiscard]] QString cacheImagePreview(shape::desktop::ImagePreviewWire preview);
 
     std::unique_ptr<SessionState> session_;
+    bool speech_cue_importing_ = false;
     bool project_open_ = false;
     QString project_id_;
     QString project_name_;

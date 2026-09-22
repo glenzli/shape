@@ -39,8 +39,11 @@ mod image_unsharp_mask;
 mod operator_graph;
 mod project;
 mod scene;
+pub mod speech_script;
+mod text_document;
 mod transformation;
 mod working_graph;
+pub use working_graph::WorkingInput;
 
 pub use ai_image::{
     AI_IMAGE_GENERATE_FROM_MATERIALS_OPERATOR_TYPE, AI_IMAGE_GENERATE_OPERATOR_TYPE,
@@ -104,6 +107,7 @@ pub use operator_graph::{
 };
 pub use project::{ProjectMetadata, SHAPE_PROJECT_SCHEMA_REVISION};
 pub use scene::{NamedSceneOutput, Scene, SceneOutputName, SceneRevision};
+pub use text_document::{SPEECH_SCRIPT_FORMAT_REVISION, TextDocumentContract};
 pub use transformation::{
     Constraint, ConstraintKind, ConstraintStrength, IntentSpec, ReferenceBinding, ReferenceRole,
     Transformation, TransformationKind, TransformationOperation,

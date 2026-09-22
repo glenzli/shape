@@ -13,8 +13,8 @@ use shape_domain::{
 
 use crate::operator_catalog::OperatorDescriptor;
 use crate::operator_catalog::{
-    AUDIO_SPEECH_OPERATOR, IMAGE_GENERATE_OPERATOR, IMAGE_RESIZE_OPERATOR, TEXT_EDIT_OPERATOR,
-    configuration_for_ai_image_generate, configuration_for_audio_speech,
+    AUDIO_SPEECH_OPERATOR, IMAGE_GENERATE_OPERATOR, IMAGE_RESIZE_OPERATOR, TEXT_CREATE_OPERATOR,
+    TEXT_EDIT_OPERATOR, configuration_for_ai_image_generate, configuration_for_audio_speech,
     configuration_for_expression_studio, configuration_for_image_resize, configuration_for_studio,
     default_audio_speech_configuration, is_image_edit_workspace_operator,
     is_text_workspace_operator, validate_draft_configuration,
@@ -170,44 +170,77 @@ impl OperatorDrafts {
         Ok(configured)
     }
 
-    /// Begins one detached AI text-editing node before graph materials exist.
-    ///
-    /// The compatibility desktop still needs a target Artifact to persist the
-    /// node. The zero-input draft is therefore deliberately non-executable
-    /// until a future Scene Working Graph binds one or more material ports.
+    /// Allocates a stable text producer; edit nodes bind an independent source.
+    pub(crate) fn begin_text_node(
+        &mut self,
+        artifact: &Artifact,
+        source: Option<shape_domain::WorkingInput>,
+        state: &crate::operator_catalog::text_authoring::TextAuthoring,
+    ) -> Result<WorkingOperatorDraft, String> {
+        if artifact.kind != ArtifactKind::TextDocument
+            || artifact.accepted_revision.is_some()
+            || self.graph(artifact.id).is_some()
+        {
+            return Err("invalid_text_target".into());
+        }
+        let mut graph = ArtifactWorkingGraph::new_source(artifact.id);
+        let output_type =
+            OperatorDataTypeId::new(TEXT_DOCUMENT_DATA_TYPE).map_err(|e| e.to_string())?;
+        let draft = if let Some(source) = source {
+            graph.add_bound_operator(
+                OperatorTypeId::new(TEXT_EDIT_OPERATOR).map_err(|e| e.to_string())?,
+                output_type.clone(),
+                output_type,
+                source,
+            )
+        } else {
+            graph.add_source_operator(
+                OperatorTypeId::new(TEXT_CREATE_OPERATOR).map_err(|e| e.to_string())?,
+                output_type,
+            )
+        }
+        .map_err(|e| e.to_string())?;
+        graph.set_operator_configuration(draft.id(), Some(state.configuration()?));
+        let configured = graph.operators()[0].clone();
+        self.graphs.push(graph);
+        Ok(configured)
+    }
+
     pub(crate) fn begin_detached_text_editor(
         &mut self,
         artifact: &Artifact,
     ) -> Result<WorkingOperatorDraft, String> {
-        if artifact.kind != ArtifactKind::TextDocument || artifact.accepted_revision.is_some() {
-            return Err("a detached text editor requires an unaccepted text target".to_owned());
-        }
-        if self
-            .graphs
-            .iter()
-            .any(|graph| graph.context_artifact_id() == artifact.id)
-        {
-            return Err("the detached text target already has a Working Graph".to_owned());
-        }
-        let mut graph = ArtifactWorkingGraph::new_source(artifact.id);
+        self.begin_text_node(
+            artifact,
+            None,
+            &crate::operator_catalog::text_authoring::TextAuthoring::new("plain")?,
+        )
+    }
+
+    pub(crate) fn begin_speech_node(
+        &mut self,
+        target: &Artifact,
+        input: shape_domain::WorkingInput,
+        script: bool,
+    ) -> Result<WorkingOperatorDraft, String> {
+        let mut graph = ArtifactWorkingGraph::new_source(target.id);
         let draft = graph
-            .add_source_operator(
-                OperatorTypeId::new(TEXT_EDIT_OPERATOR).map_err(|error| error.to_string())?,
-                OperatorDataTypeId::new(TEXT_DOCUMENT_DATA_TYPE)
-                    .map_err(|error| error.to_string())?,
+            .add_bound_operator(
+                OperatorTypeId::new(AUDIO_SPEECH_OPERATOR).map_err(|e| e.to_string())?,
+                OperatorDataTypeId::new(TEXT_DOCUMENT_DATA_TYPE).map_err(|e| e.to_string())?,
+                OperatorDataTypeId::new("audio.clip").map_err(|e| e.to_string())?,
+                input,
             )
-            .map_err(|error| error.to_string())?;
-        let configuration = configuration_for_studio("rewrite", "", "neutral", "natural", 1)?;
-        if !graph.set_operator_configuration(draft.id(), configuration) {
-            return Err("detached text editor disappeared during configuration".to_owned());
-        }
-        let configured = graph
-            .operators()
-            .first()
-            .cloned()
-            .ok_or_else(|| "detached text editor disappeared during creation".to_owned())?;
+            .map_err(|e| e.to_string())?;
+        let config = default_audio_speech_configuration()?;
+        let config = crate::operator_catalog::configuration_with_script(
+            &config,
+            script.then(Default::default),
+        )?;
+        graph.set_operator_configuration(draft.id(), Some(config));
+        let draft = graph.operators()[0].clone();
         self.graphs.push(graph);
-        Ok(configured)
+        Ok(draft)
     }
 
     pub(crate) fn entries(&self) -> impl Iterator<Item = (ArtifactId, &WorkingOperatorDraft)> {
@@ -223,6 +256,34 @@ impl OperatorDrafts {
         self.graphs
             .iter()
             .find(|graph| graph.context_artifact_id() == artifact_id)
+    }
+
+    pub(crate) fn refresh_text_input(
+        &mut self,
+        draft_id: &str,
+        input: shape_domain::WorkingInput,
+    ) -> Result<ArtifactId, String> {
+        let id = OperatorNodeId::new(draft_id).map_err(|e| e.to_string())?;
+        let index = self
+            .graph_index_for_draft(&id)
+            .ok_or("invalid_operator_draft")?;
+        let graph = &mut self.graphs[index];
+        let node = graph
+            .operators()
+            .iter()
+            .find(|d| d.id() == &id)
+            .ok_or("invalid_operator_draft")?;
+        if !matches!(
+            node.operator_type().as_str(),
+            TEXT_EDIT_OPERATOR | AUDIO_SPEECH_OPERATOR
+        ) || node.input().map(|i| i.artifact_id) != Some(input.artifact_id)
+        {
+            return Err("invalid_text_input".into());
+        }
+        if !graph.set_operator_input(&id, input) {
+            return Err("invalid_text_input".into());
+        }
+        Ok(graph.context_artifact_id())
     }
 
     pub(crate) fn draft(
@@ -352,6 +413,15 @@ impl OperatorDrafts {
             speed_milli,
             synthetic_disclosure_required,
         )?;
+        let existing = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("located draft");
+        let script = crate::operator_catalog::audio_speech_operation_from_draft(existing)?
+            .and_then(|op| op.script);
+        let configuration =
+            crate::operator_catalog::configuration_with_script(&configuration, script)?;
         let artifact_id = self.graphs[graph_index].context_artifact_id();
         if !self.graphs[graph_index].set_operator_configuration(&draft_id, Some(configuration)) {
             return Err("Operator draft disappeared during configuration".to_owned());
@@ -361,6 +431,40 @@ impl OperatorDrafts {
             .iter()
             .find(|draft| draft.id() == &draft_id)
             .expect("configured draft remains in its Working Graph")
+            .clone();
+        Ok((artifact_id, draft))
+    }
+
+    pub(crate) fn update_speech_script(
+        &mut self,
+        draft_id: &str,
+        script: Option<shape_domain::speech_script::SpeechScriptOptions>,
+    ) -> Result<(ArtifactId, WorkingOperatorDraft), String> {
+        let id = OperatorNodeId::new(draft_id).map_err(|e| e.to_string())?;
+        let index = self
+            .graph_index_for_draft(&id)
+            .ok_or("Operator draft does not exist")?;
+        let draft = self.graphs[index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &id)
+            .ok_or("Operator draft does not exist")?;
+        if draft.operator_type().as_str() != AUDIO_SPEECH_OPERATOR {
+            return Err("not a speech draft".into());
+        }
+        let configuration = crate::operator_catalog::configuration_with_script(
+            draft
+                .configuration()
+                .ok_or("speech configuration missing")?,
+            script,
+        )?;
+        let artifact_id = self.graphs[index].context_artifact_id();
+        self.graphs[index].set_operator_configuration(&id, Some(configuration));
+        let draft = self.graphs[index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &id)
+            .expect("configured draft")
             .clone();
         Ok((artifact_id, draft))
     }
@@ -459,21 +563,6 @@ impl OperatorDrafts {
         Ok(artifact_id)
     }
 
-    pub(crate) fn finish(&mut self, artifact_id: ArtifactId, operator_type: &str) -> bool {
-        let Some(index) = self
-            .graphs
-            .iter()
-            .position(|graph| graph.context_artifact_id() == artifact_id)
-        else {
-            return false;
-        };
-        let changed = self.graphs[index].remove_operator_type(operator_type);
-        if self.graphs[index].is_empty() {
-            self.graphs.remove(index);
-        }
-        changed
-    }
-
     pub(crate) fn finish_image_edit_workspace(&mut self, artifact_id: ArtifactId) -> bool {
         self.finish_workspace(artifact_id, is_image_edit_workspace_operator)
     }
@@ -533,6 +622,36 @@ impl OperatorDrafts {
         self.graphs
             .iter()
             .position(|graph| graph.operators().iter().any(|draft| draft.id() == draft_id))
+    }
+
+    pub(crate) fn configure_authoring(
+        &mut self,
+        draft_id: &str,
+        state: &crate::operator_catalog::text_authoring::TextAuthoring,
+    ) -> Result<(ArtifactId, WorkingOperatorDraft), String> {
+        let id = OperatorNodeId::new(draft_id).map_err(|e| e.to_string())?;
+        let index = self
+            .graph_index_for_draft(&id)
+            .ok_or("invalid_operator_draft")?;
+        let graph = &mut self.graphs[index];
+        let draft = graph
+            .operators()
+            .iter()
+            .find(|d| d.id() == &id)
+            .ok_or("invalid_operator_draft")?;
+        if !is_text_workspace_operator(draft.operator_type().as_str()) {
+            return Err("invalid_operator_draft".into());
+        }
+        graph.set_operator_configuration(&id, Some(state.configuration()?));
+        Ok((
+            graph.context_artifact_id(),
+            graph
+                .operators()
+                .iter()
+                .find(|d| d.id() == &id)
+                .expect("configured draft")
+                .clone(),
+        ))
     }
 }
 

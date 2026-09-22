@@ -35,6 +35,7 @@ file(
     "${PROJECT_SOURCE_DIR}/crates/*/Cargo.toml"
     "${PROJECT_SOURCE_DIR}/crates/*/build.rs"
     "${PROJECT_SOURCE_DIR}/crates/*/src/*.rs"
+    "${PROJECT_SOURCE_DIR}/docs/SPEECH_SCRIPT_PROMPT.md"
 )
 
 if(UNIX)
@@ -91,17 +92,27 @@ qt_add_executable(shape-desktop
     src/infer_image_controller.cpp
     src/infer_image_controller.hpp
     src/infer_controller_support.hpp
+    src/audio_export_controller.cpp
+    src/audio_export_controller.hpp
     src/audio_preview_controller.cpp
     src/audio_preview_controller.hpp
     src/image_preview_provider.cpp
     src/image_preview_provider.hpp
     src/ui_preferences.cpp
     src/ui_preferences.hpp
+    src/speech_script_documentation.cpp
+    src/speech_script_documentation.hpp
     src/text_expression_library.cpp
     src/text_expression_library.hpp
     src/mac_titlebar.hpp
     tests/workspace_host_smoke.cpp
     tests/workspace_host_smoke.hpp
+    tests/speech_script_help_smoke.cpp
+    tests/speech_script_help_smoke.hpp
+    tests/text_authoring_smoke.cpp
+    tests/text_authoring_smoke.hpp
+    tests/speech_live_smoke.cpp
+    tests/speech_live_smoke.hpp
 )
 if(APPLE)
     target_sources(shape-desktop PRIVATE src/mac_titlebar.mm)
@@ -119,9 +130,11 @@ qt_add_qml_module(shape-desktop
         qml/Theme.qml
         qml/components/ArtifactDetailsPanel.qml
         qml/components/ArtifactLineagePanel.qml
+        qml/components/AudioExportDialog.qml
+        qml/components/SpeechScriptHelpDialog.qml
+        qml/components/SpeechScriptPanel.qml
         qml/components/AudioSpeechOperatorWorkspace.qml
         qml/components/AiImageOperatorWorkspace.qml
-        qml/components/AiTextEditingWorkspace.qml
         qml/components/CandidateFilmstrip.qml
         qml/components/ImageCompareWorkspace.qml
         qml/components/ContextInspector.qml
@@ -147,6 +160,15 @@ qt_add_qml_module(shape-desktop
         qml/components/ProjectWelcome.qml
         qml/components/ReadOnlyNodeWorkspace.qml
         qml/components/ShapeButton.qml
+        qml/components/ShapeTextField.qml
+        qml/components/ShapeTextArea.qml
+        qml/components/ShapeComboBox.qml
+        qml/components/ShapeDialog.qml
+        qml/components/TextAuthoringWorkspace.qml
+        qml/components/ScriptPresentation.js
+        qml/components/ScriptProductionSettings.qml
+        qml/components/TextFormatPanel.qml
+        qml/components/SpeechScriptReadingView.qml
         qml/components/ShapeIcon.qml
         qml/components/ShapeIconButton.qml
         qml/components/SourceMaterialWorkspace.qml
@@ -173,6 +195,14 @@ qt_add_qml_module(shape-desktop
         icons/waveform.svg
         icons/zoom-in.svg
         icons/zoom-out.svg
+)
+
+qt_add_resources(shape-desktop speech-script-documentation
+    PREFIX "/shape/help"
+    BASE "${PROJECT_SOURCE_DIR}/docs"
+    FILES
+        "${PROJECT_SOURCE_DIR}/docs/SPEECH_SCRIPT.md"
+        "${PROJECT_SOURCE_DIR}/docs/SPEECH_SCRIPT_PROMPT.md"
 )
 
 qt_add_translations(shape-desktop

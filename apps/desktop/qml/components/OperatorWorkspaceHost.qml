@@ -15,6 +15,7 @@ Rectangle {
     // owns generic exact-key dispatch without becoming an Operator SDK.
     property var operatorWorkspaces: ({})
     property string selectedCandidateId: ""
+    property bool compactNavigation: false
 
     property bool active: false
     property string openedNodeId: ""
@@ -240,7 +241,7 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 50
+            Layout.preferredHeight: host.compactNavigation ? 34 : 50
             radius: 0
             color: "transparent"
             border.width: 0
@@ -266,7 +267,7 @@ Rectangle {
 
                     Text {
                         Layout.fillWidth: true
-                        text: host.workspaceTitle()
+                        text: host.compactNavigation ? qsTr("Return to workflow") : host.workspaceTitle()
                         color: Theme.text
                         font.pixelSize: 15
                         font.weight: Font.DemiBold
@@ -275,6 +276,7 @@ Rectangle {
 
                     Text {
                         Layout.fillWidth: true
+                        visible: !host.compactNavigation
                         text: host.selectedCandidateId.length > 0 ? qsTr("Reviewing a new version") : qsTr("Working on this creative step")
                         color: Theme.muted
                         font.pixelSize: 10
@@ -283,6 +285,7 @@ Rectangle {
                 }
 
                 Rectangle {
+                    visible: !host.compactNavigation
                     Layout.preferredWidth: workspaceStateText.implicitWidth + 20
                     Layout.preferredHeight: 26
                     radius: 13

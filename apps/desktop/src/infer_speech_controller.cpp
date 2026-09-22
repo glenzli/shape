@@ -12,6 +12,11 @@
 
 using infer_controller_support::stableErrorCode;
 using infer_controller_support::toUtf8;
+namespace {
+QString fromRust(const rust::String& value) {
+    return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
+}
+} // namespace
 
 struct InferSpeechController::GenerationResult {
     quint64 generation = 0;
@@ -26,7 +31,10 @@ InferSpeechController::InferSpeechController(
     QObject* parent
 )
     : QObject(parent), backend_(backend), credential_path_(std::move(credentialPath)),
-      explicit_override_(qEnvironmentVariable("SHAPE_INFER_RUNTIME_URL")) {
+      explicit_override_(qEnvironmentVariable("SHAPE_INFER_RUNTIME_URL")),
+      control_(shape::desktop::new_speech_control()) {
+    progress_timer_.setInterval(200);
+    connect(&progress_timer_, &QTimer::timeout, this, &InferSpeechController::statusChanged);
     connect(
         &watcher_,
         &QFutureWatcher<void>::finished,
@@ -37,8 +45,40 @@ InferSpeechController::InferSpeechController(
 
 InferSpeechController::~InferSpeechController() {
     if (watcher_.isRunning()) {
+        shape::desktop::speech_control_cancel(*control_);
         watcher_.waitForFinished();
     }
+}
+
+QVariantList InferSpeechController::presets() const {
+    QVariantList result;
+    for (const auto& preset : shape::desktop::speech_presets()) {
+        result.append(
+            QVariantMap{
+                {QStringLiteral("key"), fromRust(preset.key)},
+                {QStringLiteral("alias"), fromRust(preset.alias)},
+                {QStringLiteral("language"), fromRust(preset.language)},
+                {QStringLiteral("catalogRevision"), fromRust(preset.catalog_revision)}
+            }
+        );
+    }
+    return result;
+}
+int InferSpeechController::completedSegments() const {
+    return static_cast<int>(shape::desktop::speech_control_completed(*control_));
+}
+int InferSpeechController::totalSegments() const {
+    return static_cast<int>(shape::desktop::speech_control_total(*control_));
+}
+bool InferSpeechController::cancelling() const {
+    return cancelling_;
+}
+void InferSpeechController::cancel() {
+    if (!running_)
+        return;
+    cancelling_ = true;
+    shape::desktop::speech_control_cancel(*control_);
+    emit statusChanged();
 }
 
 bool InferSpeechController::running() const {
@@ -65,6 +105,9 @@ void InferSpeechController::generate(
         return;
     }
 
+    shape::desktop::speech_control_resume(*control_);
+    cancelling_ = false;
+    progress_timer_.start();
     running_ = true;
     error_code_.clear();
     ++generation_;
@@ -86,13 +129,14 @@ void InferSpeechController::generate(
             result.source_artifact_id = sourceArtifactId;
             try {
                 result.candidate.emplace(
-                    shape::desktop::generate_infer_speech_candidate(
+                    shape::desktop::generate_infer_speech_candidate_controlled(
                         toUtf8(projectPath),
                         toUtf8(sourceArtifactId),
                         toUtf8(draftId),
                         toUtf8(artifactName.trimmed()),
                         toUtf8(credential_path),
-                        toUtf8(explicit_override)
+                        toUtf8(explicit_override),
+                        *control_
                     )
                 );
             } catch (const rust::Error& error) {
@@ -114,6 +158,8 @@ void InferSpeechController::finishGeneration() {
         return;
     }
 
+    progress_timer_.stop();
+    cancelling_ = false;
     running_ = false;
     if (!result->error_code.isEmpty()) {
         error_code_ = result->error_code;
@@ -133,7 +179,7 @@ void InferSpeechController::finishGeneration() {
         }
         error_code_.clear();
         emit statusChanged();
-        emit candidateCreated(candidate_id, result->source_artifact_id);
+        emit candidateCreated(candidate_id, backend_.candidateArtifactId());
     } catch (const rust::Error& error) {
         setErrorCode(stableErrorCode(error));
     }

@@ -47,12 +47,18 @@ ctest --preset desktop-dev
 CMake output is written to the sibling `.shape-local-build` directory, not the source worktree.
 
 `scripts/run_debug.sh` is the stable local launcher shared with the Shadow/Echo development
-convention. `scripts/build_and_promote_debug.sh` validates Rust and the packaged desktop smoke paths,
-copies the app into an immutable revision-stamped release, and atomically advances
+convention. `scripts/build_and_promote_debug.sh` defaults to a fast promotion gate: translation
+completeness, desktop build, and the packaged desktop smoke paths. Use
+`./scripts/build_and_promote_debug.sh --full` before commits, cross-module handoffs, or release-like
+checkpoints to additionally run Rust formatting, workspace Clippy, and all Rust tests. Either mode
+copies the app into an immutable revision-stamped release and atomically advances
 `.shape-local-build/current-debug`. The launcher starts that canonical app in the background and
 logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attached output or
 `--check` to inspect resolved paths without launching. Pass a `.shape` bundle, or set
 `SHAPE_DEBUG_PROJECT_PATH`, to open a project directly.
+
+文本与配音的节点职责、输入输出和界面入口见 [节点与文本工作流](docs/NODE_MODEL.md)。
+新建文本先选格式；编辑原稿会生成独立分支；配音自动读取已采用文稿的格式。
 
 ## Current boundary
 
@@ -75,7 +81,10 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   and requests local-only `text.edit` through the ACL-authorized
   `ollama_qwen3_5_4b` Deployment as a transient candidate.
   The `audio.speech_synthesize` desktop workspace consumes immutable accepted text and creates a
-  transient audio Candidate through a single versioned preset. The selected Candidate can be
+  transient audio Candidate through nine versioned voice presets. Language defaults to automatic
+  detection for mixed text and can be explicitly selected independently of the voice. Long text
+  is split at sentence/word boundaries and assembled as one PCM WAV with per-segment receipts.
+  The selected Candidate or accepted audio can be exported as WAV. A Candidate can be
   auditioned from an in-memory WAV device and becomes a new `audio.clip` only after explicit
   acceptance. Shape re-parses exact PCM S16 LE WAV bytes,
   requires preset voice/disclosure and local-only no-fallback Runtime provenance, and atomically
@@ -101,6 +110,10 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   filmstrip wired to exact Select/Compare/Accept/Discard/Branch actions. The generic Inspector is no
   longer a permanent third column. A separate comprehensive-Operator intent surface is packaged
   without placeholder state; its first real consumer is the zero-input AI Image Source Operator.
+- New Content also exposes empty-first Free Writing and Narration Script workspaces. Listening,
+  narration and dialogue templates support AI drafting, adapting existing material and manual writing.
+  Script rules are included in AI requests and available before typing. Reviewed text is explicitly
+  adopted before entering voice selection, audition and WAV export; rewriting preserves saved audio.
 - AI image semantics are split deliberately. `image.generate` is a zero-material Source Operator;
   `image.generate_from_materials` requires accepted raster materials with explicit roles. Both have
   one logical output and place multiple generated options on the Candidate Shelf. The typed domain
@@ -124,3 +137,7 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
 - License: Shape source is licensed under the [`MIT License`](LICENSE). Shadow's GPL components
   remain behind independent-process or documented protocol boundaries so Shape's own distribution
   does not silently inherit a different license obligation.
+
+### Narration scripts / 配音脚本
+
+The text workspace authors production scripts with declared roles, delivery, scenes, exact-repeat blocks, pauses and deterministic cues. The speech node requires explicit role voices and replays each repeated recording without another model call; output is previewed and exported as WAV. See [the rules](docs/SPEECH_SCRIPT.md) and [the AI writing prompt](docs/SPEECH_SCRIPT_PROMPT.md). 配音脚本的格式规则和 AI 写稿提示词见上述文档。

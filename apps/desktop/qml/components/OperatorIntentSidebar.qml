@@ -93,7 +93,7 @@ Rectangle {
             font.letterSpacing: 0.7
         }
 
-        TextArea {
+        ShapeTextArea {
             id: intentEditor
             objectName: "operatorIntentEditor"
 

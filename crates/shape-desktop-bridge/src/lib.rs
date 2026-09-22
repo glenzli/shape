@@ -21,10 +21,18 @@ use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_ru
 
 use infer_image::{InferImageCandidate, generate_infer_image_candidate};
 use infer_runtime_access::{infer_runtime_credential_status, install_infer_runtime_credential};
-use infer_speech::{InferSpeechCandidate, generate_infer_speech_candidate};
+use infer_speech::{
+    InferSpeechCandidate, SpeechSynthesisControl, generate_infer_speech_candidate,
+    generate_infer_speech_candidate_controlled, new_speech_control, speech_control_cancel,
+    speech_control_completed, speech_control_resume, speech_control_total, speech_presets,
+};
 use infer_text::{InferTextCandidate, generate_infer_text_candidate};
 use operator_graph::project_operator_graph;
 use session::{DesktopSession, create_desktop_project, open_desktop_session};
+
+use operator_catalog::text_authoring::{
+    configured_preview as text_authoring_configured_preview, preview as text_authoring_preview,
+};
 
 const MAX_TEXT_PREVIEW_BYTES: usize = 32 * 1024;
 
@@ -94,17 +102,21 @@ mod ffi {
     struct OperatorDraftWire {
         draft_id: String,
         context_artifact_id: String,
+        input_artifact_id: String,
+        input_revision_id: String,
         operator_type_key: String,
         has_input_data_type: bool,
         input_data_type_key: String,
         output_data_type_key: String,
         configuration_schema: String,
+        text_authoring_json: String,
         text_transform_mode: String,
         text_transform_instruction: String,
         text_transform_tone: String,
         text_transform_expression_json: String,
         text_transform_style: String,
         text_transform_variant_count: u8,
+        audio_speech_script_json: String,
         audio_speech_preset_alias: String,
         audio_speech_preset_catalog_revision: String,
         audio_speech_language: String,
@@ -135,6 +147,7 @@ mod ffi {
         id: String,
         name: String,
         kind_key: String,
+        text_format: String,
         has_accepted_revision: bool,
         accepted_revision_id: String,
         accepted_parent_revision_ids: Vec<String>,
@@ -210,6 +223,14 @@ mod ffi {
         wav_bytes: Vec<u8>,
     }
 
+    #[derive(Debug)]
+    struct SpeechPresetWire {
+        key: String,
+        alias: String,
+        language: String,
+        catalog_revision: String,
+    }
+
     /// Public Infer Runtime contract availability. Error codes are stable and
     /// language-neutral; credentials and response payloads never cross here.
     #[derive(Debug)]
@@ -259,6 +280,24 @@ mod ffi {
             explicit_override: &str,
         ) -> Result<Box<InferTextCandidate>>;
 
+        type SpeechSynthesisControl;
+        #[allow(clippy::unnecessary_box_returns)] // CXX opaque Rust ownership requires Box.
+        fn new_speech_control() -> Box<SpeechSynthesisControl>;
+        fn speech_control_resume(control: &SpeechSynthesisControl);
+        fn speech_control_cancel(control: &SpeechSynthesisControl);
+        fn speech_control_completed(control: &SpeechSynthesisControl) -> u32;
+        fn speech_control_total(control: &SpeechSynthesisControl) -> u32;
+        fn speech_presets() -> Vec<SpeechPresetWire>;
+        fn generate_infer_speech_candidate_controlled(
+            project_path: &str,
+            source_artifact_id: &str,
+            draft_id: &str,
+            artifact_name: &str,
+            credential_path: &str,
+            explicit_override: &str,
+            control: &SpeechSynthesisControl,
+        ) -> Result<Box<InferSpeechCandidate>>;
+
         /// Runs preset-only speech synthesis outside the live desktop session.
         fn generate_infer_speech_candidate(
             project_path: &str,
@@ -286,6 +325,11 @@ mod ffi {
         fn create_desktop_project(path: &str, name: &str) -> Result<Box<DesktopSession>>;
 
         fn session_snapshot(self: &DesktopSession) -> Result<ProjectSnapshotWire>;
+        fn session_rename_artifact(
+            self: &DesktopSession,
+            artifact_id: &str,
+            name: &str,
+        ) -> Result<()>;
         fn session_create_text_document(
             self: &mut DesktopSession,
             artifact_name: &str,
@@ -302,6 +346,38 @@ mod ffi {
             self: &mut DesktopSession,
             artifact_name: &str,
         ) -> Result<ProjectSnapshotWire>;
+        fn session_create_text_authoring(
+            self: &mut DesktopSession,
+            name: &str,
+            profile: &str,
+        ) -> Result<ProjectSnapshotWire>;
+        fn session_text_node_input(self: &DesktopSession, draft_id: &str) -> Result<String>;
+        fn session_refresh_text_input(self: &mut DesktopSession, draft_id: &str) -> Result<()>;
+        fn session_begin_text_authoring(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            profile: &str,
+        ) -> Result<OperatorDraftWire>;
+        fn session_update_text_authoring(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            json: &str,
+        ) -> Result<OperatorDraftWire>;
+        fn session_text_authoring_content(
+            self: &DesktopSession,
+            artifact_id: &str,
+            candidate_id: &str,
+        ) -> Result<String>;
+        fn text_authoring_preview(profile: &str, text: &str) -> Result<String>;
+        fn text_authoring_configured_preview(settings: &str, text: &str) -> Result<String>;
+        fn session_propose_authored_text(
+            self: &mut DesktopSession,
+            draft_id: &str,
+        ) -> Result<CandidateWire>;
+        fn session_begin_authoring_speech(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+        ) -> Result<OperatorDraftWire>;
         fn session_begin_operator_draft(
             self: &mut DesktopSession,
             artifact_id: &str,
@@ -334,6 +410,18 @@ mod ffi {
             language: &str,
             speed_milli: u16,
             synthetic_disclosure_required: bool,
+        ) -> Result<OperatorDraftWire>;
+        fn session_update_speech_script(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            options_json: &str,
+        ) -> Result<OperatorDraftWire>;
+        fn session_speech_script_preview(self: &DesktopSession, draft_id: &str) -> Result<String>;
+        fn session_import_speech_cue(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            label: &str,
+            bytes: &[u8],
         ) -> Result<OperatorDraftWire>;
         fn session_update_image_resize_draft(
             self: &mut DesktopSession,
@@ -527,7 +615,30 @@ fn project_snapshot(
         .iter()
         .map(|artifact| project_artifact(project, artifact, &snapshot.artifacts))
         .collect::<Result<Vec<_>, _>>()?;
-    let graph_edges = project_graph_edges(&artifacts);
+    let mut graph_edges = project_graph_edges(&artifacts);
+    for graph in project
+        .artifact_working_graphs()
+        .map_err(|e| e.to_string())?
+    {
+        for draft in graph.operators() {
+            if let Some(input) = draft.input()
+                && input.artifact_id != graph.context_artifact_id()
+            {
+                graph_edges
+                    .retain(|e| e.target_artifact_id != graph.context_artifact_id().to_string());
+                graph_edges.push(ffi::ProjectGraphEdgeWire {
+                    source_artifact_id: input.artifact_id.to_string(),
+                    target_artifact_id: graph.context_artifact_id().to_string(),
+                    source_revision_id: input.revision_id.to_string(),
+                    target_revision_id: graph
+                        .expected_revision_id()
+                        .map_or_else(String::new, |r| r.to_string()),
+                    transformation_id: String::new(),
+                    transformation_kind_key: draft.operator_type().as_str().into(),
+                });
+            }
+        }
+    }
     Ok(ffi::ProjectSnapshotWire {
         project_id: snapshot.metadata.id.to_string(),
         project_name: snapshot.metadata.name,
@@ -581,6 +692,7 @@ fn project_artifact(
         id: artifact.id.to_string(),
         name: artifact.name.clone(),
         kind_key: artifact_kind_key(artifact.kind).to_owned(),
+        text_format: String::new(),
         has_accepted_revision: false,
         accepted_revision_id: String::new(),
         accepted_parent_revision_ids: Vec::new(),
@@ -663,10 +775,10 @@ fn project_artifact(
             }
         }
         project_content_contract(&mut wire, revision.content_contract.as_ref());
-        let graph = project_operator_graph(project, artifact, project_artifacts)?;
-        wire.operator_graph_nodes = graph.nodes;
-        wire.operator_graph_edges = graph.edges;
     }
+    let graph = project_operator_graph(project, artifact, project_artifacts)?;
+    wire.operator_graph_nodes = graph.nodes;
+    wire.operator_graph_edges = graph.edges;
     Ok(wire)
 }
 
@@ -675,6 +787,14 @@ fn project_content_contract(
     contract: Option<&ArtifactContentContract>,
 ) {
     match contract {
+        Some(ArtifactContentContract::TextDocument(contract)) => {
+            wire.text_format = if contract.is_script() {
+                "speech_script"
+            } else {
+                "plain"
+            }
+            .into();
+        }
         Some(ArtifactContentContract::ImageRaster(contract)) => {
             wire.has_image_preview = true;
             wire.image_width = contract.width;

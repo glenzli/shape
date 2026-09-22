@@ -338,7 +338,7 @@ impl TextAudience {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct TextExpression {
+pub(crate) struct TextExpression {
     tones: Vec<TextToneFacet>,
     intensity: TextToneIntensity,
     audience: TextAudience,
@@ -359,7 +359,7 @@ impl Default for TextExpression {
 }
 
 impl TextExpression {
-    fn validate(&self, custom_examples_required: bool) -> Result<(), String> {
+    pub(super) fn validate(&self, custom_examples_required: bool) -> Result<(), String> {
         if self.tones.is_empty() || self.tones.len() > MAX_TONE_FACETS {
             return Err("text expression tone count is unsupported".to_owned());
         }
@@ -563,21 +563,31 @@ pub(crate) fn compiled_instruction_from_draft(
     } else {
         configuration.instruction
     };
-    let tone = if configuration.expression.tones.len() == 1 {
-        configuration.expression.tones[0].prompt()
+    Ok(format!(
+        "{direction}\n{}",
+        expression_prompt(&configuration.expression, configuration.style.as_str())?
+    ))
+}
+
+pub(super) fn expression_prompt(
+    expression: &TextExpression,
+    style: &str,
+) -> Result<String, String> {
+    expression.validate(true)?;
+    TextTransformStyle::from_key(style)?;
+    let tone = if expression.tones.len() == 1 {
+        expression.tones[0].prompt()
     } else {
         format!(
             "primarily {}, with {} as a supporting tone",
-            configuration.expression.tones[0].prompt(),
-            configuration.expression.tones[1].prompt()
+            expression.tones[0].prompt(),
+            expression.tones[1].prompt()
         )
     };
     Ok(format!(
-        "{direction}\nTone: {} at {} intensity. Audience: {}. Style: {}.",
-        tone,
-        configuration.expression.intensity.as_str(),
-        configuration.expression.audience.prompt(),
-        configuration.style.as_str()
+        "Tone: {tone} at {} intensity. Audience: {}. Style: {style}.",
+        expression.intensity.as_str(),
+        expression.audience.prompt()
     ))
 }
 
@@ -590,6 +600,16 @@ pub(super) fn validate_text_transform_configuration(
 fn decode(
     configuration: &WorkingOperatorConfiguration,
 ) -> Result<TextTransformDraftConfiguration, String> {
+    if configuration.schema().as_str() == super::text_authoring::SCHEMA {
+        let state = super::text_authoring::TextAuthoring::from_json(configuration.json())?;
+        return TextTransformDraftConfiguration::new(
+            TextTransformDraftMode::Rewrite,
+            state.instruction,
+            TextExpression::default(),
+            TextTransformStyle::Natural,
+            1,
+        );
+    }
     let (configuration, custom_examples_required) = match configuration.schema().as_str() {
         TEXT_TRANSFORM_DRAFT_SCHEMA => {
             let current = serde_json::from_str(configuration.json()).map_err(|_| {

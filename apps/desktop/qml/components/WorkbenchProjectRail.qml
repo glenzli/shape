@@ -196,7 +196,7 @@ Rectangle {
             Repeater {
                 model: ["scenes", "components", "assets"]
 
-                delegate: Button {
+                delegate: ShapeButton {
                     id: sectionButton
 
                     required property string modelData

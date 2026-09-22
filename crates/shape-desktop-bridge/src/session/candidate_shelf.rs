@@ -145,6 +145,12 @@ impl CandidateShelf {
         self.candidates
             .retain(|candidate| candidate.artifact_id() != artifact_id);
     }
+
+    pub(super) fn discard_audio_from_source(&mut self, source_id: ArtifactId) {
+        self.candidates.retain(|candidate| {
+            !matches!(candidate, Candidate::Audio(audio) if audio.source_artifact_id() == source_id)
+        });
+    }
 }
 
 #[cfg(test)]

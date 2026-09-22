@@ -13,7 +13,7 @@ mod image_generation;
 mod job_provenance;
 mod responses;
 mod sdk;
-mod speech;
+pub(crate) mod speech;
 
 #[cfg(test)]
 mod test_support;
@@ -23,8 +23,9 @@ pub use image_generation::{IMAGE_GENERATE_CAPABILITY, InferRuntimeImageGeneratio
 pub use responses::InferRuntimeExecutor;
 pub use speech::{
     AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
-    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
-    InferRuntimeSpeechExecutor,
+    INFER_SPEECH_VOICE_CATALOG_REVISION, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1, InferRuntimeSpeechExecutor, SPEECH_PRESETS,
+    SpeechPreset, SpeechSynthesisControl, supported_speech_operation,
 };
 
 use sdk::{InferRuntimeSdk, OfficialSdkClient, SdkAdapterError};

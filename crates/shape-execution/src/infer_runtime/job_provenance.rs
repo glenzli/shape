@@ -119,6 +119,8 @@ pub(super) fn parse_job_snapshot(
     }
 
     Ok(ExternalExecutionProvenance {
+        speech_segments: Vec::new(),
+        speech_script: None,
         contract_revision: snapshot.consumer_core_contract,
         capability_contract: snapshot.capability_contract,
         app_id: snapshot.app_id,

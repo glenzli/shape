@@ -1,4 +1,8 @@
-use std::{collections::VecDeque, sync::Mutex, time::Duration};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use infer_runtime_client::{
     AudioBytesResponse, CapabilityCatalog, ContractManifest, JobSnapshot, ResponsesRequest,
@@ -14,7 +18,7 @@ pub(super) struct FakeSdk {
     pub speeches: Mutex<VecDeque<Result<AudioBytesResponse, SdkAdapterError>>>,
     pub jobs: Mutex<VecDeque<Result<JobSnapshot, SdkAdapterError>>>,
     pub seen_responses: Mutex<Vec<ResponsesRequest>>,
-    pub seen_speeches: Mutex<Vec<SpeechRequest>>,
+    pub seen_speeches: Arc<Mutex<Vec<SpeechRequest>>>,
 }
 
 impl FakeSdk {
@@ -26,7 +30,7 @@ impl FakeSdk {
             speeches: Mutex::new(VecDeque::new()),
             jobs: Mutex::new(VecDeque::new()),
             seen_responses: Mutex::new(Vec::new()),
-            seen_speeches: Mutex::new(Vec::new()),
+            seen_speeches: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
