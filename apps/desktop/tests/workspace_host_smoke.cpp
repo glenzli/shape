@@ -95,22 +95,27 @@ bool verify_packaged_node_route(
     const QString& expected_selected_tool_key = QString()
 ) {
     const QString node_id = node.value(QStringLiteral("id")).toString();
-    const QVariantList graph_nodes = workspace_surface.property("workGraph")
+    const QVariantList graph_nodes = workspace_surface.property("displayGraph")
                                          .toMap()
                                          .value(QStringLiteral("nodes"))
                                          .toList();
     const auto selected_node =
         std::find_if(graph_nodes.cbegin(), graph_nodes.cend(), [&node_id](const QVariant& value) {
-            return value.toMap().value(QStringLiteral("id")).toString() == node_id;
+            const QVariantMap item = value.toMap();
+            return item.value(QStringLiteral("id")).toString() == node_id
+                   || item.value(QStringLiteral("outputNodeId")).toString() == node_id;
         });
     if (selected_node == graph_nodes.cend()) {
         std::cerr << "desktop graph smoke could not resolve the packaged node index" << std::endl;
         return false;
     }
     const auto node_index = std::distance(graph_nodes.cbegin(), selected_node);
+    const QString click_target = node.value(QStringLiteral("roleKey")) == QStringLiteral("output")
+                                     ? QStringLiteral("acceptedGraphOutput-") + node_id
+                                     : QStringLiteral("acceptedGraphNode-%1").arg(node_index);
     if (!invoke_packaged_click(
             workspace_surface,
-            QStringLiteral("acceptedGraphNode-%1").arg(node_index),
+            click_target,
             "desktop graph smoke could not click a packaged node"
         )
         || workspace_surface.property("selectedNodeId").toString() != node_id
@@ -290,7 +295,9 @@ bool verifySceneGraphRoutes(QObject& root_object) {
             const generated = projectWorkGraph([script,audio], 'audio',
                 [{contextArtifactId:'script',operatorTypeKey:'text.create',
                   textAuthoringJson:JSON.stringify({entry:'generate'})}]);
-            return {manual:manual,generated:generated};
+            return {manual:manual,generated:generated,
+                manualDisplay:projectDisplayGraph(manual),
+                generatedDisplay:projectDisplayGraph(generated)};
         })())JS")
     );
     const QVariantMap source_projection = manual_source_work.evaluate().toMap();
@@ -301,6 +308,15 @@ bool verifySceneGraphRoutes(QObject& root_object) {
                                              .toMap()
                                              .value(QStringLiteral("nodes"))
                                              .toList();
+    const QVariantMap generated_display = source_projection.value(QStringLiteral("generatedDisplay"))
+                                              .toMap();
+    const QVariantList display_nodes = generated_display.value(QStringLiteral("nodes")).toList();
+    const QVariantList display_edges = generated_display.value(QStringLiteral("edges")).toList();
+    const QVariantList manual_display_nodes = source_projection
+                                                  .value(QStringLiteral("manualDisplay"))
+                                                  .toMap()
+                                                  .value(QStringLiteral("nodes"))
+                                                  .toList();
     if (manual_source_work.hasError() || manual_nodes.size() != 3
         || manual_nodes[0].toMap().value(QStringLiteral("id")) != QStringLiteral("output.script")
         || manual_nodes[0].toMap().value(QStringLiteral("roleKey")) != QStringLiteral("source")
@@ -308,9 +324,21 @@ bool verifySceneGraphRoutes(QObject& root_object) {
         || manual_edges.size() != 2
         || manual_edges[0].toMap().value(QStringLiteral("sourceNodeId"))
                != QStringLiteral("output.script")
-        || generated_nodes.size() != 4) {
-        std::cerr << "desktop work graph duplicated manual source or hid AI creation"
-                  << std::endl;
+        || generated_nodes.size() != 4 || display_nodes.size() != 2
+        || display_edges.size() != 1 || manual_display_nodes.size() != 2
+        || display_nodes[0].toMap().value(QStringLiteral("outputNodeId"))
+               != QStringLiteral("output.script")
+        || display_nodes[1].toMap().value(QStringLiteral("outputNodeId"))
+               != QStringLiteral("output.audio")
+        || display_edges[0].toMap().value(QStringLiteral("sourceNodeId"))
+               != QStringLiteral("write")
+        || display_edges[0].toMap().value(QStringLiteral("targetNodeId"))
+               != QStringLiteral("synth")) {
+        std::cerr << "desktop work graph duplicated a result card or lost an output endpoint: "
+                  << manual_source_work.error().toString().toStdString()
+                  << " raw=" << generated_nodes.size() << " display=" << display_nodes.size()
+                  << " edges=" << display_edges.size()
+                  << " manual=" << manual_display_nodes.size() << std::endl;
         return false;
     }
 
@@ -442,6 +470,25 @@ bool verifySceneGraphRoutes(QObject& root_object) {
         || visible_source->value(QStringLiteral("artifactId")).toString()
                == output_node->value(QStringLiteral("artifactId")).toString()) {
         std::cerr << "desktop work graph did not join original text to edited output"
+                  << std::endl;
+        return false;
+    }
+    const QVariantMap display_graph = workspace_surface->property("displayGraph").toMap();
+    const QVariantList displayed_nodes = display_graph.value(QStringLiteral("nodes")).toList();
+    const QVariantList displayed_edges = display_graph.value(QStringLiteral("edges")).toList();
+    const bool attached_result = std::any_of(
+        displayed_nodes.cbegin(), displayed_nodes.cend(), [&output_node](const QVariant& value) {
+            return value.toMap().value(QStringLiteral("outputNodeId"))
+                   == output_node->value(QStringLiteral("id"));
+        }
+    );
+    const bool separate_result = std::any_of(
+        displayed_nodes.cbegin(), displayed_nodes.cend(), [](const QVariant& value) {
+            return value.toMap().value(QStringLiteral("roleKey")) == QStringLiteral("output");
+        }
+    );
+    if (!attached_result || separate_result || displayed_edges.size() >= visible_edges.size()) {
+        std::cerr << "desktop canvas did not attach the edited result to its step"
                   << std::endl;
         return false;
     }

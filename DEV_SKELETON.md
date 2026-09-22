@@ -245,8 +245,9 @@ accepted Revision/Transformation history into that contract. It stops cross-Arti
 pure Source boundary, so executor steps and media-internal structure never leak into the Scene.
 `SceneOperatorGraphWorkspace.qml` owns graph layout and interaction, while
 `CreativeGraphNodeCard.qml` owns role- and media-specific accepted-node presentation. Source cards
-show origin context, editing cards show their creative method family, and the current Result card
-renders the selected Artifact's actual text, image, or audio summary. `WorkspaceSurface.qml` owns
+show origin context, editing cards show their creative method family, and each operator's output
+endpoint opens its Artifact result without consuming another graph column. The internal Output
+identity remains available for selection and history. `WorkspaceSurface.qml` owns
 Scene-graph-first navigation and the explicit node-focused workspace boundary. Selection only
 updates shared context, while explicit open/review intent enters the media-specific workspace.
 `TextAuthoringWorkspace.qml` is the single text editor for creation and derivation. Its optional

@@ -65,10 +65,10 @@ on the canvas.
 Pending candidates remain outside the durable accepted graph until explicit acceptance or branching.
 
 Presentation uses progressive disclosure. The project rail calls compatibility Scenes “works,”
-Source/Operator/Output appear as starting point/creative step/current result, and Candidate actions
-appear as new versions and “Use this version.” These labels do not alter Rust identities or durable
-contracts. Accepted graph cards are role- and media-specific: the current Result card contains a
-real text excerpt, selected image preview, or audio summary instead of only a type label. The focused
+Source/Operator appear as starting point/creative step, with each Output shown at its producing
+step's endpoint. Candidate actions appear as new versions and “Use this version.” These labels do
+not alter Rust identities or durable contracts. The endpoint keeps the result's own selection and
+history identity; its full text, image, or audio opens in the focused workspace. The focused
 workspace header never displays raw route keys; “See workflow” remains the
 explicit route back to the graph for users who want structural control.
 The rail groups text edits and speech-derived audio under their source text as one visible work.
@@ -76,7 +76,7 @@ The work canvas joins each Artifact's existing graph at an exact accepted input 
 original text can lead to script text, speech synthesis, and audio output in one view. A downstream
 node with a single existing connection opens from its upstream port; the node library adds a new
 branch only when requested. A manually written root text appears as one content card, while AI
-creation keeps its execution step visible. Unaccepted draft nodes, including zero-input starting
+creation keeps its execution step and output endpoint visible. Unaccepted draft nodes, including zero-input starting
 points, can be discarded with their empty reserved outputs; accepted history remains immutable.
 An existing speech step is reused when continuing from its source text.
 An older pinned input is marked on its connection, so the canvas does not imply that the next step

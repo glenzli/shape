@@ -46,6 +46,7 @@ Item {
                                          allArtifacts,
                                          hasSelectedArtifact ? selectedArtifact.id : "",
                                          allOperatorDrafts)
+    readonly property var displayGraph: WorkGraph.displayGraphFor(workGraph)
     readonly property var workRoot: artifactForId(workGraph.rootId)
     readonly property bool graphActive: currentMode === 0
     readonly property bool focusActive: currentMode === 1
@@ -592,6 +593,8 @@ Item {
                            ? surface.selectedArtifact.kindLabel : ""
                 nodes: surface.workGraph.nodes
                 edges: surface.workGraph.edges
+                displayNodes: surface.displayGraph.nodes
+                displayEdges: surface.displayGraph.edges
                 artifacts: surface.allArtifacts
                 selectedArtifactId: surface.hasSelectedArtifact ? surface.selectedArtifact.id : ""
                 candidates: surface.candidates

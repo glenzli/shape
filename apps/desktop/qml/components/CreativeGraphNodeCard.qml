@@ -29,10 +29,13 @@ Item {
     property int stageNumber: 0
 
     signal outputNodeRequested
+    signal outputSelected
+    signal outputOpened
 
     readonly property bool isSource: nodeData.roleKey === "source"
     readonly property bool isOutput: nodeData.roleKey === "output"
     readonly property bool isOperator: nodeData.roleKey === "operator"
+    readonly property bool hasOutputEndpoint: isOperator && !!nodeData.outputNodeId
     readonly property bool isImageEditor: isOperator && (nodeData.operatorTypeKey === "image.crop" || nodeData.operatorTypeKey === "image.resize")
     readonly property bool isAiCreator: isOperator && nodeData.inputPorts.length === 0 && nodeData.operatorTypeKey.indexOf(".generate") > 0
     readonly property string boundDataType: portDataType()
@@ -326,7 +329,7 @@ Item {
             Rectangle {
                 visible: card.isOperator
                 Layout.fillWidth: true
-                Layout.preferredHeight: 38
+                Layout.preferredHeight: card.hasOutputEndpoint ? 30 : 38
                 radius: Theme.compactControlRadius
                 color: Theme.panelInset
                 border.color: Theme.border
@@ -340,6 +343,58 @@ Item {
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignVCenter
+                }
+            }
+
+            Rectangle {
+                visible: card.hasOutputEndpoint
+                Layout.fillWidth: true
+                Layout.preferredHeight: 32
+                radius: Theme.compactControlRadius
+                color: card.hasAcceptedRevision ? Theme.successSoft : Theme.panelInset
+                border.color: card.hasAcceptedRevision ? Theme.success : Theme.border
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 9
+                    anchors.rightMargin: 32
+                    spacing: 6
+
+                    Text {
+                        text: qsTr("OUTPUT")
+                        color: card.hasAcceptedRevision ? Theme.success : Theme.muted
+                        font.pixelSize: Theme.fontMicro
+                        font.weight: Font.DemiBold
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: card.hasAcceptedRevision
+                              ? (card.nodeData.outputArtifactName || card.dataTypeLabel(card.nodeData.outputDataTypeKey))
+                              : qsTr("No accepted version yet")
+                        color: Theme.textSoft
+                        font.pixelSize: Theme.fontMicro
+                        elide: Text.ElideRight
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: card.outputSelected()
+                    onDoubleClicked: card.outputOpened()
+                }
+
+                ShapeIconButton {
+                    objectName: "acceptedGraphOutput-" + card.nodeData.outputNodeId
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    buttonSize: 28
+                    iconSize: 13
+                    source: "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
+                    accessibleName: card.nodeData.outputArtifactName
+                    toolTipText: card.nodeData.outputArtifactName
+                    onClicked: card.outputSelected()
                 }
             }
 

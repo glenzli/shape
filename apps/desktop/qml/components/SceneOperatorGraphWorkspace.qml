@@ -17,6 +17,8 @@ Rectangle {
     property string sceneKind: ""
     property var nodes: []
     property var edges: []
+    property var displayNodes: []
+    property var displayEdges: []
     property var artifacts: []
     property string selectedArtifactId: ""
     property var drafts: []
@@ -44,8 +46,10 @@ Rectangle {
     readonly property real rowGap: 30
     readonly property real graphMargin: 28
     readonly property int acceptedMaxStage: maximumAcceptedStage()
-    readonly property int projectedMaxStage: acceptedMaxStage
-    readonly property int projectedNodeCount: nodes.length + drafts.length + candidates.length
+    readonly property int projectedMaxStage: drafts.length + candidates.length > 0
+                                            && displayNodes.length > 0
+                                            ? acceptedMaxStage + 1 : acceptedMaxStage
+    readonly property int projectedNodeCount: displayNodes.length + drafts.length + candidates.length
     readonly property real minimumZoom: 0.65
     readonly property real maximumZoom: 1.5
     readonly property bool currentResultPreviewAvailable: (artifactKindKey === "image_raster" && acceptedImageSource.toString().length > 0) || artifactKindKey === "text_document" || artifactKindKey === "audio_clip"
@@ -97,8 +101,7 @@ Rectangle {
         for (let stage = 0; stage <= acceptedMaxStage; ++stage) {
             maximum = Math.max(maximum, acceptedNodesAtStage(stage));
         }
-        maximum = Math.max(maximum, acceptedNodesAtStage(acceptedMaxStage)
-                                     + drafts.length + candidates.length);
+        maximum = Math.max(maximum, drafts.length + candidates.length);
         return maximum;
     }
 
@@ -115,6 +118,15 @@ Rectangle {
     function nodeIndex(nodeId): int {
         for (let index = 0; index < nodes.length; ++index) {
             if (nodes[index].id === nodeId)
+                return index;
+        }
+        return -1;
+    }
+
+    function displayNodeIndex(nodeId): int {
+        for (let index = 0; index < displayNodes.length; ++index) {
+            const node = displayNodes[index];
+            if (node.id === nodeId || node.outputNodeId === nodeId)
                 return index;
         }
         return -1;
@@ -232,9 +244,9 @@ Rectangle {
         const nextTrail = Object.assign({}, trail);
         nextTrail[nodeId] = true;
         let stage = 0;
-        for (let index = 0; index < edges.length; ++index) {
-            if (edges[index].targetNodeId === nodeId) {
-                stage = Math.max(stage, nodeStage(edges[index].sourceNodeId, nextTrail) + 1);
+        for (let index = 0; index < displayEdges.length; ++index) {
+            if (displayEdges[index].targetNodeId === nodeId) {
+                stage = Math.max(stage, nodeStage(displayEdges[index].sourceNodeId, nextTrail) + 1);
             }
         }
         return stage;
@@ -242,41 +254,41 @@ Rectangle {
 
     function maximumAcceptedStage(): int {
         let maximum = 0;
-        for (let index = 0; index < nodes.length; ++index) {
-            maximum = Math.max(maximum, nodeStage(nodes[index].id, {}));
+        for (let index = 0; index < displayNodes.length; ++index) {
+            maximum = Math.max(maximum, nodeStage(displayNodes[index].id, {}));
         }
         return maximum;
     }
 
     function acceptedNodesAtStage(stage): int {
         let count = 0;
-        for (let index = 0; index < nodes.length; ++index) {
-            if (nodeStage(nodes[index].id, {}) === stage)
+        for (let index = 0; index < displayNodes.length; ++index) {
+            if (nodeStage(displayNodes[index].id, {}) === stage)
                 ++count;
         }
         return count;
     }
 
     function acceptedNodeLane(index): int {
-        const stage = nodeStage(nodes[index].id, {});
+        const stage = nodeStage(displayNodes[index].id, {});
         let lane = 0;
         for (let cursor = 0; cursor < index; ++cursor) {
-            if (nodeStage(nodes[cursor].id, {}) === stage)
+            if (nodeStage(displayNodes[cursor].id, {}) === stage)
                 ++lane;
         }
         return lane;
     }
 
     function projectedStage(index): int {
-        if (index < nodes.length)
-            return nodeStage(nodes[index].id, {});
-        return acceptedMaxStage;
+        if (index < displayNodes.length)
+            return nodeStage(displayNodes[index].id, {});
+        return displayNodes.length > 0 ? acceptedMaxStage + 1 : 0;
     }
 
     function projectedLane(index): int {
-        if (index < nodes.length)
+        if (index < displayNodes.length)
             return acceptedNodeLane(index);
-        return acceptedNodesAtStage(acceptedMaxStage) + index - nodes.length;
+        return index - displayNodes.length;
     }
 
     function contentGraphWidth(): real {
@@ -485,7 +497,7 @@ Rectangle {
             projectName: graph.projectName
             sceneName: graph.sceneName
             sceneKind: graph.sceneKind
-            nodeCount: graph.nodes.length
+            nodeCount: graph.displayNodes.length
             operatorCount: graph.operatorCount
             draftCount: graph.pendingDraftCount
             candidateCount: graph.candidates.length
@@ -578,16 +590,16 @@ Rectangle {
                     onPaint: {
                         const context = getContext("2d");
                         context.clearRect(0, 0, width, height);
-                        for (let index = 0; index < graph.edges.length; ++index) {
-                            const edge = graph.edges[index];
-                            graph.paintConnection(context, graph.nodeIndex(edge.sourceNodeId), graph.nodeIndex(edge.targetNodeId), edge.earlierInput === true, edge.earlierInput === true);
+                        for (let index = 0; index < graph.displayEdges.length; ++index) {
+                            const edge = graph.displayEdges[index];
+                            graph.paintConnection(context, graph.displayNodeIndex(edge.sourceNodeId), graph.displayNodeIndex(edge.targetNodeId), edge.earlierInput === true, edge.earlierInput === true);
                         }
-                        const terminalIndex = graph.nodeIndex(graph.terminalNodeId);
+                        const terminalIndex = graph.displayNodeIndex(graph.terminalNodeId);
                         for (let index = 0; index < graph.drafts.length; ++index) {
-                            graph.paintConnection(context, terminalIndex, graph.nodes.length + index, true);
+                            graph.paintConnection(context, terminalIndex, graph.displayNodes.length + index, true);
                         }
                         for (let index = 0; index < graph.candidates.length; ++index) {
-                            graph.paintConnection(context, terminalIndex, graph.nodes.length + graph.drafts.length + index, true);
+                            graph.paintConnection(context, terminalIndex, graph.displayNodes.length + graph.drafts.length + index, true);
                         }
                     }
 
@@ -597,6 +609,12 @@ Rectangle {
                             edgeCanvas.requestPaint();
                         }
                         function onEdgesChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
+                        function onDisplayNodesChanged(): void {
+                            edgeCanvas.requestPaint();
+                        }
+                        function onDisplayEdgesChanged(): void {
                             edgeCanvas.requestPaint();
                         }
                         function onDraftsChanged(): void {
@@ -635,8 +653,8 @@ Rectangle {
                         required property var modelData
                         readonly property bool selected: modelData.id === graph.selectedNodeId
 
-                        x: graph.nodeX(graph.nodes.length + index)
-                        y: graph.nodeY(graph.nodes.length + index)
+                        x: graph.nodeX(graph.displayNodes.length + index)
+                        y: graph.nodeY(graph.displayNodes.length + index)
                         width: graph.nodeWidth
                         height: graph.nodeHeight
                         padding: 0
@@ -657,7 +675,7 @@ Rectangle {
                 }
 
                 Repeater {
-                    model: graph.nodes
+                    model: graph.displayNodes
 
                     delegate: ItemDelegate {
                         id: acceptedNode
@@ -666,6 +684,7 @@ Rectangle {
                         required property int index
                         required property var modelData
                         readonly property bool currentNode: modelData.id === graph.selectedNodeId
+                                                            || modelData.outputNodeId === graph.selectedNodeId
                         readonly property var artifact: graph.artifactForNode(modelData)
 
                         x: graph.nodeX(index)
@@ -701,9 +720,12 @@ Rectangle {
                                                        ? acceptedNode.artifact.audioSampleRateHz : 0
                             artifactAudioChannels: acceptedNode.artifact !== null
                                                    ? acceptedNode.artifact.audioChannels : 0
-                            hasAcceptedRevision: graph.acceptedForNode(acceptedNode.modelData)
+                            hasAcceptedRevision: acceptedNode.artifact !== null
+                                                 && acceptedNode.artifact.hasAcceptedRevision
                             continueAvailable: graph.nextStepFrom(acceptedNode.modelData.id) !== null
                             stageNumber: graph.nodeStage(acceptedNode.modelData.id, {})
+                            onOutputSelected: graph.selectAcceptedNode(acceptedNode.modelData.outputNodeId)
+                            onOutputOpened: graph.nodeOpened(acceptedNode.modelData.outputNodeId)
                             onOutputNodeRequested: {
                                 graph.selectAcceptedNode(acceptedNode.modelData.id);
                                 const next = graph.nextStepFrom(acceptedNode.modelData.id);
@@ -727,8 +749,8 @@ Rectangle {
                         required property var modelData
                         readonly property bool selected: modelData.id === graph.selectedCandidateId
 
-                        x: graph.nodeX(graph.nodes.length + graph.drafts.length + index)
-                        y: graph.nodeY(graph.nodes.length + graph.drafts.length + index)
+                        x: graph.nodeX(graph.displayNodes.length + graph.drafts.length + index)
+                        y: graph.nodeY(graph.displayNodes.length + graph.drafts.length + index)
                         width: graph.nodeWidth
                         height: graph.nodeHeight
 
@@ -757,7 +779,7 @@ Rectangle {
                 }
 
                 ColumnLayout {
-                    visible: graph.nodes.length === 0 && graph.drafts.length === 0
+                    visible: graph.displayNodes.length === 0 && graph.drafts.length === 0
                     anchors.centerIn: parent
                     spacing: 6
 

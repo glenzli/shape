@@ -104,6 +104,10 @@ Rectangle {
         return WorkGraph.graphFor(artifacts, selectedId, drafts)
     }
 
+    function projectDisplayGraph(graph) : var {
+        return WorkGraph.displayGraphFor(graph)
+    }
+
     function workGroupSelected(group) : bool {
         if (selectedSceneId === group.id) return true
         for (let index = 0; index < group.outputs.length; ++index) {

@@ -163,3 +163,40 @@ function graphFor(artifacts, selectedId, drafts) {
     return {rootId: root, nodes: nodes, edges: edges,
             artifactIds: included.map(artifact => String(artifact.id))}
 }
+
+// Keep the persisted Output identity for selection/history, but show it at the
+// producing step's port. A source-only work stays a material card.
+function displayGraphFor(graph) {
+    const rawNodes = graph.nodes || []
+    const rawEdges = graph.edges || []
+    const byId = {}
+    for (const node of rawNodes) byId[node.id] = node
+    const ownerByOutput = {}
+    const outputByOwner = {}
+    for (const node of rawNodes) {
+        if (node.roleKey !== "output") continue
+        const incoming = rawEdges.filter(edge => edge.targetNodeId === node.id)
+        if (incoming.length !== 1) continue
+        const owner = byId[incoming[0].sourceNodeId]
+        if (!owner || (owner.roleKey !== "operator" && owner.roleKey !== "source")
+                || owner.artifactId !== node.artifactId) continue
+        ownerByOutput[node.id] = owner.id
+        outputByOwner[owner.id] = node
+    }
+    const nodes = rawNodes.filter(node => !ownerByOutput[node.id]).map(node => {
+        const output = outputByOwner[node.id]
+        return output ? Object.assign({}, node, {outputNodeId: output.id,
+            outputArtifactName: output.artifactName || "",
+            outputDataTypeKey: (output.inputPorts || []).length > 0
+                               ? output.inputPorts[0].dataTypeKey
+                               : (node.outputPorts || []).length > 0
+                                 ? node.outputPorts[0].dataTypeKey : ""}) : node
+    })
+    const edges = rawEdges.map(edge => {
+        const sourceNodeId = ownerByOutput[edge.sourceNodeId] || edge.sourceNodeId
+        const targetNodeId = ownerByOutput[edge.targetNodeId] || edge.targetNodeId
+        return Object.assign({}, edge, {sourceNodeId: sourceNodeId,
+            targetNodeId: targetNodeId})
+    }).filter(edge => edge.sourceNodeId !== edge.targetNodeId)
+    return {nodes: nodes, edges: edges}
+}
