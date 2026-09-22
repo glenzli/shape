@@ -28,6 +28,9 @@ Item {
     property bool runtimeCompatible: false
     property bool credentialConfigured: false
     property string generationErrorCode: ""
+    property string defaultTextModel: "local_qwen"
+    property string modelOverride: ""
+    readonly property string selectedModelKey: modelPicker.effectiveModelKey
     property bool initialized: false
     property bool loading: false
     property bool dirty: false
@@ -47,7 +50,7 @@ Item {
     readonly property bool canGenerate: inputCurrent && !generationRunning && runtimeCompatible && credentialConfigured
                                          && (editing ? true : entry === "adapt" ? materialEditor.text.trim().length > 0
                                              : instructionEditor.text.trim().length > 0 || materialEditor.text.trim().length > 0)
-    signal generationRequested(string artifactId, string draftId)
+    signal generationRequested(string artifactId, string draftId, string modelKey)
     signal candidateSelected(string candidateId)
     signal speechRequested(string artifactId)
     signal setupRequested()
@@ -141,7 +144,8 @@ Item {
         preview = result.length > 0 ? JSON.parse(result) : {valid: false, plan: {events: [], issues: []}}
     }
     function generate() : void {
-        if (canGenerate && checkpoint()) generationRequested(artifactId, draftId)
+        const modelKey = selectedModelKey
+        if (canGenerate && checkpoint()) generationRequested(artifactId, draftId, modelKey)
     }
     function editOutput() : void {
         const textToEdit = reviewText
@@ -312,6 +316,16 @@ Item {
                         }
                     }
                     Item { Layout.fillWidth: true }
+                }
+                AiModelPicker {
+                    id: modelPicker
+                    objectName: "writingModelPicker"
+                    visible: !workspace.reviewing && workspace.entry !== "manual"
+                    family: "text"
+                    defaultModelKey: workspace.defaultTextModel
+                    overrideKey: workspace.modelOverride
+                    enabled: !workspace.generationRunning
+                    onChoiceSelected: key => workspace.modelOverride = key
                 }
                 ColumnLayout {
                     visible: !workspace.reviewing

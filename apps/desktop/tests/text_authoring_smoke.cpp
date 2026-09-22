@@ -96,6 +96,24 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
         ))
         return false;
     auto* writer = current();
+    auto* modelPicker = writer->findChild<QObject*>(QStringLiteral("writingModelPicker"));
+    auto* modelChoice = modelPicker ? modelPicker->findChild<QObject*>(QStringLiteral("aiModelChoice")) : nullptr;
+    if (!check(
+            modelChoice && writer->property("selectedModelKey").toString()
+                               == writer->property("defaultTextModel").toString()
+                && QMetaObject::invokeMethod(
+                    modelChoice, "activated", Qt::DirectConnection, Q_ARG(int, 3)
+                )
+                && writer->property("selectedModelKey").toString()
+                       == QStringLiteral("gpt_6_sol")
+                && QMetaObject::invokeMethod(
+                    modelChoice, "activated", Qt::DirectConnection, Q_ARG(int, 0)
+                )
+                && writer->property("selectedModelKey").toString()
+                       == writer->property("defaultTextModel").toString(),
+            "writing model can override and return to settings default"
+        ))
+        return false;
     if (!check(
             writer->property("profile").toString() == QStringLiteral("script")
                 && !writer->findChild<QObject*>(QStringLiteral("scriptExamplelistening"))

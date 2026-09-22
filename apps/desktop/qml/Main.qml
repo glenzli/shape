@@ -450,6 +450,7 @@ ApplicationWindow {
                                                window.selectedArtifact.id) : window.backend.compatibleOperators("")
                     selectedCandidate: window.selectedCandidate
                     selectedCandidateId: window.selectedCandidateId
+                    defaultTextModel: window.uiPreferences.textModel
                     compareMode: window.compareMode
                     acceptedImageSource: window.backend.acceptedImageSource
                     candidateImageSource: window.backend.candidateImageSource
@@ -595,9 +596,9 @@ ApplicationWindow {
                     }
                     onTextCandidateLockRequested: candidateId =>
                                                       window.acceptCandidate(candidateId)
-                    onAuthoringGenerationRequested: (artifactId, draftId) =>
+                    onAuthoringGenerationRequested: (artifactId, draftId, modelKey) =>
                         window.inferText.generate(window.backend.bundlePath, artifactId, draftId,
-                                                  window.uiPreferences.textModel)
+                                                  modelKey)
                     onAuthoringSpeechRequested: artifactId => window.openAuthoringSpeech(artifactId)
                     onWritingRequested: (artifactId, scriptMode) => window.returnToWriting(artifactId, scriptMode)
                     onAudioExportRequested: (artifactId, candidateId) => audioExportDialog.openForAudio(artifactId, candidateId)
@@ -611,6 +612,9 @@ ApplicationWindow {
                     Layout.maximumWidth: visible ? 320 : 0
                     Layout.fillHeight: true
                     visible: workspaceSurface.aiImageIntentActive
+                    defaultModelKey: window.uiPreferences.imageModel
+                    modelContextId: workspaceSurface.selectedDraft !== null
+                                    ? workspaceSurface.selectedDraft.id : ""
                     operatorTitle: qsTr("Create an image")
                     operatorKindLabel: qsTr("STARTING POINT · AI GENERATED")
                     intentText: workspaceSurface.selectedDraft !== null
@@ -643,13 +647,14 @@ ApplicationWindow {
                     }
                     onPrimaryActionRequested: {
                         const draft = workspaceSurface.selectedDraft
+                        const modelKey = aiImageIntent.selectedModelKey
                         if (draft !== null && window.backend.updateAiImageDraft(
                                 draft.id, editedIntentText,
                                 draft.aiImageOutputWidth, draft.aiImageOutputHeight)) {
                             window.inferImage.generate(
                                 window.backend.bundlePath,
                                 draft.contextArtifactId, draft.id,
-                                window.uiPreferences.imageModel)
+                                modelKey)
                         }
                     }
                 }

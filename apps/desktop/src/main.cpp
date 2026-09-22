@@ -849,6 +849,26 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         std::cerr << "desktop authoring smoke did not open the AI image workbench" << std::endl;
         return false;
     }
+    auto* image_intent = root_object.findChild<QObject*>(QStringLiteral("operatorIntentSidebar"));
+    auto* image_model_picker = image_intent->findChild<QObject*>(QStringLiteral("imageModelPicker"));
+    auto* image_model_choice = image_model_picker
+                                   ? image_model_picker->findChild<QObject*>(QStringLiteral("aiModelChoice"))
+                                   : nullptr;
+    if (!image_model_choice
+        || image_intent->property("selectedModelKey").toString()
+               != image_intent->property("defaultModelKey").toString()
+        || !QMetaObject::invokeMethod(
+            image_model_choice, "activated", Qt::DirectConnection, Q_ARG(int, 3)
+        )
+        || image_intent->property("selectedModelKey").toString() != QStringLiteral("gpt_6_sol")
+        || !QMetaObject::invokeMethod(
+            image_model_choice, "activated", Qt::DirectConnection, Q_ARG(int, 0)
+        )
+        || image_intent->property("selectedModelKey").toString()
+               != image_intent->property("defaultModelKey").toString()) {
+        std::cerr << "desktop authoring smoke did not switch the image model locally" << std::endl;
+        return false;
+    }
     if (!backend.openProject(QUrl::fromLocalFile(bundle_path)) || backend.artifactCount() != 2
         || backend.operatorDrafts().size() != 1
         || backend.operatorDrafts().first().toMap().value(QStringLiteral("id")).toString()

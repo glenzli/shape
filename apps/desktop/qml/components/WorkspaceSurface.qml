@@ -33,6 +33,7 @@ Item {
     property bool inferTextRunning: false
     property string inferTextErrorCode: ""
     property bool inferRuntimeCompatible: false
+    property string defaultTextModel: "local_qwen"
     property int currentMode: 0
     property string selectedNodeId: ""
 
@@ -124,7 +125,7 @@ Item {
                                          int variantCount)
     signal textCandidateLockRequested(string candidateId)
     signal inferAccessSetupRequested()
-    signal authoringGenerationRequested(string artifactId, string draftId)
+    signal authoringGenerationRequested(string artifactId, string draftId, string modelKey)
     signal authoringSpeechRequested(string artifactId)
     signal writingRequested(string artifactId, bool scriptMode)
     signal audioExportRequested(string artifactId, string candidateId)
@@ -419,7 +420,8 @@ Item {
             generationErrorCode: surface.inferTextErrorCode
             runtimeCompatible: surface.inferRuntimeCompatible
             credentialConfigured: surface.inferCredentialConfigured
-            onGenerationRequested: (artifactId, draftId) => surface.authoringGenerationRequested(artifactId, draftId)
+            defaultTextModel: surface.defaultTextModel
+            onGenerationRequested: (artifactId, draftId, modelKey) => surface.authoringGenerationRequested(artifactId, draftId, modelKey)
             onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
             onSpeechRequested: artifactId => surface.authoringSpeechRequested(artifactId)
             onSetupRequested: surface.inferAccessSetupRequested()

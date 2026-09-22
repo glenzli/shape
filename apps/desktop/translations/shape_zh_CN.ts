@@ -2,6 +2,21 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
+    <name>AiModelPicker</name>
+    <message>
+        <source>Local Qwen 3.5</source>
+        <translation>本地 Qwen 3.5</translation>
+    </message>
+    <message>
+        <source>Model for this run</source>
+        <translation>本次使用模型</translation>
+    </message>
+    <message>
+        <source>Default · %1</source>
+        <translation>默认 · %1</translation>
+    </message>
+</context>
+<context>
     <name>AiImageOperatorWorkspace</name>
     <message>
         <location filename="../qml/components/AiImageOperatorWorkspace.qml" line="+47"/>
@@ -1026,8 +1041,8 @@
     </message>
     <message>
         <location line="+6"/>
-        <source>Codex Luna · image generation through Infer</source>
-        <translation>Codex Luna · 通过 Infer 生成图片</translation>
+        <source>Choose the model in the image studio before generating.</source>
+        <translation>打开图片工作室后，可在生成前选择模型。</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -3577,12 +3592,12 @@
         <translation>选择云端模型会将提示词发送给订阅服务。能否使用取决于 Infer Runtime 授权。</translation>
     </message>
     <message>
-        <source>Text editing</source>
-        <translation>文本编辑</translation>
+        <source>Default text</source>
+        <translation>文本默认模型</translation>
     </message>
     <message>
-        <source>Image creation</source>
-        <translation>图片生成</translation>
+        <source>Default image</source>
+        <translation>图片默认模型</translation>
     </message>
     <message>
         <source>Local Qwen 3.5</source>

@@ -139,6 +139,7 @@ qt_add_qml_module(shape-desktop
         qml/components/SpeechScriptPanel.qml
         qml/components/AudioSpeechOperatorWorkspace.qml
         qml/components/AiImageOperatorWorkspace.qml
+        qml/components/AiModelPicker.qml
         qml/components/CandidateFilmstrip.qml
         qml/components/ImageCompareWorkspace.qml
         qml/components/ContextInspector.qml

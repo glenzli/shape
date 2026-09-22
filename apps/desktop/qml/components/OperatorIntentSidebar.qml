@@ -27,7 +27,13 @@ Rectangle {
     property string statusText: ""
     property string primaryActionText: qsTr("Create a version")
     property bool primaryActionEnabled: true
+    property string defaultModelKey: "gpt_5_6_luna"
+    property string modelContextId: ""
+    property string modelOverride: ""
+    readonly property string selectedModelKey: modelPicker.effectiveModelKey
     readonly property string editedIntentText: intentEditor.text
+
+    onModelContextIdChanged: modelOverride = ""
 
     signal intentEdited(string text)
     signal intentCommitRequested(string text)
@@ -260,6 +266,16 @@ Rectangle {
             color: Theme.muted
             font.pixelSize: Theme.fontMeta
             wrapMode: Text.WordWrap
+        }
+
+        AiModelPicker {
+            id: modelPicker
+            objectName: "imageModelPicker"
+            family: "image"
+            defaultModelKey: sidebar.defaultModelKey
+            overrideKey: sidebar.modelOverride
+            enabled: sidebar.editable && !sidebar.running
+            onChoiceSelected: key => sidebar.modelOverride = key
         }
 
         ShapeButton {

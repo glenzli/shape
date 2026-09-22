@@ -235,7 +235,7 @@ Item {
 
                             Text {
                                 Layout.preferredWidth: 92
-                                text: qsTr("Text editing")
+                                text: qsTr("Default text")
                                 color: Theme.text
                             }
 
@@ -256,7 +256,7 @@ Item {
 
                             Text {
                                 Layout.preferredWidth: 92
-                                text: qsTr("Image creation")
+                                text: qsTr("Default image")
                                 color: Theme.text
                             }
 

@@ -145,7 +145,7 @@ re-reads the draft before credential access, and adopts results through an indep
 consumer present one comprehensive Source Operator. The draft remains recoverable while Candidates
 are transient and is cleared only after acceptance. The image consumer requires Shape App authorization
 for `image.generate`, subscription access, cloud text input, balanced policy and cloud-only placement.
-It pins the explicit model choice (GPT-5.6 Luna by default, or GPT-6 Luna/Sol) and verifies the same named route in the receipt. The authored canvas guides generation;
+It pins the model selected for this run (from the settings default or a local override) and verifies the same named route in the receipt. The authored canvas guides generation;
 native dimensions and pixels remain intact, with exact sizing owned by the image editing node.
 Local ACL setup is separate from source validation. Material-conditioned execution remains
 unavailable until Infer publishes a stable typed raster-output provider, Capability Schema, and SDK
@@ -251,6 +251,7 @@ Scene-graph-first navigation and the explicit node-focused workspace boundary. S
 updates shared context, while explicit open/review intent enters the media-specific workspace.
 `TextAuthoringWorkspace.qml` is the single text editor for creation and derivation. Its optional
 `TextExpressionPalette.qml` preserves tone composition, intensity, audience and personal preset snapshots.
+`AiModelPicker.qml` displays the effective settings default and optional model for the current text or image run; model choice enters the request at dispatch and does not rewrite a project draft.
 The authoring codec combines those settings with editing task, text format and exact buffers, and reads older preset drafts.
 `TextFormatPanel.qml` owns the plain-text or script format choice; the offline guide displays
 instruction examples and exposes the complete canonical rules and AI writing prompt for copying.

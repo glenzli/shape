@@ -47,7 +47,7 @@ ShapeDialog {
 
         Label {
             Layout.fillWidth: true
-            text: qsTr("Codex Luna · image generation through Infer")
+            text: qsTr("Choose the model in the image studio before generating.")
             color: Theme.accent
             font.pixelSize: 12
             wrapMode: Text.WordWrap
