@@ -24,6 +24,7 @@ Item {
     property int artifactAudioDurationMillis: 0
     property int artifactAudioSampleRateHz: 0
     property int artifactAudioChannels: 0
+    property bool hasAcceptedRevision: false
     property int stageNumber: 0
 
     signal outputNodeRequested
@@ -37,7 +38,8 @@ Item {
     readonly property bool hasExactTextPreview: nodeData.hasTextPreview === true
     readonly property string exactTextPreview: hasExactTextPreview ? nodeData.textPreview : ""
     readonly property bool displaysMaterialPreview: (isSource || isOutput) && (boundDataType === "text.document" || boundDataType === "image.raster" || boundDataType === "audio.clip")
-    readonly property color semanticColor: isOutput ? Theme.success : isOperator ? Theme.accent : Theme.muted
+    readonly property color semanticColor: isOutput && hasAcceptedRevision
+                                           ? Theme.success : isOperator ? Theme.accent : Theme.muted
 
     function dataTypeLabel(dataTypeKey): string {
         if (dataTypeKey === "text.document")
@@ -53,7 +55,7 @@ Item {
         if (isSource)
             return qsTr("SOURCE MATERIAL");
         if (isOutput)
-            return qsTr("CURRENT RESULT");
+            return hasAcceptedRevision ? qsTr("CURRENT RESULT") : qsTr("OUTPUT");
         if (isAiCreator)
             return qsTr("AI CREATION");
         return qsTr("EDITING STEP");
@@ -114,6 +116,8 @@ Item {
     }
 
     function materialPreviewText(): string {
+        if (isOutput && !hasAcceptedRevision)
+            return qsTr("No accepted version yet");
         if (hasExactTextPreview)
             return exactTextPreview;
         if (artifactTextPreview.length > 0)
@@ -124,7 +128,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.controlRadius
-        color: card.selected ? (card.isOutput ? Theme.successSoft : Theme.accentSoft) : card.hovered ? Theme.raisedHover : Theme.panelRaised
+        color: card.selected ? (card.isOutput && card.hasAcceptedRevision
+                               ? Theme.successSoft : card.isOutput ? Theme.panelInset : Theme.accentSoft)
+                             : card.hovered ? Theme.raisedHover : Theme.panelRaised
         border.width: card.selected ? 2 : 1
         border.color: card.selected ? card.semanticColor : Theme.borderStrong
     }
@@ -199,7 +205,8 @@ Item {
                     Layout.preferredWidth: 26
                     Layout.preferredHeight: 26
                     radius: 8
-                    color: card.isOutput ? Theme.successSoft : card.isOperator ? Theme.accentSurfaceQuiet : Theme.panelInset
+                    color: card.isOutput && card.hasAcceptedRevision
+                           ? Theme.successSoft : card.isOperator ? Theme.accentSurfaceQuiet : Theme.panelInset
 
                     ShapeIcon {
                         anchors.centerIn: parent
@@ -252,7 +259,7 @@ Item {
                 clip: true
 
                 Image {
-                    visible: card.boundDataType === "image.raster" && card.acceptedImageSource.toString().length > 0
+                    visible: card.boundDataType === "image.raster" && card.hasAcceptedRevision && card.acceptedImageSource.toString().length > 0
                     anchors.fill: parent
                     anchors.margins: 3
                     source: card.acceptedImageSource
@@ -275,7 +282,7 @@ Item {
                 }
 
                 RowLayout {
-                    visible: card.boundDataType === "audio.clip"
+                    visible: card.boundDataType === "audio.clip" && (!card.isOutput || card.hasAcceptedRevision)
                     anchors.centerIn: parent
                     spacing: 6
 
@@ -293,9 +300,18 @@ Item {
                 }
 
                 Text {
-                    visible: card.boundDataType === "image.raster" && card.acceptedImageSource.toString().length === 0
+                    visible: card.boundDataType === "image.raster" && card.hasAcceptedRevision && card.acceptedImageSource.toString().length === 0
                     anchors.centerIn: parent
                     text: qsTr("Open to inspect")
+                    color: Theme.textSoft
+                    font.pixelSize: Theme.fontMicro
+                }
+
+                Text {
+                    visible: card.isOutput && !card.hasAcceptedRevision
+                             && (card.boundDataType === "audio.clip" || card.boundDataType === "image.raster")
+                    anchors.centerIn: parent
+                    text: qsTr("No accepted version yet")
                     color: Theme.textSoft
                     font.pixelSize: Theme.fontMicro
                 }

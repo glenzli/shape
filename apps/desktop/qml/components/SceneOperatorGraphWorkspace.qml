@@ -31,6 +31,7 @@ Rectangle {
     property int artifactAudioDurationMillis: 0
     property int artifactAudioSampleRateHz: 0
     property int artifactAudioChannels: 0
+    property bool hasAcceptedRevision: false
     property real zoomLevel: 1.0
     property string focusedSelectionKind: "node"
 
@@ -40,7 +41,7 @@ Rectangle {
     readonly property real rowGap: 30
     readonly property real graphMargin: 28
     readonly property int acceptedMaxStage: maximumAcceptedStage()
-    readonly property int projectedMaxStage: acceptedMaxStage + (drafts.length + candidates.length > 0 ? 1 : 0)
+    readonly property int projectedMaxStage: acceptedMaxStage
     readonly property int projectedNodeCount: nodes.length + drafts.length + candidates.length
     readonly property real minimumZoom: 0.65
     readonly property real maximumZoom: 1.5
@@ -85,7 +86,8 @@ Rectangle {
         for (let stage = 0; stage <= acceptedMaxStage; ++stage) {
             maximum = Math.max(maximum, acceptedNodesAtStage(stage));
         }
-        maximum = Math.max(maximum, drafts.length + candidates.length);
+        maximum = Math.max(maximum, acceptedNodesAtStage(acceptedMaxStage)
+                                     + drafts.length + candidates.length);
         return maximum;
     }
 
@@ -211,17 +213,15 @@ Rectangle {
     }
 
     function projectedStage(index): int {
-        if (index < nodes.length) {
-            const stage = nodeStage(nodes[index].id, {});
-            return nodes[index].roleKey === "output" && drafts.length + candidates.length > 0 ? stage + 1 : stage;
-        }
+        if (index < nodes.length)
+            return nodeStage(nodes[index].id, {});
         return acceptedMaxStage;
     }
 
     function projectedLane(index): int {
         if (index < nodes.length)
             return acceptedNodeLane(index);
-        return index - nodes.length;
+        return acceptedNodesAtStage(acceptedMaxStage) + index - nodes.length;
     }
 
     function contentGraphWidth(): real {
@@ -251,6 +251,8 @@ Rectangle {
             return node.artifactName.length > 0 ? node.artifactName : qsTr("Starting material");
         }
         if (node.roleKey === "output") {
+            if (!hasAcceptedRevision)
+                return node.artifactName.length > 0 ? node.artifactName : qsTr("Output");
             return node.artifactName.length > 0 ? qsTr("%1 / Current").arg(node.artifactName) : qsTr("Current result");
         }
         return node.operatorTypeLabel;
@@ -271,7 +273,7 @@ Rectangle {
             return qsTr("STARTING POINT");
         }
         if (node.roleKey === "output")
-            return qsTr("CURRENT RESULT");
+            return hasAcceptedRevision ? qsTr("CURRENT RESULT") : qsTr("OUTPUT");
         return qsTr("CREATIVE STEP");
     }
 
@@ -298,7 +300,7 @@ Rectangle {
         if (roleKey === "operator")
             return Theme.accent;
         if (roleKey === "output")
-            return Theme.success;
+            return hasAcceptedRevision ? Theme.success : Theme.muted;
         return Theme.muted;
     }
 
@@ -338,6 +340,8 @@ Rectangle {
                 return qsTr("The original material this work starts from · %1").arg(nodeDetail(inspectedNode));
             }
             if (inspectedNode.roleKey === "output") {
+                if (!hasAcceptedRevision)
+                    return qsTr("No accepted version yet");
                 return qsTr("The version currently used by this work · %1").arg(nodeDetail(inspectedNode));
             }
             return qsTr("A creative step in this work · %1").arg(nodeDetail(inspectedNode));
@@ -594,7 +598,7 @@ Rectangle {
                         required property int index
                         required property var modelData
                         readonly property bool currentNode: modelData.id === graph.selectedNodeId
-                        readonly property bool displaysCurrentPreview: modelData.roleKey === "output" && ((graph.artifactKindKey === "image_raster" && graph.acceptedImageSource.toString().length > 0) || graph.artifactKindKey === "text_document" || graph.artifactKindKey === "audio_clip")
+                        readonly property bool displaysCurrentPreview: modelData.roleKey === "output" && graph.hasAcceptedRevision && ((graph.artifactKindKey === "image_raster" && graph.acceptedImageSource.toString().length > 0) || graph.artifactKindKey === "text_document" || graph.artifactKindKey === "audio_clip")
 
                         x: graph.nodeX(index)
                         y: graph.nodeY(index)
@@ -621,6 +625,7 @@ Rectangle {
                             artifactAudioDurationMillis: graph.artifactAudioDurationMillis
                             artifactAudioSampleRateHz: graph.artifactAudioSampleRateHz
                             artifactAudioChannels: graph.artifactAudioChannels
+                            hasAcceptedRevision: graph.hasAcceptedRevision
                             stageNumber: graph.nodeStage(acceptedNode.modelData.id, {})
                             onOutputNodeRequested: {
                                 graph.selectAcceptedNode(acceptedNode.modelData.id);

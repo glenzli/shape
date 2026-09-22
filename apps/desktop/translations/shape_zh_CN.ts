@@ -1326,6 +1326,16 @@
 <context>
     <name>CreativeGraphNodeCard</name>
     <message>
+        <location filename="../qml/components/CreativeGraphNodeCard.qml" line="57"/>
+        <source>OUTPUT</source>
+        <translation>输出</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/CreativeGraphNodeCard.qml" line="118"/>
+        <source>No accepted version yet</source>
+        <translation>尚无已采用版本</translation>
+    </message>
+    <message>
         <location filename="../qml/components/CreativeGraphNodeCard.qml" line="+44"/>
         <source>Text</source>
         <translation>文本</translation>
@@ -3068,6 +3078,21 @@
 </context>
 <context>
     <name>SceneOperatorGraphWorkspace</name>
+    <message>
+        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="278"/>
+        <source>OUTPUT</source>
+        <translation>输出</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="258"/>
+        <source>Output</source>
+        <translation>输出</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="341"/>
+        <source>No accepted version yet</source>
+        <translation>尚无已采用版本</translation>
+    </message>
     <message>
         <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="+251"/>
         <source>Starting material</source>
@@ -5034,6 +5059,26 @@
 </context>
 <context>
     <name>WorkbenchProjectRail</name>
+    <message>
+        <location filename="../qml/components/WorkbenchProjectRail.qml" line="376"/>
+        <source>Text and audio</source>
+        <translation>文本与配音</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/WorkbenchProjectRail.qml" line="398"/>
+        <source>Text</source>
+        <translation>文本</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/WorkbenchProjectRail.qml" line="400"/>
+        <source>Audio</source>
+        <translation>音频</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/WorkbenchProjectRail.qml" line="400"/>
+        <source>Audio %1</source>
+        <translation>音频 %1</translation>
+    </message>
     <message>
         <location filename="../qml/components/WorkbenchProjectRail.qml" line="+110"/>
         <source>Components</source>

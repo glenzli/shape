@@ -24,9 +24,10 @@ Rectangle {
     property string selectedComponentId: ""
     property string selectedAssetId: ""
 
+    readonly property var workGroups: groupWorks(scenes)
     readonly property var currentItems: currentSection === "components"
                                         ? components
-                                        : currentSection === "assets" ? assets : scenes
+                                        : currentSection === "assets" ? assets : workGroups
     readonly property string selectedItemId: currentSection === "components"
                                              ? selectedComponentId
                                              : currentSection === "assets"
@@ -87,6 +88,59 @@ Rectangle {
         return count
     }
 
+    function sceneIndex(sceneId) : int {
+        for (let index = 0; index < scenes.length; ++index) {
+            if (itemId(scenes[index]) === sceneId) return index
+        }
+        return -1
+    }
+
+    function groupWorks(artifacts) : var {
+        const byId = {}
+        const speechSource = {}
+        const groups = []
+        const groupById = {}
+        for (let index = 0; index < artifacts.length; ++index) {
+            byId[itemId(artifacts[index])] = artifacts[index]
+        }
+        for (let index = 0; index < artifacts.length; ++index) {
+            const artifact = artifacts[index]
+            if (artifact.kindKey !== "audio_clip") continue
+            const nodes = artifact.operatorNodes || []
+            const speechNode = nodes.some(node => node.roleKey === "operator"
+                                               && node.operatorTypeKey === "audio.speech_synthesize")
+            if (!speechNode) continue
+            const source = nodes.find(node => node.roleKey === "source"
+                                             && byId[String(node.artifactId)] !== undefined
+                                             && byId[String(node.artifactId)].kindKey === "text_document")
+            if (source !== undefined) speechSource[itemId(artifact)] = String(source.artifactId)
+        }
+        for (let index = 0; index < artifacts.length; ++index) {
+            const artifact = artifacts[index]
+            const id = itemId(artifact)
+            if (speechSource[id] !== undefined) continue
+            const group = {"id": id, "name": itemName(artifact),
+                           "kindKey": artifact.kindKey, "kindLabel": itemKind(artifact),
+                           "outputs": []}
+            groups.push(group)
+            groupById[id] = group
+        }
+        for (let index = 0; index < artifacts.length; ++index) {
+            const artifact = artifacts[index]
+            const parent = groupById[speechSource[itemId(artifact)]]
+            if (parent !== undefined) parent.outputs.push(artifact)
+        }
+        return groups
+    }
+
+    function workGroupSelected(group) : bool {
+        if (selectedSceneId === group.id) return true
+        for (let index = 0; index < group.outputs.length; ++index) {
+            if (selectedSceneId === itemId(group.outputs[index])) return true
+        }
+        return false
+    }
+
     function activate(itemId, index, open) : void {
         if (currentSection === "components") {
             if (open) componentOpened(itemId, index)
@@ -95,8 +149,10 @@ Rectangle {
             if (open) assetOpened(itemId, index)
             else assetSelected(itemId, index)
         } else {
-            if (open) sceneOpened(itemId, index)
-            else sceneSelected(itemId, index)
+            const artifactIndex = sceneIndex(itemId)
+            if (artifactIndex < 0) return
+            if (open) sceneOpened(itemId, artifactIndex)
+            else sceneSelected(itemId, artifactIndex)
         }
     }
 
@@ -275,12 +331,19 @@ Rectangle {
                 required property var modelData
                 readonly property string stableId: rail.itemId(modelData)
                 readonly property int pendingCount: rail.candidateCount(stableId)
+                readonly property bool groupedWork: rail.currentSection === "scenes"
+                                                    && modelData.outputs !== undefined
+                                                    && modelData.outputs.length > 0
+                readonly property bool groupSelected: groupedWork
+                                                      ? rail.workGroupSelected(modelData)
+                                                      : rail.selectedItemId === stableId
 
+                objectName: "workGroup-" + stableId
                 width: ListView.view.width
-                height: 58
+                height: groupedWork ? 48 + (modelData.outputs.length + 1) * 30 : 58
                 leftPadding: 9
                 rightPadding: 9
-                highlighted: rail.selectedItemId === stableId
+                highlighted: groupSelected
                 Accessible.name: rail.itemName(modelData)
                 onClicked: rail.activate(stableId, index, false)
                 onDoubleClicked: rail.activate(stableId, index, true)
@@ -294,45 +357,105 @@ Rectangle {
                     border.color: Theme.borderStrong
                 }
 
-                contentItem: RowLayout {
-                    spacing: 7
+                contentItem: ColumnLayout {
+                    spacing: 1
 
-                    Rectangle {
-                        Layout.preferredWidth: 30
-                        Layout.preferredHeight: 30
-                        radius: 8
-                        color: itemDelegate.highlighted ? Theme.accentSoft : Theme.raised
-                        border.color: itemDelegate.pendingCount > 0 ? Theme.accent : Theme.border
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: itemDelegate.groupedWork ? 39 : 54
+                        spacing: 7
 
-                        ShapeIcon {
-                            anchors.centerIn: parent
-                            source: rail.itemIcon(itemDelegate.modelData)
-                            size: 16
-                            color: itemDelegate.highlighted ? Theme.accent : Theme.muted
+                        Rectangle {
+                            Layout.preferredWidth: 30
+                            Layout.preferredHeight: 30
+                            radius: 8
+                            color: itemDelegate.highlighted ? Theme.accentSoft : Theme.raised
+                            border.color: itemDelegate.pendingCount > 0 ? Theme.accent : Theme.border
+
+                            ShapeIcon {
+                                anchors.centerIn: parent
+                                source: rail.itemIcon(itemDelegate.modelData)
+                                size: 16
+                                color: itemDelegate.highlighted ? Theme.accent : Theme.muted
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: rail.itemName(itemDelegate.modelData)
+                                color: Theme.text
+                                font.pixelSize: Theme.fontBody
+                                font.weight: itemDelegate.highlighted ? Font.DemiBold : Font.Normal
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: itemDelegate.groupedWork ? qsTr("Text and audio")
+                                      : itemDelegate.pendingCount > 0
+                                        ? qsTr("%1 new version(s)").arg(itemDelegate.pendingCount)
+                                        : rail.itemKind(itemDelegate.modelData)
+                                color: itemDelegate.pendingCount > 0 && !itemDelegate.groupedWork
+                                       ? Theme.accent : Theme.muted
+                                font.pixelSize: Theme.fontMeta
+                                elide: Text.ElideRight
+                            }
                         }
                     }
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 1
+                    Repeater {
+                        model: itemDelegate.groupedWork
+                               ? [itemDelegate.modelData].concat(itemDelegate.modelData.outputs) : []
 
-                        Text {
-                            Layout.fillWidth: true
-                            text: rail.itemName(itemDelegate.modelData)
-                            color: Theme.text
-                            font.pixelSize: Theme.fontBody
-                            font.weight: itemDelegate.highlighted ? Font.DemiBold : Font.Normal
-                            elide: Text.ElideRight
-                        }
+                        delegate: ItemDelegate {
+                            id: workView
 
-                        Text {
+                            required property int index
+                            required property var modelData
+                            readonly property string artifactId: rail.itemId(modelData)
+                            readonly property int pendingCount: rail.candidateCount(artifactId)
+                            readonly property string viewLabel: index === 0 ? qsTr("Text")
+                                                               : itemDelegate.modelData.outputs.length === 1
+                                                                 ? qsTr("Audio") : qsTr("Audio %1").arg(index)
+
+                            objectName: "workView-" + artifactId
                             Layout.fillWidth: true
-                            text: itemDelegate.pendingCount > 0
-                                  ? qsTr("%1 new version(s)").arg(itemDelegate.pendingCount)
-                                  : rail.itemKind(itemDelegate.modelData)
-                            color: itemDelegate.pendingCount > 0 ? Theme.accent : Theme.muted
-                            font.pixelSize: Theme.fontMeta
-                            elide: Text.ElideRight
+                            implicitHeight: 28
+                            leftPadding: 10
+                            rightPadding: 8
+                            highlighted: rail.selectedSceneId === artifactId
+                            Accessible.name: viewLabel
+                            onClicked: rail.activate(artifactId, rail.sceneIndex(artifactId), false)
+                            onDoubleClicked: rail.activate(artifactId, rail.sceneIndex(artifactId), true)
+
+                            background: Rectangle {
+                                radius: Theme.compactControlRadius
+                                color: workView.highlighted ? Theme.accentSoft
+                                      : workView.hovered ? Theme.raisedHover : "transparent"
+                            }
+
+                            contentItem: RowLayout {
+                                spacing: 6
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: workView.viewLabel
+                                    color: workView.highlighted ? Theme.accent : Theme.textSoft
+                                    font.pixelSize: Theme.fontMeta
+                                    font.weight: workView.highlighted ? Font.DemiBold : Font.Normal
+                                }
+
+                                Text {
+                                    visible: workView.pendingCount > 0
+                                    text: qsTr("%1 new version(s)").arg(workView.pendingCount)
+                                    color: Theme.accent
+                                    font.pixelSize: Theme.fontMicro
+                                }
+                            }
                         }
                     }
                 }

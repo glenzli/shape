@@ -221,9 +221,39 @@ bool verifyOperatorRoute(
 bool verifySceneGraphRoutes(QObject& root_object) {
     QObject* const workspace_surface =
         root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
+    QObject* const project_rail =
+        root_object.findChild<QObject*>(QStringLiteral("workbenchProjectRail"));
     if (workspace_surface == nullptr || workspace_surface->property("currentMode").toInt() != 0
-        || !workspace_surface->property("graphActive").toBool()) {
+        || !workspace_surface->property("graphActive").toBool() || project_rail == nullptr) {
         std::cerr << "desktop graph smoke did not start at the Scene Graph" << std::endl;
+        return false;
+    }
+
+    QQmlExpression grouped_speech_work(
+        QQmlEngine::contextForObject(project_rail),
+        project_rail,
+        QStringLiteral(
+            "groupWorks(["
+            "{id:'script',name:'Script',kindKey:'text_document',kindLabel:'Text'},"
+            "{id:'audio',name:'Script Audio',kindKey:'audio_clip',kindLabel:'Audio',"
+            "operatorNodes:[{roleKey:'source',artifactId:'script'},"
+            "{roleKey:'operator',operatorTypeKey:'audio.speech_synthesize'}]},"
+            "{id:'other',name:'Other',kindKey:'image_raster',kindLabel:'Image'}])"
+        )
+    );
+    const QVariantList work_groups = grouped_speech_work.evaluate().toList();
+    if (grouped_speech_work.hasError() || work_groups.size() != 2
+        || work_groups[0].toMap().value(QStringLiteral("id")).toString()
+               != QStringLiteral("script")
+        || work_groups[0].toMap().value(QStringLiteral("outputs")).toList().size() != 1
+        || work_groups[0].toMap().value(QStringLiteral("outputs")).toList()[0].toMap().value(
+               QStringLiteral("id")
+           ).toString()
+               != QStringLiteral("audio")
+        || work_groups[1].toMap().value(QStringLiteral("id")).toString()
+               != QStringLiteral("other")) {
+        std::cerr << "desktop graph smoke did not group speech audio with its source work"
+                  << std::endl;
         return false;
     }
 

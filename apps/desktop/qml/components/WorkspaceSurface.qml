@@ -556,6 +556,8 @@ Item {
                                            ? surface.selectedArtifact.audioSampleRateHz : 0
                 artifactAudioChannels: surface.hasSelectedArtifact
                                        ? surface.selectedArtifact.audioChannels : 0
+                hasAcceptedRevision: surface.hasSelectedArtifact
+                                     && surface.selectedArtifact.hasAcceptedRevision
                 selectedNodeId: surface.selectedNodeId
                 selectedCandidateId: surface.selectedCandidateId
                 onNodeSelected: nodeId => surface.selectNode(nodeId)
