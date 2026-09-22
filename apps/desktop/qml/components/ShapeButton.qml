@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import Shape.Desktop
 
 Button {
@@ -11,6 +12,12 @@ Button {
     property bool busy: false
     property url iconSource
     property int iconSize: 15
+    property bool expanded: false
+
+    // Action buttons use their content width; grouped navigation opts into equal widths.
+    Layout.fillWidth: expanded
+    Layout.maximumWidth: expanded ? 65535 : implicitWidth
+    Layout.alignment: Qt.AlignLeft
 
     implicitHeight: Theme.controlHeight
     implicitWidth: Math.max(text.length > 0 ? 70 : implicitHeight,

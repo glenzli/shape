@@ -201,6 +201,7 @@ Rectangle {
 
                     required property string modelData
 
+                    expanded: true
                     Layout.fillWidth: true
                     implicitHeight: 32
                     padding: 4

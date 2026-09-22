@@ -879,7 +879,10 @@ Item {
                     delegate: ShapeButton {
                         id: visualChoice
                         required property string modelData
+                        expanded: true
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        implicitWidth: 36
                         implicitHeight: 36
                         background: Rectangle {
                             radius: Theme.compactControlRadius

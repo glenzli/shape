@@ -38,6 +38,7 @@ Item {
                 spacing: 5
 
                 ShapeButton {
+                    expanded: true
                     Layout.fillWidth: true
                     implicitHeight: 32
                     text: qsTr("Explore")
@@ -46,6 +47,7 @@ Item {
                 }
 
                 ShapeButton {
+                    expanded: true
                     Layout.fillWidth: true
                     implicitHeight: 32
                     text: qsTr("Details")
@@ -54,6 +56,7 @@ Item {
                 }
 
                 ShapeButton {
+                    expanded: true
                     Layout.fillWidth: true
                     implicitHeight: 32
                     text: qsTr("Lineage")
