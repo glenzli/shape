@@ -31,6 +31,7 @@ fn templates_compile_the_canonical_grammar_and_optional_material() {
     let prompt = state.compiled_instruction().unwrap();
     assert!(prompt.contains("[role: Narrator"));
     assert!(prompt.contains("[repeat: 2; gap: 2s]"));
+    assert!(prompt.contains("cue: turn"));
     assert!(prompt.contains("[pause: 5s]"));
     assert!(prompt.contains("tai chi, park, Sunday"));
     assert!(!prompt.contains("每题恰好一个重复块"));

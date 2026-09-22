@@ -3789,8 +3789,8 @@
     </message>
     <message>
         <location line="+0"/>
-        <source>The question number plays once. The body is rendered once and played twice with identical audio, with 2 seconds between plays and 5 seconds afterwards. Put a complete dialogue inside the block to repeat it together.</source>
-        <translation>题号只播一次，正文合成一次并复播两遍；遍间留白 2 秒，最后留白 5 秒。完整对话也可放进同一重复块一起复播。</translation>
+        <source>The question number plays once. The body is rendered once and replayed with identical audio. The cue plays only between the two plays, followed by 2 seconds of silence; 5 seconds follow the final play. A complete dialogue can also be repeated as one block.</source>
+        <translation>题号只播一次，正文合成一次并原样复播。提示音只在两遍之间播放，随后静音 2 秒；最后一遍后静音 5 秒。完整对话也可作为一个块重复播放。</translation>
     </message>
     <message>
         <location line="+1"/>

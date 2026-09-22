@@ -1326,7 +1326,7 @@ fn script_preview_reads_full_source_and_bindings_and_cue_bytes_survive_reopen() 
     let path = root.to_str().unwrap();
     let mut session = create_desktop_project(path, "Script").unwrap();
     let text = format!(
-        "[role: Reader]\n[cue: End]\n# Script\n[speaker: Reader]\n{}\n[pause: 1.25s]\n[audio: End]\n",
+        "[role: Reader]\n[cue: End]\n# Script\n[speaker: Reader]\n[repeat: 2; gap: 1s; cue: End]\n{}\n[end-repeat]\n[pause: 1.25s]\n",
         "Hello world. ".repeat(2000)
     );
     let snapshot = session
@@ -1348,7 +1348,7 @@ fn script_preview_reads_full_source_and_bindings_and_cue_bytes_survive_reopen() 
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(preview["pause_ms"], 1250);
+    assert_eq!(preview["pause_ms"], 2250);
     assert_eq!(preview["cues"][0], "End");
     assert_eq!(preview["ready"], false);
     let mut bindings = SpeechScriptOptions::default();

@@ -47,7 +47,10 @@ function eventText(event) {
     case "pause": return qsTr("Silence · %1 seconds").arg(event.milliseconds / 1000)
     case "cue": return qsTr("Sound cue · %1").arg(event.label)
     case "scene": return qsTr("Scene · %1").arg(event.label)
-    case "repeat_start": return qsTr("Play %1 times · identical audio · %2 s between plays").arg(event.count).arg(event.gap_ms / 1000)
+    case "repeat_start": {
+        const repeat = qsTr("Play %1 times · identical audio · %2 s between plays").arg(event.count).arg(event.gap_ms / 1000)
+        return event.between_cue ? repeat + " · " + qsTr("Sound cue · %1").arg(event.between_cue) : repeat
+    }
     case "repeat_end": return qsTr("End repeat · continue once")
     default: return event.text || ""
     }

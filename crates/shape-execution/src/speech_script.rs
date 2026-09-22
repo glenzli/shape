@@ -6,7 +6,10 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use shape_domain::{
     AudioOriginDisclosure, ContentDigest, SpeechSynthesisOperation, SpeechVoiceSelection,
-    speech_script::{SpeechCueAction, SpeechScriptEventKind, parse_speech_script},
+    speech_script::{
+        SpeechCueAction, SpeechScriptEventKind, SpeechScriptOptions, SpeechScriptPlan,
+        parse_speech_script,
+    },
 };
 
 pub const SCRIPT_SAMPLE_RATE: u32 = 24_000;
@@ -79,7 +82,7 @@ pub(crate) fn compile(
     let mut actions = Vec::new();
     let mut speech_count = 0;
     let mut local_bytes = 0_usize;
-    let mut repeat: Option<(usize, u8, u32)> = None;
+    let mut repeat: Option<(usize, u8, u32, Option<String>)> = None;
     for (event, item) in plan.events.iter().enumerate() {
         let event = u32::try_from(event).map_err(|_| invalid_script())?;
         match &item.kind {
@@ -130,25 +133,7 @@ pub(crate) fn compile(
                 });
             }
             SpeechScriptEventKind::Cue { label } => {
-                let pcm = match plan.cue(label, options).ok_or_else(invalid_script)? {
-                    SpeechCueAction::Skip => Vec::new(),
-                    SpeechCueAction::Chime => chime(),
-                    SpeechCueAction::Beep {
-                        milliseconds,
-                        level,
-                    } => beep(*milliseconds, *level),
-                    SpeechCueAction::Audio { content } => {
-                        let bytes = inputs
-                            .iter()
-                            .find(|input| input.content() == content)
-                            .and_then(ExecutionInput::bytes)
-                            .ok_or_else(invalid_script)?;
-                        validate_cue(bytes)?;
-                        decode_pcm_s16le_wav(bytes, AudioOriginDisclosure::RecordedSource)?
-                            .1
-                            .to_vec()
-                    }
-                };
+                let pcm = cue_pcm(label, &plan, options, inputs)?;
                 local_bytes = local_bytes
                     .checked_add(pcm.len())
                     .ok_or_else(invalid_script)?;
@@ -160,19 +145,45 @@ pub(crate) fn compile(
                     kind: ScriptActionKind::Local { pcm },
                 });
             }
-            SpeechScriptEventKind::RepeatStart { count, gap_ms } => {
-                if repeat.replace((actions.len(), *count, *gap_ms)).is_some() {
+            SpeechScriptEventKind::RepeatStart {
+                count,
+                gap_ms,
+                between_cue,
+            } => {
+                if repeat
+                    .replace((actions.len(), *count, *gap_ms, between_cue.clone()))
+                    .is_some()
+                {
                     return Err(invalid_script());
                 }
             }
             SpeechScriptEventKind::RepeatEnd => {
-                let (start, count, gap_ms) = repeat.take().ok_or_else(invalid_script)?;
+                let (start, count, gap_ms, between_cue) =
+                    repeat.take().ok_or_else(invalid_script)?;
                 let end = actions.len();
-                let additions = (end - start + usize::from(gap_ms > 0)) * usize::from(count - 1);
+                let between_pcm = between_cue
+                    .as_deref()
+                    .map(|label| cue_pcm(label, &plan, options, inputs))
+                    .transpose()?;
+                let additions =
+                    (end - start + usize::from(gap_ms > 0) + usize::from(between_pcm.is_some()))
+                        * usize::from(count - 1);
                 if actions.len().saturating_add(additions) > 2560 {
                     return Err(invalid_script());
                 }
                 for _ in 1..count {
+                    if let Some(pcm) = &between_pcm {
+                        local_bytes = local_bytes
+                            .checked_add(pcm.len())
+                            .ok_or_else(invalid_script)?;
+                        if local_bytes > 128 * 1024 * 1024 - 44 {
+                            return Err(invalid_script());
+                        }
+                        actions.push(ScriptAction {
+                            event,
+                            kind: ScriptActionKind::Local { pcm: pcm.clone() },
+                        });
+                    }
                     if gap_ms > 0 {
                         let bytes = gap_ms as usize * 48;
                         local_bytes = local_bytes.checked_add(bytes).ok_or_else(invalid_script)?;
@@ -220,6 +231,35 @@ pub(crate) fn compile(
         return Err(invalid_script());
     }
     Ok(actions)
+}
+
+fn cue_pcm(
+    label: &str,
+    plan: &SpeechScriptPlan,
+    options: &SpeechScriptOptions,
+    inputs: &[ExecutionInput],
+) -> Result<Vec<u8>, ExecutionFailure> {
+    match plan.cue(label, options).ok_or_else(invalid_script)? {
+        SpeechCueAction::Skip => Ok(Vec::new()),
+        SpeechCueAction::Chime => Ok(chime()),
+        SpeechCueAction::Beep {
+            milliseconds,
+            level,
+        } => Ok(beep(*milliseconds, *level)),
+        SpeechCueAction::Audio { content } => {
+            let bytes = inputs
+                .iter()
+                .find(|input| input.content() == content)
+                .and_then(ExecutionInput::bytes)
+                .ok_or_else(invalid_script)?;
+            validate_cue(bytes)?;
+            Ok(
+                decode_pcm_s16le_wav(bytes, AudioOriginDisclosure::RecordedSource)?
+                    .1
+                    .to_vec(),
+            )
+        }
+    }
 }
 
 /// First revision uses exact, lossless 24 kHz mono PCM16 cues, matching local speech.

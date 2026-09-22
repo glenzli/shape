@@ -125,6 +125,38 @@ fn production_label_does_not_restrict_delivery_or_script_controls() {
 }
 
 #[test]
+fn repeat_between_cue_is_declared_once_and_never_appended_after_the_last_play() {
+    let source =
+        "[cue: turn; sound: beep]\n[repeat: 3; gap: 1.25s; cue: turn]\nHello.\n[end-repeat]";
+    let plan = parse_speech_script(source);
+    assert!(plan.issues.is_empty(), "{:?}", plan.issues);
+    assert_eq!(plan.pause_millis(), 2500);
+    assert!(plan.ready(&SpeechScriptOptions::default()));
+    assert!(plan.events.iter().any(|event| matches!(
+        &event.kind,
+        SpeechScriptEventKind::RepeatStart {
+            count: 3,
+            gap_ms: 1250,
+            between_cue: Some(label),
+        } if label == "turn"
+    )));
+
+    let chinese = parse_speech_script(
+        "[定义提示音：转场；声音：叮咚]\n[重复：2次；间隔：0秒；提示音：转场]\n你好。\n[结束重复]",
+    );
+    assert!(chinese.issues.is_empty(), "{:?}", chinese.issues);
+    assert!(chinese.ready(&SpeechScriptOptions::default()));
+
+    let external = parse_speech_script(
+        "[cue: turn; sound: external]\n[repeat: 2; cue: turn]\nHello.\n[end-repeat]",
+    );
+    assert!(!external.ready(&SpeechScriptOptions::default()));
+    let mut options = SpeechScriptOptions::default();
+    options.cues.insert("turn".into(), SpeechCueAction::Skip);
+    assert!(external.ready(&options));
+}
+
+#[test]
 fn production_rejects_ambiguous_controls_and_late_or_unbound_names() {
     for source in [
         "[speaker: missing]\nHello.",
@@ -135,6 +167,9 @@ fn production_rejects_ambiguous_controls_and_late_or_unbound_names() {
         "[repeat: 0; gap: 2s]\nHello.\n[end-repeat]",
         "[repeat: 9; gap: 2s]\nHello.\n[end-repeat]",
         "[repeat: 2; gap: 121s]\nHello.\n[end-repeat]",
+        "[repeat: 2; cue: missing]\nHello.\n[end-repeat]",
+        "[cue: turn; sound: beep]\n[repeat: 1; cue: turn]\nHello.\n[end-repeat]",
+        "[cue: turn; sound: beep]\n[repeat: 2; cue: turn; 提示音: turn]\nHello.\n[end-repeat]",
         "[repeat: 2]\n[repeat: 2]\nHello.\n[end-repeat]\n[end-repeat]",
         "[repeat: 2]\n[scene: q1]\nHello.\n[end-repeat]",
         "[repeat: 2]\n[pause: 1s]\n[end-repeat]\nHello.",

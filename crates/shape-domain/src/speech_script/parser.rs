@@ -383,7 +383,18 @@ impl Parser {
         } else {
             pause_millis(gap)
         };
-        if !count.is_some_and(|c| (1..=8).contains(&c)) || gap_ms.is_none() || !fields.is_empty() {
+        let between_cue = fields.remove("cue").or_else(|| fields.remove("提示音"));
+        if between_cue
+            .is_some_and(|label| !valid_label(label) || !self.plan.cues.contains_key(label))
+        {
+            self.issue(line, "undeclared_cue", value);
+            return;
+        }
+        if !count.is_some_and(|c| (1..=8).contains(&c))
+            || (count == Some(1) && between_cue.is_some())
+            || gap_ms.is_none()
+            || !fields.is_empty()
+        {
             self.issue(line, "invalid_repeat", value);
             return;
         }
@@ -400,6 +411,7 @@ impl Parser {
             Kind::RepeatStart {
                 count: count.unwrap(),
                 gap_ms: gap_ms.unwrap(),
+                between_cue: between_cue.map(str::to_owned),
             },
         );
     }

@@ -65,3 +65,27 @@ fn expanded_repeat_size_is_rejected_before_execution() {
         "[repeat: 8; gap: 0s]\nHello.\n[pause: 120s]\n[pause: 120s]\n[pause: 120s]\n[end-repeat]";
     assert!(compile(source, &operation(), &[]).is_err());
 }
+
+#[test]
+fn repeat_between_cue_plays_only_at_boundaries_before_the_silence() {
+    let source = "[cue: turn; sound: beep; duration: 0.125s]\n[repeat: 3; gap: 1.25s; cue: turn]\nHello.\n[end-repeat]";
+    let actions = compile(source, &operation(), &[]).unwrap();
+    assert_eq!(actions.len(), 7);
+    assert!(matches!(&actions[0].kind, ScriptActionKind::Speech { .. }));
+    for cue in [1, 4] {
+        assert!(
+            matches!(&actions[cue].kind, ScriptActionKind::Local { pcm } if pcm.len() == 6000 && pcm.iter().any(|sample| *sample != 0))
+        );
+    }
+    for gap in [2, 5] {
+        assert!(
+            matches!(&actions[gap].kind, ScriptActionKind::Local { pcm } if pcm.len() == 60000 && pcm.iter().all(|sample| *sample == 0))
+        );
+    }
+    for replay in [3, 6] {
+        assert!(matches!(
+            &actions[replay].kind,
+            ScriptActionKind::Replay { piece: 0 }
+        ));
+    }
+}

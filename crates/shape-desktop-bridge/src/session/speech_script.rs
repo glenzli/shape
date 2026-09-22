@@ -52,7 +52,11 @@ impl DesktopSession {
                 SpeechScriptEventKind::Speech { role, .. } if !role.is_empty() => {
                     roles.insert(role.clone());
                 }
-                SpeechScriptEventKind::Cue { label } => {
+                SpeechScriptEventKind::Cue { label }
+                | SpeechScriptEventKind::RepeatStart {
+                    between_cue: Some(label),
+                    ..
+                } => {
                     cues.insert(label.clone());
                 }
 

@@ -323,7 +323,8 @@ The execution compiler emits one speech action per unique utterance plus replay 
 copies prior PCM ranges in the final bounded WAV buffer; receipt validation rejects changed replay
 bytes even when their digest is recomputed. Global/role/local delivery is sent through the existing
 Infer speech `instructions` field and Qwen worker `instruct` parameter. Repetition guarantees exact
-bytes within the recording; new synthesis of different sentences still requires listening review.
+bytes within the recording; an optional declared cue plays only between repetitions, before the
+configured silent gap. New synthesis of different sentences still requires listening review.
 
 ## Bounded forms and common node templates
 

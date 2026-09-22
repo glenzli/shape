@@ -95,7 +95,7 @@ impl SpeechScriptPlan {
         for event in &self.events {
             match event.kind {
                 SpeechScriptEventKind::Pause { milliseconds } => total += u64::from(milliseconds),
-                SpeechScriptEventKind::RepeatStart { count, gap_ms } => {
+                SpeechScriptEventKind::RepeatStart { count, gap_ms, .. } => {
                     repeat = Some((total, count, gap_ms));
                 }
                 SpeechScriptEventKind::RepeatEnd => {
@@ -165,7 +165,11 @@ impl SpeechScriptPlan {
                 .iter()
                 .any(|e| matches!(e.kind, SpeechScriptEventKind::Speech { .. }))
             && self.events.iter().all(|e| match &e.kind {
-                SpeechScriptEventKind::Cue { label } => self.cue(label, options).is_some(),
+                SpeechScriptEventKind::Cue { label }
+                | SpeechScriptEventKind::RepeatStart {
+                    between_cue: Some(label),
+                    ..
+                } => self.cue(label, options).is_some(),
                 SpeechScriptEventKind::Speech { role, .. } if !role.is_empty() => {
                     options.roles.contains_key(role)
                 }
@@ -191,6 +195,8 @@ pub enum SpeechScriptEventKind {
     RepeatStart {
         count: u8,
         gap_ms: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        between_cue: Option<String>,
     },
     RepeatEnd,
     Scene {

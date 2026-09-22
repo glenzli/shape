@@ -67,6 +67,7 @@ bool speech_script_help_smoke::verify(QObject& root) {
         if (!check(
                 expected.contains(QStringLiteral("20260922.2"))
                     && expected.contains(QStringLiteral("[end-repeat]"))
+                    && expected.contains(QStringLiteral("cue: turn"))
                     && dialog->property("documentText").toString() == expected,
                 "full document shown"
             ))
