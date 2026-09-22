@@ -867,4 +867,95 @@ bool verifyProjectedDraftRemoval(
     return true;
 }
 
+bool verifyManualSourceAcrossSpeechSelection(QObject& root_object, DesktopBackend& backend) {
+    QObject* const surface = root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
+    const int source_index = backend.artifactCount();
+    if (surface == nullptr
+        || !backend.createTextAuthoring(QStringLiteral("Typed script"), QStringLiteral("plain"))) {
+        std::cerr << "desktop graph smoke could not create a manual source" << std::endl;
+        return false;
+    }
+    const QString source_id = backend.artifacts()[source_index]
+                                  .toMap()
+                                  .value(QStringLiteral("id"))
+                                  .toString();
+    QString authoring_id;
+    QJsonObject authoring_state;
+    for (const QVariant& value : backend.operatorDrafts()) {
+        const QVariantMap draft = value.toMap();
+        if (draft.value(QStringLiteral("contextArtifactId")).toString() != source_id
+            || draft.value(QStringLiteral("operatorTypeKey")).toString()
+                   != QStringLiteral("text.create"))
+            continue;
+        authoring_id = draft.value(QStringLiteral("id")).toString();
+        authoring_state = QJsonDocument::fromJson(
+                              draft.value(QStringLiteral("textAuthoringJson"))
+                                  .toString()
+                                  .toUtf8()
+                          )
+                              .object();
+        break;
+    }
+    authoring_state.insert(QStringLiteral("entry"), QStringLiteral("manual"));
+    authoring_state.insert(QStringLiteral("text"), QStringLiteral("A short typed script."));
+    if (authoring_id.isEmpty()
+        || !backend.updateTextAuthoring(
+            authoring_id,
+            QString::fromUtf8(QJsonDocument(authoring_state).toJson(QJsonDocument::Compact))
+        )
+        || !backend.proposeAuthoredText(authoring_id)
+        || !backend.acceptCandidate(backend.candidateId())) {
+        std::cerr << "desktop graph smoke could not accept the manual source" << std::endl;
+        return false;
+    }
+    const QString speech_id = backend.beginAuthoringSpeech(source_id);
+    if (speech_id.isEmpty() || backend.artifactCount() != source_index + 2) {
+        std::cerr << "desktop graph smoke could not prepare speech for the manual source"
+                  << std::endl;
+        return false;
+    }
+    const auto graph_has_three_nodes = [&]() {
+        QCoreApplication::processEvents();
+        const QVariantList nodes = surface->property("workGraph")
+                                       .toMap()
+                                       .value(QStringLiteral("nodes"))
+                                       .toList();
+        return nodes.size() == 3
+               && graph_node_with_role(nodes, QStringLiteral("source")).has_value()
+               && graph_operator_with_type(
+                   nodes,
+                   QStringLiteral("audio.speech_synthesize")
+               )
+                      .has_value()
+               && graph_node_with_role(nodes, QStringLiteral("output")).has_value();
+    };
+    root_object.setProperty("selectedArtifactIndex", source_index);
+    QMetaObject::invokeMethod(surface, "showGraph", Qt::DirectConnection);
+    if (!graph_has_three_nodes()) {
+        std::cerr << "desktop graph smoke duplicated the manual source before speech selection"
+                  << std::endl;
+        return false;
+    }
+    QQmlExpression open_speech(
+        QQmlEngine::contextForObject(surface),
+        surface,
+        QStringLiteral("openNode('%1')").arg(speech_id)
+    );
+    if (!open_speech.evaluate().toBool() || open_speech.hasError()
+        || root_object.property("selectedArtifactIndex").toInt() != source_index + 1
+        || !QMetaObject::invokeMethod(surface, "showGraph", Qt::DirectConnection)
+        || !graph_has_three_nodes()) {
+        std::cerr << "desktop graph smoke split the manual source after opening speech"
+                  << std::endl;
+        return false;
+    }
+    root_object.setProperty("selectedArtifactIndex", source_index);
+    if (!graph_has_three_nodes()) {
+        std::cerr << "desktop graph smoke split the manual source after returning to text"
+                  << std::endl;
+        return false;
+    }
+    return true;
+}
+
 } // namespace workspace_host_smoke

@@ -444,6 +444,7 @@ ApplicationWindow {
                     selectedArtifact: window.selectedArtifact
                     candidates: window.artifactCandidates
                     operatorDrafts: window.artifactDrafts
+                    allOperatorDrafts: window.backend.operatorDrafts
                     operatorDescriptors: window.hasSelectedArtifact
                                          ? window.backend.compatibleOperators(
                                                window.selectedArtifact.id) : window.backend.compatibleOperators("")

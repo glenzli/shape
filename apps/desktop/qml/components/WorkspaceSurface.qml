@@ -17,6 +17,7 @@ Item {
     property var selectedArtifact: null
     property var candidates: []
     property var operatorDrafts: []
+    property var allOperatorDrafts: []
     property var operatorDescriptors: []
     property var selectedCandidate: null
     property string selectedCandidateId: ""
@@ -43,7 +44,7 @@ Item {
     readonly property var workGraph: WorkGraph.graphFor(
                                          allArtifacts,
                                          hasSelectedArtifact ? selectedArtifact.id : "",
-                                         operatorDrafts)
+                                         allOperatorDrafts)
     readonly property var workRoot: artifactForId(workGraph.rootId)
     readonly property bool graphActive: currentMode === 0
     readonly property bool focusActive: currentMode === 1
@@ -592,7 +593,7 @@ Item {
                 artifacts: surface.allArtifacts
                 selectedArtifactId: surface.hasSelectedArtifact ? surface.selectedArtifact.id : ""
                 candidates: surface.candidates
-                backingDrafts: surface.operatorDrafts.filter(d =>
+                backingDrafts: surface.allOperatorDrafts.filter(d =>
                     surface.workGraph.artifactIds.indexOf(String(d.contextArtifactId)) >= 0)
                 drafts: backingDrafts.filter(d =>
                     !surface.workGraph.nodes.some(n => n.id === d.id
