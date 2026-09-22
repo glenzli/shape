@@ -761,8 +761,9 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
     if (!backend.openProject(QUrl::fromLocalFile(path)) || !open(text_id))
         return false;
     writer = qvariant_cast<QObject*>(host->property("loadedWorkspace"));
+    auto* instruction = writer ? writer->findChild<QObject*>(QStringLiteral("writingInstructionEditor")) : nullptr;
     if (!writer || writer->property("profile").toString() != QStringLiteral("script")
-        || writer->property("example").toString() != QStringLiteral("listening")
+        || !instruction || !instruction->property("text").toString().contains(QStringLiteral("Create a listening exercise."))
         || backend.textNodeInput(text_id)
                != original.value(QStringLiteral("textPreview")).toString())
         return false;

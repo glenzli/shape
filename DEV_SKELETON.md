@@ -251,8 +251,8 @@ Scene-graph-first navigation and the explicit node-focused workspace boundary. S
 updates shared context, while explicit open/review intent enters the media-specific workspace.
 `TextAuthoringWorkspace.qml` is the single text editor for creation and derivation. Its optional
 `TextExpressionPalette.qml` preserves tone composition, intensity, audience and personal preset snapshots.
-The authoring codec combines those settings with editing task, text format, writing preset and exact buffers.
-`TextFormatPanel.qml` owns progressive disclosure of format and preset choices; the offline guide displays
+The authoring codec combines those settings with editing task, text format and exact buffers, and reads older preset drafts.
+`TextFormatPanel.qml` owns the plain-text or script format choice; the offline guide displays
 instruction examples and exposes the complete canonical rules and AI writing prompt for copying.
 `ImageEditorWorkspace.qml`
 presents one Image Editing stage; `image.crop` and `image.resize` remain exact internal contracts and

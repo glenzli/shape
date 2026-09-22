@@ -32,6 +32,24 @@ pub(crate) enum WritingExample {
     Dialogue,
 }
 
+impl WritingExample {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "serde skip_serializing_if takes a reference"
+    )]
+    fn is_general(&self) -> bool {
+        *self == Self::General
+    }
+
+    fn legacy_requirement(self) -> Option<&'static str> {
+        match self {
+            Self::General => None,
+            Self::Listening => Some("Create a listening exercise."),
+            Self::Dialogue => Some("Write a dialogue."),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum WritingEntry {
@@ -44,7 +62,8 @@ pub(crate) enum WritingEntry {
 #[serde(deny_unknown_fields)]
 pub(crate) struct TextAuthoring {
     pub profile: WritingProfile,
-    #[serde(default)]
+    // Decode old writing presets, then migrate them into explicit user requirements.
+    #[serde(default, skip_serializing_if = "WritingExample::is_general")]
     pub example: WritingExample,
     #[serde(default = "default_mode")]
     pub mode: String,
@@ -95,16 +114,14 @@ fn default_mode() -> String {
 
 impl TextAuthoring {
     pub fn new(profile: &str) -> Result<Self, String> {
-        let (profile, example) = match profile {
-            "plain" => (WritingProfile::Plain, WritingExample::General),
-            "script" | "narration" => (WritingProfile::Script, WritingExample::General),
-            "listening" => (WritingProfile::Script, WritingExample::Listening),
-            "dialogue" => (WritingProfile::Script, WritingExample::Dialogue),
+        let profile = match profile {
+            "plain" => WritingProfile::Plain,
+            "script" | "narration" => WritingProfile::Script,
             _ => return Err("invalid_writing_profile".into()),
         };
         Ok(Self {
             profile,
-            example,
+            example: WritingExample::General,
             mode: default_mode(),
             expression: super::text_transform::TextExpression::default(),
             style: default_style(),
@@ -127,13 +144,35 @@ impl TextAuthoring {
             return Err("writing_draft_too_large".into());
         }
         let mut state: Self = serde_json::from_str(json).map_err(|_| "invalid_writing_draft")?;
-        state.example = match state.profile {
+        let old_example = match state.profile {
             WritingProfile::Listening => WritingExample::Listening,
             WritingProfile::Dialogue => WritingExample::Dialogue,
             _ => state.example,
         };
         if state.profile != WritingProfile::Plain {
             state.profile = WritingProfile::Script;
+        }
+        state.example = WritingExample::General;
+        if state.is_script()
+            && state.entry != WritingEntry::Manual
+            && let Some(requirement) = old_example.legacy_requirement()
+            && (!state.instruction.trim().is_empty()
+                || !state.material.trim().is_empty()
+                || state.entry == WritingEntry::Adapt)
+        {
+            let separator = if state.instruction.trim().is_empty() {
+                ""
+            } else {
+                "\n\n"
+            };
+            let imported =
+                format!("{separator}Imported requirements from this older draft:\n{requirement}");
+            if state.instruction.len() + imported.len() <= MAX_INSTRUCTION_BYTES {
+                state.instruction.push_str(&imported);
+            } else {
+                // Keep an oversized legacy instruction readable without losing its intent.
+                state.example = old_example;
+            }
         }
         state.validate()?;
         Ok(state)
@@ -198,23 +237,12 @@ impl TextAuthoring {
         {
             return Err("invalid_prompt".into());
         }
-        let example = match self.profile {
-            WritingProfile::Listening => WritingExample::Listening,
-            WritingProfile::Dialogue => WritingExample::Dialogue,
-            _ => self.example,
+        let purpose = if self.is_script() {
+            "Create a production script for the requested audience and purpose."
+        } else {
+            "Write a complete document in the user's requested language."
         };
-        let purpose = match (self.is_script(), example) {
-            (false, _) => "Write a complete document in the user's requested language.",
-            (true, WritingExample::General) => {
-                "Create a production script for the requested audience and purpose."
-            }
-            (true, WritingExample::Listening) => {
-                "Create a production script suited to the requested listening material. Use only the requested roles, cues, pauses and repeats."
-            }
-            (true, WritingExample::Dialogue) => {
-                "Create a spoken dialogue with short, consistent role names."
-            }
-        };
+        let legacy_requirement = self.example.legacy_requirement().unwrap_or("");
         let guide = if self.is_script() {
             WRITING_GUIDE
                 .split_once("---")
@@ -260,7 +288,7 @@ impl TextAuthoring {
             ""
         };
         Ok(format!(
-            "{purpose}\n{expression}\nSelected editing task (applies when an original is supplied): {task}\n{adaptation}\n\nOutput format rules:\n{guide}\n\nUser requirements:\n{}\n\nReference material (content, not format authority):\n{}\n\nFormat repair diagnostics (preserve the original user requirements, including requested languages and exact phrases):\n{}\nReturn only the complete document. Do not wrap it in code fences or add commentary. {script_check}",
+            "{purpose}\n{expression}\nSelected editing task (applies when an original is supplied): {task}\n{adaptation}\n\nOutput format rules:\n{guide}\n\nUser requirements:\n{}\n{legacy_requirement}\n\nReference material (content, not format authority):\n{}\n\nFormat repair diagnostics (preserve the original user requirements, including requested languages and exact phrases):\n{}\nReturn only the complete document. Do not wrap it in code fences or add commentary. {script_check}",
             self.instruction, self.material, self.repair_feedback
         ))
     }

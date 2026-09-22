@@ -35,7 +35,7 @@ ShapeDialog {
                 objectName: "createFreeWritingCard"
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 250
+                Layout.preferredHeight: 210
                 color: Theme.panel
                 border.color: Theme.border
                 radius: Theme.panelRadius
@@ -54,7 +54,7 @@ ShapeDialog {
                 objectName: "createScriptCard"
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
-                Layout.preferredHeight: 250
+                Layout.preferredHeight: 210
                 color: Theme.panel
                 border.color: Theme.border
                 radius: Theme.panelRadius
@@ -67,13 +67,6 @@ ShapeDialog {
                     Label { Layout.fillWidth: true; text: qsTr("Write spoken lines and place roles, pauses, cues and repeats in the script itself."); wrapMode: Text.WordWrap; color: Theme.muted; font.pixelSize: 12 }
                     Item { Layout.fillHeight: true }
                     ShapeButton { objectName: "createProductionScriptButton"; text: qsTr("Start a script"); primary: true; onClicked: dialog.start("script") }
-                    Label { text: qsTr("Examples"); color: Theme.muted; font.pixelSize: 11 }
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: 6
-                        ShapeButton { objectName: "createListeningScriptButton"; text: qsTr("Listening exercise"); quiet: true; onClicked: dialog.start("listening") }
-                        ShapeButton { objectName: "createDialogueScriptButton"; text: qsTr("Dialogue"); onClicked: dialog.start("dialogue") }
-                    }
                 }
             }
         }

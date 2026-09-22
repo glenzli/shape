@@ -1165,23 +1165,9 @@
         <translation>开始写脚本</translation>
     </message>
     <message>
-        <source>Examples</source>
-        <translation>示例</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Listening exercise</source>
-        <translation>听力练习</translation>
-    </message>
-    <message>
         <location line="+1"/>
         <source>Narration</source>
         <translation>通用口播</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Dialogue</source>
-        <translation>多人对话</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -2133,19 +2119,9 @@
         <translation>未命名文本</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Untitled listening exercise</source>
-        <translation>未命名听力练习</translation>
-    </message>
-    <message>
         <location line="+1"/>
         <source>Untitled production script</source>
         <translation>未命名配音脚本</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Untitled dialogue</source>
-        <translation>未命名对话稿</translation>
     </message>
     <message>
         <source>Untitled AI text</source>
@@ -4138,6 +4114,14 @@
 <context>
     <name>TextAuthoringWorkspace</name>
     <message>
+        <source>Create a listening exercise.</source>
+        <translation>写一份听力练习。</translation>
+    </message>
+    <message>
+        <source>Write a dialogue.</source>
+        <translation>写一段对话。</translation>
+    </message>
+    <message>
         <source>Use these roles: %1.</source>
         <translation>使用这些角色：%1。</translation>
     </message>
@@ -4333,11 +4317,6 @@
         <translation>告诉 AI 你想写什么</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>For example: a fifth-grade English listening exercise about weekend plans, with Chinese instructions and English questions.</source>
-        <translation>例如：五年级英语听力练习，主题是周末计划，中文说明、英文题目。</translation>
-    </message>
-    <message>
         <location line="+1"/>
         <source>Describe the subject, audience, length and what you want to say…</source>
         <translation>描述主题、听众、篇幅，以及你想表达的内容…</translation>
@@ -4356,20 +4335,6 @@
         <location line="+7"/>
         <source>Add reference text</source>
         <translation>添加参考文本</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Use an example request</source>
-        <translation>使用需求示例</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Create one fifth-grade English listening question about a boy doing tai chi in the park this Sunday. Include a short Chinese introduction and English narration.</source>
-        <translation>写一道五年级英语听力题：一个男孩打算本周日去公园打太极。包含简短的中文说明和英文朗读正文。</translation>
-    </message>
-    <message>
-        <source>Write a short conversation between two friends planning a weekend trip. Give each person a consistent role and let them alternate naturally.</source>
-        <translation>写一段两个朋友计划周末出游的简短对话。为两人分别设置固定角色，并让他们自然交替发言。</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -4905,34 +4870,14 @@
         <translation>配音脚本</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Writing example</source>
-        <translation>写作示例</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Listening exercise</source>
-        <translation>听力练习</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>General script</source>
-        <translation>通用脚本</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Dialogue</source>
-        <translation>对话</translation>
-    </message>
-    <message>
         <location line="+13"/>
         <source>A regular document for reading, translation, or other text work.</source>
         <translation>普通文稿，可用于阅读、翻译或其他文本处理。</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Roles, pauses, cues, delivery and repeats are written in the script. Examples only guide the first draft.</source>
-        <translation>角色、停顿、提示音、语气和重复都写在脚本中。示例仅帮助起稿。</translation>
+        <source>Roles, pauses, cues, delivery and repeats are written in the script.</source>
+        <translation>角色、停顿、提示音、语气和重复都写在脚本中。</translation>
     </message>
 </context>
 <context>

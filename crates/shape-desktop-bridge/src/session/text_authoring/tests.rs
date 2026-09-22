@@ -6,7 +6,7 @@ fn empty_writing_reopens_then_explicit_accept_preserves_profile_and_enables_spee
     let path = std::env::temp_dir().join(format!("shape-authoring-{}", uuid::Uuid::now_v7()));
     let mut session = create_desktop_project(path.to_str().unwrap(), "Writing").unwrap();
     let snapshot = session
-        .session_create_text_authoring("Listening", "listening")
+        .session_create_text_authoring("Production script", "script")
         .unwrap();
     let id = snapshot.artifacts[0].id.clone();
     assert!(!snapshot.artifacts[0].has_accepted_revision);

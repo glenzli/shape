@@ -66,9 +66,9 @@ ApplicationWindow {
     }
 
     function startTextAuthoring(preset) : void {
-        const names = {plain: qsTr("Untitled text"), script: qsTr("Untitled production script"),
-            listening: qsTr("Untitled listening exercise"), dialogue: qsTr("Untitled dialogue")}
-        if (!backend.createTextAuthoring(names[preset] || names.plain, preset)) return
+        if (preset !== "plain" && preset !== "script") return
+        const name = preset === "script" ? qsTr("Untitled production script") : qsTr("Untitled text")
+        if (!backend.createTextAuthoring(name, preset)) return
         selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
         selectedCandidateId = ""
         compareMode = false

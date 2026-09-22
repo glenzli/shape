@@ -311,7 +311,7 @@ bool run_script(
         )
         || !require(
             backend
-                .createTextAuthoring(QStringLiteral("五年级听力脚本"), QStringLiteral("listening")),
+                .createTextAuthoring(QStringLiteral("五年级听力脚本"), QStringLiteral("script")),
             "script source"
         ))
         return false;

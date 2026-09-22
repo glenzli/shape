@@ -7,9 +7,7 @@ import Shape.Desktop
 Rectangle {
     id: panel
     property string profile: "plain"
-    property string example: "general"
     signal profileSelected(string profile)
-    signal exampleSelected(string example)
     signal guideRequested()
     color: Theme.surface
     border.color: Theme.border
@@ -32,26 +30,9 @@ Rectangle {
             ShapeButton { text: qsTr("Production script"); selected: panel.profile === "script"; onClicked: panel.profileSelected("script") }
             Item { Layout.fillWidth: true }
         }
-        RowLayout {
-            visible: panel.profile === "script"
-            Layout.fillWidth: true
-            Label { text: qsTr("Writing example"); color: Theme.muted; Layout.rightMargin: 6 }
-            Repeater {
-                model: [{key: "general", label: qsTr("General script")}, {key: "listening", label: qsTr("Listening exercise")}, {key: "dialogue", label: qsTr("Dialogue")}]
-                delegate: ShapeButton {
-                    required property var modelData
-                    objectName: "scriptExample" + modelData.key
-                    text: modelData.label
-                    selected: panel.example === modelData.key
-                    quiet: !selected
-                    onClicked: panel.exampleSelected(modelData.key)
-                }
-            }
-            Item { Layout.fillWidth: true }
-        }
         Label {
             Layout.fillWidth: true
-            text: panel.profile === "plain" ? qsTr("A regular document for reading, translation, or other text work.") : qsTr("Roles, pauses, cues, delivery and repeats are written in the script. Examples only guide the first draft.")
+            text: panel.profile === "plain" ? qsTr("A regular document for reading, translation, or other text work.") : qsTr("Roles, pauses, cues, delivery and repeats are written in the script.")
             color: Theme.muted
             font.pixelSize: 12
             wrapMode: Text.WordWrap

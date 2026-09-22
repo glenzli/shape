@@ -36,7 +36,8 @@ Item {
     property bool showReference: false
     property bool showSource: false
     property string profile: "plain"
-    property string example: "general"
+    // Only retained when a legacy requirement cannot fit in the instruction buffer.
+    property string unmigratedExample: ""
     property string entry: "generate"
     property string outputText: ""
     property string repairFeedback: ""
@@ -51,13 +52,18 @@ Item {
     signal speechRequested(string artifactId)
     signal setupRequested()
 
+    function utf8Length(value) : int {
+        return encodeURIComponent(value).replace(/%[0-9A-Fa-f]{2}/g, "x").length
+    }
+
     function restoreDraft() : void {
         if (!initialized || dirty || draftJson.length === 0) return
         const saved = JSON.parse(draftJson)
         loading = true
         profile = saved.profile === "plain" ? "plain" : "script"
-        example = saved.profile === "listening" ? "listening"
-                : saved.profile === "dialogue" ? "dialogue" : saved.example || "general"
+        const oldExample = saved.profile === "listening" ? "listening"
+                           : saved.profile === "dialogue" ? "dialogue" : saved.example || "general"
+        unmigratedExample = ""
         mode = saved.mode || "rewrite"
         expressionJson = JSON.stringify(saved.expression || {tones: [{kind: "preset", preset: "neutral"}], intensity: "balanced", audience: {kind: "preset", preset: "general"}})
         style = saved.style || "natural"
@@ -65,8 +71,13 @@ Item {
         let instruction = saved.instruction || ""
         const legacySettings = saved.profile !== "plain" && saved.entry !== "manual"
                                && saved.repeat_count !== undefined
+        const migrateExample = saved.profile !== "plain" && saved.entry !== "manual"
+                               && oldExample !== "general"
+                               && (instruction.trim().length > 0 || (saved.material || "").trim().length > 0 || saved.entry === "adapt")
+        const requirements = []
+        if (migrateExample)
+            requirements.push(oldExample === "listening" ? qsTr("Create a listening exercise.") : qsTr("Write a dialogue."))
         if (legacySettings) {
-            const requirements = []
             if ((saved.cast || "").trim().length > 0)
                 requirements.push(qsTr("Use these roles: %1.").arg(saved.cast))
             requirements.push(qsTr("Use overall delivery: %1.").arg(saved.delivery || "neutral"))
@@ -76,9 +87,16 @@ Item {
                 if (saved.answer_beep)
                     requirements.push(qsTr("Declare a beep cue and play it before that pause."))
             }
-            instruction += (instruction.trim().length > 0 ? "\n\n" : "")
+        }
+        const imported = requirements.length > 0
+                         ? (instruction.trim().length > 0 ? "\n\n" : "")
                            + qsTr("Imported requirements from this older draft:") + "\n"
-                           + requirements.join(" ")
+                           + requirements.join(" ") : ""
+        if (utf8Length(instruction + imported) <= 4096)
+            instruction += imported
+        else {
+            if (legacySettings) instruction += imported // Keep the existing save failure visible instead of discarding old settings.
+            else if (migrateExample) unmigratedExample = oldExample
         }
         instructionEditor.text = instruction
         repairFeedback = saved.repair_feedback || ""
@@ -86,13 +104,15 @@ Item {
         manualEditor.text = saved.text
         showReference = saved.material.length > 0
         loading = false
-        if (legacySettings) changed()
+        if (legacySettings || migrateExample || oldExample !== "general") changed()
         refreshOutput()
     }
     function stateJson() : string {
-        return JSON.stringify({profile: profile, example: example, mode: mode, expression: JSON.parse(expressionJson), style: style, entry: entry,
+        const state = {profile: profile, mode: mode, expression: JSON.parse(expressionJson), style: style, entry: entry,
             instruction: instructionEditor.text, repair_feedback: repairFeedback, material: materialEditor.text,
-            text: manualEditor.text})
+            text: manualEditor.text}
+        if (unmigratedExample.length > 0) state.example = unmigratedExample
+        return JSON.stringify(state)
     }
     function changed() : void {
         if (!initialized || loading) return
@@ -221,14 +241,9 @@ Item {
                 TextFormatPanel {
                     Layout.fillWidth: true
                     profile: workspace.profile
-                    example: workspace.example
                     enabled: !workspace.generationRunning
                     onProfileSelected: profile => {
                         workspace.profile = profile
-                        workspace.changed()
-                    }
-                    onExampleSelected: example => {
-                        workspace.example = example
                         workspace.changed()
                     }
                     onGuideRequested: helpDialog.open()
@@ -314,9 +329,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 150
                         enabled: !workspace.generationRunning
-                        placeholderText: workspace.scriptMode && workspace.example === "listening"
-                            ? qsTr("For example: a fifth-grade English listening exercise about weekend plans, with Chinese instructions and English questions.")
-                            : qsTr("Describe the subject, audience, length and what you want to say…")
+                        placeholderText: qsTr("Describe the subject, audience, length and what you want to say…")
                         onTextChanged: workspace.changed()
                     }
                     ShapeTextEditor {
@@ -337,15 +350,6 @@ Item {
                             quiet: true
                             enabled: !workspace.generationRunning
                             onClicked: workspace.showReference = !workspace.showReference
-                        }
-                        ShapeButton {
-                            visible: workspace.scriptMode && workspace.example !== "general"
-                            text: qsTr("Use an example request")
-                            quiet: true
-                            enabled: !workspace.generationRunning
-                            onClicked: instructionEditor.text = workspace.example === "listening"
-                                ? qsTr("Create one fifth-grade English listening question about a boy doing tai chi in the park this Sunday. Include a short Chinese introduction and English narration.")
-                                : qsTr("Write a short conversation between two friends planning a weekend trip. Give each person a consistent role and let them alternate naturally.")
                         }
                         Item { Layout.fillWidth: true }
                     }

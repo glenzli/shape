@@ -2,13 +2,9 @@ use super::*;
 
 #[test]
 fn empty_drafts_are_valid_but_generation_requires_authored_intent() {
-    let state = TextAuthoring::new("listening").unwrap();
+    let state = TextAuthoring::new("script").unwrap();
     assert_eq!(state.profile, WritingProfile::Script);
-    assert_eq!(state.example, WritingExample::Listening);
-    assert_eq!(
-        TextAuthoring::new("script").unwrap().example,
-        WritingExample::General
-    );
+    assert_eq!(state.example, WritingExample::General);
     assert_eq!(
         state.content_contract(),
         TextAuthoring::new("script").unwrap().content_contract()
@@ -20,15 +16,18 @@ fn empty_drafts_are_valid_but_generation_requires_authored_intent() {
             .contains("repeat_count")
     );
     assert!(state.compiled_instruction().is_err());
+    assert!(TextAuthoring::new("listening").is_err());
+    assert!(TextAuthoring::new("dialogue").is_err());
     assert!(TextAuthoring::new("unknown").is_err());
 }
 
 #[test]
 fn templates_compile_the_canonical_grammar_and_optional_material() {
-    let mut state = TextAuthoring::new("listening").unwrap();
+    let mut state = TextAuthoring::new("script").unwrap();
     state.instruction = "五年级，周末活动。".into();
     state.material = "tai chi, park, Sunday".into();
     let prompt = state.compiled_instruction().unwrap();
+    assert!(prompt.contains("Create a production script for the requested audience and purpose."));
     assert!(prompt.contains("[role: Narrator"));
     assert!(prompt.contains("[repeat: 2; gap: 2s]"));
     assert!(prompt.contains("cue: turn"));
@@ -63,7 +62,7 @@ fn format_errors_are_visible_and_block_script_acceptance_only() {
 
 #[test]
 fn script_source_controls_ai_output_without_duplicate_form_constraints() {
-    let state = TextAuthoring::new("listening").unwrap();
+    let state = TextAuthoring::new("script").unwrap();
     let source = "[production: listening]\n[role: Narrator]\n[role: Reader]\n[cue: answer; sound: beep]\n[scene: q1]\n[speaker: Narrator]\nNumber one.\n[repeat: 2; gap: 2s]\n[speaker: Reader]\nHello.\n[end-repeat]\n[audio: answer]\n[pause: 5s]";
     assert!(validate_output(&state, source).is_ok());
     for valid in [
@@ -100,24 +99,57 @@ fn script_source_controls_ai_output_without_duplicate_form_constraints() {
     let old_draft = serde_json::json!({"profile":"listening","entry":"generate","instruction":"write","material":"","text":""});
     let migrated = TextAuthoring::from_json(&old_draft.to_string()).unwrap();
     assert_eq!(migrated.profile, WritingProfile::Script);
-    assert_eq!(migrated.example, WritingExample::Listening);
+    assert_eq!(migrated.example, WritingExample::General);
+    assert!(
+        migrated
+            .instruction
+            .contains("Create a listening exercise.")
+    );
     let canonical = serde_json::to_value(migrated).unwrap();
     assert_eq!(canonical["profile"], "script");
-    assert_eq!(canonical["example"], "listening");
-    for (legacy, example) in [
-        ("narration", WritingExample::General),
-        ("dialogue", WritingExample::Dialogue),
-    ] {
+    assert!(canonical.get("example").is_none());
+    for (legacy, requirement) in [("narration", None), ("dialogue", Some("Write a dialogue."))] {
         let old = serde_json::json!({"profile":legacy,"entry":"generate","instruction":"write","material":"","text":""});
         let migrated = TextAuthoring::from_json(&old.to_string()).unwrap();
         assert_eq!(migrated.profile, WritingProfile::Script);
-        assert_eq!(migrated.example, example);
+        assert_eq!(migrated.example, WritingExample::General);
+        if let Some(requirement) = requirement {
+            assert!(migrated.instruction.contains(requirement));
+        }
     }
+    let reloaded = TextAuthoring::from_json(&canonical.to_string()).unwrap();
+    assert_eq!(
+        reloaded
+            .instruction
+            .matches("Create a listening exercise.")
+            .count(),
+        1
+    );
+    let empty_old = serde_json::json!({"profile":"listening","entry":"generate","instruction":"","material":"","text":""});
+    assert_eq!(
+        TextAuthoring::from_json(&empty_old.to_string())
+            .unwrap()
+            .instruction,
+        ""
+    );
+    let oversized_old = serde_json::json!({"profile":"script","example":"listening","entry":"generate","instruction":"x".repeat(MAX_INSTRUCTION_BYTES),"material":"","text":""});
+    let preserved = TextAuthoring::from_json(&oversized_old.to_string()).unwrap();
+    assert_eq!(preserved.example, WritingExample::Listening);
+    assert!(
+        preserved
+            .compiled_instruction()
+            .unwrap()
+            .contains("Create a listening exercise.")
+    );
+    assert_eq!(
+        serde_json::to_value(preserved).unwrap()["example"],
+        "listening"
+    );
 }
 
 #[test]
 fn repair_feedback_is_separate_from_the_original_user_request() {
-    let mut state = TextAuthoring::new("listening").unwrap();
+    let mut state = TextAuthoring::new("script").unwrap();
     state.instruction = "中文必须说：请听录音。".into();
     state.repair_feedback = "line 12: answer_pause_mismatch".into();
     state.material = "A draft needing a pause.".into();

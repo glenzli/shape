@@ -80,7 +80,11 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
             "both creation formats remain readable"
         ))
         return false;
-    if (!click(*dialog, "createListeningScriptButton"))
+    if (!check(
+            !dialog->findChild<QObject*>(QStringLiteral("createListeningScriptButton"))
+                && !dialog->findChild<QObject*>(QStringLiteral("createDialogueScriptButton")),
+            "script creation has no specialized presets"
+        ) || !click(*dialog, "createProductionScriptButton"))
         return false;
     const auto current = [&] { return qvariant_cast<QObject*>(host->property("loadedWorkspace")); };
     if (!check(
@@ -94,17 +98,10 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
     auto* writer = current();
     if (!check(
             writer->property("profile").toString() == QStringLiteral("script")
-                && writer->property("example").toString() == QStringLiteral("listening"),
-            "listening is an example of the shared script format"
+                && !writer->findChild<QObject*>(QStringLiteral("scriptExamplelistening"))
+                && !QJsonDocument::fromJson(evaluate(*writer, QStringLiteral("stateJson()")).toString().toUtf8()).object().contains(QStringLiteral("example")),
+            "new scripts have one format and no writing preset"
         ))
-        return false;
-    if (!click(*writer, "scriptExamplegeneral")
-        || !check(
-            writer->property("profile").toString() == QStringLiteral("script")
-                && writer->property("example").toString() == QStringLiteral("general"),
-            "switching examples leaves the script format unchanged"
-        )
-        || !click(*writer, "scriptExamplelistening"))
         return false;
     auto* prompt = writer->findChild<QObject*>(QStringLiteral("writingInstructionEditor"));
     auto* generate = writer->findChild<QObject*>(QStringLiteral("writingGenerateButton"));
@@ -155,6 +152,10 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
         ))
         return false;
     auto* scroll = writer->findChild<QObject*>(QStringLiteral("writingScroll"));
+    const auto originalScrollHeight = scroll ? scroll->property("height") : QVariant();
+    if (scroll)
+        scroll->setProperty("height", 600);
+    QCoreApplication::processEvents();
     if (!check(
             scroll && editor->property("height").toDouble() <= 380
                 && scroll->property("contentHeight").toDouble()
@@ -200,6 +201,7 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
         if (auto* window = qobject_cast<QQuickWindow*>(&root))
             window->grabWindow().save(screenshots + QStringLiteral("/long-editor.png"));
     }
+    scroll->setProperty("height", originalScrollHeight);
     root.setProperty("width", oldSize.width());
     root.setProperty("height", oldSize.height());
     editor->setProperty("text", QStringLiteral("[pause: invalid]\nHello."));
@@ -300,9 +302,8 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
         return false;
     if (!check(
             current()->property("profile").toString() == QStringLiteral("script")
-                && current()->property("example").toString() == QStringLiteral("listening")
                 && current()->property("hasAcceptedRevision").toBool(),
-            "format and writing example survive accepted-source transition"
+            "script format survives accepted-source transition"
         ))
         return false;
     auto* palette = root.findChild<QObject*>(QStringLiteral("operatorPalette"));
@@ -370,7 +371,7 @@ bool text_authoring_smoke::runLive(
             window->grabWindow().save(QDir(outputDirectory).filePath(QString::fromLatin1(name)));
     };
     capture("01-create.png");
-    if (!click(*dialog, "createListeningScriptButton"))
+    if (!click(*dialog, "createProductionScriptButton"))
         return false;
     const auto current = [&] { return qvariant_cast<QObject*>(host->property("loadedWorkspace")); };
     if (!check(
