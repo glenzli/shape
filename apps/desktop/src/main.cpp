@@ -857,7 +857,7 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
                   << std::endl;
         return false;
     }
-    return true;
+    return workspace_host_smoke::verifyProjectedDraftRemoval(root_object, backend);
 }
 
 } // namespace

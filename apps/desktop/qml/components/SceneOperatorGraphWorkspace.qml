@@ -20,6 +20,7 @@ Rectangle {
     property var artifacts: []
     property string selectedArtifactId: ""
     property var drafts: []
+    property var backingDrafts: []
     property var candidates: []
     property var operatorDescriptors: []
     property string selectedNodeId: ""
@@ -66,6 +67,16 @@ Rectangle {
         for (let index = 0; index < nodes.length; ++index) {
             if (nodes[index].roleKey === "operator")
                 ++count;
+        }
+        return count;
+    }
+    readonly property int pendingDraftCount: {
+        let count = drafts.length;
+        for (const draft of backingDrafts) {
+            const node = nodeForId(draft.id);
+            const artifact = artifactForNode(node);
+            if (node !== null && node.roleKey === "operator" && artifact !== null
+                    && !artifact.hasAcceptedRevision) ++count;
         }
         return count;
     }
@@ -165,6 +176,15 @@ Rectangle {
         for (let index = 0; index < drafts.length; ++index) {
             if (drafts[index].id === draftId)
                 return drafts[index];
+        }
+        const node = nodeForId(draftId);
+        const artifact = artifactForNode(node);
+        if (node !== null && node.roleKey === "operator" && artifact !== null
+                && !artifact.hasAcceptedRevision) {
+            for (const draft of backingDrafts) {
+                if (draft.id === draftId && draft.contextArtifactId === node.artifactId)
+                    return draft;
+            }
         }
         return null;
     }
@@ -467,7 +487,7 @@ Rectangle {
             sceneKind: graph.sceneKind
             nodeCount: graph.nodes.length
             operatorCount: graph.operatorCount
-            draftCount: graph.drafts.length
+            draftCount: graph.pendingDraftCount
             candidateCount: graph.candidates.length
             operatorDescriptors: graph.operatorDescriptors
             zoomLevel: graph.zoomLevel

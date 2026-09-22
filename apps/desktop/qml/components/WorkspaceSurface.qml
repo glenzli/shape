@@ -592,7 +592,9 @@ Item {
                 artifacts: surface.allArtifacts
                 selectedArtifactId: surface.hasSelectedArtifact ? surface.selectedArtifact.id : ""
                 candidates: surface.candidates
-                drafts: surface.operatorDrafts.filter(d =>
+                backingDrafts: surface.operatorDrafts.filter(d =>
+                    surface.workGraph.artifactIds.indexOf(String(d.contextArtifactId)) >= 0)
+                drafts: backingDrafts.filter(d =>
                     !surface.workGraph.nodes.some(n => n.id === d.id
                         || (d.operatorTypeKey === "text.create"
                             && n.id === "output." + d.contextArtifactId

@@ -60,6 +60,8 @@ while each exact generated result belongs to the Candidate Shelf. Locking a text
 immutable history and rebases the same draft to the new accepted head.
 The zero-input AI Image draft remains recoverable while generated Candidates are transient. It can
 be discarded before acceptance and is also cleared when one Candidate is explicitly accepted.
+An unfinished speech step remains removable even when its saved Operator graph is already shown
+on the canvas.
 Pending candidates remain outside the durable accepted graph until explicit acceptance or branching.
 
 Presentation uses progressive disclosure. The project rail calls compatibility Scenes “works,”

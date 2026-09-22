@@ -808,4 +808,63 @@ bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {
     return QMetaObject::invokeMethod(surface, "showGraph", Qt::DirectConnection);
 }
 
+bool verifyProjectedDraftRemoval(
+    QObject& root_object,
+    DesktopBackend& backend
+) {
+    QObject* const surface = root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
+    QObject* const inspector =
+        root_object.findChild<QObject*>(QStringLiteral("graphSelectionInspector"));
+    const int previous_count = backend.artifactCount();
+    QString source_id;
+    for (const QVariant& artifact : backend.artifacts()) {
+        const QVariantMap value = artifact.toMap();
+        if (value.value(QStringLiteral("kindKey")) == QStringLiteral("text_document")
+            && value.value(QStringLiteral("hasAcceptedRevision")).toBool()) {
+            source_id = value.value(QStringLiteral("id")).toString();
+            break;
+        }
+    }
+    const QString speech_id = backend.beginAuthoringSpeech(source_id);
+    if (surface == nullptr || inspector == nullptr || speech_id.isEmpty()
+        || backend.artifactCount() != previous_count + 1) {
+        std::cerr << "desktop graph smoke could not create a projected speech draft: source="
+                  << !source_id.isEmpty() << " speech=" << !speech_id.isEmpty()
+                  << " inspector=" << (inspector != nullptr)
+                  << " surface=" << (surface != nullptr)
+                  << " artifacts=" << backend.artifactCount()
+                  << " expected=" << previous_count + 1 << std::endl;
+        return false;
+    }
+    root_object.setProperty("selectedArtifactIndex", previous_count);
+    QMetaObject::invokeMethod(surface, "showGraph", Qt::DirectConnection);
+    surface->setProperty("selectedNodeId", speech_id);
+    QCoreApplication::processEvents();
+    if (inspector->property("selectionKind").toString() != QStringLiteral("draft")
+        || !inspector->property("discardAvailable").toBool()
+        || !invoke_packaged_click(
+            *surface,
+            QStringLiteral("discardSelectedDraftButton"),
+            "desktop graph smoke could not remove a projected speech draft"
+        )) {
+        std::cerr << "desktop graph smoke did not offer removal for projected speech"
+                  << std::endl;
+        return false;
+    }
+    const QVariantList remaining_drafts = backend.operatorDrafts();
+    if (backend.artifactCount() != previous_count
+        || std::any_of(
+            remaining_drafts.cbegin(),
+            remaining_drafts.cend(),
+            [&speech_id](const QVariant& draft) {
+                return draft.toMap().value(QStringLiteral("id")).toString() == speech_id;
+            }
+        )) {
+        std::cerr << "desktop graph smoke left a projected speech draft undeletable"
+                  << std::endl;
+        return false;
+    }
+    return true;
+}
+
 } // namespace workspace_host_smoke
