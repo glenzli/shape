@@ -25,6 +25,8 @@ class UiPreferences final : public QObject {
     Q_PROPERTY(
         QString languageMode READ languageMode WRITE setLanguageMode NOTIFY languageModeChanged
     )
+    Q_PROPERTY(QString textModel READ textModel WRITE setTextModel NOTIFY textModelChanged)
+    Q_PROPERTY(QString imageModel READ imageModel WRITE setImageModel NOTIFY imageModelChanged)
 
   public:
     enum class AppearanceMode {
@@ -43,6 +45,10 @@ class UiPreferences final : public QObject {
 
     QString languageMode() const;
     void setLanguageMode(const QString& mode);
+    QString textModel() const;
+    void setTextModel(const QString& model);
+    QString imageModel() const;
+    void setImageModel(const QString& model);
 
     void attachEngine(QQmlEngine& engine);
 
@@ -50,6 +56,8 @@ class UiPreferences final : public QObject {
     void appearanceModeChanged();
     void darkChanged();
     void languageModeChanged();
+    void textModelChanged();
+    void imageModelChanged();
 
   private:
     void refreshEffectiveAppearance();
@@ -62,4 +70,6 @@ class UiPreferences final : public QObject {
     int appearance_mode_ = static_cast<int>(AppearanceMode::System);
     bool effective_dark_ = true;
     QString language_mode_ = QStringLiteral("system");
+    QString text_model_ = QStringLiteral("local_qwen");
+    QString image_model_ = QStringLiteral("gpt_5_6_luna");
 };

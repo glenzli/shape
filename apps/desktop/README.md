@@ -153,7 +153,7 @@ acceptance and reopen. It is deliberately excluded from offline CTest smoke chec
 the stable Core and Responses capability.
 Rust reopens the exact zero-input draft and validates its prompt/canvas before credential access,
 then requires cloud/subscription Job provenance before returning an opaque Candidate. The desktop
-selects Runtime-owned Luna for image generation without exposing provider-native model details. `AiImageOperatorWorkspace.qml` owns the
+uses the explicit image model selected in process settings (GPT-5.6 Luna by default, with GPT-6 Luna/Sol choices), without exposing provider-native model details. `AiImageOperatorWorkspace.qml` owns the
 central canvas and compact output-size choice, while `OperatorIntentSidebar.qml` is its real
 comprehensive intent consumer. Candidate PNG bytes cross only for selected preview. Infer must grant Shape the image.generate intent, Luna route, subscription access, cloud text input,
 and balanced cloud request overrides. Missing route grants are reported without changing history.
@@ -318,9 +318,10 @@ Writing scrolls between bounded fields, and speech source/settings columns scrol
 
 The Rust node catalog exposes six text-edit task templates and the zero-input image source.
 Templates reuse `text.edit` input/output/CAS semantics and store their task in authoring configuration.
-The image consumer pins `codex_gpt_5_6_luna`, compiles the preferred canvas into its model instructions,
+The image consumer pins the selected, allowlisted deployment (`codex_gpt_5_6_luna` by default), compiles the preferred canvas into its model instructions,
 and checks the bounded PNG and named route. Native pixels and actual dimensions are retained;
-exact sizing belongs to an image editing node. No higher-model fallback is requested.
+exact sizing belongs to an image editing node. No model fallback is requested. Text editing defaults to local Qwen; GPT-6 Luna/Sol are explicit cloud subscription choices. Settings are process-level, not stored in project drafts; each request snapshots its selected model.
+The cloud text choices explicitly request low reasoning effort because Runtime's local `text.edit` default of none is not admitted by the GPT-6 deployments. Shape verifies the selected named deployment in the returned Job before creating a Candidate.
 `--smoke-image-generation DIRECTORY` exercises the real controller, candidate preview, explicit
 acceptance and project reopening; it is an opt-in live test, not part of ordinary desktop smoke.
 

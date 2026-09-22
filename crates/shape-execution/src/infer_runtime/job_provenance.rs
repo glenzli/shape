@@ -28,8 +28,9 @@ pub(super) const SPEECH_DEPLOYMENT: &str = "mlx_qwen3_tts_custom_voice_1_7b";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum JobPolicyProfile {
     LocalTextEdit,
+    CloudTextEdit(&'static str),
     LocalSpeech,
-    CloudImageInteractive,
+    CloudImageInteractive(&'static str),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,7 +166,9 @@ fn external_named_route(
 impl JobPolicyProfile {
     const fn capability_contract(self) -> &'static str {
         match self {
-            Self::LocalTextEdit | Self::CloudImageInteractive => INFER_RUNTIME_RESPONSES_CAPABILITY,
+            Self::LocalTextEdit | Self::CloudTextEdit(_) | Self::CloudImageInteractive(_) => {
+                INFER_RUNTIME_RESPONSES_CAPABILITY
+            }
             Self::LocalSpeech => INFER_RUNTIME_SPEECH_CAPABILITY,
         }
     }
@@ -173,15 +176,15 @@ impl JobPolicyProfile {
     const fn named_deployment(self) -> &'static str {
         match self {
             Self::LocalTextEdit => TEXT_EDIT_DEPLOYMENT,
+            Self::CloudTextEdit(deployment) | Self::CloudImageInteractive(deployment) => deployment,
             Self::LocalSpeech => SPEECH_DEPLOYMENT,
-            Self::CloudImageInteractive => super::image_generation::IMAGE_DEPLOYMENT,
         }
     }
 
     const fn capability_floor(self) -> &'static str {
         match self {
-            Self::LocalTextEdit => "foundational",
-            Self::LocalSpeech | Self::CloudImageInteractive => "capable",
+            Self::LocalTextEdit | Self::CloudTextEdit(_) => "foundational",
+            Self::LocalSpeech | Self::CloudImageInteractive(_) => "capable",
         }
     }
 }
@@ -239,7 +242,7 @@ fn validate_shape_policy(
                 && snapshot.policy == "local-first"
                 && snapshot.priority == "interactive"
         }
-        JobPolicyProfile::CloudImageInteractive => {
+        JobPolicyProfile::CloudTextEdit(_) | JobPolicyProfile::CloudImageInteractive(_) => {
             policy == "balanced"
                 && priority == "interactive"
                 && provider_access_class.as_deref() == Some("subscription")

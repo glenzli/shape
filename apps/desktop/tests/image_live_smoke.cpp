@@ -44,7 +44,7 @@ bool image_live_smoke::run(
     );
     show.evaluate();
     QCoreApplication::processEvents();
-    image.generate(project, id, draftId);
+    image.generate(project, id, draftId, QStringLiteral("gpt_5_6_luna"));
     QElapsedTimer elapsed;
     elapsed.start();
     while (image.running() && elapsed.elapsed() < 660'000) {

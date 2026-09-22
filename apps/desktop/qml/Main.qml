@@ -585,13 +585,15 @@ ApplicationWindow {
                                 draftId, modeKey, instruction, expressionJson,
                                 styleKey, variantCount)) {
                             window.inferText.generate(
-                                window.backend.bundlePath, artifactId, draftId)
+                                window.backend.bundlePath, artifactId, draftId,
+                                window.uiPreferences.textModel)
                         }
                     }
                     onTextCandidateLockRequested: candidateId =>
                                                       window.acceptCandidate(candidateId)
                     onAuthoringGenerationRequested: (artifactId, draftId) =>
-                        window.inferText.generate(window.backend.bundlePath, artifactId, draftId)
+                        window.inferText.generate(window.backend.bundlePath, artifactId, draftId,
+                                                  window.uiPreferences.textModel)
                     onAuthoringSpeechRequested: artifactId => window.openAuthoringSpeech(artifactId)
                     onWritingRequested: (artifactId, scriptMode) => window.returnToWriting(artifactId, scriptMode)
                     onAudioExportRequested: (artifactId, candidateId) => audioExportDialog.openForAudio(artifactId, candidateId)
@@ -642,7 +644,8 @@ ApplicationWindow {
                                 draft.aiImageOutputWidth, draft.aiImageOutputHeight)) {
                             window.inferImage.generate(
                                 window.backend.bundlePath,
-                                draft.contextArtifactId, draft.id)
+                                draft.contextArtifactId, draft.id,
+                                window.uiPreferences.imageModel)
                         }
                     }
                 }

@@ -3,7 +3,7 @@
 use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
 use infer_runtime_client::{ResponsesRequest, ResponsesResult};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::{
     CapabilityId, ExecutionFailure, ExecutionOutput, ExecutionRequest, Executor, ExecutorIdentity,
@@ -29,6 +29,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_mins(2);
 pub struct InferRuntimeExecutor {
     identity: ExecutorIdentity,
     sdk: Box<dyn InferRuntimeSdk>,
+    deployment: &'static str,
 }
 
 impl std::fmt::Debug for InferRuntimeExecutor {
@@ -36,6 +37,7 @@ impl std::fmt::Debug for InferRuntimeExecutor {
         formatter
             .debug_struct("InferRuntimeExecutor")
             .field("identity", &self.identity)
+            .field("deployment", &self.deployment)
             .field("sdk", &"official-infer-runtime-client")
             .finish()
     }
@@ -57,7 +59,28 @@ impl InferRuntimeExecutor {
         Ok(Self::with_sdk(Box::new(sdk)))
     }
 
+    /// Selects an explicit, allowlisted text deployment for one request.
+    ///
+    /// # Errors
+    ///
+    /// Rejects unknown model keys or an invalid SDK adapter.
+    pub fn new_with_model(
+        explicit_override: &str,
+        credential_path: impl Into<PathBuf>,
+        model_key: &str,
+    ) -> Result<Self, crate::ExecutionError> {
+        let deployment =
+            text_deployment(model_key).ok_or(crate::ExecutionError::InvalidExecutorIdentity)?;
+        let sdk = official_sdk(explicit_override, credential_path.into())
+            .map_err(|_| crate::ExecutionError::InvalidExecutorIdentity)?;
+        Ok(Self::with_sdk_and_deployment(Box::new(sdk), deployment))
+    }
+
     fn with_sdk(sdk: Box<dyn InferRuntimeSdk>) -> Self {
+        Self::with_sdk_and_deployment(sdk, TEXT_EDIT_DEPLOYMENT)
+    }
+
+    fn with_sdk_and_deployment(sdk: Box<dyn InferRuntimeSdk>, deployment: &'static str) -> Self {
         Self {
             identity: ExecutorIdentity::new(
                 "shape.infer-runtime-consumer",
@@ -66,13 +89,14 @@ impl InferRuntimeExecutor {
             )
             .expect("built-in Infer Runtime identity is valid"),
             sdk,
+            deployment,
         }
     }
 
     fn execute_text(&self, prompt: &str) -> Result<ExecutionOutput, ExecutionFailure> {
         let response = self
             .sdk
-            .create_response(&local_text_request(prompt), REQUEST_TIMEOUT)
+            .create_response(&text_request(prompt, self.deployment), REQUEST_TIMEOUT)
             .map_err(map_failure)?;
         if !valid_job_id(&response.id) {
             return Err(failure("infer_invalid_response", false));
@@ -81,7 +105,11 @@ impl InferRuntimeExecutor {
         let provenance = parse_job_snapshot(
             &response.id,
             TEXT_EDIT_INTENT,
-            JobPolicyProfile::LocalTextEdit,
+            if self.deployment == TEXT_EDIT_DEPLOYMENT {
+                JobPolicyProfile::LocalTextEdit
+            } else {
+                JobPolicyProfile::CloudTextEdit(self.deployment)
+            },
             job,
         )
         .map_err(|error| failure(error.code(), false))?;
@@ -111,33 +139,62 @@ impl Executor for InferRuntimeExecutor {
     }
 }
 
+#[cfg(test)]
 fn local_text_request(prompt: &str) -> ResponsesRequest {
+    text_request(prompt, TEXT_EDIT_DEPLOYMENT)
+}
+
+fn text_deployment(model_key: &str) -> Option<&'static str> {
+    match model_key {
+        "local_qwen" => Some(TEXT_EDIT_DEPLOYMENT),
+        "gpt_6_luna" => Some("codex_gpt_6_luna"),
+        "gpt_6_sol" => Some("codex_gpt_6_sol"),
+        _ => None,
+    }
+}
+
+fn text_request(prompt: &str, deployment: &'static str) -> ResponsesRequest {
+    let cloud = deployment != TEXT_EDIT_DEPLOYMENT;
+    let mut metadata = BTreeMap::from([
+        (
+            "infer.capability_floor".to_owned(),
+            "foundational".to_owned(),
+        ),
+        ("infer.deployment_ids".to_owned(), deployment.to_owned()),
+        ("infer.fallback".to_owned(), "none".to_owned()),
+        ("infer.max_cost_usd".to_owned(), "0".to_owned()),
+        ("infer.offline_required".to_owned(), (!cloud).to_string()),
+        (
+            "infer.placement".to_owned(),
+            if cloud { "cloud_only" } else { "local_only" }.to_owned(),
+        ),
+        (
+            "infer.policy".to_owned(),
+            if cloud { "balanced" } else { "local-first" }.to_owned(),
+        ),
+        (
+            "infer.prefer".to_owned(),
+            if cloud { "cloud" } else { "local" }.to_owned(),
+        ),
+        ("infer.priority".to_owned(), "interactive".to_owned()),
+    ]);
+    if cloud {
+        metadata.insert(
+            "infer.provider_access_class".to_owned(),
+            "subscription".to_owned(),
+        );
+    } else {
+        metadata.insert("infer.latency".to_owned(), "interactive".to_owned());
+    }
     ResponsesRequest {
         model: TEXT_EDIT_INTENT.to_owned(),
         input: Value::String(prompt.to_owned()),
         instructions: None,
         stream: false,
         background: false,
-        metadata: BTreeMap::from([
-            (
-                "infer.capability_floor".to_owned(),
-                "foundational".to_owned(),
-            ),
-            (
-                "infer.deployment_ids".to_owned(),
-                TEXT_EDIT_DEPLOYMENT.to_owned(),
-            ),
-            ("infer.fallback".to_owned(), "none".to_owned()),
-            ("infer.latency".to_owned(), "interactive".to_owned()),
-            ("infer.max_cost_usd".to_owned(), "0".to_owned()),
-            ("infer.offline_required".to_owned(), "true".to_owned()),
-            ("infer.placement".to_owned(), "local_only".to_owned()),
-            ("infer.policy".to_owned(), "local-first".to_owned()),
-            ("infer.prefer".to_owned(), "local".to_owned()),
-            ("infer.priority".to_owned(), "interactive".to_owned()),
-        ]),
+        metadata,
         tools: Vec::new(),
-        reasoning: None,
+        reasoning: cloud.then(|| json!({"effort": "low"})),
         max_output_tokens: None,
     }
 }

@@ -33,7 +33,11 @@ pub(super) fn generate_infer_image_candidate(
     draft_id: &str,
     credential_path: &str,
     explicit_override: &str,
+    model_key: &str,
 ) -> Result<Box<InferImageCandidate>, String> {
+    if !matches!(model_key, "gpt_5_6_luna" | "gpt_6_luna" | "gpt_6_sol") {
+        return Err("invalid_model_choice".to_owned());
+    }
     let artifact_id = artifact_id
         .parse::<ArtifactId>()
         .map_err(|_| "invalid_artifact".to_owned())?;
@@ -75,8 +79,12 @@ pub(super) fn generate_infer_image_candidate(
     // Credential access deliberately occurs only after the exact persisted
     // draft and zero-input target have been revalidated.
     let credential_path = crate::infer_runtime_access::sdk_credential_path(credential_path)?;
-    let executor = InferRuntimeImageGenerationExecutor::new(explicit_override, credential_path)
-        .map_err(|_| "executor_invalid".to_owned())?;
+    let executor = InferRuntimeImageGenerationExecutor::new_with_model(
+        explicit_override,
+        credential_path,
+        model_key,
+    )
+    .map_err(|_| "executor_invalid".to_owned())?;
     let candidate = project
         .propose_generated_image(artifact_id, &parameters, &executor)
         .map_err(core_error_code)?;

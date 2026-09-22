@@ -42,6 +42,7 @@ fn unconfigured_draft_fails_before_credential_access() {
         &draft_id,
         missing_credential.to_str().unwrap(),
         "",
+        "gpt_5_6_luna",
     )
     .unwrap_err();
     assert_eq!(error, "invalid_image_request");
@@ -58,6 +59,7 @@ fn executable_draft_reaches_the_owner_only_credential_boundary() {
         &draft_id,
         missing_credential.to_str().unwrap(),
         "",
+        "gpt_5_6_luna",
     )
     .unwrap_err();
     assert_eq!(error, "credential_missing");

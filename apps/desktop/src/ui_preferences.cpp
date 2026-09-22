@@ -12,6 +12,8 @@ namespace {
 
 constexpr auto kAppearanceSettingsKey = "ui/appearanceMode";
 constexpr auto kLanguageSettingsKey = "ui/language";
+constexpr auto kTextModelSettingsKey = "infer/textModel";
+constexpr auto kImageModelSettingsKey = "infer/imageModel";
 
 int normalizeAppearanceMode(const int mode) {
     if (mode >= static_cast<int>(UiPreferences::AppearanceMode::System)
@@ -26,6 +28,20 @@ QString normalizeLanguageMode(const QString& mode) {
         return mode;
     }
     return QStringLiteral("system");
+}
+
+QString normalizeTextModel(const QString& model) {
+    if (model == QStringLiteral("gpt_6_luna") || model == QStringLiteral("gpt_6_sol")) {
+        return model;
+    }
+    return QStringLiteral("local_qwen");
+}
+
+QString normalizeImageModel(const QString& model) {
+    if (model == QStringLiteral("gpt_6_luna") || model == QStringLiteral("gpt_6_sol")) {
+        return model;
+    }
+    return QStringLiteral("gpt_5_6_luna");
 }
 
 QString systemLanguage() {
@@ -54,6 +70,12 @@ UiPreferences::UiPreferences(QGuiApplication& application, QObject* parent)
     language_mode_ = normalizeLanguageMode(
         settings_->value(QString::fromLatin1(kLanguageSettingsKey), QStringLiteral("system"))
             .toString()
+    );
+    text_model_ = normalizeTextModel(
+        settings_->value(QString::fromLatin1(kTextModelSettingsKey), text_model_).toString()
+    );
+    image_model_ = normalizeImageModel(
+        settings_->value(QString::fromLatin1(kImageModelSettingsKey), image_model_).toString()
     );
 
     QObject::connect(
@@ -121,6 +143,34 @@ void UiPreferences::setLanguageMode(const QString& mode) {
     settings_->setValue(QString::fromLatin1(kLanguageSettingsKey), language_mode_);
     applyLanguage();
     emit languageModeChanged();
+}
+
+QString UiPreferences::textModel() const {
+    return text_model_;
+}
+
+void UiPreferences::setTextModel(const QString& model) {
+    const QString normalized = normalizeTextModel(model);
+    if (normalized == text_model_) {
+        return;
+    }
+    text_model_ = normalized;
+    settings_->setValue(QString::fromLatin1(kTextModelSettingsKey), text_model_);
+    emit textModelChanged();
+}
+
+QString UiPreferences::imageModel() const {
+    return image_model_;
+}
+
+void UiPreferences::setImageModel(const QString& model) {
+    const QString normalized = normalizeImageModel(model);
+    if (normalized == image_model_) {
+        return;
+    }
+    image_model_ = normalized;
+    settings_->setValue(QString::fromLatin1(kImageModelSettingsKey), image_model_);
+    emit imageModelChanged();
 }
 
 void UiPreferences::attachEngine(QQmlEngine& engine) {

@@ -3517,8 +3517,8 @@
     </message>
     <message>
         <location line="-21"/>
-        <source>Appearance, language, and local AI access</source>
-        <translation>外观、语言与本地 AI 访问</translation>
+        <source>Appearance, language, and AI models</source>
+        <translation>外观、语言与 AI 模型</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -3550,6 +3550,26 @@
         <location line="+7"/>
         <source>The default follows your system language.</source>
         <translation>默认跟随系统语言。</translation>
+    </message>
+    <message>
+        <source>AI models</source>
+        <translation>AI 模型</translation>
+    </message>
+    <message>
+        <source>Cloud choices send the prompt to the subscription provider. Availability depends on Infer Runtime access.</source>
+        <translation>选择云端模型会将提示词发送给订阅服务。能否使用取决于 Infer Runtime 授权。</translation>
+    </message>
+    <message>
+        <source>Text editing</source>
+        <translation>文本编辑</translation>
+    </message>
+    <message>
+        <source>Image creation</source>
+        <translation>图片生成</translation>
+    </message>
+    <message>
+        <source>Local Qwen 3.5</source>
+        <translation>本地 Qwen 3.5</translation>
     </message>
     <message>
         <location line="+42"/>

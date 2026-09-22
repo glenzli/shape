@@ -120,6 +120,54 @@ pub(crate) fn image_job() -> JobSnapshot {
     job
 }
 
+fn cloud_text_job(deployment: &str) -> JobSnapshot {
+    let mut job = image_job();
+    job.intent = "text.edit".into();
+    job.deployment = deployment.into();
+    job.capability_level = "foundational".into();
+    job.constraints["capability_floor"] = json!("foundational");
+    job.constraints["named_route"]["ordered_ids"] = json!([deployment]);
+    job.routing.capability_floor = "foundational".into();
+    job.routing.named_route.as_mut().unwrap().ordered_ids = vec![deployment.into()];
+    job.routing.candidates[0].deployment = deployment.into();
+    job.attempts[0].deployment = deployment.into();
+    job
+}
+
+#[test]
+fn cloud_text_model_must_match_the_exact_selected_route() {
+    for deployment in ["codex_gpt_6_luna", "codex_gpt_6_sol"] {
+        let job = cloud_text_job(deployment);
+        let provenance = parse_job_snapshot(
+            "resp_shape_job",
+            "text.edit",
+            JobPolicyProfile::CloudTextEdit(deployment),
+            job.clone(),
+        )
+        .expect("selected cloud text route is accepted");
+        assert_eq!(provenance.deployment, deployment);
+        assert_eq!(
+            provenance.requested_provider_access_class.as_deref(),
+            Some("subscription")
+        );
+        assert!(!provenance.offline_required);
+        let other = if deployment.ends_with("luna") {
+            "codex_gpt_6_sol"
+        } else {
+            "codex_gpt_6_luna"
+        };
+        assert_eq!(
+            parse_job_snapshot(
+                "resp_shape_job",
+                "text.edit",
+                JobPolicyProfile::CloudTextEdit(other),
+                job,
+            ),
+            Err(JobProvenanceError::PolicyViolation)
+        );
+    }
+}
+
 #[test]
 fn typed_sdk_job_maps_exact_core_capability_and_named_route() {
     let provenance = parse_job_snapshot(
@@ -204,7 +252,7 @@ fn source_less_image_job_is_cloud_only_and_pinned_to_luna() {
     let provenance = parse_job_snapshot(
         "resp_shape_job",
         "image.generate",
-        JobPolicyProfile::CloudImageInteractive,
+        JobPolicyProfile::CloudImageInteractive("codex_gpt_5_6_luna"),
         image_job(),
     )
     .expect("source-less image generation keeps its separate cloud policy");

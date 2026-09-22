@@ -837,7 +837,7 @@ Deployment 或 Model Profile，但不能请求 provider、Build 或物理模型�
 | 本地文本 | Qwen 3.5 2B/4B、Qwen 3.6 35B，经 Ollama/Responses 路线 | 小任务优先轻量候选；35B 不作为短文本默认，具体路由交给 Runtime |
 | 本地视觉语言 | Qwen3-VL 4B/8B 已登记模型与 reload evidence | 等待类型化 image+text consumer contract 收口，不从模型登记推断 API 已稳定 |
 | 标准云文本 | DeepSeek V4 Flash Responses provider | 只有 Shape cloud policy 与项目外发策略均允许时进入候选 |
-| 订阅模型 | Codex 5.6 Luna/Terra/Sol，经登录态 App Server bridge | `placement=cloud`、`access_class=subscription`；不暴露 Codex tools/thread/workspace |
+| 订阅模型 | Codex 5.6 Luna/Terra/Sol 与 GPT-6 Luna/Sol，经登录态 App Server bridge | `placement=cloud`、`access_class=subscription`；Shape 对 GPT-6 使用显式具名路由，不暴露 Codex tools/thread/workspace |
 | 本地语音识别 | Qwen3-ASR 1.7B | 通过 `audio.transcribe`，不由 Shape 管理 worker |
 | 本地强制对齐 | Qwen3 ForcedAligner 0.6B | 通过 `audio.align` |
 | 本地语音生成 | Qwen3 TTS CustomVoice 1.7B | 当前仅经版本化 preset alias 映射 `speech.synthesize`；Voice Design/Clone 不宣称可用 |

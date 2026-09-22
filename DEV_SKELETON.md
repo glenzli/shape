@@ -72,9 +72,10 @@ explicit development endpoint may override Discovery, but there is no product fi
 The separate Shape `credential` owner continues only the existing managed-token install/status
 lifecycle; token bytes are handed to the SDK by owner-only file path.
 
-The `responses` owner requests the stable `text.edit` Intent with
-`infer.deployment_ids=ollama_qwen3_5_4b`, `capability_floor=foundational`, and an exact
-local-first/local-only/offline/no-fallback/zero-cost policy. It reads the typed SDK Job back and
+The `responses` owner requests the stable `text.edit` Intent with an exact named deployment selected
+in process settings: local Qwen by default, or GPT-6 Luna/Sol with a cloud/subscription policy.
+All choices keep `capability_floor=foundational`, no fallback, and zero cost; the local choice
+remains local-first/local-only/offline. It reads the typed SDK Job back and
 copies exact Core/Capability, named routing, and successful Attempt facts into the payload-free
 receipt, but Runtime success remains only a Shape Candidate. `shape-core::propose_generated_text`
 owns the generative transformation and
@@ -144,7 +145,7 @@ re-reads the draft before credential access, and adopts results through an indep
 consumer present one comprehensive Source Operator. The draft remains recoverable while Candidates
 are transient and is cleared only after acceptance. The image consumer requires Shape App authorization
 for `image.generate`, subscription access, cloud text input, balanced policy and cloud-only placement.
-It pins Luna and verifies the same named route in the receipt. The authored canvas guides generation;
+It pins the explicit model choice (GPT-5.6 Luna by default, or GPT-6 Luna/Sol) and verifies the same named route in the receipt. The authored canvas guides generation;
 native dimensions and pixels remain intact, with exact sizing owned by the image editing node.
 Local ACL setup is separate from source validation. Material-conditioned execution remains
 unavailable until Infer publishes a stable typed raster-output provider, Capability Schema, and SDK

@@ -39,6 +39,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_mins(10);
 pub struct InferRuntimeImageGenerationExecutor {
     identity: ExecutorIdentity,
     sdk: Box<dyn InferRuntimeSdk>,
+    deployment: &'static str,
 }
 
 impl std::fmt::Debug for InferRuntimeImageGenerationExecutor {
@@ -46,6 +47,7 @@ impl std::fmt::Debug for InferRuntimeImageGenerationExecutor {
         formatter
             .debug_struct("InferRuntimeImageGenerationExecutor")
             .field("identity", &self.identity)
+            .field("deployment", &self.deployment)
             .field("sdk", &"official-infer-runtime-client")
             .finish()
     }
@@ -66,7 +68,28 @@ impl InferRuntimeImageGenerationExecutor {
         Ok(Self::with_sdk(Box::new(sdk)))
     }
 
+    /// Selects an explicit, allowlisted image deployment for one request.
+    ///
+    /// # Errors
+    ///
+    /// Rejects unknown model keys or an invalid SDK adapter.
+    pub fn new_with_model(
+        explicit_override: &str,
+        credential_path: impl Into<PathBuf>,
+        model_key: &str,
+    ) -> Result<Self, crate::ExecutionError> {
+        let deployment =
+            image_deployment(model_key).ok_or(crate::ExecutionError::InvalidExecutorIdentity)?;
+        let sdk = official_sdk(explicit_override, credential_path.into())
+            .map_err(|_| crate::ExecutionError::InvalidExecutorIdentity)?;
+        Ok(Self::with_sdk_and_deployment(Box::new(sdk), deployment))
+    }
+
     fn with_sdk(sdk: Box<dyn InferRuntimeSdk>) -> Self {
+        Self::with_sdk_and_deployment(sdk, IMAGE_DEPLOYMENT)
+    }
+
+    fn with_sdk_and_deployment(sdk: Box<dyn InferRuntimeSdk>, deployment: &'static str) -> Self {
         Self {
             identity: ExecutorIdentity::new(
                 "shape.infer-runtime-image-generation-consumer",
@@ -75,6 +98,7 @@ impl InferRuntimeImageGenerationExecutor {
             )
             .expect("built-in Infer Runtime identity is valid"),
             sdk,
+            deployment,
         }
     }
 
@@ -84,14 +108,17 @@ impl InferRuntimeImageGenerationExecutor {
     ) -> Result<ExecutionOutput, ExecutionFailure> {
         let response = self
             .sdk
-            .create_response(&image_request(parameters), REQUEST_TIMEOUT)
+            .create_response(
+                &image_request_for_deployment(parameters, self.deployment),
+                REQUEST_TIMEOUT,
+            )
             .map_err(map_failure)?;
         let parsed = parse_image_response(response)?;
         let job = self.sdk.job(&parsed.job_id).map_err(map_failure)?;
         let provenance = parse_job_snapshot(
             &parsed.job_id,
             IMAGE_INTENT,
-            JobPolicyProfile::CloudImageInteractive,
+            JobPolicyProfile::CloudImageInteractive(self.deployment),
             job,
         )
         .map_err(|error| failure(error.code(), false))?;
@@ -132,7 +159,24 @@ impl Executor for InferRuntimeImageGenerationExecutor {
     }
 }
 
+#[cfg(test)]
 fn image_request(parameters: &AiImageGenerateParameters) -> ResponsesRequest {
+    image_request_for_deployment(parameters, IMAGE_DEPLOYMENT)
+}
+
+fn image_deployment(model_key: &str) -> Option<&'static str> {
+    match model_key {
+        "gpt_5_6_luna" => Some(IMAGE_DEPLOYMENT),
+        "gpt_6_luna" => Some("codex_gpt_6_luna"),
+        "gpt_6_sol" => Some("codex_gpt_6_sol"),
+        _ => None,
+    }
+}
+
+fn image_request_for_deployment(
+    parameters: &AiImageGenerateParameters,
+    deployment: &'static str,
+) -> ResponsesRequest {
     ResponsesRequest {
         model: IMAGE_INTENT.to_owned(),
         input: Value::String(parameters.instruction().to_owned()),
@@ -144,10 +188,7 @@ fn image_request(parameters: &AiImageGenerateParameters) -> ResponsesRequest {
         stream: false,
         background: false,
         metadata: BTreeMap::from([
-            (
-                "infer.deployment_ids".to_owned(),
-                IMAGE_DEPLOYMENT.to_owned(),
-            ),
+            ("infer.deployment_ids".to_owned(), deployment.to_owned()),
             ("infer.capability_floor".to_owned(), "capable".to_owned()),
             ("infer.fallback".to_owned(), "none".to_owned()),
             ("infer.max_cost_usd".to_owned(), "0".to_owned()),

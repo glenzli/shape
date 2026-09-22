@@ -98,21 +98,28 @@ Item {
                     }
 
                     Text {
-                        text: qsTr("Appearance, language, and local AI access")
+                        text: qsTr("Appearance, language, and AI models")
                         color: Theme.muted
                         font.pixelSize: 11
                     }
                 }
             }
 
-            Item {
+            Flickable {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                clip: true
+                contentWidth: width
+                contentHeight: settingsContent.implicitHeight + 52
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
 
                 ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 26
-                    spacing: 22
+                    id: settingsContent
+                    x: 26
+                    y: 26
+                    width: parent.width - 52
+                    spacing: 18
 
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -133,7 +140,6 @@ Item {
                     }
 
                     RowLayout {
-                        Layout.fillWidth: true
                         spacing: 8
 
                         Repeater {
@@ -145,7 +151,7 @@ Item {
 
                             delegate: ShapeButton {
                                 required property var modelData
-                                Layout.fillWidth: true
+                                Layout.preferredWidth: 92
                                 text: modelData.label
                                 selected: overlay.uiPreferences.appearanceMode === modelData.key
                                 onClicked: overlay.uiPreferences.appearanceMode = modelData.key
@@ -178,7 +184,6 @@ Item {
                     }
 
                     RowLayout {
-                        Layout.fillWidth: true
                         spacing: 8
 
                         Repeater {
@@ -190,7 +195,7 @@ Item {
 
                             delegate: ShapeButton {
                                 required property var modelData
-                                Layout.fillWidth: true
+                                Layout.preferredWidth: 92
                                 text: modelData.label
                                 selected: overlay.uiPreferences.languageMode === modelData.key
                                 onClicked: overlay.uiPreferences.languageMode = modelData.key
@@ -198,6 +203,74 @@ Item {
                         }
                     }
 
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: Theme.border
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            text: qsTr("AI models")
+                            color: Theme.text
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: qsTr("Cloud choices send the prompt to the subscription provider. Availability depends on Infer Runtime access.")
+                            color: Theme.muted
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Text {
+                                Layout.preferredWidth: 92
+                                text: qsTr("Text editing")
+                                color: Theme.text
+                            }
+
+                            ShapeComboBox {
+                                objectName: "textModelSelector"
+                                Layout.preferredWidth: 210
+                                model: [qsTr("Local Qwen 3.5"), "GPT-6 Luna", "GPT-6 Sol"]
+                                currentIndex: Math.max(0, ["local_qwen", "gpt_6_luna", "gpt_6_sol"]
+                                                            .indexOf(overlay.uiPreferences.textModel))
+                                onActivated: index => overlay.uiPreferences.textModel =
+                                                 ["local_qwen", "gpt_6_luna", "gpt_6_sol"][index]
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Text {
+                                Layout.preferredWidth: 92
+                                text: qsTr("Image creation")
+                                color: Theme.text
+                            }
+
+                            ShapeComboBox {
+                                objectName: "imageModelSelector"
+                                Layout.preferredWidth: 210
+                                model: ["GPT-5.6 Luna", "GPT-6 Luna", "GPT-6 Sol"]
+                                currentIndex: Math.max(0, ["gpt_5_6_luna", "gpt_6_luna", "gpt_6_sol"]
+                                                            .indexOf(overlay.uiPreferences.imageModel))
+                                onActivated: index => overlay.uiPreferences.imageModel =
+                                                 ["gpt_5_6_luna", "gpt_6_luna", "gpt_6_sol"][index]
+                            }
+                        }
+                    }
 
                     Rectangle {
                         Layout.fillWidth: true
@@ -279,7 +352,6 @@ Item {
                         }
                     }
 
-                    Item { Layout.fillHeight: true }
                 }
             }
 

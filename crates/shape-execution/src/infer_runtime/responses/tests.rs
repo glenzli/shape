@@ -4,7 +4,9 @@ use infer_runtime_client::{Error as SdkError, ResponsesResult};
 use serde_json::json;
 use shape_domain::TransformationId;
 
-use super::{InferRuntimeExecutor, TEXT_EDIT_DEPLOYMENT, local_text_request};
+use super::{
+    InferRuntimeExecutor, TEXT_EDIT_DEPLOYMENT, local_text_request, text_deployment, text_request,
+};
 use crate::{CapabilityId, ExecutionRequest, Executor as _};
 
 use crate::infer_runtime::{
@@ -55,6 +57,29 @@ fn request_uses_text_edit_and_exact_local_named_narrowing() {
     assert_eq!(request.metadata["infer.offline_required"], "true");
     assert_eq!(request.metadata["infer.fallback"], "none");
     assert_eq!(request.metadata["infer.max_cost_usd"], "0");
+    assert!(request.reasoning.is_none());
+}
+
+#[test]
+fn cloud_text_choices_keep_one_explicit_route_and_cloud_policy() {
+    for (key, deployment) in [
+        ("gpt_6_luna", "codex_gpt_6_luna"),
+        ("gpt_6_sol", "codex_gpt_6_sol"),
+    ] {
+        assert_eq!(text_deployment(key), Some(deployment));
+        let request = text_request("bounded fixture", deployment);
+        assert_eq!(request.metadata["infer.deployment_ids"], deployment);
+        assert_eq!(request.metadata["infer.placement"], "cloud_only");
+        assert_eq!(
+            request.metadata["infer.provider_access_class"],
+            "subscription"
+        );
+        assert_eq!(request.metadata["infer.fallback"], "none");
+        assert_eq!(request.metadata["infer.max_cost_usd"], "0");
+        assert_eq!(request.reasoning, Some(json!({"effort": "low"})));
+        assert!(!request.metadata.contains_key("infer.latency"));
+    }
+    assert_eq!(text_deployment("arbitrary_deployment"), None);
 }
 
 #[test]

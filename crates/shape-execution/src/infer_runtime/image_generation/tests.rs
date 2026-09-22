@@ -9,7 +9,8 @@ use shape_domain::{
 };
 
 use super::{
-    IMAGE_GENERATE_CAPABILITY, IMAGE_MEDIA_TYPE, InferRuntimeImageGenerationExecutor, image_request,
+    IMAGE_GENERATE_CAPABILITY, IMAGE_MEDIA_TYPE, InferRuntimeImageGenerationExecutor,
+    image_deployment, image_request, image_request_for_deployment,
 };
 use crate::infer_runtime::{job_provenance::tests::image_job, test_support::FakeSdk};
 use crate::{CapabilityId, ExecutionRequest, Executor as _};
@@ -87,6 +88,20 @@ fn source_less_image_generation_uses_stable_responses_capability_shape() {
     );
     assert_eq!(request.metadata["infer.fallback"], "none");
     assert_eq!(request.metadata["infer.max_cost_usd"], "0");
+}
+
+#[test]
+fn cloud_image_choices_keep_the_selected_deployment() {
+    for (key, deployment) in [
+        ("gpt_6_luna", "codex_gpt_6_luna"),
+        ("gpt_6_sol", "codex_gpt_6_sol"),
+    ] {
+        assert_eq!(image_deployment(key), Some(deployment));
+        let request = image_request_for_deployment(&parameters(1024, 1024, 1), deployment);
+        assert_eq!(request.metadata["infer.deployment_ids"], deployment);
+        assert_eq!(request.metadata["infer.fallback"], "none");
+    }
+    assert_eq!(image_deployment("arbitrary_deployment"), None);
 }
 
 #[test]
