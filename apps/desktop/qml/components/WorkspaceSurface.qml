@@ -42,7 +42,8 @@ Item {
                                       ? (selectedArtifact.operatorEdges || []) : []
     readonly property var workGraph: WorkGraph.graphFor(
                                          allArtifacts,
-                                         hasSelectedArtifact ? selectedArtifact.id : "")
+                                         hasSelectedArtifact ? selectedArtifact.id : "",
+                                         operatorDrafts)
     readonly property var workRoot: artifactForId(workGraph.rootId)
     readonly property bool graphActive: currentMode === 0
     readonly property bool focusActive: currentMode === 1
@@ -311,7 +312,6 @@ Item {
     }
 
     function openNode(nodeId) : bool {
-        if (draftForId(nodeId) !== null) return openOperatorDraft(nodeId)
         let node = currentMode === 0 ? null : nodeForId(nodeId)
         if (node === null) {
             for (const candidate of workGraph.nodes) {
@@ -331,6 +331,7 @@ Item {
                 }
             }
         }
+        if (draftForId(nodeId) !== null) return openOperatorDraft(nodeId)
         selectedNodeId = nodeId
         if (!operatorWorkspaceHost.openWorkspace(
                 node.id, node.roleKey, node.operatorTypeKey,
@@ -591,7 +592,11 @@ Item {
                 artifacts: surface.allArtifacts
                 selectedArtifactId: surface.hasSelectedArtifact ? surface.selectedArtifact.id : ""
                 candidates: surface.candidates
-                drafts: surface.operatorDrafts.filter(d => !surface.workGraph.nodes.some(n => n.id === d.id))
+                drafts: surface.operatorDrafts.filter(d =>
+                    !surface.workGraph.nodes.some(n => n.id === d.id
+                        || (d.operatorTypeKey === "text.create"
+                            && n.id === "output." + d.contextArtifactId
+                            && n.roleKey === "source")))
                 operatorDescriptors: surface.operatorDescriptors
                 artifactKindKey: surface.hasSelectedArtifact
                                  ? surface.selectedArtifact.kindKey : ""

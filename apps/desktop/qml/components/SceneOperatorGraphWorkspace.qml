@@ -126,6 +126,27 @@ Rectangle {
         return index >= 0 ? nodes[index] : null;
     }
 
+    function nextStepFrom(nodeId): var {
+        const origin = nodeForId(nodeId);
+        if (origin === null) return null;
+        const visited = {};
+        let current = origin;
+        while (current !== null && !visited[current.id]) {
+            visited[current.id] = true;
+            const outgoing = edges.filter(edge => edge.sourceNodeId === current.id);
+            if (outgoing.length !== 1) return null;
+            const next = nodeForId(outgoing[0].targetNodeId);
+            if (next === null) return null;
+            if (next.roleKey === "output" && next.artifactId === origin.artifactId) {
+                current = next;
+                continue;
+            }
+            return next.roleKey === "operator" && next.artifactId !== origin.artifactId
+                   ? next : null;
+        }
+        return null;
+    }
+
     function artifactForNode(node): var {
         if (!node) return null;
         for (const artifact of artifacts) {
@@ -391,7 +412,7 @@ Rectangle {
         return Theme.muted;
     }
 
-    function paintConnection(context, sourceIndex, targetIndex, dashed): void {
+    function paintConnection(context, sourceIndex, targetIndex, dashed, earlierInput): void {
         if (sourceIndex < 0 || targetIndex < 0)
             return;
         const startX = nodeX(sourceIndex) + nodeWidth;
@@ -417,6 +438,17 @@ Rectangle {
         context.lineTo(endX - direction * 8, endY + 4);
         context.closePath();
         context.fill();
+        if (earlierInput) {
+            const label = qsTr("Earlier version");
+            context.font = "11px sans-serif";
+            const labelWidth = context.measureText(label).width + 12;
+            const labelX = (startX + endX - labelWidth) / 2;
+            const labelY = (startY + endY) / 2 - 15;
+            context.fillStyle = Theme.canvas;
+            context.fillRect(labelX, labelY, labelWidth, 18);
+            context.fillStyle = Theme.muted;
+            context.fillText(label, labelX + 6, labelY + 13);
+        }
         context.restore();
     }
 
@@ -528,7 +560,7 @@ Rectangle {
                         context.clearRect(0, 0, width, height);
                         for (let index = 0; index < graph.edges.length; ++index) {
                             const edge = graph.edges[index];
-                            graph.paintConnection(context, graph.nodeIndex(edge.sourceNodeId), graph.nodeIndex(edge.targetNodeId), false);
+                            graph.paintConnection(context, graph.nodeIndex(edge.sourceNodeId), graph.nodeIndex(edge.targetNodeId), edge.earlierInput === true, edge.earlierInput === true);
                         }
                         const terminalIndex = graph.nodeIndex(graph.terminalNodeId);
                         for (let index = 0; index < graph.drafts.length; ++index) {
@@ -650,11 +682,16 @@ Rectangle {
                             artifactAudioChannels: acceptedNode.artifact !== null
                                                    ? acceptedNode.artifact.audioChannels : 0
                             hasAcceptedRevision: graph.acceptedForNode(acceptedNode.modelData)
+                            continueAvailable: graph.nextStepFrom(acceptedNode.modelData.id) !== null
                             stageNumber: graph.nodeStage(acceptedNode.modelData.id, {})
                             onOutputNodeRequested: {
                                 graph.selectAcceptedNode(acceptedNode.modelData.id);
-                                graph.nodeOutputRequested(acceptedNode.modelData.id);
-                                graphToolbar.openNodeLibrary();
+                                const next = graph.nextStepFrom(acceptedNode.modelData.id);
+                                if (next !== null) graph.nodeOpened(next.id);
+                                else {
+                                    graph.nodeOutputRequested(acceptedNode.modelData.id);
+                                    graphToolbar.openNodeLibrary();
+                                }
                             }
                         }
                     }
@@ -732,7 +769,7 @@ Rectangle {
             accentColor: graph.inspectionColor()
             openAvailable: graph.inspectionKind === "node" || graph.inspectionKind === "draft"
             reviewAvailable: graph.inspectionKind === "candidate"
-            discardAvailable: graph.inspectionKind === "draft" && graph.inspectedDraft.hasInputDataType
+            discardAvailable: graph.inspectionKind === "draft"
             onOpenRequested: {
                 if (graph.inspectionKind === "draft") {
                     graph.draftOpened(graph.selectedNodeId);

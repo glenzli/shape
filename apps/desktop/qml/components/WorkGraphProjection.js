@@ -65,7 +65,7 @@ function groupWorks(artifacts) {
     return groups
 }
 
-function graphFor(artifacts, selectedId) {
+function graphFor(artifacts, selectedId, drafts) {
     const byId = indexArtifacts(artifacts)
     if (!byId[String(selectedId)]) return {rootId: "", nodes: [], edges: [], artifactIds: []}
     const root = rootId(selectedId, byId)
@@ -91,10 +91,10 @@ function graphFor(artifacts, selectedId) {
         const reference = inputReference(artifact, byId)
         const parent = reference ? byId[reference.parentId] : null
         const parentOutputId = parent ? "output." + parent.id : ""
-        const canJoin = parent && reference.sourceNode.revisionId
-                        && String(reference.sourceNode.revisionId)
-                           === String(parent.acceptedRevisionId)
-                        && knownIds[parentOutputId] !== undefined
+        const canJoin = parent && knownIds[parentOutputId] !== undefined
+        const usesEarlierVersion = canJoin && reference.sourceNode.revisionId
+                                   && String(reference.sourceNode.revisionId)
+                                      !== String(parent.acceptedRevisionId)
         const localIds = {}
         const artifactNodes = artifact.operatorNodes || []
         const artifactEdges = artifact.operatorEdges || []
@@ -103,8 +103,22 @@ function graphFor(artifacts, selectedId) {
                              && artifactNodes.length === 2 && artifactEdges.length === 1
                              && artifactNodes.some(node => node.roleKey === "source")
                              && artifactNodes.some(node => node.roleKey === "output")
+        const authoringDraft = (drafts || []).find(draft =>
+            String(draft.contextArtifactId) === String(artifact.id)
+            && draft.operatorTypeKey === "text.create")
+        let manualCreation = false
+        if (String(artifact.id) === root && artifact.kindKey === "text_document"
+                && artifactNodes.length === 2 && artifactEdges.length === 1
+                && authoringDraft && authoringDraft.textAuthoringJson) {
+            try {
+                manualCreation = JSON.parse(authoringDraft.textAuthoringJson).entry === "manual"
+            } catch (_) { /* An older or invalid draft must not change the saved graph. */ }
+        }
         const rootSource = importSource
-                           ? artifactNodes.find(node => node.roleKey === "source") : null
+                           ? artifactNodes.find(node => node.roleKey === "source")
+                           : manualCreation
+                             ? artifactNodes.find(node => node.roleKey === "operator"
+                                 && node.operatorTypeKey === "text.create") : null
         for (const node of artifactNodes) {
             if (rootSource && node.id === rootSource.id) continue
             if (canJoin && node.id === reference.sourceNode.id) continue
@@ -114,14 +128,14 @@ function graphFor(artifacts, selectedId) {
             let copy = Object.assign({}, node, {id: id})
             if (rootSource && node.roleKey === "output") {
                 copy = Object.assign({}, copy, {
-                    roleKey: "source", outputPorts: rootSource.outputPorts,
-                    hasTextPreview: rootSource.hasTextPreview,
-                    textPreview: rootSource.textPreview,
-                    textPreviewTruncated: rootSource.textPreviewTruncated
+                    roleKey: "source", outputPorts: rootSource.outputPorts
                 })
+                if (importSource) {
+                    copy.hasTextPreview = rootSource.hasTextPreview
+                    copy.textPreview = rootSource.textPreview
+                    copy.textPreviewTruncated = rootSource.textPreviewTruncated
+                }
             }
-            if (reference && !canJoin && node.id === reference.sourceNode.id)
-                copy.earlierInput = true
             nodes.push(copy)
             knownIds[id] = nodes.length - 1
         }
@@ -140,7 +154,9 @@ function graphFor(artifacts, selectedId) {
             edges.push(Object.assign({}, edge, {
                 sourceNodeId: fromReference ? parentOutputId
                                            : localIds[String(edge.sourceNodeId)],
-                targetNodeId: localIds[String(edge.targetNodeId)]
+                targetNodeId: localIds[String(edge.targetNodeId)],
+                earlierInput: fromReference && usesEarlierVersion,
+                pinnedRevisionId: fromReference ? reference.sourceNode.revisionId : ""
             }))
         }
     }

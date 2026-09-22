@@ -502,24 +502,22 @@ fn ai_image_scene_persists_a_zero_input_source_draft_and_exact_canvas() {
         (1536, 1024)
     );
     let draft_id = draft.draft_id.clone();
-    assert_eq!(
-        session
-            .session_discard_operator_draft(&draft_id)
-            .unwrap_err(),
-        "a Source Operator cannot be removed without deleting its Scene"
-    );
-    assert_eq!(session.session_operator_drafts()[0].draft_id, draft_id);
     session
         .session_update_ai_image_draft(&draft_id, "A cobalt paper bird", 1024, 1024)
         .expect("AI image authored state saves");
     drop(session);
 
-    let reopened = open_desktop_session(path).expect("project reopens");
+    let mut reopened = open_desktop_session(path).expect("project reopens");
     let restored = reopened.session_operator_drafts();
     assert_eq!(restored.len(), 1);
     assert_eq!(restored[0].draft_id, draft_id);
     assert!(!restored[0].has_input_data_type);
     assert_eq!(restored[0].ai_image_instruction, "A cobalt paper bird");
+    reopened
+        .session_discard_operator_draft(&draft_id)
+        .expect("unfinished source node and empty output are removable");
+    assert!(reopened.session_operator_drafts().is_empty());
+    assert!(reopened.session_snapshot().unwrap().artifacts.is_empty());
     assert_eq!(
         (
             restored[0].ai_image_output_width,

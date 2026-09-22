@@ -58,8 +58,8 @@ Image compatibility executions may still retire their tool draft after producing
 Candidate. AI text execution deliberately does not: the node Draft is reusable authored intent,
 while each exact generated result belongs to the Candidate Shelf. Locking a text Candidate advances
 immutable history and rebases the same draft to the new accepted head.
-The zero-input AI Image draft remains recoverable while generated Candidates are transient and is
-cleared only when one Candidate is explicitly accepted.
+The zero-input AI Image draft remains recoverable while generated Candidates are transient. It can
+be discarded before acceptance and is also cleared when one Candidate is explicitly accepted.
 Pending candidates remain outside the durable accepted graph until explicit acceptance or branching.
 
 Presentation uses progressive disclosure. The project rail calls compatibility Scenes “works,”
@@ -72,8 +72,13 @@ explicit route back to the graph for users who want structural control.
 The rail groups text edits and speech-derived audio under their source text as one visible work.
 The work canvas joins each Artifact's existing graph at an exact accepted input revision: an
 original text can lead to script text, speech synthesis, and audio output in one view. A downstream
-node pinned to an older source revision keeps its separate Source node, so the canvas does not imply
-that it uses the current text. Node opening selects the owning Artifact and retains its independent
+node with a single existing connection opens from its upstream port; the node library adds a new
+branch only when requested. A manually written root text appears as one content card, while AI
+creation keeps its execution step visible. Unaccepted draft nodes, including zero-input starting
+points, can be discarded with their empty reserved outputs; accepted history remains immutable.
+An existing speech step is reused when continuing from its source text.
+An older pinned input is marked on its connection, so the canvas does not imply that the next step
+uses the current text. Node opening selects the owning Artifact and retains its independent
 accepted history. Pending versions stay attached to the selected output's step. This relationship
 view is derived from persisted input bindings; it does not write a Scene graph or invent editable
 cross-Artifact ports. An output without an accepted revision says so instead of displaying zero-valued

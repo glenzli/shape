@@ -100,8 +100,8 @@ Rectangle {
         return WorkGraph.groupWorks(artifacts)
     }
 
-    function projectWorkGraph(artifacts, selectedId) : var {
-        return WorkGraph.graphFor(artifacts, selectedId)
+    function projectWorkGraph(artifacts, selectedId, drafts) : var {
+        return WorkGraph.graphFor(artifacts, selectedId, drafts)
     }
 
     function workGroupSelected(group) : bool {

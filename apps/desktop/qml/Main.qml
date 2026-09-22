@@ -570,6 +570,8 @@ ApplicationWindow {
                     }
                     onOperatorDraftDiscardRequested: draftId => {
                         if (window.backend.discardOperatorDraft(draftId)) {
+                            window.selectedArtifactIndex = Math.max(0, Math.min(
+                                window.selectedArtifactIndex, window.backend.artifactCount - 1))
                             workspaceSurface.showGraph()
                         }
                     }

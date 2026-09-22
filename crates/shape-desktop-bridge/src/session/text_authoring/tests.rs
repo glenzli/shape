@@ -56,6 +56,20 @@ fn empty_writing_reopens_then_explicit_accept_preserves_profile_and_enables_spee
             .draft_id,
         speech.draft_id
     );
+    assert_eq!(
+        session
+            .session_begin_operator_draft(&id, "audio.speech_synthesize")
+            .unwrap()
+            .draft_id,
+        speech.draft_id,
+        "the graph node library must continue the existing speech step"
+    );
+    assert_eq!(
+        session
+            .session_discard_operator_draft(&retained[0].draft_id)
+            .unwrap_err(),
+        "an accepted Source cannot be discarded as a draft"
+    );
     drop(session);
     let session = open_desktop_session(path.to_str().unwrap()).unwrap();
     assert_eq!(session.session_operator_drafts().len(), 2);

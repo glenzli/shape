@@ -128,7 +128,7 @@ Item {
 
                 ShapeIconButton {
                     objectName: "discardDraftButton-" + card.draftIndex
-                    visible: card.draftData.hasInputDataType
+                    visible: true
                     source: "qrc:/qt/qml/Shape/Desktop/icons/trash.svg"
                     toolTipText: qsTr("Remove unfinished step")
                     accessibleName: toolTipText

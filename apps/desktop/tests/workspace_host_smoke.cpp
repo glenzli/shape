@@ -264,6 +264,56 @@ bool verifySceneGraphRoutes(QObject& root_object) {
         return false;
     }
 
+    QQmlExpression manual_source_work(
+        QQmlEngine::contextForObject(project_rail),
+        project_rail,
+        QStringLiteral(R"JS((function() {
+            const script = {id:'script',kindKey:'text_document',acceptedRevisionId:'v1',
+                operatorNodes:[
+                    {id:'write',roleKey:'operator',artifactId:'script',operatorTypeKey:'text.create',
+                     outputPorts:[{id:'output.value',dataTypeKey:'text.document'}]},
+                    {id:'output.script',roleKey:'output',artifactId:'script',
+                     inputPorts:[{id:'input.value',dataTypeKey:'text.document'}],outputPorts:[]}],
+                operatorEdges:[{sourceNodeId:'write',targetNodeId:'output.script'}]};
+            const audio = {id:'audio',kindKey:'audio_clip',
+                operatorNodes:[
+                    {id:'source.script',roleKey:'source',artifactId:'script',revisionId:'v1',
+                     outputPorts:[{id:'output.value',dataTypeKey:'text.document'}]},
+                    {id:'synth',roleKey:'operator',artifactId:'audio',
+                     operatorTypeKey:'audio.speech_synthesize'},
+                    {id:'output.audio',roleKey:'output',artifactId:'audio',outputPorts:[]}],
+                operatorEdges:[{sourceNodeId:'source.script',targetNodeId:'synth'},
+                               {sourceNodeId:'synth',targetNodeId:'output.audio'}]};
+            const manual = projectWorkGraph([script,audio], 'audio',
+                [{contextArtifactId:'script',operatorTypeKey:'text.create',
+                  textAuthoringJson:JSON.stringify({entry:'manual'})}]);
+            const generated = projectWorkGraph([script,audio], 'audio',
+                [{contextArtifactId:'script',operatorTypeKey:'text.create',
+                  textAuthoringJson:JSON.stringify({entry:'generate'})}]);
+            return {manual:manual,generated:generated};
+        })())JS")
+    );
+    const QVariantMap source_projection = manual_source_work.evaluate().toMap();
+    const QVariantMap manual_graph = source_projection.value(QStringLiteral("manual")).toMap();
+    const QVariantList manual_nodes = manual_graph.value(QStringLiteral("nodes")).toList();
+    const QVariantList manual_edges = manual_graph.value(QStringLiteral("edges")).toList();
+    const QVariantList generated_nodes = source_projection.value(QStringLiteral("generated"))
+                                             .toMap()
+                                             .value(QStringLiteral("nodes"))
+                                             .toList();
+    if (manual_source_work.hasError() || manual_nodes.size() != 3
+        || manual_nodes[0].toMap().value(QStringLiteral("id")) != QStringLiteral("output.script")
+        || manual_nodes[0].toMap().value(QStringLiteral("roleKey")) != QStringLiteral("source")
+        || manual_nodes[0].toMap().value(QStringLiteral("outputPorts")).toList().size() != 1
+        || manual_edges.size() != 2
+        || manual_edges[0].toMap().value(QStringLiteral("sourceNodeId"))
+               != QStringLiteral("output.script")
+        || generated_nodes.size() != 4) {
+        std::cerr << "desktop work graph duplicated manual source or hid AI creation"
+                  << std::endl;
+        return false;
+    }
+
     QQmlExpression joined_script_audio(
         QQmlEngine::contextForObject(project_rail),
         project_rail,
@@ -303,6 +353,7 @@ bool verifySceneGraphRoutes(QObject& root_object) {
     const QVariantList joined_nodes = joined_projection.value(QStringLiteral("nodes")).toList();
     const QVariantList joined_edges = joined_projection.value(QStringLiteral("edges")).toList();
     const QVariantList pinned_nodes = pinned.value(QStringLiteral("nodes")).toList();
+    const QVariantList pinned_edges = pinned.value(QStringLiteral("edges")).toList();
     const auto joined_speech_edge = std::find_if(
         joined_edges.cbegin(), joined_edges.cend(), [](const QVariant& value) {
             const QVariantMap edge = value.toMap();
@@ -310,17 +361,17 @@ bool verifySceneGraphRoutes(QObject& root_object) {
                    && edge.value(QStringLiteral("targetNodeId")) == QStringLiteral("synth");
         }
     );
-    const auto pinned_source = std::find_if(
-        pinned_nodes.cbegin(), pinned_nodes.cend(), [](const QVariant& value) {
-            const QVariantMap node = value.toMap();
-            return node.value(QStringLiteral("artifactId")) == QStringLiteral("script")
-                   && node.value(QStringLiteral("roleKey")) == QStringLiteral("source")
-                   && node.value(QStringLiteral("earlierInput")).toBool();
+    const auto pinned_speech_edge = std::find_if(
+        pinned_edges.cbegin(), pinned_edges.cend(), [](const QVariant& value) {
+            const QVariantMap edge = value.toMap();
+            return edge.value(QStringLiteral("sourceNodeId")) == QStringLiteral("output.script")
+                   && edge.value(QStringLiteral("targetNodeId")) == QStringLiteral("synth")
+                   && edge.value(QStringLiteral("earlierInput")).toBool();
         }
     );
     if (joined_script_audio.hasError() || joined_nodes.size() != 5
         || joined_edges.size() != 4 || joined_speech_edge == joined_edges.cend()
-        || pinned_nodes.size() != 6 || pinned_source == pinned_nodes.cend()) {
+        || pinned_nodes.size() != 5 || pinned_speech_edge == pinned_edges.cend()) {
         std::cerr << "desktop work graph lost script-to-audio binding or an older pinned input"
                   << std::endl;
         return false;

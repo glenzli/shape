@@ -1461,6 +1461,10 @@
         <translation>从此输出添加节点</translation>
     </message>
     <message>
+        <source>Open next step</source>
+        <translation>打开下一步</translation>
+    </message>
+    <message>
         <location line="+64"/>
         <source>STEP %1</source>
         <translation>步骤 %1</translation>
@@ -3082,6 +3086,10 @@
 </context>
 <context>
     <name>SceneOperatorGraphWorkspace</name>
+    <message>
+        <source>Earlier version</source>
+        <translation>较早版本</translation>
+    </message>
     <message>
         <source>EARLIER SOURCE VERSION</source>
         <translation>较早的源版本</translation>

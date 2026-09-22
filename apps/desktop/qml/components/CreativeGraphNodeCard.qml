@@ -25,6 +25,7 @@ Item {
     property int artifactAudioSampleRateHz: 0
     property int artifactAudioChannels: 0
     property bool hasAcceptedRevision: false
+    property bool continueAvailable: false
     property int stageNumber: 0
 
     signal outputNodeRequested
@@ -181,7 +182,8 @@ Item {
         anchors.rightMargin: -17
         anchors.verticalCenter: parent.verticalCenter
         source: "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
-        toolTipText: qsTr("Add a node from this output")
+        toolTipText: card.continueAvailable ? qsTr("Open next step")
+                                            : qsTr("Add a node from this output")
         accessibleName: toolTipText
         buttonSize: 28
         iconSize: 15

@@ -172,19 +172,7 @@ impl DesktopSession {
         operator_type: &str,
     ) -> Result<ffi::OperatorDraftWire, String> {
         if operator_type == AUDIO_SPEECH_OPERATOR {
-            let id = parse_artifact_id(artifact_id)?;
-            let accepted = self
-                .project
-                .read_accepted(id)
-                .map_err(|e| e.to_string())?
-                .ok_or("missing_accepted_revision")?;
-            let script = matches!(
-                accepted.revision.content_contract,
-                Some(ArtifactContentContract::TextDocument(
-                    shape_domain::TextDocumentContract::SpeechScript { .. }
-                ))
-            );
-            return self.create_speech_derivation(artifact_id, script);
+            return self.session_begin_authoring_speech(artifact_id);
         }
         if let Some(state) = crate::operator_catalog::text_authoring::node_preset(operator_type)? {
             return self.create_text_derivation_with_state(artifact_id, state);
@@ -436,16 +424,21 @@ impl DesktopSession {
 
     /// Discards one Operator draft without changing accepted history.
     pub fn session_discard_operator_draft(&mut self, draft_id: &str) -> Result<(), String> {
-        let source_draft = self
+        let source_draft_artifact = self
             .operator_drafts
             .entries()
             .find(|(_, draft)| draft.id().to_string() == draft_id)
-            .map(|(_, draft)| draft)
-            .is_some_and(|draft| draft.input_data_type().is_none());
-        if source_draft {
-            return Err(
-                "a Source Operator cannot be removed without deleting its Scene".to_owned(),
-            );
+            .and_then(|(artifact_id, draft)| {
+                draft.input_data_type().is_none().then_some(artifact_id)
+            });
+        if let Some(artifact_id) = source_draft_artifact
+            && self
+                .project
+                .read_accepted(artifact_id)
+                .map_err(|e| e.to_string())?
+                .is_some()
+        {
+            return Err("an accepted Source cannot be discarded as a draft".to_owned());
         }
         let previous = self.operator_drafts.clone();
         let artifact_id = self.operator_drafts.discard(draft_id)?;
