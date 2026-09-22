@@ -192,7 +192,15 @@ ApplicationWindow {
     }
 
     function imageGenerationStatus(errorCode) : string {
-        if (window.inferImage.running) return qsTr("AI is creating a new image version…")
+        if (window.inferImage.running) {
+            return window.inferImage.requestedCount > 1
+                   ? qsTr("AI is creating %1 image versions…").arg(window.inferImage.requestedCount)
+                   : qsTr("AI is creating a new image version…")
+        }
+        if (errorCode === "partial_generation_failed") {
+            return qsTr("%1 of %2 versions are ready. Review them before retrying.")
+                .arg(window.inferImage.completedCount).arg(window.inferImage.requestedCount)
+        }
         if (!window.inferText.credentialConfigured) {
             return qsTr("Add the Shape Infer credential in Settings before generating.")
         }
@@ -537,9 +545,9 @@ ApplicationWindow {
                         }
                     }
                     onAiImageDraftSaveRequested: (draftId, instruction,
-                                                  outputWidth, outputHeight) => {
+                                                  outputWidth, outputHeight, candidateCount) => {
                         window.backend.updateAiImageDraft(
-                            draftId, instruction, outputWidth, outputHeight)
+                            draftId, instruction, outputWidth, outputHeight, candidateCount)
                     }
                     onOperatorDraftRequested: operatorTypeKey => {
                         if (operatorTypeKey === "text.create") { window.startTextAuthoring("plain"); return }
@@ -602,6 +610,9 @@ ApplicationWindow {
                     defaultEffortKey: window.uiPreferences.imageEffort
                     modelContextId: workspaceSurface.selectedDraft !== null
                                     ? workspaceSurface.selectedDraft.id : ""
+                    defaultCandidateCount: workspaceSurface.selectedDraft !== null
+                                           ? workspaceSurface.selectedDraft.aiImageCandidateCount : 1
+                    allowCandidateCount: true
                     operatorTitle: qsTr("Create an image")
                     operatorKindLabel: qsTr("STARTING POINT · AI GENERATED")
                     intentText: workspaceSurface.selectedDraft !== null
@@ -620,16 +631,27 @@ ApplicationWindow {
                     editable: window.backend.projectOpen
                     running: window.inferImage.running
                     statusText: window.imageGenerationStatus(window.inferImage.errorCode)
-                    primaryActionText: qsTr("Generate a version")
+                    primaryActionText: aiImageIntent.selectedCandidateCount > 1
+                                       ? qsTr("Generate %1 versions").arg(aiImageIntent.selectedCandidateCount)
+                                       : qsTr("Generate a version")
                     primaryActionEnabled: window.inferText.credentialConfigured
                                           && workspaceSurface.selectedDraft !== null
                                           && editedIntentText.trim().length > 0
+                    onCandidateCountSelected: count => {
+                        const draft = workspaceSurface.selectedDraft
+                        if (draft !== null) {
+                            window.backend.updateAiImageDraft(
+                                draft.id, editedIntentText,
+                                draft.aiImageOutputWidth, draft.aiImageOutputHeight, count)
+                        }
+                    }
                     onIntentCommitRequested: text => {
                         const draft = workspaceSurface.selectedDraft
                         if (draft !== null) {
                             window.backend.updateAiImageDraft(
                                 draft.id, text,
-                                draft.aiImageOutputWidth, draft.aiImageOutputHeight)
+                                draft.aiImageOutputWidth, draft.aiImageOutputHeight,
+                                aiImageIntent.selectedCandidateCount)
                         }
                     }
                     onPrimaryActionRequested: {
@@ -638,11 +660,12 @@ ApplicationWindow {
                         const effortKey = aiImageIntent.selectedEffortKey
                         if (draft !== null && window.backend.updateAiImageDraft(
                                 draft.id, editedIntentText,
-                                draft.aiImageOutputWidth, draft.aiImageOutputHeight)) {
+                                draft.aiImageOutputWidth, draft.aiImageOutputHeight,
+                                aiImageIntent.selectedCandidateCount)) {
                             window.inferImage.generate(
                                 window.backend.bundlePath,
                                 draft.contextArtifactId, draft.id,
-                                modelKey, effortKey)
+                                modelKey, effortKey, aiImageIntent.selectedCandidateCount)
                         }
                     }
                 }
@@ -658,6 +681,7 @@ ApplicationWindow {
                 acceptedRevisionId: window.hasSelectedArtifact
                                     ? window.selectedArtifact.acceptedRevisionId : ""
                 selectedPreviewSource: window.backend.candidateImageSource
+                candidateThumbnailSource: candidateId => window.backend.candidateThumbnailSource(candidateId)
                 mutationEnabled: window.backend.projectOpen
                 compareAvailable: window.candidateForSelected
                 onCandidateSelected: candidateId => window.activateCandidate(candidateId)

@@ -16,6 +16,7 @@ Rectangle {
     property string selectedCandidateId: ""
     property string acceptedRevisionId: ""
     property string selectedPreviewSource: ""
+    property var candidateThumbnailSource: null
     property bool mutationEnabled: true
     property bool compareAvailable: selectedCandidate !== null
 
@@ -227,19 +228,25 @@ Rectangle {
                         clip: true
 
                         Image {
+                            id: candidateThumbnail
                             anchors.fill: parent
                             anchors.margins: 1
-                            visible: candidateDelegate.selected
-                                     && filmstrip.selectedPreviewSource.length > 0
-                            source: visible ? filmstrip.selectedPreviewSource : ""
+                            source: {
+                                const refresh = filmstrip.selectedPreviewSource
+                                const id = String(candidateDelegate.modelData.id)
+                                const thumbnail = filmstrip.candidateThumbnailSource !== null
+                                                  ? filmstrip.candidateThumbnailSource(id) : ""
+                                return thumbnail.length > 0 ? thumbnail
+                                       : candidateDelegate.selected ? refresh : ""
+                            }
+                            visible: source.toString().length > 0
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                         }
 
                         ShapeIcon {
                             anchors.centerIn: parent
-                            visible: !(candidateDelegate.selected
-                                       && filmstrip.selectedPreviewSource.length > 0)
+                            visible: !candidateThumbnail.visible
                             source: candidateDelegate.modelData.hasAudioPreview
                                     ? "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"
                                     : candidateDelegate.modelData.hasImagePreview

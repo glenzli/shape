@@ -14,6 +14,40 @@ pub struct InferImageCandidate {
     draft_id: String,
 }
 
+/// One user action with independently executed, transient image results.
+#[derive(Debug)]
+pub struct InferImageBatch {
+    candidates: Vec<AiImageCandidate>,
+    draft_id: String,
+    failure_code: String,
+}
+
+impl InferImageBatch {
+    pub(crate) fn new(
+        candidates: Vec<AiImageCandidate>,
+        draft_id: impl Into<String>,
+        failure_code: impl Into<String>,
+    ) -> Self {
+        Self {
+            candidates,
+            draft_id: draft_id.into(),
+            failure_code: failure_code.into(),
+        }
+    }
+
+    pub(super) fn into_parts(self) -> (Vec<AiImageCandidate>, String, String) {
+        (self.candidates, self.draft_id, self.failure_code)
+    }
+}
+
+pub(super) fn infer_image_batch_completed_count(batch: &InferImageBatch) -> u8 {
+    u8::try_from(batch.candidates.len()).expect("image batch is bounded to four candidates")
+}
+
+pub(super) fn infer_image_batch_failure_code(batch: &InferImageBatch) -> String {
+    batch.failure_code.clone()
+}
+
 impl InferImageCandidate {
     pub(super) fn new(candidate: AiImageCandidate, draft_id: impl Into<String>) -> Self {
         Self {
@@ -36,6 +70,34 @@ pub(super) fn generate_infer_image_candidate(
     model_key: &str,
     effort_key: &str,
 ) -> Result<Box<InferImageCandidate>, String> {
+    let batch = generate_infer_image_batch(
+        project_path,
+        artifact_id,
+        draft_id,
+        credential_path,
+        explicit_override,
+        model_key,
+        effort_key,
+        1,
+    )?;
+    let (mut candidates, _, _) = batch.into_parts();
+    Ok(Box::new(InferImageCandidate::new(
+        candidates.remove(0),
+        draft_id,
+    )))
+}
+
+#[allow(clippy::too_many_arguments)] // CXX passes explicit draft identity and expected count.
+pub(super) fn generate_infer_image_batch(
+    project_path: &str,
+    artifact_id: &str,
+    draft_id: &str,
+    credential_path: &str,
+    explicit_override: &str,
+    model_key: &str,
+    effort_key: &str,
+    requested_count: u8,
+) -> Result<Box<InferImageBatch>, String> {
     if !matches!(model_key, "gpt_5_6_luna" | "gpt_6_luna" | "gpt_6_sol") {
         return Err("invalid_model_choice".to_owned());
     }
@@ -81,6 +143,9 @@ pub(super) fn generate_infer_image_candidate(
     let parameters = ai_image_generate_parameters_from_draft(draft)
         .map_err(|_| "invalid_image_request".to_owned())?
         .ok_or_else(|| "invalid_image_request".to_owned())?;
+    if !(1..=4).contains(&requested_count) || parameters.candidate_count() != requested_count {
+        return Err("invalid_image_candidate_count".to_owned());
+    }
 
     // Credential access deliberately occurs only after the exact persisted
     // draft and zero-input target have been revalidated.
@@ -92,10 +157,23 @@ pub(super) fn generate_infer_image_candidate(
         effort_key,
     )
     .map_err(|_| "executor_invalid".to_owned())?;
-    let candidate = project
-        .propose_generated_image(artifact_id, &parameters, &executor)
-        .map_err(core_error_code)?;
-    Ok(Box::new(InferImageCandidate::new(candidate, draft_id)))
+    let mut candidates = Vec::with_capacity(usize::from(requested_count));
+    let mut failure_code = String::new();
+    for _ in 0..requested_count {
+        match project.propose_generated_image(artifact_id, &parameters, &executor) {
+            Ok(candidate) => candidates.push(candidate),
+            Err(error) if candidates.is_empty() => return Err(core_error_code(error)),
+            Err(error) => {
+                failure_code = core_error_code(error);
+                break;
+            }
+        }
+    }
+    Ok(Box::new(InferImageBatch::new(
+        candidates,
+        draft_id,
+        failure_code,
+    )))
 }
 
 #[cfg(test)]

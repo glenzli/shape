@@ -21,6 +21,8 @@ class InferImageController : public QObject {
     QML_UNCREATABLE("InferImageController is created by the host application")
     Q_PROPERTY(bool running READ running NOTIFY statusChanged)
     Q_PROPERTY(QString errorCode READ errorCode NOTIFY statusChanged)
+    Q_PROPERTY(int requestedCount READ requestedCount NOTIFY statusChanged)
+    Q_PROPERTY(int completedCount READ completedCount NOTIFY statusChanged)
 
   public:
     InferImageController(
@@ -32,10 +34,12 @@ class InferImageController : public QObject {
 
     [[nodiscard]] bool running() const;
     [[nodiscard]] QString errorCode() const;
+    [[nodiscard]] int requestedCount() const { return requested_count_; }
+    [[nodiscard]] int completedCount() const { return completed_count_; }
 
     Q_INVOKABLE void
     generate(const QString& projectPath, const QString& artifactId, const QString& draftId,
-             const QString& modelKey, const QString& effortKey);
+             const QString& modelKey, const QString& effortKey, int candidateCount = 1);
 
   signals:
     void statusChanged();
@@ -56,4 +60,6 @@ class InferImageController : public QObject {
     quint64 generation_ = 0;
     bool running_ = false;
     QString error_code_;
+    int requested_count_ = 1;
+    int completed_count_ = 0;
 };

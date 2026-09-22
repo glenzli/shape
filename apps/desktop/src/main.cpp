@@ -827,7 +827,8 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
             != QStringLiteral("image.generate")
         || image_draft.value(QStringLiteral("hasInputDataType")).toBool()
         || image_draft.value(QStringLiteral("aiImageOutputWidth")).toInt() != 1536
-        || image_draft.value(QStringLiteral("aiImageOutputHeight")).toInt() != 1024) {
+        || image_draft.value(QStringLiteral("aiImageOutputHeight")).toInt() != 1024
+        || image_draft.value(QStringLiteral("aiImageCandidateCount")).toInt() != 1) {
         std::cerr << "desktop authoring smoke projected a different AI image draft" << std::endl;
         return false;
     }
@@ -850,6 +851,22 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         return false;
     }
     auto* image_intent = root_object.findChild<QObject*>(QStringLiteral("operatorIntentSidebar"));
+    auto* image_count_picker = image_intent
+                                   ? image_intent->findChild<QObject*>(
+                                         QStringLiteral("imageCandidateCountPicker")
+                                     )
+                                   : nullptr;
+    if (!image_count_picker
+        || !QMetaObject::invokeMethod(
+            image_count_picker, "activated", Qt::DirectConnection, Q_ARG(int, 2)
+        )
+        || image_intent->property("selectedCandidateCount").toInt() != 3
+        || backend.operatorDrafts().first().toMap().value(QStringLiteral("aiImageCandidateCount"))
+               .toInt() != 3) {
+        std::cerr << "desktop authoring smoke did not persist the image candidate count"
+                  << std::endl;
+        return false;
+    }
     auto* image_model_picker = image_intent->findChild<QObject*>(QStringLiteral("imageModelPicker"));
     auto* image_model_choice = image_model_picker
                                    ? image_model_picker->findChild<QObject*>(QStringLiteral("aiModelChoice"))
@@ -882,7 +899,10 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
     if (!backend.openProject(QUrl::fromLocalFile(bundle_path)) || backend.artifactCount() != 2
         || backend.operatorDrafts().size() != 1
         || backend.operatorDrafts().first().toMap().value(QStringLiteral("id")).toString()
-               != image_draft_id) {
+               != image_draft_id
+        || backend.operatorDrafts().first().toMap()
+                   .value(QStringLiteral("aiImageCandidateCount"))
+                   .toInt() != 3) {
         std::cerr << "desktop authoring smoke did not reopen the exact AI image source draft"
                   << std::endl;
         return false;

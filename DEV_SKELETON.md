@@ -147,6 +147,12 @@ are transient and is cleared only after acceptance. The image consumer requires 
 for `image.generate`, subscription access, cloud text input, balanced policy and cloud-only placement.
 It pins the model selected for this run (from the settings default or a local override) and verifies the same named route in the receipt. The authored canvas guides generation;
 native dimensions and pixels remain intact, with exact sizing owned by the image editing node.
+The desktop supports one to four Candidates per image-generation action. The authored count is
+persisted on the one source draft; the bridge snapshots that configuration once, performs one
+physical request per Candidate, and keeps a separate Job receipt for each result. Successful
+results remain reviewable if a later request fails. The session revalidates every result against
+the same still-unaccepted target and exact draft before adopting the batch. The graph still has
+one logical output, and explicit acceptance clears sibling Candidates.
 Local ACL setup is separate from source validation. Material-conditioned execution remains
 unavailable until Infer publishes a stable typed raster-output provider, Capability Schema, and SDK
 client; a mock, text-only, or image-description route must not be substituted.

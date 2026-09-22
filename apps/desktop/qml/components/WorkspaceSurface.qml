@@ -115,7 +115,7 @@ Item {
                                     string presetCatalogRevision, string language,
                                     int speedMilli, bool syntheticDisclosureRequired)
     signal aiImageDraftSaveRequested(string draftId, string instruction,
-                                     int outputWidth, int outputHeight)
+                                     int outputWidth, int outputHeight, int candidateCount)
     signal operatorDraftRequested(string operatorTypeKey)
     signal operatorDraftDiscardRequested(string draftId)
     signal textStudioDraftSaveRequested(string draftId, string modeKey,
@@ -511,7 +511,8 @@ Item {
             onCanvasRequested: (width, height) => {
                 if (imageDraft !== null) {
                     surface.aiImageDraftSaveRequested(
-                        imageDraft.id, imageDraft.aiImageInstruction, width, height)
+                        imageDraft.id, imageDraft.aiImageInstruction, width, height,
+                        imageDraft.aiImageCandidateCount)
                 }
             }
         }

@@ -21,6 +21,7 @@ Rectangle {
     property var preserveItems: []
     property var references: []
     property bool allowReferences: true
+    property bool allowCandidateCount: false
     property string referencesEmptyText: qsTr("No reference materials")
     property bool editable: true
     property bool running: false
@@ -30,6 +31,10 @@ Rectangle {
     property string defaultModelKey: "gpt_5_6_luna"
     property string defaultEffortKey: ""
     property string modelContextId: ""
+    property int defaultCandidateCount: 1
+    property int candidateCountOverride: 0
+    readonly property int selectedCandidateCount: Math.max(1, Math.min(4,
+        candidateCountOverride > 0 ? candidateCountOverride : defaultCandidateCount))
     property string modelOverride: ""
     readonly property string selectedModelKey: modelPicker.effectiveModelKey
     property string effortOverride: ""
@@ -39,6 +44,7 @@ Rectangle {
     onModelContextIdChanged: {
         modelOverride = ""
         effortOverride = ""
+        candidateCountOverride = 0
     }
 
     signal intentEdited(string text)
@@ -48,6 +54,7 @@ Rectangle {
     signal referenceActivated(int index)
     signal addReferenceRequested()
     signal primaryActionRequested()
+    signal candidateCountSelected(int count)
 
     function itemLabel(item) : string {
         if (typeof item === "string") return item
@@ -285,6 +292,32 @@ Rectangle {
             enabled: sidebar.editable && !sidebar.running
             onChoiceSelected: key => sidebar.modelOverride = key
             onEffortSelected: key => sidebar.effortOverride = key
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: sidebar.allowCandidateCount
+            spacing: 8
+
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("Versions this run")
+                color: Theme.textSoft
+                font.pixelSize: Theme.fontMeta
+            }
+
+            ShapeComboBox {
+                objectName: "imageCandidateCountPicker"
+                Layout.preferredWidth: 76
+                model: ["1", "2", "3", "4"]
+                currentIndex: Math.max(0, Math.min(3, sidebar.selectedCandidateCount - 1))
+                enabled: sidebar.editable && !sidebar.running
+                Accessible.name: qsTr("Number of image versions")
+                onActivated: index => {
+                    sidebar.candidateCountOverride = index + 1
+                    sidebar.candidateCountSelected(index + 1)
+                }
+            }
         }
 
         ShapeButton {

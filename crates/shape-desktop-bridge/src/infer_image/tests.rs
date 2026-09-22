@@ -24,7 +24,7 @@ fn project_with_draft(instruction: &str) -> (std::path::PathBuf, ArtifactId, Str
     let draft_id = draft.id().to_string();
     assert!(graph.set_operator_configuration(
         draft.id(),
-        Some(configuration_for_ai_image_generate(instruction, 1024, 1024).unwrap()),
+        Some(configuration_for_ai_image_generate(instruction, 1024, 1024, 1).unwrap()),
     ));
     project
         .create_source_artifact_draft(&artifact, &graph)
@@ -65,5 +65,24 @@ fn executable_draft_reaches_the_owner_only_credential_boundary() {
     )
     .unwrap_err();
     assert_eq!(error, "credential_missing");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn batch_count_must_match_the_persisted_draft_before_credential_access() {
+    let (root, artifact_id, draft_id) = project_with_draft("A cobalt glass bird");
+    let missing_credential = root.with_extension("missing-token");
+    let error = generate_infer_image_batch(
+        root.to_str().unwrap(),
+        &artifact_id.to_string(),
+        &draft_id,
+        missing_credential.to_str().unwrap(),
+        "",
+        "gpt_5_6_luna",
+        "",
+        3,
+    )
+    .unwrap_err();
+    assert_eq!(error, "invalid_image_candidate_count");
     fs::remove_dir_all(root).unwrap();
 }

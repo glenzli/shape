@@ -60,6 +60,11 @@ while each exact generated result belongs to the Candidate Shelf. Locking a text
 immutable history and rebases the same draft to the new accepted head.
 The zero-input AI Image draft remains recoverable while generated Candidates are transient. It can
 be discarded before acceptance and is also cleared when one Candidate is explicitly accepted.
+One image run can request one to four independently receipted Candidates. They appear in the same
+Candidate Shelf with small previews; choosing one does not modify the accepted image until Use this
+version. If a later request fails, completed Candidates remain available for review. A style reference
+must bind an accepted raster revision to a separate material-conditioned image operator with an
+explicit role; that execution path is reserved until the runtime exposes typed raster input.
 An unfinished speech step remains removable even when its saved Operator graph is already shown
 on the canvas.
 Pending candidates remain outside the durable accepted graph until explicit acceptance or branching.

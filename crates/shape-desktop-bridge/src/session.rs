@@ -28,7 +28,7 @@ use crate::operator_catalog::{
     style_from_draft, tone_from_draft, variant_count_from_draft,
 };
 
-use crate::infer_image::InferImageCandidate;
+use crate::infer_image::{InferImageBatch, InferImageCandidate};
 use crate::infer_speech::InferSpeechCandidate;
 use crate::infer_text::InferTextCandidate;
 
@@ -405,6 +405,7 @@ impl DesktopSession {
         instruction: &str,
         output_width: u32,
         output_height: u32,
+        candidate_count: u8,
     ) -> Result<ffi::OperatorDraftWire, String> {
         let previous = self.operator_drafts.clone();
         let (artifact_id, draft) = self
@@ -414,6 +415,7 @@ impl DesktopSession {
                 instruction,
                 output_width,
                 output_height,
+                candidate_count,
             )?;
         if let Err(error) = self.persist_operator_drafts(artifact_id) {
             self.operator_drafts = previous;
@@ -1043,6 +1045,45 @@ impl DesktopSession {
         Ok(wire)
     }
 
+    /// Adopts a whole execution batch against one current draft before any
+    /// candidate becomes visible; a partial run retains its successful results.
+    #[allow(clippy::boxed_local)] // CXX transfers opaque Rust ownership by Box.
+    pub fn session_adopt_infer_image_batch(
+        &mut self,
+        batch: Box<InferImageBatch>,
+    ) -> Result<Vec<ffi::CandidateWire>, String> {
+        let (candidates, draft_id, _) = (*batch).into_parts();
+        let mut wires = Vec::with_capacity(candidates.len());
+        for candidate in &candidates {
+            let artifact_id = candidate.artifact_id();
+            let artifact = self
+                .project
+                .snapshot()
+                .map_err(|_| "project_unavailable")?
+                .artifacts
+                .into_iter()
+                .find(|artifact| artifact.id == artifact_id)
+                .ok_or("invalid_artifact")?;
+            if artifact.kind != ArtifactKind::ImageRaster || artifact.accepted_revision.is_some() {
+                return Err("stale_candidate".to_owned());
+            }
+            let draft = self.operator_drafts.draft(artifact_id, &draft_id)?;
+            if draft.operator_type().as_str() != IMAGE_GENERATE_OPERATOR
+                || draft.input_data_type().is_some()
+                || ai_image_generate_parameters_from_draft(draft)?
+                    .as_ref()
+                    .is_none_or(|parameters| parameters != candidate.parameters())
+            {
+                return Err("stale_candidate".to_owned());
+            }
+            wires.push(ai_image_candidate_wire(candidate));
+        }
+        for candidate in candidates {
+            self.candidates.push(Candidate::AiImage(candidate));
+        }
+        Ok(wires)
+    }
+
     fn validate_text_workspace_draft_head(
         &self,
         artifact_id: ArtifactId,
@@ -1202,7 +1243,8 @@ fn operator_draft_wire(
             .as_ref()
             .map_or_else(String::new, |state| state.instruction.clone()),
         ai_image_output_width: ai_image.as_ref().map_or(0, |state| state.output.width()),
-        ai_image_output_height: ai_image.map_or(0, |state| state.output.height()),
+        ai_image_output_height: ai_image.as_ref().map_or(0, |state| state.output.height()),
+        ai_image_candidate_count: ai_image.map_or(0, |state| state.candidate_count),
     }
 }
 

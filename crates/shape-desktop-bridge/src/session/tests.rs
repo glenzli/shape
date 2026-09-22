@@ -16,7 +16,7 @@ use shape_execution::{
 use uuid::Uuid;
 
 use super::{create_desktop_project, open_desktop_session};
-use crate::infer_image::InferImageCandidate;
+use crate::infer_image::{InferImageBatch, InferImageCandidate};
 use crate::infer_speech::InferSpeechCandidate;
 use crate::operator_catalog::{AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, IMAGE_RESIZE_OPERATOR};
 
@@ -503,7 +503,7 @@ fn ai_image_scene_persists_a_zero_input_source_draft_and_exact_canvas() {
     );
     let draft_id = draft.draft_id.clone();
     session
-        .session_update_ai_image_draft(&draft_id, "A cobalt paper bird", 1024, 1024)
+        .session_update_ai_image_draft(&draft_id, "A cobalt paper bird", 1024, 1024, 3)
         .expect("AI image authored state saves");
     drop(session);
 
@@ -525,6 +525,7 @@ fn ai_image_scene_persists_a_zero_input_source_draft_and_exact_canvas() {
         ),
         (1024, 1024)
     );
+    assert_eq!(restored[0].ai_image_candidate_count, 3);
     fs::remove_dir_all(root).expect("fixture removes");
 }
 
@@ -593,6 +594,55 @@ fn ai_image_candidate_adopts_previews_accepts_and_reopens_as_operator_output() {
             .png_bytes,
         expected_bytes
     );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn image_batch_adopts_distinct_candidates_and_accepts_only_the_chosen_one() {
+    let root = test_root();
+    let path = root.to_str().unwrap();
+    let mut session = create_desktop_project(path, "Image options").unwrap();
+    let snapshot = session
+        .session_create_ai_image_draft("Cobalt bird", "A cobalt glass bird", 4, 3)
+        .unwrap();
+    let artifact_id = snapshot.artifacts[0]
+        .id
+        .parse::<shape_domain::ArtifactId>()
+        .unwrap();
+    let draft_id = session.session_operator_drafts()[0].draft_id.clone();
+    session
+        .session_update_ai_image_draft(&draft_id, "A cobalt glass bird", 4, 3, 2)
+        .unwrap();
+    let project = ShapeProject::open(&root).unwrap();
+    let parameters = AiImageGenerateParameters::new(
+        "A cobalt glass bird",
+        AiImageOutputCanvas::new(4, 3).unwrap(),
+        2,
+        Vec::new(),
+    )
+    .unwrap();
+    let first = project
+        .propose_generated_image(artifact_id, &parameters, &BridgeImageExecutor::new())
+        .unwrap();
+    let second = project
+        .propose_generated_image(artifact_id, &parameters, &BridgeImageExecutor::new())
+        .unwrap();
+    let adopted = session
+        .session_adopt_infer_image_batch(Box::new(InferImageBatch::new(
+            vec![first, second],
+            draft_id,
+            "",
+        )))
+        .unwrap();
+    assert_eq!(adopted.len(), 2);
+    assert_ne!(adopted[0].candidate_id, adopted[1].candidate_id);
+    assert_eq!(session.session_candidates().len(), 2);
+    assert!(!session.session_snapshot().unwrap().artifacts[0].has_accepted_revision);
+    session
+        .session_accept_candidate(&adopted[0].candidate_id)
+        .unwrap();
+    assert!(session.session_candidates().is_empty());
+    assert!(session.session_snapshot().unwrap().artifacts[0].has_accepted_revision);
     fs::remove_dir_all(root).unwrap();
 }
 

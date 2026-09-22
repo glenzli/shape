@@ -256,6 +256,7 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
         from_rust(draft.image_resize_resampling)
     );
     projected.insert(QStringLiteral("aiImageInstruction"), from_rust(draft.ai_image_instruction));
+    projected.insert(QStringLiteral("aiImageCandidateCount"), draft.ai_image_candidate_count);
     projected.insert(
         QStringLiteral("aiImageOutputWidth"),
         static_cast<int>(draft.ai_image_output_width)
@@ -1094,12 +1095,13 @@ bool DesktopBackend::updateAiImageDraft(
     const QString& draftId,
     const QString& instruction,
     int outputWidth,
-    int outputHeight
+    int outputHeight,
+    int candidateCount
 ) {
     constexpr int kMaximumImageDimension = 4096;
     if (session_ == nullptr || draftId.isEmpty() || instruction.trimmed().isEmpty()
         || outputWidth <= 0 || outputHeight <= 0 || outputWidth > kMaximumImageDimension
-        || outputHeight > kMaximumImageDimension) {
+        || outputHeight > kMaximumImageDimension || candidateCount < 1 || candidateCount > 4) {
         setLastError(tr("Enter an image description and valid dimensions."));
         return false;
     }
@@ -1108,7 +1110,8 @@ bool DesktopBackend::updateAiImageDraft(
             to_utf8(draftId),
             to_utf8(instruction),
             static_cast<std::uint32_t>(outputWidth),
-            static_cast<std::uint32_t>(outputHeight)
+            static_cast<std::uint32_t>(outputHeight),
+            static_cast<std::uint8_t>(candidateCount)
         );
         applyOperatorDrafts(session_->session->session_operator_drafts());
         setLastError(QString());
@@ -1446,9 +1449,28 @@ bool DesktopBackend::acceptCandidate(const QString& candidateId) {
         return false;
     }
     try {
+        QStringList retired_image_ids;
+        QString accepted_artifact_id;
+        for (const QVariant& value : candidates_) {
+            const QVariantMap candidate = value.toMap();
+            if (candidate.value(QStringLiteral("id")).toString() == candidateId) {
+                accepted_artifact_id = candidate.value(QStringLiteral("artifactId")).toString();
+                break;
+            }
+        }
+        for (const QVariant& value : candidates_) {
+            const QVariantMap candidate = value.toMap();
+            if (candidate.value(QStringLiteral("artifactId")).toString() == accepted_artifact_id
+                && candidate.value(QStringLiteral("hasImagePreview")).toBool()) {
+                retired_image_ids.append(candidate.value(QStringLiteral("id")).toString());
+            }
+        }
         applySnapshot(session_->session->session_accept_candidate(to_utf8(candidateId)));
         applyCandidates(session_->session->session_candidates());
-        image_preview_store_->remove(candidateId);
+        for (const QString& image_id : retired_image_ids) {
+            image_preview_store_->remove(image_id);
+            image_preview_store_->remove(image_id + QStringLiteral("-thumbnail"));
+        }
         setLastError(QString());
         emit projectChanged();
         emit candidateChanged();
@@ -1489,6 +1511,7 @@ bool DesktopBackend::discardCandidate(const QString& candidateId) {
         session_->session->session_discard_candidate(to_utf8(candidateId));
         applyCandidates(session_->session->session_candidates());
         image_preview_store_->remove(candidateId);
+        image_preview_store_->remove(candidateId + QStringLiteral("-thumbnail"));
         setLastError(QString());
         emit candidateChanged();
         return true;
@@ -1543,6 +1566,39 @@ DesktopBackend::adoptInferImageCandidate(rust::Box<shape::desktop::InferImageCan
     emit candidateChanged();
     emit operatorDraftsChanged();
     return candidate_id;
+}
+
+QStringList DesktopBackend::adoptInferImageBatch(rust::Box<shape::desktop::InferImageBatch> batch) {
+    if (session_ == nullptr) {
+        return {};
+    }
+    const auto adopted = session_->session->session_adopt_infer_image_batch(std::move(batch));
+    QStringList ids;
+    for (const auto& candidate : adopted) {
+        ids.append(from_rust(candidate.candidate_id));
+    }
+    if (!ids.isEmpty()) {
+        for (const auto& candidate : adopted) {
+            try {
+                (void)cacheImagePreview(
+                    session_->session->session_image_preview(
+                        to_utf8(from_rust(candidate.artifact_id)),
+                        to_utf8(from_rust(candidate.candidate_id))
+                    ),
+                    true
+                );
+            } catch (const std::exception& error) {
+                qWarning().noquote() << "could not cache image candidate thumbnail:" << error.what();
+            }
+        }
+        applyCandidates(session_->session->session_candidates(), ids.last());
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError(QString());
+        emit candidateChanged();
+        emit operatorDraftsChanged();
+        emit imagePreviewChanged();
+    }
+    return ids;
 }
 
 std::optional<AudioPreviewData>
@@ -1649,7 +1705,7 @@ void DesktopBackend::applyCandidates(
     clearCandidateSelection();
 }
 
-QString DesktopBackend::cacheImagePreview(shape::desktop::ImagePreviewWire preview) {
+QString DesktopBackend::cacheImagePreview(shape::desktop::ImagePreviewWire preview, bool thumbnail) {
     if (preview.png_bytes.empty()) {
         return QString();
     }
@@ -1662,19 +1718,30 @@ QString DesktopBackend::cacheImagePreview(shape::desktop::ImagePreviewWire previ
         || image.height() != static_cast<int>(preview.height)) {
         throw std::runtime_error("raster preview dimensions do not match its contract");
     }
-    if (image.width() > kMaximumPreviewDimension || image.height() > kMaximumPreviewDimension) {
+    const int maximum_dimension = thumbnail ? 128 : kMaximumPreviewDimension;
+    if (image.width() > maximum_dimension || image.height() > maximum_dimension) {
         image = image.scaled(
-            kMaximumPreviewDimension,
-            kMaximumPreviewDimension,
+            maximum_dimension,
+            maximum_dimension,
             Qt::KeepAspectRatio,
             Qt::SmoothTransformation
         );
     }
-    const QString identity = from_rust(preview.identity);
+    const QString identity = from_rust(preview.identity)
+                             + (thumbnail ? QStringLiteral("-thumbnail") : QString());
     if (!image_preview_store_->put(identity, std::move(image))) {
         throw std::runtime_error("raster preview exceeds the resident cache budget");
     }
     return QStringLiteral("image://shape-preview/") + identity;
+}
+
+QString DesktopBackend::candidateThumbnailSource(const QString& candidateId) const {
+    if (candidateId.isEmpty()) {
+        return {};
+    }
+    const QString identity = candidateId + QStringLiteral("-thumbnail");
+    return image_preview_store_->image(identity).isNull()
+               ? QString() : QStringLiteral("image://shape-preview/") + identity;
 }
 
 std::shared_ptr<ImagePreviewStore> DesktopBackend::imagePreviewStore() const {

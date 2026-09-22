@@ -166,9 +166,6 @@ impl Executor for InferRuntimeImageGenerationExecutor {
         }
         let parameters: AiImageGenerateParameters = serde_json::from_slice(&request.instruction)
             .map_err(|_| failure("invalid_image_generation_request", false))?;
-        if parameters.candidate_count() != 1 {
-            return Err(failure("unsupported_image_candidate_count", false));
-        }
         self.create_image(&parameters)
     }
 }

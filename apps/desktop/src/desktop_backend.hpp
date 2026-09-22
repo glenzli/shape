@@ -5,6 +5,7 @@
 #include <QByteArray>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
@@ -138,7 +139,8 @@ class DesktopBackend : public QObject {
         const QString& draftId,
         const QString& instruction,
         int outputWidth,
-        int outputHeight
+        int outputHeight,
+        int candidateCount
     );
     Q_INVOKABLE bool discardOperatorDraft(const QString& draftId);
     Q_INVOKABLE bool
@@ -163,6 +165,7 @@ class DesktopBackend : public QObject {
     );
     Q_INVOKABLE bool
     prepareImagePreviews(const QString& artifactId, const QString& candidateId = QString());
+    Q_INVOKABLE QString candidateThumbnailSource(const QString& candidateId) const;
     Q_INVOKABLE bool selectCandidate(const QString& candidateId);
     Q_INVOKABLE bool acceptCandidate(const QString& candidateId);
     Q_INVOKABLE bool branchCandidate(const QString& candidateId, const QString& artifactName);
@@ -178,6 +181,8 @@ class DesktopBackend : public QObject {
     /// Adopts one background source-less image result after exact draft revalidation.
     [[nodiscard]] QString
     adoptInferImageCandidate(rust::Box<shape::desktop::InferImageCandidate> candidate);
+    [[nodiscard]] QStringList
+    adoptInferImageBatch(rust::Box<shape::desktop::InferImageBatch> batch);
 
     /// Fetches exact WAV bytes only for the preview selected by the audio controller.
     [[nodiscard]] std::optional<AudioPreviewData>
@@ -209,7 +214,7 @@ class DesktopBackend : public QObject {
     void replaceSession(rust::Box<shape::desktop::DesktopSession> session);
     void clearCandidateSelection();
     void setLastError(const QString& message);
-    [[nodiscard]] QString cacheImagePreview(shape::desktop::ImagePreviewWire preview);
+    [[nodiscard]] QString cacheImagePreview(shape::desktop::ImagePreviewWire preview, bool thumbnail = false);
 
     std::unique_ptr<SessionState> session_;
     bool speech_cue_importing_ = false;

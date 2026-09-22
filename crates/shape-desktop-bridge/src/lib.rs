@@ -19,7 +19,11 @@ use shape_domain::{
 };
 use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_runtime_contract};
 
-use infer_image::{InferImageCandidate, generate_infer_image_candidate};
+use infer_image::{
+    InferImageBatch, InferImageCandidate, generate_infer_image_batch,
+    generate_infer_image_candidate, infer_image_batch_completed_count,
+    infer_image_batch_failure_code,
+};
 use infer_runtime_access::{infer_runtime_credential_status, install_infer_runtime_credential};
 use infer_speech::{
     InferSpeechCandidate, SpeechSynthesisControl, generate_infer_speech_candidate,
@@ -129,6 +133,7 @@ mod ffi {
         ai_image_instruction: String,
         ai_image_output_width: u32,
         ai_image_output_height: u32,
+        ai_image_candidate_count: u8,
     }
 
     /// One Rust-owned Operator descriptor compatible with an accepted source.
@@ -255,6 +260,7 @@ mod ffi {
     extern "Rust" {
         type DesktopSession;
         type InferImageCandidate;
+        type InferImageBatch;
         type InferSpeechCandidate;
         type InferTextCandidate;
 
@@ -320,6 +326,19 @@ mod ffi {
             model_key: &str,
             effort_key: &str,
         ) -> Result<Box<InferImageCandidate>>;
+        #[allow(clippy::too_many_arguments)] // Exact desktop CXX request boundary.
+        fn generate_infer_image_batch(
+            project_path: &str,
+            artifact_id: &str,
+            draft_id: &str,
+            credential_path: &str,
+            explicit_override: &str,
+            model_key: &str,
+            effort_key: &str,
+            requested_count: u8,
+        ) -> Result<Box<InferImageBatch>>;
+        fn infer_image_batch_completed_count(batch: &InferImageBatch) -> u8;
+        fn infer_image_batch_failure_code(batch: &InferImageBatch) -> String;
 
         /// Opens one mutable desktop session. The session remains the sole
         /// owner of transient candidates and the underlying project.
@@ -441,6 +460,7 @@ mod ffi {
             instruction: &str,
             output_width: u32,
             output_height: u32,
+            candidate_count: u8,
         ) -> Result<OperatorDraftWire>;
         fn session_operator_descriptors(
             self: &DesktopSession,
@@ -539,6 +559,10 @@ mod ffi {
             self: &mut DesktopSession,
             candidate: Box<InferImageCandidate>,
         ) -> Result<CandidateWire>;
+        fn session_adopt_infer_image_batch(
+            self: &mut DesktopSession,
+            batch: Box<InferImageBatch>,
+        ) -> Result<Vec<CandidateWire>>;
     }
 }
 

@@ -2053,6 +2053,9 @@
 </context>
 <context>
     <name>Main</name>
+    <message><source>AI is creating %1 image versions…</source><translation>AI 正在创建 %1 个图片候选…</translation></message>
+    <message><source>%1 of %2 versions are ready. Review them before retrying.</source><translation>已完成 %1/%2 个图片候选。请先查看，再决定是否重试。</translation></message>
+    <message><source>Generate %1 versions</source><translation>生成 %1 个候选</translation></message>
     <message>
         <location filename="../qml/Main.qml" line="+186"/>
         <source>AI is creating a new image version…</source>
@@ -2218,6 +2221,8 @@
 </context>
 <context>
     <name>OperatorIntentSidebar</name>
+    <message><source>Versions this run</source><translation>本次生成数量</translation></message>
+    <message><source>Number of image versions</source><translation>图片候选数量</translation></message>
     <message>
         <location filename="../qml/components/OperatorIntentSidebar.qml" line="+19"/>
         <source>Describe the result you want…</source>

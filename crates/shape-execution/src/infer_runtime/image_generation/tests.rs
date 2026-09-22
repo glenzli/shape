@@ -126,13 +126,15 @@ fn sdk_image_response_is_revalidated_before_transient_output() {
 }
 
 #[test]
-fn image_edit_and_multi_candidate_requests_remain_dependency_gated() {
-    let executor = InferRuntimeImageGenerationExecutor::with_sdk(Box::new(FakeSdk::new()));
+fn image_edit_remains_dependency_gated_and_each_batch_attempt_is_one_request() {
+    let encoded = STANDARD.encode(png(4, 3));
+    let fake = FakeSdk::new().response(response(&encoded)).job(image_job());
+    let executor = InferRuntimeImageGenerationExecutor::with_sdk(Box::new(fake));
     assert!(!executor.supports(&CapabilityId::new("image.edit").unwrap()));
-    let error = executor
+    let output = executor
         .execute(&request(&parameters(4, 3, 2)))
-        .expect_err("multi-candidate transport remains unsupported");
-    assert_eq!(error.code, "unsupported_image_candidate_count");
+        .expect("one batch attempt still returns one independently receipted image");
+    assert_eq!(output.executor_job_id.as_deref(), Some("resp_shape_job"));
 }
 
 #[test]

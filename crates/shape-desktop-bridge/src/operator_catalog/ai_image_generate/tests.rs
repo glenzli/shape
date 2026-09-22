@@ -18,17 +18,18 @@ fn draft(configuration: WorkingOperatorConfiguration) -> WorkingOperatorDraft {
 
 #[test]
 fn empty_default_is_persistable_but_not_executable() {
-    let draft = draft(configuration_for_ai_image_generate("", 1024, 1024).unwrap());
+    let draft = draft(configuration_for_ai_image_generate("", 1024, 1024, 1).unwrap());
     let state = ai_image_generate_state_from_draft(&draft).unwrap().unwrap();
     assert_eq!(state.instruction, "");
     assert_eq!((state.output.width(), state.output.height()), (1024, 1024));
+    assert_eq!(state.candidate_count, 1);
     assert!(ai_image_generate_parameters_from_draft(&draft).is_err());
 }
 
 #[test]
 fn authored_instruction_and_canvas_round_trip_into_exact_parameters() {
     let draft =
-        draft(configuration_for_ai_image_generate("A cobalt glass bird", 1536, 1024).unwrap());
+        draft(configuration_for_ai_image_generate("A cobalt glass bird", 1536, 1024, 3).unwrap());
     let parameters = ai_image_generate_parameters_from_draft(&draft)
         .unwrap()
         .unwrap();
@@ -37,7 +38,7 @@ fn authored_instruction_and_canvas_round_trip_into_exact_parameters() {
         (parameters.output().width(), parameters.output().height()),
         (1536, 1024)
     );
-    assert_eq!(parameters.candidate_count(), 1);
+    assert_eq!(parameters.candidate_count(), 3);
 }
 
 #[test]
@@ -49,8 +50,10 @@ fn unknown_fields_schemas_and_nonportable_values_fail_closed() {
     )
     .unwrap();
     assert!(validate_ai_image_generate_configuration(Some(&wrong_schema)).is_err());
-    assert!(configuration_for_ai_image_generate("   ", 1024, 1024).is_err());
-    assert!(configuration_for_ai_image_generate("bird", 0, 1024).is_err());
+    assert!(configuration_for_ai_image_generate("   ", 1024, 1024, 1).is_err());
+    assert!(configuration_for_ai_image_generate("bird", 0, 1024, 1).is_err());
+    assert!(configuration_for_ai_image_generate("bird", 1024, 1024, 0).is_err());
+    assert!(configuration_for_ai_image_generate("bird", 1024, 1024, 9).is_err());
 
     let unknown = WorkingOperatorConfiguration::new(
         OperatorConfigurationSchemaId::new(AI_IMAGE_GENERATE_DRAFT_SCHEMA).unwrap(),

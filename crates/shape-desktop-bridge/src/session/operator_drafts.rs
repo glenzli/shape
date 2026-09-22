@@ -158,7 +158,7 @@ impl OperatorDrafts {
             )
             .map_err(|error| error.to_string())?;
         let configuration =
-            configuration_for_ai_image_generate(instruction, output_width, output_height)?;
+            configuration_for_ai_image_generate(instruction, output_width, output_height, 1)?;
         if !graph.set_operator_configuration(draft.id(), Some(configuration)) {
             return Err("AI image generation draft disappeared during creation".to_owned());
         }
@@ -516,6 +516,7 @@ impl OperatorDrafts {
         instruction: &str,
         output_width: u32,
         output_height: u32,
+        candidate_count: u8,
     ) -> Result<(ArtifactId, WorkingOperatorDraft), String> {
         let draft_id = OperatorNodeId::new(draft_id).map_err(|error| error.to_string())?;
         let Some(graph_index) = self.graph_index_for_draft(&draft_id) else {
@@ -532,8 +533,12 @@ impl OperatorDrafts {
         {
             return Err("draft is not a source-less image.generate Operator".to_owned());
         }
-        let configuration =
-            configuration_for_ai_image_generate(instruction, output_width, output_height)?;
+        let configuration = configuration_for_ai_image_generate(
+            instruction,
+            output_width,
+            output_height,
+            candidate_count,
+        )?;
         let artifact_id = self.graphs[graph_index].context_artifact_id();
         if !self.graphs[graph_index].set_operator_configuration(&draft_id, Some(configuration)) {
             return Err("Operator draft disappeared during configuration".to_owned());
