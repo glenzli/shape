@@ -68,24 +68,31 @@ ShapeDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: 8
-        Item { Layout.fillWidth: true }
-        ShapeButton {
-            text: qsTr("Cancel")
-            onClicked: dialog.close()
-        }
+    footer: Pane {
+        topPadding: 0
+        leftPadding: 20
+        rightPadding: 20
+        bottomPadding: 20
+        background: Item {}
+        contentItem: RowLayout {
+            spacing: 8
+            Item { Layout.fillWidth: true }
+            ShapeButton {
+                text: qsTr("Cancel")
+                onClicked: dialog.close()
+            }
 
-        ShapeButton {
-            objectName: "confirmCreateTextSceneButton"
-            text: qsTr("Start writing")
-            highlighted: true
-            enabled: sceneNameField.text.trim().length > 0
-                     && initialTextArea.text.trim().length > 0
-            onClicked: {
-                if (dialog.backend.createTextScene(sceneNameField.text, initialTextArea.text)) {
-                    dialog.close()
-                    dialog.sceneCreated()
+            ShapeButton {
+                objectName: "confirmCreateTextSceneButton"
+                text: qsTr("Start writing")
+                highlighted: true
+                enabled: sceneNameField.text.trim().length > 0
+                         && initialTextArea.text.trim().length > 0
+                onClicked: {
+                    if (dialog.backend.createTextScene(sceneNameField.text, initialTextArea.text)) {
+                        dialog.close()
+                        dialog.sceneCreated()
+                    }
                 }
             }
         }

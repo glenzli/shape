@@ -128,19 +128,26 @@ ShapeDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: 8
-        ShapeButton {
-            objectName: "copySpeechScriptDocumentButton"
-            text: dialog.copied ? qsTr("Copied") : dialog.showingPrompt
-                  ? qsTr("Copy AI writing prompt") : qsTr("Copy script rules")
-            enabled: dialog.documentText.length > 0
-            onClicked: dialog.copyCurrentDocument()
-        }
-        Item { Layout.fillWidth: true }
-        ShapeButton {
-            text: qsTr("Close")
-            onClicked: dialog.close()
+    footer: Pane {
+        topPadding: 0
+        leftPadding: 20
+        rightPadding: 20
+        bottomPadding: 20
+        background: Item {}
+        contentItem: RowLayout {
+            spacing: 8
+            ShapeButton {
+                objectName: "copySpeechScriptDocumentButton"
+                text: dialog.copied ? qsTr("Copied") : dialog.showingPrompt
+                      ? qsTr("Copy AI writing prompt") : qsTr("Copy script rules")
+                enabled: dialog.documentText.length > 0
+                onClicked: dialog.copyCurrentDocument()
+            }
+            Item { Layout.fillWidth: true }
+            ShapeButton {
+                text: qsTr("Close")
+                onClicked: dialog.close()
+            }
         }
     }
 }

@@ -94,24 +94,31 @@ ShapeDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: 8
-        Item { Layout.fillWidth: true }
-        ShapeButton {
-            text: qsTr("Cancel")
-            onClicked: dialog.close()
-        }
+    footer: Pane {
+        topPadding: 0
+        leftPadding: 20
+        rightPadding: 20
+        bottomPadding: 20
+        background: Item {}
+        contentItem: RowLayout {
+            spacing: 8
+            Item { Layout.fillWidth: true }
+            ShapeButton {
+                text: qsTr("Cancel")
+                onClicked: dialog.close()
+            }
 
-        ShapeButton {
-            objectName: "confirmCreateProjectButton"
-            text: qsTr("Create project")
-            highlighted: true
-            enabled: projectNameField.text.trim().length > 0
-                     && dialog.selectedFolder.toString().length > 0
-            onClicked: {
-                if (dialog.backend.createProject(dialog.selectedFolder, projectNameField.text)) {
-                    dialog.close()
-                    dialog.projectCreated()
+            ShapeButton {
+                objectName: "confirmCreateProjectButton"
+                text: qsTr("Create project")
+                highlighted: true
+                enabled: projectNameField.text.trim().length > 0
+                         && dialog.selectedFolder.toString().length > 0
+                onClicked: {
+                    if (dialog.backend.createProject(dialog.selectedFolder, projectNameField.text)) {
+                        dialog.close()
+                        dialog.projectCreated()
+                    }
                 }
             }
         }

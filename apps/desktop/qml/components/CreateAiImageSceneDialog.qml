@@ -89,26 +89,33 @@ ShapeDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: 8
-        Item { Layout.fillWidth: true }
-        ShapeButton {
-            text: qsTr("Cancel")
-            onClicked: dialog.close()
-        }
+    footer: Pane {
+        topPadding: 0
+        leftPadding: 20
+        rightPadding: 20
+        bottomPadding: 20
+        background: Item {}
+        contentItem: RowLayout {
+            spacing: 8
+            Item { Layout.fillWidth: true }
+            ShapeButton {
+                text: qsTr("Cancel")
+                onClicked: dialog.close()
+            }
 
-        ShapeButton {
-            objectName: "confirmCreateAiImageSceneButton"
-            text: qsTr("Open image studio")
-            highlighted: true
-            enabled: sceneNameField.text.trim().length > 0
-            onClicked: {
-                const preset = dialog.canvasPresets[canvasPreset.currentIndex]
-                if (dialog.backend.createAiImageScene(
-                        sceneNameField.text, instructionArea.text,
-                        preset.width, preset.height)) {
-                    dialog.close()
-                    dialog.sceneCreated()
+            ShapeButton {
+                objectName: "confirmCreateAiImageSceneButton"
+                text: qsTr("Open image studio")
+                highlighted: true
+                enabled: sceneNameField.text.trim().length > 0
+                onClicked: {
+                    const preset = dialog.canvasPresets[canvasPreset.currentIndex]
+                    if (dialog.backend.createAiImageScene(
+                            sceneNameField.text, instructionArea.text,
+                            preset.width, preset.height)) {
+                        dialog.close()
+                        dialog.sceneCreated()
+                    }
                 }
             }
         }
