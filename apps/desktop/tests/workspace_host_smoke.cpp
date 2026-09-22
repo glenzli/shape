@@ -95,7 +95,10 @@ bool verify_packaged_node_route(
     const QString& expected_selected_tool_key = QString()
 ) {
     const QString node_id = node.value(QStringLiteral("id")).toString();
-    const QVariantList graph_nodes = workspace_surface.property("graphNodes").toList();
+    const QVariantList graph_nodes = workspace_surface.property("workGraph")
+                                         .toMap()
+                                         .value(QStringLiteral("nodes"))
+                                         .toList();
     const auto selected_node =
         std::find_if(graph_nodes.cbegin(), graph_nodes.cend(), [&node_id](const QVariant& value) {
             return value.toMap().value(QStringLiteral("id")).toString() == node_id;
@@ -112,7 +115,10 @@ bool verify_packaged_node_route(
         )
         || workspace_surface.property("selectedNodeId").toString() != node_id
         || workspace_surface.property("currentMode").toInt() != 0) {
-        std::cerr << "desktop graph smoke selection opened a workspace" << std::endl;
+        std::cerr << "desktop graph smoke selection mismatch for "
+                  << node_id.toStdString() << ": selected="
+                  << workspace_surface.property("selectedNodeId").toString().toStdString()
+                  << " mode=" << workspace_surface.property("currentMode").toInt() << std::endl;
         return false;
     }
     if (!invoke_packaged_click(
@@ -236,8 +242,9 @@ bool verifySceneGraphRoutes(QObject& root_object) {
             "groupWorks(["
             "{id:'script',name:'Script',kindKey:'text_document',kindLabel:'Text'},"
             "{id:'audio',name:'Script Audio',kindKey:'audio_clip',kindLabel:'Audio',"
-            "operatorNodes:[{roleKey:'source',artifactId:'script'},"
-            "{roleKey:'operator',operatorTypeKey:'audio.speech_synthesize'}]},"
+            "operatorNodes:[{id:'source.script',roleKey:'source',artifactId:'script'},"
+            "{id:'synth',roleKey:'operator',operatorTypeKey:'audio.speech_synthesize'}],"
+            "operatorEdges:[{sourceNodeId:'source.script',targetNodeId:'synth'}]},"
             "{id:'other',name:'Other',kindKey:'image_raster',kindLabel:'Image'}])"
         )
     );
@@ -253,6 +260,68 @@ bool verifySceneGraphRoutes(QObject& root_object) {
         || work_groups[1].toMap().value(QStringLiteral("id")).toString()
                != QStringLiteral("other")) {
         std::cerr << "desktop graph smoke did not group speech audio with its source work"
+                  << std::endl;
+        return false;
+    }
+
+    QQmlExpression joined_script_audio(
+        QQmlEngine::contextForObject(project_rail),
+        project_rail,
+        QStringLiteral(R"JS((function() {
+            const original = {id:'original',kindKey:'text_document',acceptedRevisionId:'v0',
+                operatorNodes:[
+                    {id:'source.original',roleKey:'source',artifactId:'original',revisionId:'v0',
+                     outputPorts:[{id:'output.value',dataTypeKey:'text.document'}]},
+                    {id:'output.original',roleKey:'output',artifactId:'original',
+                     inputPorts:[{id:'input.value',dataTypeKey:'text.document'}],outputPorts:[]}],
+                operatorEdges:[{sourceNodeId:'source.original',targetNodeId:'output.original'}]};
+            const script = {id:'script',kindKey:'text_document',acceptedRevisionId:'v1',
+                operatorNodes:[
+                    {id:'source.original',roleKey:'source',artifactId:'original',revisionId:'v0',
+                     outputPorts:[{id:'output.value',dataTypeKey:'text.document'}]},
+                    {id:'edit',roleKey:'operator',operatorTypeKey:'text.edit'},
+                    {id:'output.script',roleKey:'output',artifactId:'script',outputPorts:[]}],
+                operatorEdges:[{sourceNodeId:'source.original',targetNodeId:'edit'},
+                               {sourceNodeId:'edit',targetNodeId:'output.script'}]};
+            const audio = {id:'audio',kindKey:'audio_clip',
+                operatorNodes:[
+                    {id:'source.script',roleKey:'source',artifactId:'script',revisionId:'v1',
+                     outputPorts:[{id:'output.value',dataTypeKey:'text.document'}]},
+                    {id:'synth',roleKey:'operator',operatorTypeKey:'audio.speech_synthesize'},
+                    {id:'output.audio',roleKey:'output',artifactId:'audio',outputPorts:[]}],
+                operatorEdges:[{sourceNodeId:'source.script',targetNodeId:'synth'},
+                               {sourceNodeId:'synth',targetNodeId:'output.audio'}]};
+            const joined = projectWorkGraph([original, script, audio], 'audio');
+            script.acceptedRevisionId = 'v2';
+            const pinned = projectWorkGraph([original, script, audio], 'audio');
+            return {joined:joined, pinned:pinned};
+        })())JS")
+    );
+    const QVariantMap relationship = joined_script_audio.evaluate().toMap();
+    const QVariantMap joined_projection = relationship.value(QStringLiteral("joined")).toMap();
+    const QVariantMap pinned = relationship.value(QStringLiteral("pinned")).toMap();
+    const QVariantList joined_nodes = joined_projection.value(QStringLiteral("nodes")).toList();
+    const QVariantList joined_edges = joined_projection.value(QStringLiteral("edges")).toList();
+    const QVariantList pinned_nodes = pinned.value(QStringLiteral("nodes")).toList();
+    const auto joined_speech_edge = std::find_if(
+        joined_edges.cbegin(), joined_edges.cend(), [](const QVariant& value) {
+            const QVariantMap edge = value.toMap();
+            return edge.value(QStringLiteral("sourceNodeId")) == QStringLiteral("output.script")
+                   && edge.value(QStringLiteral("targetNodeId")) == QStringLiteral("synth");
+        }
+    );
+    const auto pinned_source = std::find_if(
+        pinned_nodes.cbegin(), pinned_nodes.cend(), [](const QVariant& value) {
+            const QVariantMap node = value.toMap();
+            return node.value(QStringLiteral("artifactId")) == QStringLiteral("script")
+                   && node.value(QStringLiteral("roleKey")) == QStringLiteral("source")
+                   && node.value(QStringLiteral("earlierInput")).toBool();
+        }
+    );
+    if (joined_script_audio.hasError() || joined_nodes.size() != 5
+        || joined_edges.size() != 4 || joined_speech_edge == joined_edges.cend()
+        || pinned_nodes.size() != 6 || pinned_source == pinned_nodes.cend()) {
+        std::cerr << "desktop work graph lost script-to-audio binding or an older pinned input"
                   << std::endl;
         return false;
     }
@@ -297,12 +366,45 @@ bool verifySceneGraphRoutes(QObject& root_object) {
                   << std::endl;
         return false;
     }
+    const QVariantList visible_nodes = workspace_surface->property("workGraph")
+                                           .toMap()
+                                           .value(QStringLiteral("nodes"))
+                                           .toList();
+    const QVariantList visible_edges = workspace_surface->property("workGraph")
+                                           .toMap()
+                                           .value(QStringLiteral("edges"))
+                                           .toList();
+    const auto visible_source = graph_node_with_role(visible_nodes, QStringLiteral("source"));
+    const QString source_artifact_id = source_node->value(QStringLiteral("artifactId")).toString();
+    const QString child_operator_id = operator_node->value(QStringLiteral("id")).toString();
+    const bool joined = std::any_of(
+        visible_edges.cbegin(), visible_edges.cend(),
+        [&source_artifact_id, &child_operator_id](const QVariant& value) {
+            const QVariantMap edge = value.toMap();
+            return edge.value(QStringLiteral("sourceNodeId")).toString()
+                       == QStringLiteral("output.") + source_artifact_id
+                   && edge.value(QStringLiteral("targetNodeId")).toString()
+                          == child_operator_id;
+        }
+    );
+    if (!visible_source.has_value() || !joined
+        || visible_source->value(QStringLiteral("artifactId")).toString()
+               == output_node->value(QStringLiteral("artifactId")).toString()) {
+        std::cerr << "desktop work graph did not join original text to edited output"
+                  << std::endl;
+        return false;
+    }
     if (!verify_packaged_node_route(
             *workspace_surface,
-            *source_node,
+            *visible_source,
             QStringLiteral("source.readonly"),
             QStringLiteral("sourceMaterialWorkspace")
-        )
+        )) {
+        return false;
+    }
+    activation.evaluate();
+    QCoreApplication::processEvents();
+    if (activation.hasError()
         || !verify_packaged_node_route(
             *workspace_surface,
             *operator_node,

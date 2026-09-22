@@ -8,6 +8,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
+import "WorkGraphProjection.js" as WorkGraph
 
 Rectangle {
     id: rail
@@ -96,41 +97,11 @@ Rectangle {
     }
 
     function groupWorks(artifacts) : var {
-        const byId = {}
-        const speechSource = {}
-        const groups = []
-        const groupById = {}
-        for (let index = 0; index < artifacts.length; ++index) {
-            byId[itemId(artifacts[index])] = artifacts[index]
-        }
-        for (let index = 0; index < artifacts.length; ++index) {
-            const artifact = artifacts[index]
-            if (artifact.kindKey !== "audio_clip") continue
-            const nodes = artifact.operatorNodes || []
-            const speechNode = nodes.some(node => node.roleKey === "operator"
-                                               && node.operatorTypeKey === "audio.speech_synthesize")
-            if (!speechNode) continue
-            const source = nodes.find(node => node.roleKey === "source"
-                                             && byId[String(node.artifactId)] !== undefined
-                                             && byId[String(node.artifactId)].kindKey === "text_document")
-            if (source !== undefined) speechSource[itemId(artifact)] = String(source.artifactId)
-        }
-        for (let index = 0; index < artifacts.length; ++index) {
-            const artifact = artifacts[index]
-            const id = itemId(artifact)
-            if (speechSource[id] !== undefined) continue
-            const group = {"id": id, "name": itemName(artifact),
-                           "kindKey": artifact.kindKey, "kindLabel": itemKind(artifact),
-                           "outputs": []}
-            groups.push(group)
-            groupById[id] = group
-        }
-        for (let index = 0; index < artifacts.length; ++index) {
-            const artifact = artifacts[index]
-            const parent = groupById[speechSource[itemId(artifact)]]
-            if (parent !== undefined) parent.outputs.push(artifact)
-        }
-        return groups
+        return WorkGraph.groupWorks(artifacts)
+    }
+
+    function projectWorkGraph(artifacts, selectedId) : var {
+        return WorkGraph.graphFor(artifacts, selectedId)
     }
 
     function workGroupSelected(group) : bool {
@@ -395,7 +366,9 @@ Rectangle {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: itemDelegate.groupedWork ? qsTr("Text and audio")
+                                text: itemDelegate.groupedWork
+                                      && itemDelegate.modelData.outputs.some(a => a.kindKey === "audio_clip")
+                                      ? qsTr("Text and audio")
                                       : itemDelegate.pendingCount > 0
                                         ? qsTr("%1 new version(s)").arg(itemDelegate.pendingCount)
                                         : rail.itemKind(itemDelegate.modelData)
@@ -418,9 +391,11 @@ Rectangle {
                             required property var modelData
                             readonly property string artifactId: rail.itemId(modelData)
                             readonly property int pendingCount: rail.candidateCount(artifactId)
-                            readonly property string viewLabel: index === 0 ? qsTr("Text")
-                                                               : itemDelegate.modelData.outputs.length === 1
-                                                                 ? qsTr("Audio") : qsTr("Audio %1").arg(index)
+                            readonly property string viewLabel: modelData.kindKey === "text_document"
+                                                                ? index === 0 ? qsTr("Text")
+                                                                              : rail.itemName(modelData)
+                                                                : itemDelegate.modelData.outputs.length === 1
+                                                                  ? qsTr("Audio") : qsTr("Audio %1").arg(index)
 
                             objectName: "workView-" + artifactId
                             Layout.fillWidth: true

@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
-//! Interactive Source -> Operator -> Output projection for one selected scene.
-//! Rust owns node and port semantics; this component owns layout and interaction.
+//! Interactive read-only work relationship projection. Artifact graphs and
+//! accepted input bindings own the nodes; this component owns layout and interaction.
 
 import QtQuick
 import QtQuick.Controls
@@ -17,6 +17,8 @@ Rectangle {
     property string sceneKind: ""
     property var nodes: []
     property var edges: []
+    property var artifacts: []
+    property string selectedArtifactId: ""
     property var drafts: []
     property var candidates: []
     property var operatorDescriptors: []
@@ -68,12 +70,10 @@ Rectangle {
         return count;
     }
     readonly property string terminalNodeId: {
-        let outputId = "";
-        for (let index = 0; index < nodes.length; ++index) {
-            if (nodes[index].roleKey === "output") {
-                outputId = nodes[index].id;
-                break;
-            }
+        let outputId = "output." + selectedArtifactId;
+        if (nodeIndex(outputId) < 0) {
+            const output = nodes.find(node => node.roleKey === "output");
+            outputId = output ? output.id : "";
         }
         for (let index = 0; index < edges.length; ++index) {
             if (edges[index].targetNodeId === outputId)
@@ -124,6 +124,20 @@ Rectangle {
     function nodeForId(nodeId): var {
         const index = nodeIndex(nodeId);
         return index >= 0 ? nodes[index] : null;
+    }
+
+    function artifactForNode(node): var {
+        if (!node) return null;
+        for (const artifact of artifacts) {
+            if (artifact.id === node.artifactId) return artifact;
+        }
+        return null;
+    }
+
+    function acceptedForNode(node): bool {
+        if (!node || node.roleKey !== "output") return false;
+        const artifact = artifactForNode(node);
+        return artifact !== null && artifact.hasAcceptedRevision;
     }
 
     function draftForId(draftId): var {
@@ -251,7 +265,7 @@ Rectangle {
             return node.artifactName.length > 0 ? node.artifactName : qsTr("Starting material");
         }
         if (node.roleKey === "output") {
-            if (!hasAcceptedRevision)
+            if (!acceptedForNode(node))
                 return node.artifactName.length > 0 ? node.artifactName : qsTr("Output");
             return node.artifactName.length > 0 ? qsTr("%1 / Current").arg(node.artifactName) : qsTr("Current result");
         }
@@ -269,11 +283,13 @@ Rectangle {
     }
 
     function roleLabel(node): string {
+        if (node.roleKey === "source" && node.earlierInput === true)
+            return qsTr("EARLIER SOURCE VERSION");
         if (node.roleKey === "source" || (node.roleKey === "operator" && node.inputPorts.length === 0)) {
             return qsTr("STARTING POINT");
         }
         if (node.roleKey === "output")
-            return hasAcceptedRevision ? qsTr("CURRENT RESULT") : qsTr("OUTPUT");
+            return acceptedForNode(node) ? qsTr("CURRENT RESULT") : qsTr("OUTPUT");
         return qsTr("CREATIVE STEP");
     }
 
@@ -296,11 +312,11 @@ Rectangle {
         return ports.length > 0 ? dataTypeLabel(ports[0].dataTypeKey) : qsTr("Creative content");
     }
 
-    function roleColor(roleKey): color {
-        if (roleKey === "operator")
+    function roleColor(node): color {
+        if (node.roleKey === "operator")
             return Theme.accent;
-        if (roleKey === "output")
-            return hasAcceptedRevision ? Theme.success : Theme.muted;
+        if (node.roleKey === "output")
+            return acceptedForNode(node) ? Theme.success : Theme.muted;
         return Theme.muted;
     }
 
@@ -340,7 +356,7 @@ Rectangle {
                 return qsTr("The original material this work starts from · %1").arg(nodeDetail(inspectedNode));
             }
             if (inspectedNode.roleKey === "output") {
-                if (!hasAcceptedRevision)
+                if (!acceptedForNode(inspectedNode))
                     return qsTr("No accepted version yet");
                 return qsTr("The version currently used by this work · %1").arg(nodeDetail(inspectedNode));
             }
@@ -369,7 +385,7 @@ Rectangle {
 
     function inspectionColor(): color {
         if (inspectionKind === "node")
-            return roleColor(inspectedNode.roleKey);
+            return roleColor(inspectedNode);
         if (inspectionKind === "candidate" || inspectionKind === "draft")
             return Theme.accent;
         return Theme.muted;
@@ -598,7 +614,7 @@ Rectangle {
                         required property int index
                         required property var modelData
                         readonly property bool currentNode: modelData.id === graph.selectedNodeId
-                        readonly property bool displaysCurrentPreview: modelData.roleKey === "output" && graph.hasAcceptedRevision && ((graph.artifactKindKey === "image_raster" && graph.acceptedImageSource.toString().length > 0) || graph.artifactKindKey === "text_document" || graph.artifactKindKey === "audio_clip")
+                        readonly property var artifact: graph.artifactForNode(modelData)
 
                         x: graph.nodeX(index)
                         y: graph.nodeY(index)
@@ -616,16 +632,24 @@ Rectangle {
                             nodeData: acceptedNode.modelData
                             selected: acceptedNode.currentNode
                             hovered: acceptedNode.hovered
-                            artifactKindKey: graph.artifactKindKey
-                            artifactTextPreview: graph.artifactTextPreview
-                            artifactTextPreviewTruncated: graph.artifactTextPreviewTruncated
+                            artifactKindKey: acceptedNode.artifact !== null
+                                             ? acceptedNode.artifact.kindKey : ""
+                            artifactTextPreview: acceptedNode.artifact !== null
+                                                 ? acceptedNode.artifact.textPreview : ""
+                            artifactTextPreviewTruncated: acceptedNode.artifact !== null
+                                                          && acceptedNode.artifact.textPreviewTruncated
                             acceptedImageSource: graph.acceptedImageSource
-                            artifactImageWidth: graph.artifactImageWidth
-                            artifactImageHeight: graph.artifactImageHeight
-                            artifactAudioDurationMillis: graph.artifactAudioDurationMillis
-                            artifactAudioSampleRateHz: graph.artifactAudioSampleRateHz
-                            artifactAudioChannels: graph.artifactAudioChannels
-                            hasAcceptedRevision: graph.hasAcceptedRevision
+                            artifactImageWidth: acceptedNode.artifact !== null
+                                                ? acceptedNode.artifact.imageWidth : 0
+                            artifactImageHeight: acceptedNode.artifact !== null
+                                                 ? acceptedNode.artifact.imageHeight : 0
+                            artifactAudioDurationMillis: acceptedNode.artifact !== null
+                                                         ? acceptedNode.artifact.audioDurationMillis : 0
+                            artifactAudioSampleRateHz: acceptedNode.artifact !== null
+                                                       ? acceptedNode.artifact.audioSampleRateHz : 0
+                            artifactAudioChannels: acceptedNode.artifact !== null
+                                                   ? acceptedNode.artifact.audioChannels : 0
+                            hasAcceptedRevision: graph.acceptedForNode(acceptedNode.modelData)
                             stageNumber: graph.nodeStage(acceptedNode.modelData.id, {})
                             onOutputNodeRequested: {
                                 graph.selectAcceptedNode(acceptedNode.modelData.id);

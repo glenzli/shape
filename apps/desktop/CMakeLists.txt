@@ -180,6 +180,7 @@ qt_add_qml_module(shape-desktop
         qml/components/TextExpressionPalette.qml
         qml/components/VariantsPanel.qml
         qml/components/WorkbenchProjectRail.qml
+        qml/components/WorkGraphProjection.js
         qml/components/WorkspaceSurface.qml
     RESOURCES
         icons/add.svg

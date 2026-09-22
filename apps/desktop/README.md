@@ -69,11 +69,15 @@ contracts. Accepted graph cards are role- and media-specific: the current Result
 real text excerpt, selected image preview, or audio summary instead of only a type label. The focused
 workspace header never displays raw route keys; “See workflow” remains the
 explicit route back to the graph for users who want structural control.
-The rail groups a speech-derived AudioClip under its source TextDocument as one visible work, with
-separate text and audio entries inside that work. Other artifacts remain independent works. Pending
-versions sit below the accepted Source → Operator → Output path in the graph; an output without an
-accepted revision says so instead of displaying zero-valued media metadata. This is a navigation
-projection over the existing artifact and revision identities, not a persistence migration.
+The rail groups text edits and speech-derived audio under their source text as one visible work.
+The work canvas joins each Artifact's existing graph at an exact accepted input revision: an
+original text can lead to script text, speech synthesis, and audio output in one view. A downstream
+node pinned to an older source revision keeps its separate Source node, so the canvas does not imply
+that it uses the current text. Node opening selects the owning Artifact and retains its independent
+accepted history. Pending versions stay attached to the selected output's step. This relationship
+view is derived from persisted input bindings; it does not write a Scene graph or invent editable
+cross-Artifact ports. An output without an accepted revision says so instead of displaying zero-valued
+media metadata.
 
 This foundation currently adapts each existing Artifact into a single-output Scene. That
 compatibility boundary lets media-specific Operator work proceed without pretending that the final

@@ -6,6 +6,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Shape.Desktop
+import "WorkGraphProjection.js" as WorkGraph
 
 Item {
     id: surface
@@ -39,6 +40,10 @@ Item {
                                       ? (selectedArtifact.operatorNodes || []) : []
     readonly property var graphEdges: hasSelectedArtifact
                                       ? (selectedArtifact.operatorEdges || []) : []
+    readonly property var workGraph: WorkGraph.graphFor(
+                                         allArtifacts,
+                                         hasSelectedArtifact ? selectedArtifact.id : "")
+    readonly property var workRoot: artifactForId(workGraph.rootId)
     readonly property bool graphActive: currentMode === 0
     readonly property bool focusActive: currentMode === 1
     readonly property bool guidedAuthoringActive: focusActive && (authoringRoute
@@ -182,10 +187,37 @@ Item {
 
     function activateScene(index) : void {
         sceneSelected(index)
+        if (index >= 0 && index < allArtifacts.length) {
+            const outputId = "output." + allArtifacts[index].id
+            if (workGraph.nodes.some(node => node.id === outputId))
+                selectedNodeId = outputId
+            else
+                synchronizeNodeSelection()
+        }
         showGraph()
     }
 
     function selectNode(nodeId) : void {
+        selectedNodeId = nodeId
+    }
+
+    function selectArtifactForNode(nodeId) : void {
+        let node = null
+        for (const candidate of workGraph.nodes) {
+            if (candidate.id === nodeId) {
+                node = candidate
+                break
+            }
+        }
+        if (node === null) return
+        if (!hasSelectedArtifact || node.artifactId !== selectedArtifact.id) {
+            for (let index = 0; index < allArtifacts.length; ++index) {
+                if (allArtifacts[index].id === node.artifactId) {
+                    sceneSelected(index)
+                    break
+                }
+            }
+        }
         selectedNodeId = nodeId
     }
 
@@ -280,8 +312,25 @@ Item {
 
     function openNode(nodeId) : bool {
         if (draftForId(nodeId) !== null) return openOperatorDraft(nodeId)
-        const node = nodeForId(nodeId)
+        let node = currentMode === 0 ? null : nodeForId(nodeId)
+        if (node === null) {
+            for (const candidate of workGraph.nodes) {
+                if (candidate.id === nodeId) {
+                    node = candidate
+                    break
+                }
+            }
+        }
+        if (node === null) node = nodeForId(nodeId)
         if (node === null) return false
+        if (hasSelectedArtifact && node.artifactId !== selectedArtifact.id) {
+            for (let index = 0; index < allArtifacts.length; ++index) {
+                if (allArtifacts[index].id === node.artifactId) {
+                    sceneSelected(index)
+                    break
+                }
+            }
+        }
         selectedNodeId = nodeId
         if (!operatorWorkspaceHost.openWorkspace(
                 node.id, node.roleKey, node.operatorTypeKey,
@@ -313,6 +362,9 @@ Item {
         const nodes = graphNodes || []
         for (let index = 0; index < nodes.length; ++index) {
             if (nodes[index].id === selectedNodeId) return
+        }
+        for (const node of workGraph.nodes) {
+            if (node.id === selectedNodeId) return
         }
         if (draftForId(selectedNodeId) !== null) return
         selectedNodeId = ""
@@ -531,13 +583,15 @@ Item {
 
             SceneOperatorGraphWorkspace {
                 projectName: surface.projectName
-                sceneName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
+                sceneName: surface.workRoot !== null ? surface.workRoot.name : ""
                 sceneKind: surface.hasSelectedArtifact
                            ? surface.selectedArtifact.kindLabel : ""
-                nodes: surface.graphNodes
-                edges: surface.graphEdges
+                nodes: surface.workGraph.nodes
+                edges: surface.workGraph.edges
+                artifacts: surface.allArtifacts
+                selectedArtifactId: surface.hasSelectedArtifact ? surface.selectedArtifact.id : ""
                 candidates: surface.candidates
-                drafts: surface.operatorDrafts.filter(d => !surface.graphNodes.some(n => n.id === d.id))
+                drafts: surface.operatorDrafts.filter(d => !surface.workGraph.nodes.some(n => n.id === d.id))
                 operatorDescriptors: surface.operatorDescriptors
                 artifactKindKey: surface.hasSelectedArtifact
                                  ? surface.selectedArtifact.kindKey : ""
@@ -560,8 +614,9 @@ Item {
                                      && surface.selectedArtifact.hasAcceptedRevision
                 selectedNodeId: surface.selectedNodeId
                 selectedCandidateId: surface.selectedCandidateId
-                onNodeSelected: nodeId => surface.selectNode(nodeId)
+                onNodeSelected: nodeId => surface.selectArtifactForNode(nodeId)
                 onNodeOpened: nodeId => surface.openNode(nodeId)
+                onNodeOutputRequested: nodeId => surface.selectArtifactForNode(nodeId)
                 onDraftRequested: operatorTypeKey => {
                     if (operatorTypeKey === "image.edit") surface.openImageEditor()
                     else surface.operatorDraftRequested(operatorTypeKey)

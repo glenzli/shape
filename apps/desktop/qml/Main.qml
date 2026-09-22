@@ -416,13 +416,14 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? 78 : 0
                 visible: workspaceSurface.focusActive && !workspaceSurface.guidedAuthoringActive
-                sceneName: window.hasSelectedArtifact ? window.selectedArtifact.name : ""
-                nodes: workspaceSurface.graphNodes
-                drafts: window.artifactDrafts.filter(d => !workspaceSurface.graphNodes.some(n => n.id === d.id))
+                sceneName: workspaceSurface.workRoot !== null
+                           ? workspaceSurface.workRoot.name : ""
+                nodes: workspaceSurface.workGraph.nodes
+                drafts: window.artifactDrafts.filter(d => !workspaceSurface.workGraph.nodes.some(n => n.id === d.id))
                 candidateCount: window.artifactCandidates.length
                 selectedNodeId: workspaceSurface.selectedNodeId
                 onGraphRequested: workspaceSurface.showGraph()
-                onNodeSelected: nodeId => workspaceSurface.selectNode(nodeId)
+                onNodeSelected: nodeId => workspaceSurface.selectArtifactForNode(nodeId)
                 onNodeOpened: nodeId => workspaceSurface.openNode(nodeId)
                 onDraftSelected: draftId => workspaceSurface.selectNode(draftId)
                 onDraftOpened: draftId => workspaceSurface.openOperatorDraft(draftId)
