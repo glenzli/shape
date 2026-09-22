@@ -149,10 +149,14 @@ It pins the model selected for this run (from the settings default or a local ov
 native dimensions and pixels remain intact, with exact sizing owned by the image editing node.
 The desktop supports one to four Candidates per image-generation action. The authored count is
 persisted on the one source draft; the bridge snapshots that configuration once, performs one
-physical request per Candidate, and keeps a separate Job receipt for each result. Successful
-results remain reviewable if a later request fails. The session revalidates every result against
-the same still-unaccepted target and exact draft before adopting the batch. The graph still has
-one logical output, and explicit acceptance clears sibling Candidates.
+physical request per Candidate, and keeps a separate Job receipt for each result. An opaque
+thread-safe control queues each result for UI-thread adoption as soon as it completes. The
+controller owns progress, cancellation between physical requests, and queue draining; Stop never
+interrupts an active provider request. Completed Candidates remain reviewable after a stop or
+later request failure. Candidate mutation stays disabled during the run so accepting one cannot
+invalidate later adoption. The session revalidates each result against the same still-unaccepted
+target and exact draft. The graph still has one logical output, and explicit acceptance clears
+sibling Candidates.
 Local ACL setup is separate from source validation. Material-conditioned execution remains
 unavailable until Infer publishes a stable typed raster-output provider, Capability Schema, and SDK
 client; a mock, text-only, or image-description route must not be substituted.
@@ -238,7 +242,8 @@ session on the UI thread. It rejects concurrent generation, waits during destruc
 complete request generation and artifact identity, and exposes only stable localized failure codes.
 `InferSpeechController` owns the analogous but separate speech lifecycle because its admission,
 parameters, result type, and failure policy evolve independently from Text.
-`InferImageController` likewise owns the high-payload cloud-image lifecycle; large PNG bytes remain
+`InferImageController` likewise owns the high-payload cloud-image lifecycle, UI-thread progress
+delivery, and stop-after-current control; large PNG bytes remain
 opaque until the UI-thread session adopts the Candidate and a selected preview is requested.
 The graph-aware desktop information architecture adds `ProjectNavigator.qml` for Scene selection
 and `ContextInspector.qml` for Explore, Details, and Lineage modes. `OperatorWorkspaceHost.qml`

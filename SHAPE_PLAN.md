@@ -388,8 +388,19 @@ Source Operator；后者至少有一个 `input.materials`，每个输入固定�
 Consumer Core 与 `infer.responses@20260812.1`，并拥有严格 PNG/typed Job provenance 复验，以及
 Core 内“先 Candidate、后显式 Accept”的纵向回路。
 桌面现在也能原子创建 Scene 级零输入 Draft，恢复精确 prompt/canvas，并通过独立异步控制器把
-结果放入 Candidate Shelf；但当前 Shape App ACL 尚未授权所需的
+结果逐张放入 Candidate Shelf；批量生成在当前请求结束后可停止，已生成结果仍可审阅和采用；
+但当前 Shape App ACL 尚未授权所需的
 subscription/balanced/cloud-only 策略，因此真实在线执行继续 fail closed，且不会污染已接受历史。
+
+音频下一阶段按输入与可验证的操作区分，而不是把所有需求塞进文字转语音：
+`audio.speech_synthesize` 从已接受脚本产生新音频；无素材的环境声生成用
+`audio.generate`；从一段已接受音频向后续接，需要音频输入、续接起点和目标时长；
+替换或模仿声音需要明确的授权 Voice Reference、适用范围与衍生披露。续接音频与
+“继续念后面的脚本”是不同操作，后者仍属脚本合成和片段组装。每种执行只产生一个
+逻辑音频输出，多个结果进入 Candidate Shelf；导出文件仍是该输出的落地动作。实施时
+先打通音频素材导入与已接受输入绑定，再为续接和参考声音接稳定的 typed Runtime
+能力、ACL 和逐段来源校验。现有桌面仅开放预设音色的脚本转语音；未接通的能力不显示
+为可运行的生成按钮。
 
 ### 4.6 ArtifactContent 类型
 

@@ -25,6 +25,7 @@ Rectangle {
     property string referencesEmptyText: qsTr("No reference materials")
     property bool editable: true
     property bool running: false
+    property bool stopRequested: false
     property string statusText: ""
     property string primaryActionText: qsTr("Create a version")
     property bool primaryActionEnabled: true
@@ -55,6 +56,7 @@ Rectangle {
     signal addReferenceRequested()
     signal primaryActionRequested()
     signal candidateCountSelected(int count)
+    signal stopActionRequested()
 
     function itemLabel(item) : string {
         if (typeof item === "string") return item
@@ -329,6 +331,16 @@ Rectangle {
             enabled: sidebar.editable && !sidebar.running
                      && sidebar.primaryActionEnabled
             onClicked: sidebar.primaryActionRequested()
+        }
+
+        ShapeButton {
+            objectName: "imageBatchStopButton"
+            Layout.fillWidth: true
+            visible: sidebar.allowCandidateCount && sidebar.running
+            text: sidebar.stopRequested ? qsTr("Stopping after this image…")
+                                        : qsTr("Stop after this image")
+            enabled: !sidebar.stopRequested
+            onClicked: sidebar.stopActionRequested()
         }
     }
 

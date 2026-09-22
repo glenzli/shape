@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fs, path::PathBuf};
 
 use shape_core::ShapeProject;
@@ -16,7 +17,11 @@ use shape_execution::{
 use uuid::Uuid;
 
 use super::{create_desktop_project, open_desktop_session};
-use crate::infer_image::{InferImageBatch, InferImageCandidate};
+use crate::infer_image::{
+    ImageGenerationControl, InferImageBatch, InferImageCandidate, execute_image_batch,
+    image_generation_control_cancel, image_generation_control_has_candidate,
+    image_generation_control_take_candidate,
+};
 use crate::infer_speech::InferSpeechCandidate;
 use crate::operator_catalog::{AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, IMAGE_RESIZE_OPERATOR};
 
@@ -68,6 +73,30 @@ impl Executor for BridgeImageExecutor {
                 ImageRasterContract::rgba8(4, 3, ImageColorProfile::Srgb).unwrap(),
             )),
         })
+    }
+}
+
+struct StopImageBatchAfterFirst<'a> {
+    inner: BridgeImageExecutor,
+    control: &'a ImageGenerationControl,
+    calls: AtomicUsize,
+}
+
+impl Executor for StopImageBatchAfterFirst<'_> {
+    fn identity(&self) -> &ExecutorIdentity {
+        self.inner.identity()
+    }
+
+    fn supports(&self, capability: &CapabilityId) -> bool {
+        self.inner.supports(capability)
+    }
+
+    fn execute(&self, request: &ExecutionRequest) -> Result<ExecutionOutput, ExecutionFailure> {
+        let result = self.inner.execute(request);
+        if self.calls.fetch_add(1, Ordering::Relaxed) == 0 {
+            image_generation_control_cancel(self.control);
+        }
+        result
     }
 }
 
@@ -643,6 +672,58 @@ fn image_batch_adopts_distinct_candidates_and_accepts_only_the_chosen_one() {
         .unwrap();
     assert!(session.session_candidates().is_empty());
     assert!(session.session_snapshot().unwrap().artifacts[0].has_accepted_revision);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn stopped_image_batch_streams_the_completed_candidate_without_starting_another_job() {
+    let root = test_root();
+    let path = root.to_str().unwrap();
+    let mut session = create_desktop_project(path, "Stopped image batch").unwrap();
+    let snapshot = session
+        .session_create_ai_image_draft("Bird", "A cobalt glass bird", 4, 3)
+        .unwrap();
+    let artifact_id = snapshot.artifacts[0]
+        .id
+        .parse::<shape_domain::ArtifactId>()
+        .unwrap();
+    let draft_id = session.session_operator_drafts()[0].draft_id.clone();
+    session
+        .session_update_ai_image_draft(&draft_id, "A cobalt glass bird", 4, 3, 3)
+        .unwrap();
+    let parameters = AiImageGenerateParameters::new(
+        "A cobalt glass bird",
+        AiImageOutputCanvas::new(4, 3).unwrap(),
+        3,
+        Vec::new(),
+    )
+    .unwrap();
+    let project = ShapeProject::open(&root).unwrap();
+    let control = ImageGenerationControl::default();
+    let executor = StopImageBatchAfterFirst {
+        inner: BridgeImageExecutor::new(),
+        control: &control,
+        calls: AtomicUsize::new(0),
+    };
+    let batch = execute_image_batch(
+        &project,
+        artifact_id,
+        &draft_id,
+        &parameters,
+        3,
+        &executor,
+        Some(&control),
+    )
+    .unwrap();
+    assert_eq!(executor.calls.load(Ordering::Relaxed), 1);
+    assert_eq!(batch.into_parts().2, "generation_cancelled");
+    assert!(image_generation_control_has_candidate(&control));
+    let ready = image_generation_control_take_candidate(&control).unwrap();
+    assert!(!image_generation_control_has_candidate(&control));
+    let adopted = session.session_adopt_infer_image(ready).unwrap();
+    assert!(adopted.has_image_preview);
+    assert_eq!(session.session_candidates().len(), 1);
+    assert!(!session.session_snapshot().unwrap().artifacts[0].has_accepted_revision);
     fs::remove_dir_all(root).unwrap();
 }
 

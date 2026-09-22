@@ -61,8 +61,11 @@ immutable history and rebases the same draft to the new accepted head.
 The zero-input AI Image draft remains recoverable while generated Candidates are transient. It can
 be discarded before acceptance and is also cleared when one Candidate is explicitly accepted.
 One image run can request one to four independently receipted Candidates. They appear in the same
-Candidate Shelf with small previews; choosing one does not modify the accepted image until Use this
-version. If a later request fails, completed Candidates remain available for review. A style reference
+Candidate Shelf with small previews as each request completes. Progress shows the number ready; Stop
+finishes the active request and skips later requests. Completed Candidates remain available after a
+stop or later request failure. Choosing one does not modify the accepted image until Use this
+version, which becomes available when the run ends. Selecting an earlier Candidate while later
+requests run is preserved as new results arrive. A style reference
 must bind an accepted raster revision to a separate material-conditioned image operator with an
 explicit role; that execution path is reserved until the runtime exposes typed raster input.
 An unfinished speech step remains removable even when its saved Operator graph is already shown
@@ -172,7 +175,9 @@ acceptance and reopen. It is deliberately excluded from offline CTest smoke chec
 `InferImageController` owns the separate high-payload source-less image generation lifecycle over
 the stable Core and Responses capability.
 Rust reopens the exact zero-input draft and validates its prompt/canvas before credential access,
-then requires cloud/subscription Job provenance before returning an opaque Candidate. The desktop
+then requires cloud/subscription Job provenance before returning an opaque Candidate. Each
+successful physical request enters a thread-safe queue for UI-thread Candidate adoption and thumbnail
+caching; Stop is checked before the next request. The desktop
 uses the settings default (GPT-5.6 Luna initially) or the model chosen for the current run (GPT-6 Luna/Sol are also available), without exposing provider-native model details. `AiImageOperatorWorkspace.qml` owns the
 central canvas and compact output-size choice, while `OperatorIntentSidebar.qml` is its real
 comprehensive intent consumer. Candidate PNG bytes cross only for selected preview. Infer must grant Shape the image.generate intent, Luna route, subscription access, cloud text input,

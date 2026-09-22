@@ -1,9 +1,17 @@
 //! Authenticated zero-input image generation prepared outside the live desktop
 //! session, then adopted through its exact source-draft Candidate boundary.
 
+use std::{
+    collections::VecDeque,
+    sync::{
+        Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+};
+
 use shape_core::{AiImageCandidate, CoreError, ShapeProject};
-use shape_domain::{ArtifactId, ArtifactKind, OperatorNodeId};
-use shape_execution::{ExecutionError, InferRuntimeImageGenerationExecutor};
+use shape_domain::{AiImageGenerateParameters, ArtifactId, ArtifactKind, OperatorNodeId};
+use shape_execution::{ExecutionError, Executor, InferRuntimeImageGenerationExecutor};
 
 use crate::operator_catalog::{IMAGE_GENERATE_OPERATOR, ai_image_generate_parameters_from_draft};
 
@@ -20,6 +28,43 @@ pub struct InferImageBatch {
     candidates: Vec<AiImageCandidate>,
     draft_id: String,
     failure_code: String,
+}
+
+/// Thread-safe progress and transfer queue for one image batch. The desktop
+/// consumes each Candidate on its UI thread as soon as its request completes.
+#[derive(Debug, Default)]
+pub struct ImageGenerationControl {
+    cancelled: AtomicBool,
+    ready: Mutex<VecDeque<InferImageCandidate>>,
+}
+
+#[allow(clippy::unnecessary_box_returns)] // CXX opaque ownership requires Box.
+pub(super) fn new_image_generation_control() -> Box<ImageGenerationControl> {
+    Box::new(ImageGenerationControl::default())
+}
+
+pub(super) fn image_generation_control_cancel(control: &ImageGenerationControl) {
+    control.cancelled.store(true, Ordering::Release);
+}
+
+pub(super) fn image_generation_control_has_candidate(control: &ImageGenerationControl) -> bool {
+    !control
+        .ready
+        .lock()
+        .expect("image candidate queue is usable")
+        .is_empty()
+}
+
+pub(super) fn image_generation_control_take_candidate(
+    control: &ImageGenerationControl,
+) -> Result<Box<InferImageCandidate>, String> {
+    control
+        .ready
+        .lock()
+        .map_err(|_| "image_candidate_queue_failed")?
+        .pop_front()
+        .map(Box::new)
+        .ok_or_else(|| "no_image_candidate_ready".to_owned())
 }
 
 impl InferImageBatch {
@@ -98,6 +143,56 @@ pub(super) fn generate_infer_image_batch(
     effort_key: &str,
     requested_count: u8,
 ) -> Result<Box<InferImageBatch>, String> {
+    generate_infer_image_batch_impl(
+        project_path,
+        artifact_id,
+        draft_id,
+        credential_path,
+        explicit_override,
+        model_key,
+        effort_key,
+        requested_count,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)] // CXX passes explicit draft identity and expected count.
+pub(super) fn generate_infer_image_batch_controlled(
+    project_path: &str,
+    artifact_id: &str,
+    draft_id: &str,
+    credential_path: &str,
+    explicit_override: &str,
+    model_key: &str,
+    effort_key: &str,
+    requested_count: u8,
+    control: &ImageGenerationControl,
+) -> Result<Box<InferImageBatch>, String> {
+    generate_infer_image_batch_impl(
+        project_path,
+        artifact_id,
+        draft_id,
+        credential_path,
+        explicit_override,
+        model_key,
+        effort_key,
+        requested_count,
+        Some(control),
+    )
+}
+
+#[allow(clippy::too_many_arguments)] // Exact persisted request and optional progress owner.
+fn generate_infer_image_batch_impl(
+    project_path: &str,
+    artifact_id: &str,
+    draft_id: &str,
+    credential_path: &str,
+    explicit_override: &str,
+    model_key: &str,
+    effort_key: &str,
+    requested_count: u8,
+    control: Option<&ImageGenerationControl>,
+) -> Result<Box<InferImageBatch>, String> {
     if !matches!(model_key, "gpt_5_6_luna" | "gpt_6_luna" | "gpt_6_sol") {
         return Err("invalid_model_choice".to_owned());
     }
@@ -157,11 +252,47 @@ pub(super) fn generate_infer_image_batch(
         effort_key,
     )
     .map_err(|_| "executor_invalid".to_owned())?;
+    execute_image_batch(
+        &project,
+        artifact_id,
+        draft_id,
+        &parameters,
+        requested_count,
+        &executor,
+        control,
+    )
+}
+
+pub(crate) fn execute_image_batch(
+    project: &ShapeProject,
+    artifact_id: ArtifactId,
+    draft_id: &str,
+    parameters: &AiImageGenerateParameters,
+    requested_count: u8,
+    executor: &dyn Executor,
+    control: Option<&ImageGenerationControl>,
+) -> Result<Box<InferImageBatch>, String> {
     let mut candidates = Vec::with_capacity(usize::from(requested_count));
     let mut failure_code = String::new();
     for _ in 0..requested_count {
-        match project.propose_generated_image(artifact_id, &parameters, &executor) {
-            Ok(candidate) => candidates.push(candidate),
+        if control.is_some_and(|control| control.cancelled.load(Ordering::Acquire)) {
+            if candidates.is_empty() {
+                return Err("generation_cancelled".to_owned());
+            }
+            "generation_cancelled".clone_into(&mut failure_code);
+            break;
+        }
+        match project.propose_generated_image(artifact_id, parameters, executor) {
+            Ok(candidate) => {
+                if let Some(control) = control {
+                    control
+                        .ready
+                        .lock()
+                        .map_err(|_| "image_candidate_queue_failed")?
+                        .push_back(InferImageCandidate::new(candidate.clone(), draft_id));
+                }
+                candidates.push(candidate);
+            }
             Err(error) if candidates.is_empty() => return Err(core_error_code(error)),
             Err(error) => {
                 failure_code = core_error_code(error);

@@ -6,9 +6,11 @@
 #include <QMutex>
 #include <QObject>
 #include <QString>
+#include <QTimer>
 #include <QtQml/qqmlregistration.h>
 
 #include <memory>
+#include <optional>
 
 #include "rust/cxx.h"
 #include "shape-desktop-bridge/src/lib.rs.h"
@@ -23,6 +25,7 @@ class InferImageController : public QObject {
     Q_PROPERTY(QString errorCode READ errorCode NOTIFY statusChanged)
     Q_PROPERTY(int requestedCount READ requestedCount NOTIFY statusChanged)
     Q_PROPERTY(int completedCount READ completedCount NOTIFY statusChanged)
+    Q_PROPERTY(bool stopRequested READ stopRequested NOTIFY statusChanged)
 
   public:
     InferImageController(
@@ -36,10 +39,12 @@ class InferImageController : public QObject {
     [[nodiscard]] QString errorCode() const;
     [[nodiscard]] int requestedCount() const { return requested_count_; }
     [[nodiscard]] int completedCount() const { return completed_count_; }
+    [[nodiscard]] bool stopRequested() const { return stop_requested_; }
 
     Q_INVOKABLE void
     generate(const QString& projectPath, const QString& artifactId, const QString& draftId,
              const QString& modelKey, const QString& effortKey, int candidateCount = 1);
+    Q_INVOKABLE void stopAfterCurrent();
 
   signals:
     void statusChanged();
@@ -49,12 +54,15 @@ class InferImageController : public QObject {
     struct GenerationResult;
 
     void finishGeneration();
+    void drainReadyCandidates();
     void setErrorCode(const QString& code);
 
     DesktopBackend& backend_;
     QString credential_path_;
     QString explicit_override_;
     QFutureWatcher<void> watcher_;
+    QTimer progress_timer_;
+    std::optional<rust::Box<shape::desktop::ImageGenerationControl>> control_;
     QMutex result_mutex_;
     std::unique_ptr<GenerationResult> pending_result_;
     quint64 generation_ = 0;
@@ -62,4 +70,7 @@ class InferImageController : public QObject {
     QString error_code_;
     int requested_count_ = 1;
     int completed_count_ = 0;
+    bool stop_requested_ = false;
+    QString adoption_error_code_;
+    QString active_artifact_id_;
 };

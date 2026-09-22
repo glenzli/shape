@@ -23,6 +23,7 @@ ApplicationWindow {
 
     property int selectedArtifactIndex: 0
     property string selectedCandidateId: ""
+    property string imageBatchAutofocusArtifactId: ""
     property bool compareMode: false
     property string workbenchSection: "scenes"
     readonly property var selectedArtifact: window.backend.artifacts.length > selectedArtifactIndex
@@ -193,9 +194,18 @@ ApplicationWindow {
 
     function imageGenerationStatus(errorCode) : string {
         if (window.inferImage.running) {
+            if (window.inferImage.stopRequested) {
+                return qsTr("Finishing the current image, then stopping. %1 of %2 ready.")
+                    .arg(window.inferImage.completedCount).arg(window.inferImage.requestedCount)
+            }
             return window.inferImage.requestedCount > 1
-                   ? qsTr("AI is creating %1 image versions…").arg(window.inferImage.requestedCount)
+                   ? qsTr("%1 of %2 image versions are ready.")
+                       .arg(window.inferImage.completedCount).arg(window.inferImage.requestedCount)
                    : qsTr("AI is creating a new image version…")
+        }
+        if (errorCode === "generation_cancelled") {
+            return qsTr("Stopped. %1 of %2 image versions are ready.")
+                .arg(window.inferImage.completedCount).arg(window.inferImage.requestedCount)
         }
         if (errorCode === "partial_generation_failed") {
             return qsTr("%1 of %2 versions are ready. Review them before retrying.")
@@ -630,6 +640,7 @@ ApplicationWindow {
                     referencesEmptyText: qsTr("This starting point does not need an existing image")
                     editable: window.backend.projectOpen
                     running: window.inferImage.running
+                    stopRequested: window.inferImage.stopRequested
                     statusText: window.imageGenerationStatus(window.inferImage.errorCode)
                     primaryActionText: aiImageIntent.selectedCandidateCount > 1
                                        ? qsTr("Generate %1 versions").arg(aiImageIntent.selectedCandidateCount)
@@ -662,12 +673,17 @@ ApplicationWindow {
                                 draft.id, editedIntentText,
                                 draft.aiImageOutputWidth, draft.aiImageOutputHeight,
                                 aiImageIntent.selectedCandidateCount)) {
+                            window.imageBatchAutofocusArtifactId = window.hasSelectedArtifact
+                                    && window.selectedArtifact.id === draft.contextArtifactId
+                                    && window.selectedCandidateId.length === 0
+                                    ? draft.contextArtifactId : ""
                             window.inferImage.generate(
                                 window.backend.bundlePath,
                                 draft.contextArtifactId, draft.id,
                                 modelKey, effortKey, aiImageIntent.selectedCandidateCount)
                         }
                     }
+                    onStopActionRequested: window.inferImage.stopAfterCurrent()
                 }
             }
 
@@ -682,7 +698,7 @@ ApplicationWindow {
                                     ? window.selectedArtifact.acceptedRevisionId : ""
                 selectedPreviewSource: window.backend.candidateImageSource
                 candidateThumbnailSource: candidateId => window.backend.candidateThumbnailSource(candidateId)
-                mutationEnabled: window.backend.projectOpen
+                mutationEnabled: window.backend.projectOpen && !window.inferImage.running
                 compareAvailable: window.candidateForSelected
                 onCandidateSelected: candidateId => window.activateCandidate(candidateId)
                 onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
@@ -699,10 +715,12 @@ ApplicationWindow {
         target: window.inferImage
 
         function onCandidateCreated(candidateId, artifactId) : void {
-            const index = window.artifactIndex(artifactId)
-            if (index >= 0) window.selectedArtifactIndex = index
-            window.backend.selectCandidate(candidateId)
-            window.selectedCandidateId = candidateId
+            if (window.inferImage.completedCount !== 1
+                    || window.imageBatchAutofocusArtifactId !== artifactId
+                    || !window.hasSelectedArtifact
+                    || window.selectedArtifact.id !== artifactId) return
+            window.imageBatchAutofocusArtifactId = ""
+            window.activateCandidate(candidateId)
             window.compareMode = false
             window.backend.prepareImagePreviews(artifactId, candidateId)
         }

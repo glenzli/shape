@@ -20,9 +20,11 @@ use shape_domain::{
 use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_runtime_contract};
 
 use infer_image::{
-    InferImageBatch, InferImageCandidate, generate_infer_image_batch,
-    generate_infer_image_candidate, infer_image_batch_completed_count,
-    infer_image_batch_failure_code,
+    ImageGenerationControl, InferImageBatch, InferImageCandidate, generate_infer_image_batch,
+    generate_infer_image_batch_controlled, generate_infer_image_candidate,
+    image_generation_control_cancel, image_generation_control_has_candidate,
+    image_generation_control_take_candidate, infer_image_batch_completed_count,
+    infer_image_batch_failure_code, new_image_generation_control,
 };
 use infer_runtime_access::{infer_runtime_credential_status, install_infer_runtime_credential};
 use infer_speech::{
@@ -261,6 +263,7 @@ mod ffi {
         type DesktopSession;
         type InferImageCandidate;
         type InferImageBatch;
+        type ImageGenerationControl;
         type InferSpeechCandidate;
         type InferTextCandidate;
 
@@ -339,6 +342,25 @@ mod ffi {
         ) -> Result<Box<InferImageBatch>>;
         fn infer_image_batch_completed_count(batch: &InferImageBatch) -> u8;
         fn infer_image_batch_failure_code(batch: &InferImageBatch) -> String;
+        #[allow(clippy::unnecessary_box_returns)] // CXX opaque ownership.
+        fn new_image_generation_control() -> Box<ImageGenerationControl>;
+        fn image_generation_control_cancel(control: &ImageGenerationControl);
+        fn image_generation_control_has_candidate(control: &ImageGenerationControl) -> bool;
+        fn image_generation_control_take_candidate(
+            control: &ImageGenerationControl,
+        ) -> Result<Box<InferImageCandidate>>;
+        #[allow(clippy::too_many_arguments)] // Exact desktop CXX request boundary.
+        fn generate_infer_image_batch_controlled(
+            project_path: &str,
+            artifact_id: &str,
+            draft_id: &str,
+            credential_path: &str,
+            explicit_override: &str,
+            model_key: &str,
+            effort_key: &str,
+            requested_count: u8,
+            control: &ImageGenerationControl,
+        ) -> Result<Box<InferImageBatch>>;
 
         /// Opens one mutable desktop session. The session remains the sole
         /// owner of transient candidates and the underlying project.

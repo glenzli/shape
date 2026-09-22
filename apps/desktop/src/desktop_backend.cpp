@@ -1560,7 +1560,18 @@ DesktopBackend::adoptInferImageCandidate(rust::Box<shape::desktop::InferImageCan
     }
     const auto adopted = session_->session->session_adopt_infer_image(std::move(candidate));
     const QString candidate_id = from_rust(adopted.candidate_id);
-    applyCandidates(session_->session->session_candidates(), candidate_id);
+    try {
+        (void)cacheImagePreview(
+            session_->session->session_image_preview(
+                to_utf8(from_rust(adopted.artifact_id)), to_utf8(candidate_id)
+            ),
+            true
+        );
+        emit imagePreviewChanged();
+    } catch (const std::exception& error) {
+        qWarning().noquote() << "could not cache image candidate thumbnail:" << error.what();
+    }
+    applyCandidates(session_->session->session_candidates());
     applyOperatorDrafts(session_->session->session_operator_drafts());
     setLastError(QString());
     emit candidateChanged();

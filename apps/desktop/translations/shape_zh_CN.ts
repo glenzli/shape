@@ -2053,6 +2053,9 @@
 </context>
 <context>
     <name>Main</name>
+    <message><source>Finishing the current image, then stopping. %1 of %2 ready.</source><translation>当前图片完成后停止，已完成 %1/%2 个。</translation></message>
+    <message><source>%1 of %2 image versions are ready.</source><translation>已完成 %1/%2 个图片候选。</translation></message>
+    <message><source>Stopped. %1 of %2 image versions are ready.</source><translation>已停止，完成了 %1/%2 个图片候选。</translation></message>
     <message><source>AI is creating %1 image versions…</source><translation>AI 正在创建 %1 个图片候选…</translation></message>
     <message><source>%1 of %2 versions are ready. Review them before retrying.</source><translation>已完成 %1/%2 个图片候选。请先查看，再决定是否重试。</translation></message>
     <message><source>Generate %1 versions</source><translation>生成 %1 个候选</translation></message>
@@ -2221,6 +2224,8 @@
 </context>
 <context>
     <name>OperatorIntentSidebar</name>
+    <message><source>Stopping after this image…</source><translation>将在当前图片完成后停止…</translation></message>
+    <message><source>Stop after this image</source><translation>当前图片完成后停止</translation></message>
     <message><source>Versions this run</source><translation>本次生成数量</translation></message>
     <message><source>Number of image versions</source><translation>图片候选数量</translation></message>
     <message>
