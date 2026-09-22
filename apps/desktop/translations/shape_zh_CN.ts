@@ -1326,6 +1326,10 @@
 <context>
     <name>CreativeGraphNodeCard</name>
     <message>
+        <source>EARLIER SOURCE VERSION</source>
+        <translation>较早的源版本</translation>
+    </message>
+    <message>
         <location filename="../qml/components/CreativeGraphNodeCard.qml" line="57"/>
         <source>OUTPUT</source>
         <translation>输出</translation>
@@ -3078,6 +3082,10 @@
 </context>
 <context>
     <name>SceneOperatorGraphWorkspace</name>
+    <message>
+        <source>EARLIER SOURCE VERSION</source>
+        <translation>较早的源版本</translation>
+    </message>
     <message>
         <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="278"/>
         <source>OUTPUT</source>

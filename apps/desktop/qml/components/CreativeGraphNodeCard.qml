@@ -52,6 +52,8 @@ Item {
     }
 
     function roleLabel(): string {
+        if (isSource && nodeData.earlierInput === true)
+            return qsTr("EARLIER SOURCE VERSION");
         if (isSource)
             return qsTr("SOURCE MATERIAL");
         if (isOutput)
@@ -74,7 +76,8 @@ Item {
     function title(): string {
         if (isSource) {
             if (boundDataType === "text.document")
-                return qsTr("Text material");
+                return nodeData.artifactName.length > 0
+                       ? nodeData.artifactName : qsTr("Text material");
             if (boundDataType === "image.raster")
                 return qsTr("Image material");
             if (boundDataType === "audio.clip")
@@ -83,7 +86,8 @@ Item {
         }
         if (isOutput) {
             if (boundDataType === "text.document")
-                return qsTr("Text result");
+                return nodeData.artifactName.length > 0
+                       ? nodeData.artifactName : qsTr("Text result");
             if (boundDataType === "image.raster")
                 return qsTr("Image result");
             if (boundDataType === "audio.clip")
