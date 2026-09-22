@@ -435,7 +435,7 @@ fn script_executes_only_spoken_lines_and_validates_exact_local_timeline() {
 #[test]
 fn repeated_dialogue_reuses_exact_pcm_and_receipts_and_transmits_delivery() {
     use shape_domain::speech_script::SpeechScriptOptions;
-    let source = "[production: listening]\n[role: A; language: auto]\n[role: B; language: English]\n[cue: turn; sound: beep; duration: 0.125s]\n[scene: question-1]\n[speaker: A]\nNumber one.\n[repeat: 3; gap: 1.25s]\n[speaker: A]\n你好。Hello.\n[pause: 0.5s]\n[speaker: B]\nGood morning.\n[audio: turn]\n[end-repeat]\n[pause: 5s]";
+    let source = "[production: listening]\n[delivery: clear]\n[role: A; language: auto]\n[role: B; language: English]\n[cue: turn; sound: beep; duration: 0.125s]\n[scene: question-1]\n[speaker: A]\nNumber one.\n[repeat: 3; gap: 1.25s]\n[speaker: A]\n你好。Hello.\n[pause: 0.5s]\n[speaker: B]\nGood morning.\n[audio: turn]\n[end-repeat]\n[pause: 5s]";
     let mut op = operation(SpeechVoiceSelection::Preset(preset()));
     let mut options = SpeechScriptOptions::default();
     for (role, index) in [("A", 0), ("B", 5)] {
@@ -472,7 +472,7 @@ fn repeated_dialogue_reuses_exact_pcm_and_receipts_and_transmits_delivery() {
     assert!(seen.iter().all(|r| {
         r.instructions
             .as_ref()
-            .is_some_and(|i| i.contains("educational listening"))
+            .is_some_and(|i| i.contains("Speak clearly and evenly"))
     }));
     assert_eq!(seen[1].voice, seen[0].voice);
     assert_ne!(seen[1].voice, seen[2].voice);

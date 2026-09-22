@@ -318,7 +318,6 @@ Rectangle {
             spacing: 8
 
             ShapeButton {
-                Layout.fillWidth: true
                 text: qsTr("Branch selected option")
                 visible: variants.selectedCandidate !== null
                          && variants.selectedCandidate.canBranch
@@ -330,17 +329,16 @@ Rectangle {
                 spacing: 8
 
                 ShapeButton {
-                    Layout.fillWidth: true
                     text: qsTr("Discard")
                     onClicked: variants.discardRequested(variants.selectedCandidate.id)
                 }
 
                 ShapeButton {
-                    Layout.fillWidth: true
                     text: qsTr("Accept selected")
                     primary: true
                     onClicked: variants.acceptRequested(variants.selectedCandidate.id)
                 }
+                Item { Layout.fillWidth: true }
             }
         }
     }

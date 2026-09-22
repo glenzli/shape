@@ -3,6 +3,7 @@
 #include "desktop_backend.hpp"
 #include "image_live_smoke.hpp"
 #include "image_preview_provider.hpp"
+#include "recent_projects.hpp"
 #include "infer_image_controller.hpp"
 #include "infer_runtime_controller.hpp"
 #include "infer_speech_controller.hpp"
@@ -898,6 +899,23 @@ int main(int argc, char* argv[]) {
     AudioPreviewController audio_preview(*backend, &application);
     AudioExportController audio_export(*backend, &application);
     UiPreferences ui_preferences(application);
+    RecentProjects recent_projects;
+    const bool smoke_mode = arguments->smoke_exit || arguments->smoke_text_cycle
+                            || arguments->smoke_raster_cycle
+                            || arguments->speech_live_directory.has_value()
+                            || arguments->speech_script_directory.has_value()
+                            || arguments->text_authoring_directory.has_value()
+                            || arguments->image_live_directory.has_value();
+    if (!smoke_mode) {
+        const auto record_project = [&recent_projects, project = backend.get()] {
+            if (project->projectOpen()) {
+                recent_projects.record(project->bundlePath(), project->projectName());
+            }
+        };
+        QObject::connect(backend.get(), &DesktopBackend::projectChanged, &recent_projects,
+                         record_project);
+        record_project();
+    }
     QObject::connect(
         &ui_preferences,
         &UiPreferences::languageModeChanged,
@@ -927,6 +945,7 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("audioPreview"), QVariant::fromValue(&audio_preview)},
         {QStringLiteral("audioExport"), QVariant::fromValue(&audio_export)},
         {QStringLiteral("uiPreferences"), QVariant::fromValue(&ui_preferences)},
+        {QStringLiteral("recentProjects"), QVariant::fromValue(&recent_projects)},
     });
     infer_runtime.refresh();
     engine.loadFromModule(QStringLiteral("Shape.Desktop"), QStringLiteral("Main"));
@@ -997,7 +1016,8 @@ int main(int argc, char* argv[]) {
     }
     if (arguments->smoke_exit) {
         const bool began_without_project = !backend->projectOpen();
-        if ((began_without_project && !workspace_host_smoke::verifyProjectWelcome(*root_object))
+        if (!workspace_host_smoke::verifyRecentProjects()
+            || (began_without_project && !workspace_host_smoke::verifyProjectWelcome(*root_object))
             || !verify_infer_runtime_surface(*root_object)
             || !workspace_host_smoke::verifyLocalization(*root_object, ui_preferences)) {
             return 3;

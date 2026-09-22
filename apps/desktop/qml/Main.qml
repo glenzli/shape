@@ -19,6 +19,7 @@ ApplicationWindow {
     required property AudioPreviewController audioPreview
     required property AudioExportController audioExport
     required property UiPreferences uiPreferences
+    required property RecentProjects recentProjects
 
     property int selectedArtifactIndex: 0
     property string selectedCandidateId: ""
@@ -66,7 +67,7 @@ ApplicationWindow {
 
     function startTextAuthoring(profile) : void {
         const names = {plain: qsTr("Untitled text"), listening: qsTr("Untitled listening exercise"),
-            narration: qsTr("Untitled narration"), dialogue: qsTr("Untitled dialogue")}
+            narration: qsTr("Untitled production script"), dialogue: qsTr("Untitled dialogue")}
         if (!backend.createTextAuthoring(names[profile] || names.plain, profile)) return
         selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
         selectedCandidateId = ""
@@ -80,6 +81,14 @@ ApplicationWindow {
 
     function openAuthoringSpeech(artifactId) : void {
         openDraftTarget(backend.beginAuthoringSpeech(artifactId))
+    }
+
+    function openProject(projectUrl) : void {
+        if (!window.backend.openProject(projectUrl)) return
+        window.selectedArtifactIndex = 0
+        window.selectedCandidateId = ""
+        window.compareMode = false
+        workspaceSurface.showGraph()
     }
 
     function returnToWriting(artifactId, scriptMode) : void {
@@ -309,14 +318,7 @@ ApplicationWindow {
     FolderDialog {
         id: projectOpenDialog
         title: qsTr("Open Shape project folder")
-        onAccepted: {
-            if (window.backend.openProject(selectedFolder)) {
-                window.selectedArtifactIndex = 0
-                window.selectedCandidateId = ""
-                window.compareMode = false
-                workspaceSurface.showGraph()
-            }
-        }
+        onAccepted: window.openProject(selectedFolder)
     }
 
     FileDialog {
@@ -736,7 +738,9 @@ ApplicationWindow {
         z: 100
         visible: !window.backend.projectOpen
         errorMessage: window.backend.lastError
+        recentProjects: window.recentProjects.entries
         onNewProjectRequested: createProjectDialog.openForCreation()
         onOpenProjectRequested: projectOpenDialog.open()
+        onRecentProjectRequested: projectUrl => window.openProject(projectUrl)
     }
 }

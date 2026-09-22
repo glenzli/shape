@@ -178,7 +178,6 @@ Item {
 
                     ShapeButton {
                         objectName: "rasterBlurCandidateButton"
-                        Layout.fillWidth: true
                         text: qsTr("Create blur Candidate")
                         onClicked: workspace.blurRequested(workspace.blurRadius)
                     }
@@ -232,7 +231,6 @@ Item {
 
                     ShapeButton {
                         objectName: "rasterSharpenCandidateButton"
-                        Layout.fillWidth: true
                         text: qsTr("Create sharpen Candidate")
                         onClicked: workspace.unsharpMaskRequested(
                                        workspace.sharpenRadius,
@@ -308,7 +306,6 @@ Item {
 
                     ShapeButton {
                         objectName: "rasterShadowCandidateButton"
-                        Layout.fillWidth: true
                         text: qsTr("Create shadow Candidate")
                         onClicked: workspace.dropShadowRequested(
                                        workspace.shadowOffsetX,

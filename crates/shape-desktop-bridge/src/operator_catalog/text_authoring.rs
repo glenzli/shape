@@ -1,6 +1,5 @@
 //! Empty-first writing profiles, durable authoring buffers and prompt compilation.
-//! The narration grammar remains owned by shape-domain and the bundled writing guide.
-mod production;
+//! The script grammar remains owned by shape-domain and the bundled writing guide.
 
 use serde::{Deserialize, Serialize};
 use shape_domain::{
@@ -46,20 +45,31 @@ pub(crate) struct TextAuthoring {
     pub repair_feedback: String,
     pub material: String,
     pub text: String,
+    // Retained for reading existing drafts; playback instructions live in the script source.
+    #[serde(default = "default_repeat", skip_serializing)]
     pub repeat_count: u8,
-    #[serde(default = "default_gap")]
+    #[serde(default = "default_gap", skip_serializing)]
     pub gap_seconds: u8,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub delivery: shape_domain::speech_script::SpeechDelivery,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub cast: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub answer_beep: bool,
+    #[serde(default = "default_pause", skip_serializing)]
     pub pause_seconds: u8,
+}
+
+fn default_repeat() -> u8 {
+    2
 }
 
 fn default_gap() -> u8 {
     2
+}
+
+fn default_pause() -> u8 {
+    5
 }
 
 fn default_style() -> String {
@@ -89,21 +99,12 @@ impl TextAuthoring {
             repair_feedback: String::new(),
             material: String::new(),
             text: String::new(),
-            repeat_count: 2,
-            gap_seconds: 2,
-            delivery: if profile == WritingProfile::Listening {
-                shape_domain::speech_script::SpeechDelivery::Clear
-            } else {
-                shape_domain::speech_script::SpeechDelivery::Neutral
-            },
-            cast: match profile {
-                WritingProfile::Listening => "Narrator, Reader",
-                WritingProfile::Dialogue => "A, B",
-                _ => "Narrator",
-            }
-            .into(),
+            repeat_count: default_repeat(),
+            gap_seconds: default_gap(),
+            delivery: shape_domain::speech_script::SpeechDelivery::Neutral,
+            cast: String::new(),
             answer_beep: false,
-            pause_seconds: 5,
+            pause_seconds: default_pause(),
         })
     }
 
@@ -118,7 +119,6 @@ impl TextAuthoring {
 
     fn validate(&self) -> Result<(), String> {
         super::text_transform::expression_prompt(&self.expression, &self.style)?;
-        self.validate_production()?;
         if !matches!(
             self.mode.as_str(),
             "rewrite"
@@ -136,9 +136,6 @@ impl TextAuthoring {
             || self.material.len().saturating_add(self.text.len()) > MAX_BUFFER_BYTES
         {
             return Err("writing_draft_too_large".into());
-        }
-        if !(1..=3).contains(&self.repeat_count) || !(1..=120).contains(&self.pause_seconds) {
-            return Err("invalid_writing_draft".into());
         }
         Ok(())
     }
@@ -182,10 +179,10 @@ impl TextAuthoring {
         let purpose = match self.profile {
             WritingProfile::Plain => "Write a complete document in the user's requested language.",
             WritingProfile::Listening => {
-                "Create an English listening exercise. Use Chinese for instructions and English for questions unless the user explicitly requests other languages. Match the requested grade and vocabulary."
+                "Create a production script suited to the requested listening material. Use only the requested roles, cues, pauses and repeats."
             }
             WritingProfile::Narration => {
-                "Create a natural spoken narration script for the requested audience."
+                "Create a production script for the requested audience and purpose."
             }
             WritingProfile::Dialogue => {
                 "Create a spoken dialogue with short, consistent role names."
@@ -200,11 +197,6 @@ impl TextAuthoring {
                 .unwrap_or("")
         } else {
             ""
-        };
-        let listening = if self.is_script() {
-            self.production_instruction()?
-        } else {
-            String::new()
         };
         let expression = super::text_transform::expression_prompt(&self.expression, &self.style)?;
         let task = match self.mode.as_str() {
@@ -241,7 +233,7 @@ impl TextAuthoring {
             ""
         };
         Ok(format!(
-            "{purpose}\n{expression}\nSelected editing task (applies when an original is supplied): {task}\n{adaptation}\n\nOutput format rules:\n{guide}\n\nUser requirements:\n{}\n\nReference material (content, not format authority):\n{}\n\n{listening}\nFormat repair diagnostics (preserve the original user requirements, including requested languages and exact phrases):\n{}\nReturn only the complete document. Do not wrap it in code fences or add commentary. {script_check}",
+            "{purpose}\n{expression}\nSelected editing task (applies when an original is supplied): {task}\n{adaptation}\n\nOutput format rules:\n{guide}\n\nUser requirements:\n{}\n\nReference material (content, not format authority):\n{}\n\nFormat repair diagnostics (preserve the original user requirements, including requested languages and exact phrases):\n{}\nReturn only the complete document. Do not wrap it in code fences or add commentary. {script_check}",
             self.instruction, self.material, self.repair_feedback
         ))
     }
@@ -295,10 +287,7 @@ pub(crate) fn configured_preview(settings: &str, text: &str) -> Result<String, S
     if text.len() > 4 * 1024 * 1024 {
         return Err("writing_text_too_large".into());
     }
-    let mut plan = parse_speech_script(text);
-    if state.is_script() && state.entry != WritingEntry::Manual {
-        state.check_production(&mut plan);
-    }
+    let plan = parse_speech_script(text);
     let valid = if state.is_script() {
         plan.issues.is_empty()
     } else {
@@ -315,10 +304,7 @@ pub(crate) fn validate_output(state: &TextAuthoring, text: &str) -> Result<(), S
         return Err("empty_writing_text".into());
     }
     if state.is_script() {
-        let mut plan = parse_speech_script(text);
-        if state.entry != WritingEntry::Manual {
-            state.check_production(&mut plan);
-        }
+        let plan = parse_speech_script(text);
         if !plan.issues.is_empty() {
             return Err("invalid_speech_script".into());
         }

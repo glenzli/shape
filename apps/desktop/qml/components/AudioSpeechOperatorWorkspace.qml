@@ -394,7 +394,6 @@ Item {
 
                     ShapeButton {
                         objectName: "speechScriptRulesButton"
-                        Layout.fillWidth: true
                         text: qsTr("Script rules and AI writing prompt")
                         onClicked: scriptHelp.open()
                     }
@@ -493,7 +492,6 @@ Item {
 
                     ShapeButton {
                         objectName: "speechGenerateButton"
-                        Layout.fillWidth: true
                         visible: workspace.canGenerate
                         primary: true
                         busy: workspace.inferSpeech.running

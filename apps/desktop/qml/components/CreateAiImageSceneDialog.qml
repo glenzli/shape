@@ -89,10 +89,12 @@ ShapeDialog {
         }
     }
 
-    footer: DialogButtonBox {
+    footer: RowLayout {
+        spacing: 8
+        Item { Layout.fillWidth: true }
         ShapeButton {
             text: qsTr("Cancel")
-            DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+            onClicked: dialog.close()
         }
 
         ShapeButton {
@@ -100,18 +102,15 @@ ShapeDialog {
             text: qsTr("Open image studio")
             highlighted: true
             enabled: sceneNameField.text.trim().length > 0
-            DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
-        }
-
-        onAccepted: {
-            const preset = dialog.canvasPresets[canvasPreset.currentIndex]
-            if (dialog.backend.createAiImageScene(
-                    sceneNameField.text, instructionArea.text,
-                    preset.width, preset.height)) {
-                dialog.close()
-                dialog.sceneCreated()
+            onClicked: {
+                const preset = dialog.canvasPresets[canvasPreset.currentIndex]
+                if (dialog.backend.createAiImageScene(
+                        sceneNameField.text, instructionArea.text,
+                        preset.width, preset.height)) {
+                    dialog.close()
+                    dialog.sceneCreated()
+                }
             }
         }
-        onRejected: dialog.close()
     }
 }

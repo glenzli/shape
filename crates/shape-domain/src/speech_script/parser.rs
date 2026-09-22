@@ -52,11 +52,6 @@ pub fn parse_speech_script(source: &str) -> SpeechScriptPlan {
     {
         parser.issue(1, "no_spoken_text", "");
     }
-    if parser.plan.production == SpeechProduction::Listening &&
-        (parser.plan.delivery != SpeechDelivery::Clear
-            || parser.plan.roles.values().any(|role| role.delivery.is_some_and(|d| d != SpeechDelivery::Clear)) || parser.plan.events.iter().any(|e| matches!(e.kind, Kind::Speech { delivery, .. } if delivery != SpeechDelivery::Clear))) {
-        parser.issue(1,"listening_delivery","");
-    }
     parser.plan
 }
 struct RepeatScope {
@@ -178,18 +173,8 @@ impl Parser {
                     return;
                 }
                 if let Some(value) = SpeechProduction::parse(value) {
-                    if value == SpeechProduction::Listening
-                        && self.delivery_set
-                        && self.plan.delivery != SpeechDelivery::Clear
-                    {
-                        self.issue(line, "listening_delivery", directive);
-                        return;
-                    }
                     self.plan.production = value;
                     self.production_set = true;
-                    if value == SpeechProduction::Listening {
-                        self.plan.delivery = SpeechDelivery::Clear;
-                    }
                 } else {
                     self.issue(line, "invalid_production", directive);
                 }
@@ -200,12 +185,6 @@ impl Parser {
                     return;
                 }
                 if let Some(value) = SpeechDelivery::parse(value) {
-                    if self.plan.production == SpeechProduction::Listening
-                        && value != SpeechDelivery::Clear
-                    {
-                        self.issue(line, "listening_delivery", directive);
-                        return;
-                    }
                     self.plan.delivery = value;
                     self.delivery_set = true;
                 } else {
@@ -269,10 +248,6 @@ impl Parser {
                 if matches!(value, "default" | "默认") {
                     self.delivery = None;
                 } else if let Some(value) = SpeechDelivery::parse(value) {
-                    if self.plan.production == SpeechProduction::Listening {
-                        self.issue(line, "listening_delivery", directive);
-                        return;
-                    }
                     self.delivery = Some(value);
                 } else {
                     self.issue(line, "invalid_delivery", directive);
@@ -324,12 +299,6 @@ impl Parser {
             return;
         }
         let delivery = delivery.and_then(SpeechDelivery::parse);
-        if self.plan.production == SpeechProduction::Listening
-            && delivery.is_some_and(|d| d != SpeechDelivery::Clear)
-        {
-            self.issue(line, "listening_delivery", value);
-            return;
-        }
         self.plan.roles.insert(
             label.into(),
             SpeechRole {

@@ -37,12 +37,6 @@ Item {
     property bool showSource: false
     property string profile: "plain"
     property string entry: "generate"
-    property int repeatCount: 2
-    property int pauseSeconds: 5
-    property int gapSeconds: 2
-    property string delivery: "neutral"
-    property string cast: ""
-    property bool answerBeep: false
     property string outputText: ""
     property string repairFeedback: ""
     property var preview: ({valid: false, plan: {events: [], issues: []}})
@@ -65,25 +59,37 @@ Item {
         expressionJson = JSON.stringify(saved.expression || {tones: [{kind: "preset", preset: "neutral"}], intensity: "balanced", audience: {kind: "preset", preset: "general"}})
         style = saved.style || "natural"
         entry = saved.entry
-        instructionEditor.text = saved.instruction
+        let instruction = saved.instruction || ""
+        const legacySettings = saved.profile !== "plain" && saved.entry !== "manual"
+                               && saved.repeat_count !== undefined
+        if (legacySettings) {
+            const requirements = []
+            if ((saved.cast || "").trim().length > 0)
+                requirements.push(qsTr("Use these roles: %1.").arg(saved.cast))
+            requirements.push(qsTr("Use overall delivery: %1.").arg(saved.delivery || "neutral"))
+            if (saved.profile === "listening") {
+                requirements.push(qsTr("For each question, repeat %1 times with %2 seconds between plays; pause %3 seconds afterwards.")
+                                  .arg(saved.repeat_count).arg(saved.gap_seconds ?? 2).arg(saved.pause_seconds))
+                if (saved.answer_beep)
+                    requirements.push(qsTr("Declare a beep cue and play it before that pause."))
+            }
+            instruction += (instruction.trim().length > 0 ? "\n\n" : "")
+                           + qsTr("Imported requirements from this older draft:") + "\n"
+                           + requirements.join(" ")
+        }
+        instructionEditor.text = instruction
         repairFeedback = saved.repair_feedback || ""
         materialEditor.text = saved.material
         manualEditor.text = saved.text
-        repeatCount = saved.repeat_count
-        pauseSeconds = saved.pause_seconds
-        gapSeconds = saved.gap_seconds ?? 2
-        delivery = saved.delivery || (profile === "listening" ? "clear" : "neutral")
-        cast = saved.cast || ""
-        answerBeep = saved.answer_beep || false
         showReference = saved.material.length > 0
         loading = false
+        if (legacySettings) changed()
         refreshOutput()
     }
     function stateJson() : string {
         return JSON.stringify({profile: profile, mode: mode, expression: JSON.parse(expressionJson), style: style, entry: entry,
             instruction: instructionEditor.text, repair_feedback: repairFeedback, material: materialEditor.text,
-            text: manualEditor.text, repeat_count: repeatCount, pause_seconds: pauseSeconds,
-            gap_seconds: gapSeconds, delivery: delivery, cast: cast, answer_beep: answerBeep})
+            text: manualEditor.text})
     }
     function changed() : void {
         if (!initialized || loading) return
@@ -215,33 +221,14 @@ Item {
                     enabled: !workspace.generationRunning
                     onProfileSelected: profile => {
                         workspace.profile = profile
-                        workspace.delivery = profile === "listening" ? "clear" : "neutral"
-                        workspace.cast = profile === "listening" ? "Narrator, Reader" : profile === "dialogue" ? "A, B" : "Narrator"
                         workspace.changed()
                     }
                     onGuideRequested: helpDialog.open()
                 }
-                ScriptProductionSettings {
-                    visible: workspace.scriptMode && !workspace.reviewing && workspace.entry !== "manual"
-                    Layout.fillWidth: true
-                    enabled: !workspace.generationRunning
-                    profile: workspace.profile
-                    delivery: workspace.delivery
-                    cast: workspace.cast
-                    repeatCount: workspace.repeatCount
-                    gapSeconds: workspace.gapSeconds
-                    pauseSeconds: workspace.pauseSeconds
-                    answerBeep: workspace.answerBeep
-                    onSettingsEdited: (delivery, cast, count, gap, pause, beep) => {
-                        workspace.delivery = delivery; workspace.cast = cast; workspace.repeatCount = count
-                        workspace.gapSeconds = gap; workspace.pauseSeconds = pause; workspace.answerBeep = beep
-                        workspace.changed()
-                    }
-                }
                 Label {
-                    visible: workspace.scriptMode && workspace.entry === "manual" && !workspace.reviewing
+                    visible: workspace.scriptMode && !workspace.reviewing
                     Layout.fillWidth: true
-                    text: qsTr("Manual scripts use their own production declarations. Define roles and sound cues before the spoken content; use repeat blocks to replay identical audio.")
+                    text: qsTr("The script controls playback. Declare roles and cues before spoken text; place pauses, delivery changes and repeat blocks where they belong.")
                     color: Theme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap
                 }
                 Rectangle {
@@ -275,7 +262,7 @@ Item {
                             currentIndex: keys.indexOf(workspace.mode)
                             onActivated: index => {
                                 workspace.mode = keys[index]
-                                if (workspace.mode === "prepare_script" && !workspace.scriptMode) workspace.profile = "listening"
+                                if (workspace.mode === "prepare_script" && !workspace.scriptMode) workspace.profile = "narration"
                                 workspace.changed()
                             }
                         }

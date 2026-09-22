@@ -100,6 +100,8 @@ qt_add_executable(shape-desktop
     src/image_preview_provider.hpp
     src/ui_preferences.cpp
     src/ui_preferences.hpp
+    src/recent_projects.cpp
+    src/recent_projects.hpp
     src/speech_script_documentation.cpp
     src/speech_script_documentation.hpp
     src/text_expression_library.cpp
@@ -169,7 +171,6 @@ qt_add_qml_module(shape-desktop
         qml/components/ShapeDialog.qml
         qml/components/TextAuthoringWorkspace.qml
         qml/components/ScriptPresentation.js
-        qml/components/ScriptProductionSettings.qml
         qml/components/TextFormatPanel.qml
         qml/components/SpeechScriptReadingView.qml
         qml/components/ShapeIcon.qml

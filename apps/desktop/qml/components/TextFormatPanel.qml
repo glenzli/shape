@@ -26,15 +26,16 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            ShapeButton { Layout.fillWidth: true; text: qsTr("Plain text"); selected: panel.profile === "plain"; onClicked: panel.profileSelected("plain") }
-            ShapeButton { Layout.fillWidth: true; text: qsTr("Narration script"); selected: panel.profile !== "plain"; onClicked: panel.profileSelected("narration") }
+            ShapeButton { text: qsTr("Plain text"); selected: panel.profile === "plain"; onClicked: panel.profileSelected("plain") }
+            ShapeButton { text: qsTr("Production script"); selected: panel.profile !== "plain"; onClicked: panel.profileSelected("narration") }
+            Item { Layout.fillWidth: true }
         }
         RowLayout {
             visible: panel.profile !== "plain"
             Layout.fillWidth: true
-            Label { text: qsTr("Writing preset"); color: Theme.muted; Layout.rightMargin: 6 }
+            Label { text: qsTr("Writing example"); color: Theme.muted; Layout.rightMargin: 6 }
             Repeater {
-                model: [{key: "listening", label: qsTr("Listening exercise")}, {key: "narration", label: qsTr("Narration")}, {key: "dialogue", label: qsTr("Dialogue")}]
+                model: [{key: "narration", label: qsTr("General script")}, {key: "listening", label: qsTr("Listening exercise")}, {key: "dialogue", label: qsTr("Dialogue")}]
                 delegate: ShapeButton {
                     required property var modelData
                     text: modelData.label
@@ -47,7 +48,7 @@ Rectangle {
         }
         Label {
             Layout.fillWidth: true
-            text: panel.profile === "plain" ? qsTr("A regular document for reading, translation, or other text work.") : qsTr("Spoken lines, roles, pauses and cues stay in the document. AI follows these rules; speech uses the adopted format automatically.")
+            text: panel.profile === "plain" ? qsTr("A regular document for reading, translation, or other text work.") : qsTr("Roles, pauses, cues, delivery and repeats are written in the script. Examples only guide the first draft.")
             color: Theme.muted
             font.pixelSize: 12
             wrapMode: Text.WordWrap

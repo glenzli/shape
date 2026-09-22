@@ -94,10 +94,12 @@ ShapeDialog {
         }
     }
 
-    footer: DialogButtonBox {
+    footer: RowLayout {
+        spacing: 8
+        Item { Layout.fillWidth: true }
         ShapeButton {
             text: qsTr("Cancel")
-            DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+            onClicked: dialog.close()
         }
 
         ShapeButton {
@@ -106,15 +108,12 @@ ShapeDialog {
             highlighted: true
             enabled: projectNameField.text.trim().length > 0
                      && dialog.selectedFolder.toString().length > 0
-            DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
-        }
-
-        onAccepted: {
-            if (dialog.backend.createProject(dialog.selectedFolder, projectNameField.text)) {
-                dialog.close()
-                dialog.projectCreated()
+            onClicked: {
+                if (dialog.backend.createProject(dialog.selectedFolder, projectNameField.text)) {
+                    dialog.close()
+                    dialog.projectCreated()
+                }
             }
         }
-        onRejected: dialog.close()
     }
 }

@@ -60,17 +60,18 @@ ShapeDialog {
                 radius: Theme.panelRadius
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 12
+                    anchors.margins: 16
+                    spacing: 6
                     ShapeIcon { source: "qrc:/qt/qml/Shape/Desktop/icons/waveform.svg"; color: Theme.accent; size: 22 }
-                    Label { text: qsTr("Narration script"); color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold }
-                    Label { Layout.fillWidth: true; text: qsTr("Spoken lines, roles, pauses and cues. Choose voices when your script is ready."); wrapMode: Text.WordWrap; color: Theme.muted; font.pixelSize: 12 }
+                    Label { text: qsTr("Production script"); color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold }
+                    Label { Layout.fillWidth: true; text: qsTr("Write spoken lines and place roles, pauses, cues and repeats in the script itself."); wrapMode: Text.WordWrap; color: Theme.muted; font.pixelSize: 12 }
                     Item { Layout.fillHeight: true }
+                    ShapeButton { objectName: "createProductionScriptButton"; text: qsTr("Start a script"); primary: true; onClicked: dialog.start("narration") }
+                    Label { text: qsTr("Examples"); color: Theme.muted; font.pixelSize: 11 }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
-                        ShapeButton { objectName: "createListeningScriptButton"; text: qsTr("Listening exercise"); primary: true; onClicked: dialog.start("listening") }
-                        ShapeButton { objectName: "createNarrationScriptButton"; text: qsTr("Narration"); onClicked: dialog.start("narration") }
+                        ShapeButton { objectName: "createListeningScriptButton"; text: qsTr("Listening exercise"); quiet: true; onClicked: dialog.start("listening") }
                         ShapeButton { objectName: "createDialogueScriptButton"; text: qsTr("Dialogue"); onClicked: dialog.start("dialogue") }
                     }
                 }

@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 //! Empty-launch entry for a real project session.
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Shape.Desktop
 
@@ -11,8 +12,10 @@ Rectangle {
     objectName: "projectWelcome"
 
     property string errorMessage: ""
+    property var recentProjects: []
     signal newProjectRequested()
     signal openProjectRequested()
+    signal recentProjectRequested(url projectUrl)
 
     color: Theme.canvas
 
@@ -48,7 +51,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: qsTr("What do you want to make?")
+                text: qsTr("Your projects")
                 color: Theme.text
                 font.pixelSize: 24
                 font.weight: Font.DemiBold
@@ -57,7 +60,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Start a project, then choose a creative goal. Shape will build the workflow for you and keep every adopted version safe.")
+                text: qsTr("Create a project or continue where you left off.")
                 color: Theme.muted
                 font.pixelSize: 13
                 wrapMode: Text.WordWrap
@@ -84,6 +87,56 @@ Rectangle {
                     iconSource: "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
                     quiet: false
                     onClicked: welcome.openProjectRequested()
+                }
+            }
+
+            ColumnLayout {
+                visible: welcome.recentProjects.length > 0
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                spacing: 6
+
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border }
+                Label {
+                    text: qsTr("Recent projects")
+                    color: Theme.textSoft
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                    Layout.topMargin: 8
+                }
+                Repeater {
+                    model: welcome.recentProjects.slice(0, 5)
+                    delegate: ItemDelegate {
+                        required property var modelData
+                        required property int index
+                        objectName: "recentProjectEntry-" + index
+                        Layout.fillWidth: true
+                        implicitHeight: 52
+                        enabled: modelData.available
+                        onClicked: welcome.recentProjectRequested(modelData.url)
+                        background: Rectangle {
+                            radius: Theme.controlRadius
+                            color: parent.hovered ? Theme.buttonHoverSurface : Theme.surface
+                            border.color: Theme.border
+                        }
+                        contentItem: ColumnLayout {
+                            spacing: 2
+                            Label {
+                                Layout.fillWidth: true
+                                text: modelData.name + (modelData.available ? "" : " · " + qsTr("Unavailable"))
+                                color: modelData.available ? Theme.text : Theme.disabled
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideMiddle
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: modelData.path
+                                color: Theme.muted
+                                font.pixelSize: 11
+                                elide: Text.ElideMiddle
+                            }
+                        }
+                    }
                 }
             }
 

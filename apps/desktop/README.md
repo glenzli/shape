@@ -168,7 +168,9 @@ Objective-C++ adapter only aligns native macOS traffic-light buttons with that s
 never enters QML or UI settings. `ProjectWelcome.qml`, `CreateProjectDialog.qml`,
 `CreateSceneTypeDialog.qml`, `CreateTextSceneDialog.qml`, and `CreateAiImageSceneDialog.qml` own the
 goal-first launch and first-content presentation flow without acquiring
-persistence authority. `TextOperatorWorkspace.qml` owns accepted text and Candidate presentation
+persistence authority. `RecentProjects` stores only paths and display names after successful opens;
+the welcome page disables entries whose local bundle is missing and reopens entries through
+`DesktopBackend`. `TextOperatorWorkspace.qml` owns accepted text and Candidate presentation
 for the single Writing step; `IntentPanel.qml` owns its direct-writing/AI-assistance method switch,
 and `TextCompareWorkspace.qml` remains its compare
 owner. `ImageEditorWorkspace.qml` owns the one product-level image editing surface;
@@ -287,11 +289,10 @@ focus, padding and popup treatment. Loading indicators stay inside the existing 
 ### Production scripts
 
 Script format `20260922.2` declares production purpose, role identities, delivery and sound cues before
-playback. `ScriptProductionSettings.qml` presents writing-time cast, performance, exact play count,
-between-play silence, answering time and optional beep. The adjacent bridge authoring `production`
-owner compiles those requirements into the AI instruction and checks the resulting document; the
-configured preview and explicit adoption use that same check. Handwritten scripts use their own
-declarations. `ScriptPresentation.js` owns shared localized diagnostics and control labels.
+playback. The source script owns roles, pauses, cues, delivery and repeats for both AI drafts and
+handwritten text. Writing examples guide the first draft without adding a separate validation
+contract. The bridge checks the same grammar for preview and adoption. `ScriptPresentation.js` owns
+shared localized diagnostics and control labels.
 
 `shape-domain::speech_script::production` owns portable delivery and declaration values. The parser
 resolves scoped language/delivery, validates declared names and bounded repeat blocks, and preserves

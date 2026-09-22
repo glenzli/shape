@@ -1152,13 +1152,21 @@
     </message>
     <message>
         <location line="+16"/>
-        <source>Narration script</source>
+        <source>Production script</source>
         <translation>配音脚本</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Spoken lines, roles, pauses and cues. Choose voices when your script is ready.</source>
-        <translation>编写台词、角色、停顿和音效，稿件就绪后选择声音。</translation>
+        <source>Write spoken lines and place roles, pauses, cues and repeats in the script itself.</source>
+        <translation>在稿中编写台词，并安排角色、停顿、提示音与重复。</translation>
+    </message>
+    <message>
+        <source>Start a script</source>
+        <translation>开始写脚本</translation>
+    </message>
+    <message>
+        <source>Examples</source>
+        <translation>示例</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -2113,8 +2121,8 @@
     </message>
     <message>
         <location line="+1"/>
-        <source>Untitled narration</source>
-        <translation>未命名口播稿</translation>
+        <source>Untitled production script</source>
+        <translation>未命名配音脚本</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -2666,13 +2674,13 @@
     <name>ProjectWelcome</name>
     <message>
         <location filename="../qml/components/ProjectWelcome.qml" line="+51"/>
-        <source>What do you want to make?</source>
-        <translation>你想创作什么？</translation>
+        <source>Your projects</source>
+        <translation>你的项目</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Start a project, then choose a creative goal. Shape will build the workflow for you and keep every adopted version safe.</source>
-        <translation>先建立项目，再选择创作目标。Shape 会为你搭好流程，并妥善保留每个已采用的版本。</translation>
+        <source>Create a project or continue where you left off.</source>
+        <translation>创建项目，或继续上次的工作。</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -2683,6 +2691,14 @@
         <location line="+8"/>
         <source>Continue a project…</source>
         <translation>继续现有项目…</translation>
+    </message>
+    <message>
+        <source>Recent projects</source>
+        <translation>最近打开</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>不可用</translation>
     </message>
 </context>
 <context>
@@ -3692,8 +3708,8 @@
     </message>
     <message>
         <location line="+0"/>
-        <source>Listening delivery stays clear and even. Narration and dialogue can use neutral, warm or lively delivery. Writing style and spoken delivery are separate settings.</source>
-        <translation>听力采用清晰平稳的语气；口播和对话可选自然、亲切或活泼。文章文风与声音表现分别设置。</translation>
+        <source>Production labels describe the purpose. Overall delivery can be neutral, clear, warm or lively for any script; writing style and spoken delivery are separate.</source>
+        <translation>用途标签只说明稿件类型。任何脚本都可选择自然、清晰、温暖或活泼的整体语气；文风与朗读语气分别设置。</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -3732,8 +3748,8 @@
     </message>
     <message>
         <location line="+0"/>
-        <source>Scenes organize the production without being spoken. Local delivery is available for narration and dialogue; listening keeps its even delivery. Repeat blocks cannot be nested.</source>
-        <translation>片段用于编排，本身不朗读。口播和对话允许局部语气变化，听力保持平稳。重复块不能嵌套。</translation>
+        <source>Scenes organize the production without being spoken. Local delivery works in any script; repeat blocks cannot be nested.</source>
+        <translation>片段用于编排，本身不朗读。任何脚本都可设置局部语气；重复块不能嵌套。</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4061,6 +4077,26 @@
 <context>
     <name>TextAuthoringWorkspace</name>
     <message>
+        <source>Use these roles: %1.</source>
+        <translation>使用这些角色：%1。</translation>
+    </message>
+    <message>
+        <source>Use overall delivery: %1.</source>
+        <translation>整体朗读语气使用 %1。</translation>
+    </message>
+    <message>
+        <source>For each question, repeat %1 times with %2 seconds between plays; pause %3 seconds afterwards.</source>
+        <translation>每题重复 %1 次，遍间停顿 %2 秒，随后停顿 %3 秒。</translation>
+    </message>
+    <message>
+        <source>Declare a beep cue and play it before that pause.</source>
+        <translation>声明一个短提示音，并在该停顿前播放。</translation>
+    </message>
+    <message>
+        <source>Imported requirements from this older draft:</source>
+        <translation>从旧草稿转入的制作要求：</translation>
+    </message>
+    <message>
         <source>Repair only the script format. Preserve all spoken content, roles and intended pauses; use only the supported Shape instructions.</source>
         <translation type="vanished">只修复脚本格式。保留全部口播正文、角色和原定停顿，仅使用 Shape 支持的指令。</translation>
     </message>
@@ -4127,8 +4163,8 @@
     </message>
     <message>
         <location line="+56"/>
-        <source>Manual scripts use their own production declarations. Define roles and sound cues before the spoken content; use repeat blocks to replay identical audio.</source>
-        <translation>手写稿以稿内制作声明为准。请先定义角色和提示音，再写正文；用重复块复播同一录音。</translation>
+        <source>The script controls playback. Declare roles and cues before spoken text; place pauses, delivery changes and repeat blocks where they belong.</source>
+        <translation>脚本控制播放。先声明角色和提示音，再在稿中安排停顿、语气变化和重复块。</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -4800,13 +4836,13 @@
     </message>
     <message>
         <location line="+1"/>
-        <source>Narration script</source>
-        <translation>口播脚本</translation>
+        <source>Production script</source>
+        <translation>配音脚本</translation>
     </message>
     <message>
         <location line="+5"/>
-        <source>Writing preset</source>
-        <translation>写作预设</translation>
+        <source>Writing example</source>
+        <translation>写作示例</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -4815,8 +4851,8 @@
     </message>
     <message>
         <location line="+0"/>
-        <source>Narration</source>
-        <translation>口播</translation>
+        <source>General script</source>
+        <translation>通用脚本</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -4830,8 +4866,8 @@
     </message>
     <message>
         <location line="+0"/>
-        <source>Spoken lines, roles, pauses and cues stay in the document. AI follows these rules; speech uses the adopted format automatically.</source>
-        <translation>正文、角色、停顿和音效都保留在文稿中。AI 按规则写作，配音会自动识别已采用文稿的格式。</translation>
+        <source>Roles, pauses, cues, delivery and repeats are written in the script. Examples only guide the first draft.</source>
+        <translation>角色、停顿、提示音、语气和重复都写在脚本中。示例仅帮助起稿。</translation>
     </message>
 </context>
 <context>

@@ -90,17 +90,16 @@ Rectangle {
 
             ShapeButton {
                 objectName: "navigatorNewProjectButton"
-                Layout.fillWidth: true
                 text: qsTr("New")
                 onClicked: navigator.newProjectRequested()
             }
 
             ShapeButton {
                 objectName: "navigatorOpenProjectButton"
-                Layout.fillWidth: true
                 text: qsTr("Open…")
                 onClicked: navigator.openProjectRequested()
             }
+            Item { Layout.fillWidth: true }
         }
 
         Rectangle {
@@ -167,7 +166,6 @@ Rectangle {
 
             ShapeButton {
                 objectName: "createTextSceneButton"
-                Layout.fillWidth: true
                 text: qsTr("+ Text Scene")
                 enabled: navigator.projectOpen
                 primary: navigator.artifacts.length === 0
@@ -176,11 +174,11 @@ Rectangle {
 
             ShapeButton {
                 objectName: "importImageSceneButton"
-                Layout.fillWidth: true
                 text: qsTr("Import image…")
                 enabled: navigator.projectOpen
                 onClicked: navigator.importImageRequested()
             }
+            Item { Layout.fillWidth: true }
         }
 
         RowLayout {

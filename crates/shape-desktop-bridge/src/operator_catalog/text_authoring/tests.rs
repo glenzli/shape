@@ -4,6 +4,11 @@ use super::*;
 fn empty_drafts_are_valid_but_generation_requires_authored_intent() {
     let state = TextAuthoring::new("listening").unwrap();
     assert!(state.configuration().is_ok());
+    assert!(
+        !serde_json::to_string(&state)
+            .unwrap()
+            .contains("repeat_count")
+    );
     assert!(state.compiled_instruction().is_err());
     assert!(TextAuthoring::new("unknown").is_err());
 }
@@ -13,15 +18,13 @@ fn templates_compile_the_canonical_grammar_and_optional_material() {
     let mut state = TextAuthoring::new("listening").unwrap();
     state.instruction = "五年级，周末活动。".into();
     state.material = "tai chi, park, Sunday".into();
-    state.repeat_count = 3;
-    state.pause_seconds = 8;
     let prompt = state.compiled_instruction().unwrap();
     assert!(prompt.contains("[role: Narrator"));
-    assert!(prompt.contains("[repeat: 3; gap: 2s]"));
-    assert!(prompt.contains("[pause: 8s]"));
+    assert!(prompt.contains("[repeat: 2; gap: 2s]"));
+    assert!(prompt.contains("[pause: 5s]"));
     assert!(prompt.contains("tai chi, park, Sunday"));
-    assert_eq!(prompt.matches("Example question sentence.").count(), 1);
-    assert!(prompt.contains("[pause: 8s]"));
+    assert!(!prompt.contains("每题恰好一个重复块"));
+    assert!(!prompt.contains("[pause: 8s]"));
     assert!(!prompt.contains("【在这里填写"));
     state.entry = WritingEntry::Adapt;
     state.material.clear();
@@ -48,36 +51,25 @@ fn format_errors_are_visible_and_block_script_acceptance_only() {
 }
 
 #[test]
-fn selected_production_rules_validate_ai_and_report_locations_for_repair() {
-    let mut state = TextAuthoring::new("listening").unwrap();
-    state.answer_beep = true;
+fn script_source_controls_ai_output_without_duplicate_form_constraints() {
+    let state = TextAuthoring::new("listening").unwrap();
     let source = "[production: listening]\n[role: Narrator]\n[role: Reader]\n[cue: answer; sound: beep]\n[scene: q1]\n[speaker: Narrator]\nNumber one.\n[repeat: 2; gap: 2s]\n[speaker: Reader]\nHello.\n[end-repeat]\n[audio: answer]\n[pause: 5s]";
     assert!(validate_output(&state, source).is_ok());
+    for valid in [
+        source.replace("repeat: 2", "repeat: 3"),
+        source.replace("gap: 2s", "gap: 3s"),
+        source.replace("pause: 5s", "pause: 3s"),
+        source.replace("[audio: answer]\n", ""),
+        source.replace("sound: beep", "sound: chime"),
+        source.replace("[scene: q1]\n", ""),
+    ] {
+        assert!(validate_output(&state, &valid).is_ok(), "{valid}");
+    }
     for (bad, code) in [
+        (source.replace("[end-repeat]", ""), "unclosed_repeat"),
         (
-            source.replace("repeat: 2", "repeat: 3"),
-            "repeat_settings_mismatch",
-        ),
-        (
-            source.replace("gap: 2s", "gap: 3s"),
-            "repeat_settings_mismatch",
-        ),
-        (
-            source.replace("pause: 5s", "pause: 3s"),
-            "answer_pause_mismatch",
-        ),
-        (
-            source.replace("[audio: answer]\n", ""),
-            "answer_cue_missing",
-        ),
-        (source.replace("Reader", "Someone"), "cast_mismatch"),
-        (
-            source.replace("sound: beep", "sound: chime"),
-            "answer_cue_definition_mismatch",
-        ),
-        (
-            source.replace("[scene: q1]\n", ""),
-            "question_scene_required",
+            source.replace("[audio: answer]", "[audio: missing]"),
+            "undeclared_cue",
         ),
     ] {
         let preview: serde_json::Value = serde_json::from_str(
@@ -94,11 +86,8 @@ fn selected_production_rules_validate_ai_and_report_locations_for_repair() {
         );
         assert!(validate_output(&state, &bad).is_err());
     }
-    state.entry = WritingEntry::Manual;
-    assert!(
-        validate_output(&state, &source.replace("repeat: 2", "repeat: 3")).is_ok(),
-        "manual document controls are authoritative"
-    );
+    let old_draft = serde_json::json!({"profile":"listening","entry":"generate","instruction":"write","material":"","text":""});
+    assert!(TextAuthoring::from_json(&old_draft.to_string()).is_ok());
 }
 
 #[test]

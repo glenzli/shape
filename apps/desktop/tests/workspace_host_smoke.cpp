@@ -4,14 +4,18 @@
 #include <QJsonObject>
 
 #include "desktop_backend.hpp"
+#include "recent_projects.hpp"
 #include "ui_preferences.hpp"
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QMetaObject>
 #include <QObject>
 #include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
+#include <QTemporaryDir>
 #include <QUrl>
 #include <QVariant>
 
@@ -483,6 +487,44 @@ bool verifyProjectWelcome(QObject& root_object) {
            && welcome->height() > 0.0 && new_project != nullptr && new_project->isVisible()
            && new_project->isEnabled() && open_project != nullptr && open_project->isVisible()
            && open_project->isEnabled();
+}
+
+bool verifyRecentProjects() {
+    QTemporaryDir temporary;
+    if (!temporary.isValid()) {
+        return false;
+    }
+    const QString first = QDir(temporary.path()).filePath(QStringLiteral("First.shape"));
+    const QString second = QDir(temporary.path()).filePath(QStringLiteral("Second.shape"));
+    if (!QDir().mkpath(first) || !QDir().mkpath(second)) {
+        return false;
+    }
+    const QString canonical_first = QFileInfo(first).canonicalFilePath();
+    const QString canonical_second = QFileInfo(second).canonicalFilePath();
+    const QString settings = QDir(temporary.path()).filePath(QStringLiteral("shape.conf"));
+    {
+        RecentProjects recent(settings);
+        recent.record(first, QStringLiteral("First"));
+        recent.record(second, QStringLiteral("Second"));
+        recent.record(first, QStringLiteral("First renamed"));
+        const QVariantList entries = recent.entries();
+        if (entries.size() != 2
+            || entries[0].toMap().value(QStringLiteral("name")).toString()
+                   != QStringLiteral("First renamed")
+            || entries[1].toMap().value(QStringLiteral("path")).toString() != canonical_second) {
+            return false;
+        }
+    }
+    RecentProjects restored(settings);
+    if (restored.entries().size() != 2
+        || restored.entries()[0].toMap().value(QStringLiteral("url")).toUrl()
+               != QUrl::fromLocalFile(canonical_first)) {
+        return false;
+    }
+    if (!QDir().rmdir(second)) {
+        return false;
+    }
+    return !restored.entries()[1].toMap().value(QStringLiteral("available")).toBool();
 }
 
 bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend) {

@@ -376,12 +376,9 @@ bool text_authoring_smoke::runLive(
         QStringLiteral(
             "写一个极短的五年级英语听力练习。中文开场只说：请听录音。英语题目只说：Number one. The "
             "boy will play football this Sunday. "
-            "题末只使用制作设置中的提示音。不要答案、选项、结束语或其他说明。"
+            "题末使用[audio: answer]提示音并停顿3秒；先声明beep提示音。题目使用[repeat: 2; gap: 2s]复读块。不要答案、选项、结束语或其他说明。"
         )
     );
-    writer->setProperty("repeatCount", 2);
-    writer->setProperty("answerBeep", true);
-    writer->setProperty("pauseSeconds", 3);
     if (!check(waitUntil([&] { return generate->property("enabled").toBool(); }), "AI ready"))
         return false;
     capture("02-write.png");

@@ -79,11 +79,11 @@ ShapeDialog {
                 }
                 Repeater {
                     model: dialog.showingDocument ? [] : [
-                        {title: qsTr("Production and delivery"), example: "[production: listening]\n[delivery: clear]", explanation: qsTr("Listening delivery stays clear and even. Narration and dialogue can use neutral, warm or lively delivery. Writing style and spoken delivery are separate settings.")},
+                        {title: qsTr("Production and delivery"), example: "[production: narration]\n[delivery: warm]", explanation: qsTr("Production labels describe the purpose. Overall delivery can be neutral, clear, warm or lively for any script; writing style and spoken delivery are separate.")},
                         {title: qsTr("Declare stable characters"), example: "[role: Narrator; language: auto]\n[role: Reader; language: auto]\n[speaker: Narrator]\n请听录音。Number one.", explanation: qsTr("Declare roles before playback begins, then bind every named role to a voice. Switching languages does not create a new character.")},
                         {title: qsTr("Repeat the same recording"), example: "Number one.\n[repeat: 2; gap: 2s]\nLook at the boy.\n[end-repeat]\n[pause: 5s]", explanation: qsTr("The question number plays once. The body is rendered once and played twice with identical audio, with 2 seconds between plays and 5 seconds afterwards. Put a complete dialogue inside the block to repeat it together.")},
                         {title: qsTr("Reusable beeps and sound cues"), example: "[cue: answer; sound: beep; duration: 0.2s; level: soft]\nHello.\n[audio: answer]\n[pause: 5s]", explanation: qsTr("Declare each cue once, then reference its name. Built-in cues are ready to play. External cues require a stored WAV or an explicit skip. The cue plays before the answering silence.")},
-                        {title: qsTr("Scenes and local delivery"), example: "[production: narration]\n[scene: opening]\n[performance: warm]\nWelcome.\n[performance: default]\nLet us begin.", explanation: qsTr("Scenes organize the production without being spoken. Local delivery is available for narration and dialogue; listening keeps its even delivery. Repeat blocks cannot be nested.")},
+                        {title: qsTr("Scenes and local delivery"), example: "[production: narration]\n[scene: opening]\n[performance: warm]\nWelcome.\n[performance: default]\nLet us begin.", explanation: qsTr("Scenes organize the production without being spoken. Local delivery works in any script; repeat blocks cannot be nested.")},
                         {title: qsTr("Spoken text and silent directions"), example: "# Weekend plans\n[note: Check with the teacher]\nLook at the boy.", explanation: qsTr("Ordinary paragraphs are spoken. Headings and notes are silent. Executable directions must use a supported control; a note alone does not change the sound.")}
                     ]
                     delegate: Rectangle {
@@ -128,7 +128,8 @@ ShapeDialog {
         }
     }
 
-    footer: DialogButtonBox {
+    footer: RowLayout {
+        spacing: 8
         ShapeButton {
             objectName: "copySpeechScriptDocumentButton"
             text: dialog.copied ? qsTr("Copied") : dialog.showingPrompt
@@ -136,10 +137,10 @@ ShapeDialog {
             enabled: dialog.documentText.length > 0
             onClicked: dialog.copyCurrentDocument()
         }
+        Item { Layout.fillWidth: true }
         ShapeButton {
             text: qsTr("Close")
-            DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+            onClicked: dialog.close()
         }
-        onRejected: dialog.close()
     }
 }

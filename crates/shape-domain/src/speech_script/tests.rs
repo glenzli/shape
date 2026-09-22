@@ -115,6 +115,16 @@ fn production_declarations_scope_delivery_and_count_only_real_gaps() {
 }
 
 #[test]
+fn production_label_does_not_restrict_delivery_or_script_controls() {
+    let source = "[production: listening]\n[delivery: warm]\n[role: A; delivery: clear]\n[cue: turn; sound: beep]\n[speaker: A]\n[performance: lively]\nHello.\n[repeat: 3; gap: 3s]\nAgain.\n[end-repeat]\n[audio: turn]\n[pause: 7s]";
+    let plan = parse_speech_script(source);
+    assert!(plan.issues.is_empty(), "{:?}", plan.issues);
+    assert_eq!(plan.production, SpeechProduction::Listening);
+    assert_eq!(plan.delivery, SpeechDelivery::Warm);
+    assert_eq!(plan.pause_millis(), 13_000);
+}
+
+#[test]
 fn production_rejects_ambiguous_controls_and_late_or_unbound_names() {
     for source in [
         "[speaker: missing]\nHello.",
@@ -129,9 +139,6 @@ fn production_rejects_ambiguous_controls_and_late_or_unbound_names() {
         "[repeat: 2]\n[scene: q1]\nHello.\n[end-repeat]",
         "[repeat: 2]\n[pause: 1s]\n[end-repeat]\nHello.",
         "Hello.\n[end-repeat]",
-        "[production: listening]\n[performance: warm]\nHello.",
-        "[delivery: warm]\n[production: listening]\nHello.",
-        "[role: A; delivery: warm]\n[production: listening]\n[speaker: A]\nHello.",
         "[cue: tone; sound: beep; duration: 2.001s]\nHello.",
         "[cue: tone; sound: chime; duration: 1s]\nHello.",
     ] {

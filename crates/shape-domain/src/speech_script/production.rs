@@ -48,7 +48,7 @@ impl SpeechDelivery {
                 "Speak naturally with a steady, neutral delivery. Keep the same voice and consistent loudness throughout."
             }
             Self::Clear => {
-                "Read clearly and evenly for an educational listening recording. Keep a steady voice and loudness. Avoid exaggerated emotion, dramatic emphasis, or emphasis that might hint at an answer."
+                "Speak clearly and evenly. Keep a steady voice and loudness, and avoid exaggerated emphasis."
             }
             Self::Warm => {
                 "Speak warmly and calmly, with a friendly tone and consistent voice and loudness."
