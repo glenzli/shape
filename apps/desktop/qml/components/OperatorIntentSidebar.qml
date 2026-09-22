@@ -93,7 +93,7 @@ Rectangle {
             font.letterSpacing: 0.7
         }
 
-        ShapeTextArea {
+        ShapeTextEditor {
             id: intentEditor
             objectName: "operatorIntentEditor"
 
@@ -110,10 +110,10 @@ Rectangle {
             wrapMode: TextEdit.Wrap
             Accessible.name: qsTr("Creative direction")
             onTextChanged: {
-                if (activeFocus && text !== sidebar.intentText) sidebar.intentEdited(text)
+                if (editorActiveFocus && text !== sidebar.intentText) sidebar.intentEdited(text)
             }
-            onActiveFocusChanged: {
-                if (!activeFocus && text !== sidebar.intentText) {
+            onEditorActiveFocusChanged: {
+                if (!editorActiveFocus && text !== sidebar.intentText) {
                     sidebar.intentCommitRequested(text)
                 }
             }
@@ -121,18 +121,21 @@ Rectangle {
             background: Rectangle {
                 radius: Theme.controlRadius
                 color: Theme.control
-                border.color: intentEditor.activeFocus ? Theme.focusRing : Theme.border
+                border.color: intentEditor.editorActiveFocus ? Theme.focusRing : Theme.border
             }
         }
 
         ScrollView {
+            id: detailsScroll
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: contentHeight > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             contentWidth: availableWidth
 
             ColumnLayout {
-                width: parent.width
+                width: detailsScroll.availableWidth - 12
                 spacing: 12
 
                 IntentListSection {

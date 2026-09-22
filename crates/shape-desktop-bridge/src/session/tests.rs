@@ -287,7 +287,7 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
             .session_operator_descriptors(&artifact.id)
             .expect("catalog projects")
             .len(),
-        3
+        10
     );
 
     drop(session);

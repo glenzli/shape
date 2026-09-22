@@ -9,7 +9,7 @@ Scene-owned mutable graph is added; it must not be mistaken for the final multi-
 model.
 The text and speech workflow uses the [node contract](../../docs/NODE_MODEL.md).
 Text creation starts empty and offers plain/script formats before the user writes. Text editing requires
-an accepted original and allocates an independent output, with rewrite, translate, summarize and script
+an accepted original and allocates an independent output, with rewrite, translate, summarize, polish, expand, outline and script
 preparation tasks. Both open `TextAuthoringWorkspace.qml`; optional tone, audience and style settings
 reuse `TextExpressionPalette.qml`. `TextFormatPanel.qml` exposes the format and writing presets.
 Rules are displayed as examples and a copyable offline guide. Speech consumes the adopted document's
@@ -153,11 +153,10 @@ acceptance and reopen. It is deliberately excluded from offline CTest smoke chec
 the stable Core and Responses capability.
 Rust reopens the exact zero-input draft and validates its prompt/canvas before credential access,
 then requires cloud/subscription Job provenance before returning an opaque Candidate. The desktop
-never sends provider, model, sampler, or checkpoint choices. `AiImageOperatorWorkspace.qml` owns the
+selects Runtime-owned Luna for image generation without exposing provider-native model details. `AiImageOperatorWorkspace.qml` owns the
 central canvas and compact output-size choice, while `OperatorIntentSidebar.qml` is its real
-comprehensive intent consumer. Candidate PNG bytes cross only for selected preview. Current Infer
-App authority does not yet admit this cloud route, so the UI reports the permission failure without
-fabricating a result or changing project history.
+comprehensive intent consumer. Candidate PNG bytes cross only for selected preview. Infer must grant Shape the image.generate intent, Luna route, subscription access, cloud text input,
+and balanced cloud request overrides. Missing route grants are reported without changing history.
 Material-conditioned `image.edit` remains unavailable because Runtime has not published a stable
 raster-output provider/Capability/SDK contract; the desktop does not substitute text output.
 
@@ -306,3 +305,21 @@ copies prior PCM ranges in the final bounded WAV buffer; receipt validation reje
 bytes even when their digest is recomputed. Global/role/local delivery is sent through the existing
 Infer speech `instructions` field and Qwen worker `instruct` parameter. Repetition guarantees exact
 bytes within the recording; new synthesis of different sentences still requires listening review.
+
+## Bounded forms and common node templates
+
+`ShapeTextEditor.qml` owns a fixed text viewport, keyboard editing and visible overflow scrolling;
+`ShapeTextArea.qml` remains the primitive for content-sized documents inside existing scroll views.
+Writing scrolls between bounded fields, and speech source/settings columns scroll independently.
+`ShapeButton.qml` keeps action width tied to its label, including while its internal busy indicator runs.
+
+The Rust node catalog exposes six text-edit task templates and the zero-input image source.
+Templates reuse `text.edit` input/output/CAS semantics and store their task in authoring configuration.
+The image consumer pins `codex_gpt_5_6_luna`, compiles the preferred canvas into its model instructions,
+and checks the bounded PNG and named route. Native pixels and actual dimensions are retained;
+exact sizing belongs to an image editing node. No higher-model fallback is requested.
+`--smoke-image-generation DIRECTORY` exercises the real controller, candidate preview, explicit
+acceptance and project reopening; it is an opt-in live test, not part of ordinary desktop smoke.
+
+The node library supports Chinese search, arrow-key selection and Enter. It shows human-readable
+input/output types; text comparison and the offline script guide expose scrollbars when overflowing.

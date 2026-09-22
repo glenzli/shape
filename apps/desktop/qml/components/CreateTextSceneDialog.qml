@@ -40,7 +40,7 @@ ShapeDialog {
             selectByMouse: true
         }
 
-        ShapeTextArea {
+        ShapeTextEditor {
             id: initialTextArea
             objectName: "initialSceneTextField"
             Layout.fillWidth: true

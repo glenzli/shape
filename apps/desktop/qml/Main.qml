@@ -190,6 +190,9 @@ ApplicationWindow {
         if (errorCode === "intent_forbidden" || errorCode === "policy_violation") {
             return qsTr("Infer has not granted Shape cloud image generation permission yet.")
         }
+        if (errorCode === "no_candidate") {
+            return qsTr("Infer could not route this request to Codex Luna. Check Luna availability and Shape's cloud text permission in Infer Console, then retry.")
+        }
         if (errorCode === "provider_unavailable" || errorCode === "upstream_unavailable") {
             return qsTr("No image generation provider is available right now.")
         }
@@ -551,6 +554,7 @@ ApplicationWindow {
                     }
                     onOperatorDraftRequested: operatorTypeKey => {
                         if (operatorTypeKey === "text.create") { window.startTextAuthoring("plain"); return }
+                        if (operatorTypeKey === "image.generate") { createAiImageSceneDialog.openForCreation(); return }
                         if (operatorTypeKey === "text.edit"
                                 || operatorTypeKey === "text.transform") {
                             window.addOrOpenTextEditorNode()

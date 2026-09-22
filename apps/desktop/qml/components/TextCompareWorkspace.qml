@@ -37,19 +37,15 @@ Item {
 
                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.border }
 
-                ScrollView {
+                ShapeTextEditor {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    clip: true
-
-                    ShapeTextArea {
-                        readOnly: true
-                        text: comparison.acceptedText
-                        color: Theme.textSoft
-                        wrapMode: TextEdit.Wrap
-                        font.pixelSize: 15
-                        background: null
-                    }
+                    readOnly: true
+                    text: comparison.acceptedText
+                    color: Theme.textSoft
+                    wrapMode: TextEdit.Wrap
+                    font.pixelSize: 15
+                    background: null
                 }
             }
         }
@@ -76,19 +72,15 @@ Item {
 
                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.border }
 
-                ScrollView {
+                ShapeTextEditor {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    clip: true
-
-                    ShapeTextArea {
-                        readOnly: true
-                        text: comparison.candidateText
-                        color: Theme.text
-                        wrapMode: TextEdit.Wrap
-                        font.pixelSize: 15
-                        background: null
-                    }
+                    readOnly: true
+                    text: comparison.candidateText
+                    color: Theme.text
+                    wrapMode: TextEdit.Wrap
+                    font.pixelSize: 15
+                    background: null
                 }
             }
         }

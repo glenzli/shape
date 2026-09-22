@@ -794,14 +794,14 @@ Item {
                     palette.notifyEdited();
                 }
             }
-            ShapeTextArea {
+            ShapeTextEditor {
                 id: customAudienceInstructionField
                 Layout.fillWidth: true
                 Layout.preferredHeight: 62
                 text: palette.customAudienceInstruction
                 placeholderText: qsTr("What should this audience understand or feel?")
                 wrapMode: TextEdit.Wrap
-                onActiveFocusChanged: if (!activeFocus) {
+                onEditorActiveFocusChanged: if (!editorActiveFocus) {
                     palette.customAudienceInstruction = text;
                     palette.notifyEdited();
                 }
@@ -849,7 +849,7 @@ Item {
                 placeholderText: qsTr("For example: quiet conviction")
                 maximumLength: 64
             }
-            ShapeTextArea {
+            ShapeTextEditor {
                 id: customToneInstructionField
                 objectName: "customToneInstructionField"
                 Layout.fillWidth: true
@@ -857,7 +857,7 @@ Item {
                 placeholderText: qsTr("Describe how it should sound, and what it should avoid.")
                 wrapMode: TextEdit.Wrap
             }
-            ShapeTextArea {
+            ShapeTextEditor {
                 id: customToneExampleField
                 objectName: "customToneExampleField"
                 Layout.fillWidth: true

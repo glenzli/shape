@@ -113,9 +113,8 @@ pub(crate) fn image_job() -> JobSnapshot {
         "max_cost_usd": 0.0,
         "fallback": "none",
         "deadline_ms": null,
-        "named_route": null
+        "named_route": {"kind": "deployment", "ordered_ids": ["codex_gpt_5_6_luna"]}
     });
-    job.routing.named_route = None;
     job.routing.candidates[0].provider = job.provider.clone();
     job.attempts[0].provider = job.provider.clone();
     job
@@ -201,7 +200,7 @@ fn local_policy_and_named_deployment_cannot_be_widened() {
 }
 
 #[test]
-fn source_less_image_job_remains_cloud_only_without_named_route() {
+fn source_less_image_job_is_cloud_only_and_pinned_to_luna() {
     let provenance = parse_job_snapshot(
         "resp_shape_job",
         "image.generate",
@@ -210,7 +209,10 @@ fn source_less_image_job_remains_cloud_only_without_named_route() {
     )
     .expect("source-less image generation keeps its separate cloud policy");
     assert!(!provenance.offline_required);
-    assert!(provenance.named_route.is_none());
+    assert_eq!(
+        provenance.named_route.as_ref().unwrap().ordered_ids,
+        ["codex_gpt_5_6_luna"]
+    );
     assert_eq!(
         provenance.requested_provider_access_class.as_deref(),
         Some("subscription")

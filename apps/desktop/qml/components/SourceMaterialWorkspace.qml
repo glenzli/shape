@@ -107,7 +107,7 @@ Rectangle {
             wrapMode: Text.WordWrap
         }
 
-        ShapeTextArea {
+        ShapeTextEditor {
             id: sourceText
             objectName: "sourceMaterialText"
             visible: workspace.isText

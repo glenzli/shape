@@ -64,8 +64,21 @@ fn response(encoded: &str) -> ResponsesResult {
 
 #[test]
 fn source_less_image_generation_uses_stable_responses_capability_shape() {
-    let request = image_request("bounded fixture");
+    let request = image_request(&parameters(1536, 1024, 1));
     assert_eq!(request.model, "image.generate");
+    assert_eq!(
+        request.metadata["infer.deployment_ids"],
+        "codex_gpt_5_6_luna"
+    );
+    assert!(
+        request
+            .instructions
+            .as_ref()
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .contains("1536 by 1024")
+    );
     assert_eq!(request.tools, vec![json!({"type":"image_generation"})]);
     assert_eq!(request.metadata["infer.placement"], "cloud_only");
     assert_eq!(
@@ -103,11 +116,31 @@ fn image_edit_and_multi_candidate_requests_remain_dependency_gated() {
 }
 
 #[test]
-fn generated_geometry_mismatch_fails_before_candidate_creation() {
+fn generated_native_geometry_is_preserved_without_resampling() {
     let encoded = STANDARD.encode(png(5, 3));
     let fake = FakeSdk::new().response(response(&encoded)).job(image_job());
+    let output = InferRuntimeImageGenerationExecutor::with_sdk(Box::new(fake))
+        .execute(&request(&parameters(4, 3, 1)))
+        .expect("valid native geometry remains a reviewable image");
+    let Some(ArtifactContentContract::ImageRaster(contract)) = output.content_contract else {
+        panic!("image contract missing");
+    };
+    assert_eq!((contract.width, contract.height), (5, 3));
+    assert_eq!(
+        image::load_from_memory(&output.bytes).unwrap().to_rgba8(),
+        image::load_from_memory(&png(5, 3)).unwrap().to_rgba8()
+    );
+}
+
+#[test]
+fn image_generation_rejects_a_successful_job_routed_to_an_unrequested_model() {
+    let encoded = STANDARD.encode(png(4, 3));
+    let mut job = image_job();
+    job.deployment = "codex_gpt_5_6_sol".into();
+    job.attempts[0].deployment = job.deployment.clone();
+    let fake = FakeSdk::new().response(response(&encoded)).job(job);
     let error = InferRuntimeImageGenerationExecutor::with_sdk(Box::new(fake))
         .execute(&request(&parameters(4, 3, 1)))
-        .expect_err("wrong geometry fails closed");
-    assert_eq!(error.code, "generated_image_geometry_mismatch");
+        .expect_err("a more expensive unrequested model cannot substitute for Luna");
+    assert_eq!(error.code, "infer_policy_violation");
 }

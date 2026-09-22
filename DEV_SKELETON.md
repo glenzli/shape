@@ -142,9 +142,11 @@ creates that identity together with a zero-input Working Graph, persists the exa
 re-reads the draft before credential access, and adopts results through an independent
 `InferImageController`. `AiImageOperatorWorkspace.qml` and the real `OperatorIntentSidebar`
 consumer present one comprehensive Source Operator. The draft remains recoverable while Candidates
-are transient and is cleared only after acceptance. The live Shape App ACL does not currently
-authorize the required `image.generate`/subscription/balanced/cloud-only execution policy, so real
-generation fails closed without changing accepted history. Material-conditioned execution remains
+are transient and is cleared only after acceptance. The image consumer requires Shape App authorization
+for `image.generate`, subscription access, cloud text input, balanced policy and cloud-only placement.
+It pins Luna and verifies the same named route in the receipt. The authored canvas guides generation;
+native dimensions and pixels remain intact, with exact sizing owned by the image editing node.
+Local ACL setup is separate from source validation. Material-conditioned execution remains
 unavailable until Infer publishes a stable typed raster-output provider, Capability Schema, and SDK
 client; a mock, text-only, or image-description route must not be substituted.
 

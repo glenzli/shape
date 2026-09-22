@@ -60,9 +60,9 @@ Rectangle {
             Layout.preferredWidth: 178
             enabled: !workspace.running
             model: [
-                qsTr("Square · 1024"),
-                qsTr("Landscape · 1536 × 1024"),
-                qsTr("Portrait · 1024 × 1536")
+                qsTr("Square · 1:1"),
+                qsTr("Landscape · 3:2"),
+                qsTr("Portrait · 2:3")
             ]
             currentIndex: workspace.outputWidth === 1536 ? 1
                           : workspace.outputHeight === 1536 ? 2 : 0
@@ -86,16 +86,21 @@ Rectangle {
             anchors.centerIn: parent
             width: {
                 const availableRatio = parent.width / Math.max(1, parent.height)
-                const canvasRatio = workspace.outputWidth / Math.max(1, workspace.outputHeight)
+                const canvasRatio = generatedPreview.status === Image.Ready
+                                    ? generatedPreview.sourceSize.width / Math.max(1, generatedPreview.sourceSize.height)
+                                    : workspace.outputWidth / Math.max(1, workspace.outputHeight)
                 return canvasRatio > availableRatio ? parent.width : parent.height * canvasRatio
             }
-            height: width * workspace.outputHeight / Math.max(1, workspace.outputWidth)
+            height: generatedPreview.status === Image.Ready
+                    ? width * generatedPreview.sourceSize.height / Math.max(1, generatedPreview.sourceSize.width)
+                    : width * workspace.outputHeight / Math.max(1, workspace.outputWidth)
             radius: Theme.radiusSmall
             color: Theme.surface
             border.color: Theme.borderStrong
             clip: true
 
             Image {
+                id: generatedPreview
                 anchors.fill: parent
                 source: workspace.previewSource
                 visible: source.toString().length > 0
@@ -145,9 +150,10 @@ Rectangle {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: 14
-        text: workspace.candidateSource.length > 0
-              ? qsTr("A new version is ready. Your current result has not changed.")
-              : qsTr("Your description is saved before AI generation begins.")
+        text: generatedPreview.status === Image.Ready
+              ? qsTr("%1 × %2 · original resolution · use an image editing node for exact sizing")
+                .arg(generatedPreview.sourceSize.width).arg(generatedPreview.sourceSize.height)
+              : qsTr("Choose a preferred composition. The generated image keeps its original resolution.")
         color: Theme.muted
         font.pixelSize: 9
         horizontalAlignment: Text.AlignHCenter

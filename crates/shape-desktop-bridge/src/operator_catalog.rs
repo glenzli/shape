@@ -54,7 +54,7 @@ pub(crate) struct OperatorDescriptor {
     pub(crate) icon_key: &'static str,
 }
 
-const DESCRIPTORS: [OperatorDescriptor; 5] = [
+const DESCRIPTORS: [OperatorDescriptor; 12] = [
     OperatorDescriptor {
         type_key: TEXT_CREATE_OPERATOR,
         source_kind: ArtifactKind::TextDocument,
@@ -69,6 +69,62 @@ const DESCRIPTORS: [OperatorDescriptor; 5] = [
         input_data_type: TEXT_DOCUMENT_DATA,
         output_data_type: TEXT_DOCUMENT_DATA,
         category_key: "text",
+        icon_key: "sparkle",
+    },
+    OperatorDescriptor {
+        type_key: "text.translate",
+        source_kind: ArtifactKind::TextDocument,
+        input_data_type: TEXT_DOCUMENT_DATA,
+        output_data_type: TEXT_DOCUMENT_DATA,
+        category_key: "text",
+        icon_key: "sparkle",
+    },
+    OperatorDescriptor {
+        type_key: "text.summarize",
+        source_kind: ArtifactKind::TextDocument,
+        input_data_type: TEXT_DOCUMENT_DATA,
+        output_data_type: TEXT_DOCUMENT_DATA,
+        category_key: "text",
+        icon_key: "sparkle",
+    },
+    OperatorDescriptor {
+        type_key: "text.polish",
+        source_kind: ArtifactKind::TextDocument,
+        input_data_type: TEXT_DOCUMENT_DATA,
+        output_data_type: TEXT_DOCUMENT_DATA,
+        category_key: "text",
+        icon_key: "sparkle",
+    },
+    OperatorDescriptor {
+        type_key: "text.expand",
+        source_kind: ArtifactKind::TextDocument,
+        input_data_type: TEXT_DOCUMENT_DATA,
+        output_data_type: TEXT_DOCUMENT_DATA,
+        category_key: "text",
+        icon_key: "sparkle",
+    },
+    OperatorDescriptor {
+        type_key: "text.outline",
+        source_kind: ArtifactKind::TextDocument,
+        input_data_type: TEXT_DOCUMENT_DATA,
+        output_data_type: TEXT_DOCUMENT_DATA,
+        category_key: "text",
+        icon_key: "sparkle",
+    },
+    OperatorDescriptor {
+        type_key: "text.prepare_script",
+        source_kind: ArtifactKind::TextDocument,
+        input_data_type: TEXT_DOCUMENT_DATA,
+        output_data_type: TEXT_DOCUMENT_DATA,
+        category_key: "text",
+        icon_key: "sparkle",
+    },
+    OperatorDescriptor {
+        type_key: IMAGE_GENERATE_OPERATOR,
+        source_kind: ArtifactKind::ImageRaster,
+        input_data_type: "",
+        output_data_type: IMAGE_RASTER_DATA,
+        category_key: "image",
         icon_key: "sparkle",
     },
     OperatorDescriptor {

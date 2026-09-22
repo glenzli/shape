@@ -296,7 +296,9 @@ impl AiImageMaterialReference {
     }
 }
 
-/// Exact provider-neutral parameters for prompt-led, source-less generation.
+/// Exact authored request for prompt-led, source-less generation.
+/// The requested output canvas guides generation. The returned raster contract
+/// records native dimensions; deterministic resizing is a separate operation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AiImageGenerateParameters {

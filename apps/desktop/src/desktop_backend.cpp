@@ -856,7 +856,7 @@ DesktopBackend::beginOperatorDraft(const QString& artifactId, const QString& ope
             to_utf8(artifactId),
             to_utf8(operatorTypeKey)
         );
-        if (operatorTypeKey == QStringLiteral("text.edit")
+        if (operatorTypeKey.startsWith(QStringLiteral("text."))
             || operatorTypeKey == QStringLiteral("audio.speech_synthesize")) {
             QString sourceName;
             for (const auto& item : artifacts_) {
@@ -864,9 +864,20 @@ DesktopBackend::beginOperatorDraft(const QString& artifactId, const QString& ope
                 if (source.value(QStringLiteral("id")).toString() == artifactId)
                     sourceName = source.value(QStringLiteral("name")).toString();
             }
-            const auto name = operatorTypeKey == QStringLiteral("text.edit")
-                                  ? tr("%1 · Edited text").arg(sourceName.left(24))
-                                  : tr("%1 · Audio").arg(sourceName.left(24));
+            const QHash<QString, QString> labels{
+                {QStringLiteral("text.translate"), tr("Translated text")},
+                {QStringLiteral("text.summarize"), tr("Summary")},
+                {QStringLiteral("text.polish"), tr("Polished text")},
+                {QStringLiteral("text.expand"), tr("Expanded text")},
+                {QStringLiteral("text.outline"), tr("Outline")},
+                {QStringLiteral("text.prepare_script"), tr("Narration script")}
+            };
+            const auto name =
+                labels.contains(operatorTypeKey)
+                    ? sourceName.left(24) + QStringLiteral(" · ") + labels.value(operatorTypeKey)
+                : operatorTypeKey == QStringLiteral("audio.speech_synthesize")
+                    ? tr("%1 · Audio").arg(sourceName.left(24))
+                    : tr("%1 · Edited text").arg(sourceName.left(24));
             session_->session->session_rename_artifact(draft.context_artifact_id, to_utf8(name));
         }
         applySnapshot(session_->session->session_snapshot());

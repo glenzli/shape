@@ -120,7 +120,7 @@ Item {
         entry = "manual"
         reviewing = false
         changed()
-        manualEditor.forceActiveFocus()
+        manualEditor.focusEditor()
     }
     function repairScript() : void {
         materialEditor.text = reviewText
@@ -160,6 +160,10 @@ Item {
 
     ScrollView {
         id: writingScroll
+        objectName: "writingScroll"
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        ScrollBar.vertical.policy: contentHeight > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+        ScrollBar.vertical.interactive: true
         anchors.fill: parent
         clip: true
         contentWidth: availableWidth
@@ -169,7 +173,9 @@ Item {
             Item { Layout.preferredHeight: 22 }
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.maximumWidth: 920
+                objectName: "writingForm"
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: Math.min(920, writingScroll.availableWidth - 48)
                 Layout.alignment: Qt.AlignHCenter
                 Layout.leftMargin: 24
                 Layout.rightMargin: 24
@@ -254,7 +260,7 @@ Item {
                         Label { Layout.fillWidth: true; text: workspace.inputCurrent ? qsTr("This node produces a separate document. The original stays available for other branches.") : qsTr("The original changed. Update the input before generating or adopting a result."); color: Theme.muted; wrapMode: Text.WordWrap }
                         ShapeButton { visible: !workspace.inputCurrent && workspace.inputArtifact !== null; text: qsTr("Use latest original"); onClicked: workspace.backend.refreshTextInput(workspace.draftId) }
                         ShapeButton { text: workspace.showSource ? qsTr("Hide original") : qsTr("View original"); quiet: true; onClicked: workspace.showSource = !workspace.showSource }
-                        ShapeTextArea {
+                        ShapeTextEditor {
                             visible: workspace.showSource
                             readOnly: true
                             Layout.fillWidth: true
@@ -263,8 +269,8 @@ Item {
                         }
                         ShapeComboBox {
                             objectName: "textEditMode"
-                            property var keys: ["rewrite", "translate", "summarize", "prepare_script"]
-                            model: [qsTr("Rewrite"), qsTr("Translate"), qsTr("Summarize"), qsTr("Prepare a script")]
+                            property var keys: ["rewrite", "translate", "summarize", "polish", "expand", "outline", "prepare_script"]
+                            model: [qsTr("Rewrite"), qsTr("Translate"), qsTr("Summarize"), qsTr("Polish"), qsTr("Expand"), qsTr("Outline"), qsTr("Prepare a script")]
                             Layout.fillWidth: true
                             currentIndex: keys.indexOf(workspace.mode)
                             onActivated: index => {
@@ -306,24 +312,24 @@ Item {
                         color: Theme.text
                         font.pixelSize: 13
                     }
-                    ShapeTextArea {
+                    ShapeTextEditor {
                         id: instructionEditor
                         objectName: "writingInstructionEditor"
                         visible: workspace.entry !== "manual"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.max(126, Math.min(contentHeight + 28, 280))
+                        Layout.preferredHeight: 150
                         enabled: !workspace.generationRunning
                         placeholderText: workspace.profile === "listening"
                             ? qsTr("For example: a fifth-grade English listening exercise about weekend plans, with Chinese instructions and English questions.")
                             : qsTr("Describe the subject, audience, length and what you want to say…")
                         onTextChanged: workspace.changed()
                     }
-                    ShapeTextArea {
+                    ShapeTextEditor {
                         id: manualEditor
                         objectName: "writingManualEditor"
                         visible: workspace.entry === "manual"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.max(240, contentHeight + 28)
+                        Layout.preferredHeight: Math.max(220, Math.min(380, workspace.height * 0.52))
                         enabled: !workspace.generationRunning
                         placeholderText: workspace.scriptMode ? qsTr("Write spoken lines here. Use Format and examples whenever you need a role, pause or audio cue.") : qsTr("Start writing whenever you are ready…")
                         onTextChanged: workspace.changed()
@@ -347,12 +353,12 @@ Item {
                         Item { Layout.fillWidth: true }
                     }
                     Label { visible: (!workspace.editing && workspace.entry === "adapt") || workspace.showReference; text: qsTr("Reference text"); color: Theme.text; font.pixelSize: 13 }
-                    ShapeTextArea {
+                    ShapeTextEditor {
                         id: materialEditor
                         objectName: "writingMaterialEditor"
                         visible: (!workspace.editing && workspace.entry === "adapt") || workspace.showReference
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.max(140, Math.min(contentHeight + 28, 320))
+                        Layout.preferredHeight: 200
                         enabled: !workspace.generationRunning
                         placeholderText: qsTr("Paste ordinary text, vocabulary or existing questions. AI will apply the script format.")
                         onTextChanged: workspace.changed()
@@ -390,12 +396,12 @@ Item {
                         ShapeButton { text: qsTr("Read"); selected: !workspace.showSource; onClicked: workspace.showSource = false }
                         ShapeButton { text: qsTr("Script source"); selected: workspace.showSource; onClicked: workspace.showSource = true }
                     }
-                    ShapeTextArea {
+                    ShapeTextEditor {
                         visible: workspace.showSource || !workspace.scriptMode
                         readOnly: true
                         text: workspace.reviewText
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.max(200, contentHeight + 28)
+                        Layout.preferredHeight: Math.max(220, Math.min(420, workspace.height * 0.6))
                     }
                     SpeechScriptReadingView {
                         visible: !workspace.showSource && workspace.scriptMode

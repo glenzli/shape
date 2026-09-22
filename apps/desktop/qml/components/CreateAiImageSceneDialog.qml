@@ -13,9 +13,9 @@ ShapeDialog {
     signal sceneCreated()
 
     readonly property var canvasPresets: [
-        { "label": qsTr("Square · 1024 × 1024"), "width": 1024, "height": 1024 },
-        { "label": qsTr("Landscape · 1536 × 1024"), "width": 1536, "height": 1024 },
-        { "label": qsTr("Portrait · 1024 × 1536"), "width": 1024, "height": 1536 }
+        { "label": qsTr("Square · 1:1"), "width": 1024, "height": 1024 },
+        { "label": qsTr("Landscape · 3:2"), "width": 1536, "height": 1024 },
+        { "label": qsTr("Portrait · 2:3"), "width": 1024, "height": 1536 }
     ]
 
     function openForCreation() : void {
@@ -45,7 +45,15 @@ ShapeDialog {
             selectByMouse: true
         }
 
-        ShapeTextArea {
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("Codex Luna · image generation through Infer")
+            color: Theme.accent
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
+        }
+
+        ShapeTextEditor {
             id: instructionArea
             objectName: "aiImageInstructionField"
             Layout.fillWidth: true
@@ -92,7 +100,6 @@ ShapeDialog {
             text: qsTr("Open image studio")
             highlighted: true
             enabled: sceneNameField.text.trim().length > 0
-                     && instructionArea.text.trim().length > 0
             DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
         }
 

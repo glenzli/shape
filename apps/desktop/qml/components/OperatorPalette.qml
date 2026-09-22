@@ -22,6 +22,13 @@ Popup {
     function labelFor(typeKey) : string {
         switch (typeKey) {
         case "text.create": return qsTr("Text creation")
+        case "text.translate": return qsTr("Translate")
+        case "text.summarize": return qsTr("Summarize")
+        case "text.polish": return qsTr("Polish")
+        case "text.expand": return qsTr("Expand")
+        case "text.outline": return qsTr("Outline")
+        case "text.prepare_script": return qsTr("Prepare a script")
+        case "image.generate": return qsTr("Generate an image")
         case "text.edit":
         case "text.transform": return qsTr("Text editing")
         case "audio.speech_synthesize": return qsTr("Turn text into speech")
@@ -32,8 +39,38 @@ Popup {
         }
     }
 
+    function dataTypeLabel(typeKey) : string {
+        switch (typeKey) {
+        case "text.document": return qsTr("Text")
+        case "image.raster": return qsTr("Image")
+        case "audio.clip": return qsTr("Audio")
+        default: return qsTr("No source needed")
+        }
+    }
+
+    function moveSelection(delta) : void {
+        if (filteredOperators.length === 0) return
+        operatorList.currentIndex = Math.max(0, Math.min(filteredOperators.length - 1,
+                                                        operatorList.currentIndex + delta))
+        operatorList.positionViewAtIndex(operatorList.currentIndex, ListView.Contain)
+    }
+
+    function chooseHighlighted() : void {
+        const item = filteredOperators[operatorList.currentIndex]
+        if (item) chooseOperator(item.typeKey)
+    }
+
+    onFilteredOperatorsChanged: operatorList.currentIndex = filteredOperators.length > 0 ? 0 : -1
+
     function descriptionFor(typeKey) : string {
         switch (typeKey) {
+        case "text.translate": return qsTr("Translate an original into another language; keep a separate output.")
+        case "text.summarize": return qsTr("Extract the main points into a concise summary.")
+        case "text.polish": return qsTr("Improve grammar, clarity and flow while keeping the meaning.")
+        case "text.expand": return qsTr("Develop a short text into a fuller draft.")
+        case "text.outline": return qsTr("Organize an original into headings and key points.")
+        case "text.prepare_script": return qsTr("Turn an original into a narration script with roles and timing.")
+        case "image.generate": return qsTr("Create an image from a description with Codex Luna through Infer.")
         case "text.create": return qsTr("Start with an idea or write manually; choose plain text or a narration script.")
         case "text.edit":
         case "text.transform":
@@ -61,6 +98,13 @@ Popup {
 
     function keywordsFor(typeKey) : string {
         switch (typeKey) {
+        case "image.generate": return "image generate illustration poster cover codex luna 图片 生图 插画 海报 封面"
+        case "text.translate": return "translate translation language 翻译 中英"
+        case "text.summarize": return "summary summarize 摘要 总结"
+        case "text.polish": return "polish grammar 润色 校对"
+        case "text.expand": return "expand 扩写"
+        case "text.outline": return "outline 大纲 提纲"
+        case "text.prepare_script": return "script narration 脚本 口播 改编"
         case "text.edit":
         case "text.transform": return "text write edit revise ai transform rewrite expand polish llm"
         case "audio.speech_synthesize": return "ai audio speech synthesize voice tts"
@@ -79,7 +123,7 @@ Popup {
         case "image.edit":
         case "image.crop":
         case "image.resize": return "addImageEditingAction"
-        default: return "compatibleOperatorAction"
+        default: return "add_" + typeKey.replace(".", "_")
         }
     }
 
@@ -138,6 +182,10 @@ Popup {
             const haystack = (operator.label + " " + operator.description + " "
                               + operator.typeKey + " " + operator.keywords).toLowerCase()
             return haystack.indexOf(normalized) >= 0
+        }).sort((a, b) => {
+            const rank = item => item.label.toLowerCase() === normalized ? 0
+                                  : item.label.toLowerCase().indexOf(normalized) >= 0 ? 1 : 2
+            return rank(a) - rank(b)
         })
     }
 
@@ -163,8 +211,8 @@ Popup {
     }
 
     parent: Overlay.overlay
-    width: 382
-    height: 420
+    width: Math.min(420, parent.width - 24)
+    height: Math.min(520, parent.height - 24)
     padding: 0
     modal: false
     dim: false
@@ -251,11 +299,10 @@ Popup {
                 }
 
                 Keys.onEscapePressed: palette.close()
-                Keys.onReturnPressed: {
-                    if (palette.filteredOperators.length === 1) {
-                        palette.chooseOperator(palette.filteredOperators[0].typeKey)
-                    }
-                }
+                Keys.onDownPressed: palette.moveSelection(1)
+                Keys.onUpPressed: palette.moveSelection(-1)
+                Keys.onReturnPressed: palette.chooseHighlighted()
+                Keys.onEnterPressed: palette.chooseHighlighted()
             }
         }
 
@@ -272,6 +319,7 @@ Popup {
             Layout.fillHeight: true
             Layout.margins: 8
             clip: true
+            ScrollBar.vertical: ScrollBar { policy: operatorList.contentHeight > operatorList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
             spacing: 4
             model: palette.filteredOperators
 
@@ -279,8 +327,8 @@ Popup {
                 id: operatorDelegate
                 objectName: modelData.objectName
                 required property var modelData
-                width: ListView.view.width
-                height: 72
+                width: ListView.view.width - 12
+                height: 88
                 leftPadding: 10
                 rightPadding: 10
                 topPadding: 8
@@ -292,7 +340,7 @@ Popup {
 
                 background: Rectangle {
                     radius: Theme.radiusMedium
-                    color: operatorDelegate.down ? Theme.selected
+                    color: operatorDelegate.down || operatorDelegate.ListView.isCurrentItem ? Theme.selected
                                                  : operatorDelegate.hovered
                                                    ? Theme.raisedHover : "transparent"
                     border.color: operatorDelegate.visualFocus ? Theme.accent : "transparent"
@@ -345,12 +393,15 @@ Popup {
                             text: operatorDelegate.modelData.description
                             color: Theme.muted
                             font.pixelSize: Theme.fontMeta
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 2
                             elide: Text.ElideRight
                         }
 
                         Text {
                             Layout.fillWidth: true
-                            text: operatorDelegate.modelData.typeKey
+                            text: palette.dataTypeLabel(operatorDelegate.modelData.inputDataTypeKey)
+                                  + " → " + palette.dataTypeLabel(operatorDelegate.modelData.outputDataTypeKey)
                             color: Theme.disabled
                             font.pixelSize: 9
                             elide: Text.ElideRight

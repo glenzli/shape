@@ -186,6 +186,9 @@ impl DesktopSession {
             );
             return self.create_speech_derivation(artifact_id, script);
         }
+        if let Some(state) = crate::operator_catalog::text_authoring::node_preset(operator_type)? {
+            return self.create_text_derivation_with_state(artifact_id, state);
+        }
         if operator_type == "text.edit" || operator_type == "text.transform" {
             return self.create_text_derivation(artifact_id, "plain");
         }

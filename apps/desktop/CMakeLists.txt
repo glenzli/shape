@@ -109,6 +109,8 @@ qt_add_executable(shape-desktop
     tests/workspace_host_smoke.hpp
     tests/speech_script_help_smoke.cpp
     tests/speech_script_help_smoke.hpp
+    tests/image_live_smoke.cpp
+    tests/image_live_smoke.hpp
     tests/text_authoring_smoke.cpp
     tests/text_authoring_smoke.hpp
     tests/speech_live_smoke.cpp
@@ -162,6 +164,7 @@ qt_add_qml_module(shape-desktop
         qml/components/ShapeButton.qml
         qml/components/ShapeTextField.qml
         qml/components/ShapeTextArea.qml
+        qml/components/ShapeTextEditor.qml
         qml/components/ShapeComboBox.qml
         qml/components/ShapeDialog.qml
         qml/components/TextAuthoringWorkspace.qml

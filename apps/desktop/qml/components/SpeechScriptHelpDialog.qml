@@ -52,12 +52,14 @@ ShapeDialog {
         }
         ScrollView {
             id: documentScroll
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: contentHeight > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             contentWidth: availableWidth
             ColumnLayout {
-                width: documentScroll.availableWidth
+                width: documentScroll.availableWidth - 12
                 spacing: 12
                 Rectangle {
                     visible: !dialog.showingDocument

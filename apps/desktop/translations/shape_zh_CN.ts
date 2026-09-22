@@ -9,22 +9,34 @@
         <translation>AI 图片 · 起点</translation>
     </message>
     <message>
-        <location line="+16"/>
         <source>Square · 1024</source>
-        <translation>方形 · 1024</translation>
+        <translation type="vanished">方形 · 1024</translation>
     </message>
     <message>
-        <location line="+1"/>
         <source>Landscape · 1536 × 1024</source>
-        <translation>横向 · 1536 × 1024</translation>
+        <translation type="vanished">横向 · 1536 × 1024</translation>
+    </message>
+    <message>
+        <source>Portrait · 1024 × 1536</source>
+        <translation type="vanished">纵向 · 1024 × 1536</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Square · 1:1</source>
+        <translation>正方形 · 1:1</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Portrait · 1024 × 1536</source>
-        <translation>纵向 · 1024 × 1536</translation>
+        <source>Landscape · 3:2</source>
+        <translation>横向 · 3:2</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+1"/>
+        <source>Portrait · 2:3</source>
+        <translation>纵向 · 2:3</translation>
+    </message>
+    <message>
+        <location line="+63"/>
         <source>Creating a new version…</source>
         <translation>正在创建新版本…</translation>
     </message>
@@ -40,13 +52,21 @@
     </message>
     <message>
         <location line="+15"/>
-        <source>A new version is ready. Your current result has not changed.</source>
-        <translation>新版本已经就绪，当前结果尚未改变。</translation>
+        <source>%1 × %2 · original resolution · use an image editing node for exact sizing</source>
+        <translation>%1 × %2 · 原始尺寸 · 可通过图片编辑节点调整为精确尺寸</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
+        <source>Choose a preferred composition. The generated image keeps its original resolution.</source>
+        <translation>选择期望画幅；生成图片会保留原始尺寸。</translation>
+    </message>
+    <message>
+        <source>A new version is ready. Your current result has not changed.</source>
+        <translation type="vanished">新版本已经就绪，当前结果尚未改变。</translation>
+    </message>
+    <message>
         <source>Your description is saved before AI generation begins.</source>
-        <translation>开始 AI 生成前会先保存你的描述。</translation>
+        <translation type="vanished">开始 AI 生成前会先保存你的描述。</translation>
     </message>
 </context>
 <context>
@@ -688,7 +708,7 @@
         <translation>已接受音频</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+34"/>
         <source>ACCEPTED TEXT SOURCE</source>
         <translation>已接受文本源</translation>
     </message>
@@ -698,17 +718,17 @@
         <translation>这段音频生成后，稿件已有修改。返回写稿可制作新录音，当前录音仍可使用。</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+20"/>
         <source>The accepted source remains immutable and is read only here.</source>
         <translation>已接受的源保持不可变，此处仅供读取。</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+18"/>
         <source>Only spoken lines enter the speech model. Shape inserts pauses and cues.</source>
         <translation>只有口播正文会交给语音模型。停顿和音效由 Shape 插入。</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+32"/>
         <source>AUDIO REVISION</source>
         <translation>音频修订</translation>
     </message>
@@ -761,17 +781,17 @@
         <translation>语言</translation>
     </message>
     <message>
-        <location line="+166"/>
+        <location line="+167"/>
         <source>Long text is split at sentence boundaries and assembled into one WAV. Review the audio before accepting it. Use Export to save the selected audio.</source>
         <translation>长文本会按句子分段，合成为一个 WAV 文件。请先试听再采纳，使用“导出”保存所选音频。</translation>
     </message>
     <message>
-        <location line="-158"/>
+        <location line="-159"/>
         <source>Pace</source>
         <translation>语速</translation>
     </message>
     <message>
-        <location line="-191"/>
+        <location line="-209"/>
         <source>Write</source>
         <translation>写稿</translation>
     </message>
@@ -791,7 +811,7 @@
         <translation>为稿件选择声音</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+81"/>
         <source>Your adopted text is used for speech. You can return to writing at any time.</source>
         <translation>配音使用你已采用的文字，随时可以返回写稿。</translation>
     </message>
@@ -800,7 +820,7 @@
         <translation type="vanished">正在本地合成…</translation>
     </message>
     <message>
-        <location line="+145"/>
+        <location line="+155"/>
         <source>Create speech candidate</source>
         <translation>创建语音候选</translation>
     </message>
@@ -978,22 +998,19 @@
 <context>
     <name>CreateAiImageSceneDialog</name>
     <message>
-        <location filename="../qml/components/CreateAiImageSceneDialog.qml" line="+16"/>
         <source>Square · 1024 × 1024</source>
-        <translation>方形 · 1024 × 1024</translation>
+        <translation type="vanished">方形 · 1024 × 1024</translation>
     </message>
     <message>
-        <location line="+1"/>
         <source>Landscape · 1536 × 1024</source>
-        <translation>横向 · 1536 × 1024</translation>
+        <translation type="vanished">横向 · 1536 × 1024</translation>
     </message>
     <message>
-        <location line="+1"/>
         <source>Portrait · 1024 × 1536</source>
-        <translation>纵向 · 1024 × 1536</translation>
+        <translation type="vanished">纵向 · 1024 × 1536</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location filename="../qml/components/CreateAiImageSceneDialog.qml" line="+22"/>
         <source>Untitled image</source>
         <translation>未命名图片</translation>
     </message>
@@ -1008,7 +1025,12 @@
         <translation>为这张图片命名</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+6"/>
+        <source>Codex Luna · image generation through Infer</source>
+        <translation>Codex Luna · 通过 Infer 生成图片</translation>
+    </message>
+    <message>
+        <location line="+26"/>
         <source>Your prompt stays with this work. Generated versions remain optional until you choose one to use.</source>
         <translation>提示词会随作品保存。生成的版本在你选择采用前都只是备选。</translation>
     </message>
@@ -1023,7 +1045,22 @@
         <translation>描述你想创作的图像…</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="-45"/>
+        <source>Square · 1:1</source>
+        <translation>正方形 · 1:1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Landscape · 3:2</source>
+        <translation>横向 · 3:2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Portrait · 2:3</source>
+        <translation>纵向 · 2:3</translation>
+    </message>
+    <message>
+        <location line="+76"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -1676,12 +1713,12 @@
     </message>
     <message>
         <location line="+22"/>
-        <location line="+36"/>
+        <location line="+46"/>
         <source>%1 · Audio</source>
         <translation>%1 · 音频</translation>
     </message>
     <message>
-        <location line="-26"/>
+        <location line="-36"/>
         <source>Adopt a valid script before choosing voices.</source>
         <translation>请先采用格式有效的稿件，再选择声音。</translation>
     </message>
@@ -1692,11 +1729,41 @@
     </message>
     <message>
         <location line="+17"/>
+        <source>Translated text</source>
+        <translation>译文</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Summary</source>
+        <translation>摘要</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Polished text</source>
+        <translation>润色稿</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Expanded text</source>
+        <translation>扩写稿</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Outline</source>
+        <translation>大纲</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Narration script</source>
+        <translation>口播脚本</translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>%1 · Edited text</source>
         <translation>%1 · 编辑稿</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+11"/>
         <source>This Operator cannot use the selected Scene source.</source>
         <translation>此操作节点无法使用所选场景源。</translation>
     </message>
@@ -1966,6 +2033,11 @@
     </message>
     <message>
         <location line="+3"/>
+        <source>Infer could not route this request to Codex Luna. Check Luna availability and Shape&apos;s cloud text permission in Infer Console, then retry.</source>
+        <translation>Infer 无法将请求路由到 Codex Luna。请在 Infer Console 检查 Luna 可用性和 Shape 的云端文本权限，再重试。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>No image generation provider is available right now.</source>
         <translation>当前没有可用的图像生成提供方。</translation>
     </message>
@@ -1990,7 +2062,7 @@
         <translation>可复用组件将是下一步能力。这里先为大型项目预留位置，让重复的创作工作可以被整理起来，同时不改变当前的项目结构。</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+266"/>
         <source>Create an image</source>
         <translation>创建图片</translation>
     </message>
@@ -2025,12 +2097,12 @@
         <translation>生成一个版本</translation>
     </message>
     <message>
-        <location line="-396"/>
+        <location line="-397"/>
         <source>Shape — %1</source>
         <translation>Shape — %1</translation>
     </message>
     <message>
-        <location line="-156"/>
+        <location line="-159"/>
         <source>Untitled text</source>
         <translation>未命名文本</translation>
     </message>
@@ -2054,7 +2126,7 @@
         <translation type="vanished">未命名 AI 文本</translation>
     </message>
     <message>
-        <location line="+156"/>
+        <location line="+159"/>
         <source>Shape — No Project</source>
         <translation>Shape — 无项目</translation>
     </message>
@@ -2074,7 +2146,7 @@
         <translation>组件</translation>
     </message>
     <message>
-        <location line="+270"/>
+        <location line="+271"/>
         <source>Describe the image, composition, light, and mood…</source>
         <translation>描述图像、构图、光线与氛围…</translation>
     </message>
@@ -2125,7 +2197,7 @@
         <translation>描述你想要的结果…</translation>
     </message>
     <message>
-        <location line="+121"/>
+        <location line="+124"/>
         <source>CHANGE</source>
         <translation>修改</translation>
     </message>
@@ -2155,7 +2227,7 @@
         <translation>添加参考素材</translation>
     </message>
     <message>
-        <location line="-152"/>
+        <location line="-155"/>
         <source>No reference materials</source>
         <translation>暂无参考素材</translation>
     </message>
@@ -2176,7 +2248,7 @@
         <translation>你想要的结果</translation>
     </message>
     <message>
-        <location line="+176"/>
+        <location line="+179"/>
         <source>Working…</source>
         <translation>处理中…</translation>
     </message>
@@ -2188,7 +2260,7 @@
         <translation type="vanished">AI 文本编辑器</translation>
     </message>
     <message>
-        <location filename="../qml/components/OperatorPalette.qml" line="+27"/>
+        <location filename="../qml/components/OperatorPalette.qml" line="+34"/>
         <source>Turn text into speech</source>
         <translation>将文字转成语音</translation>
     </message>
@@ -2197,7 +2269,7 @@
         <translation type="vanished">将节点图素材与可复用的提示词、语气、风格和候选流程组合起来。</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+45"/>
         <source>Create a spoken version from the current text.</source>
         <translation>根据当前文字创建语音版本。</translation>
     </message>
@@ -2213,7 +2285,7 @@
         <translation>写作</translation>
     </message>
     <message>
-        <location line="+150"/>
+        <location line="+161"/>
         <source>ADD A NODE</source>
         <translation>添加节点</translation>
     </message>
@@ -2228,14 +2300,49 @@
         <translation>搜索节点库…</translation>
     </message>
     <message>
-        <location line="-203"/>
+        <location line="-244"/>
         <source>Edit the image</source>
         <translation>编辑图像</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-13"/>
         <source>Text creation</source>
         <translation>文本创作</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Translate</source>
+        <translation>翻译</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Summarize</source>
+        <translation>摘要</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Polish</source>
+        <translation>润色</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Expand</source>
+        <translation>扩写</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Outline</source>
+        <translation>大纲</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prepare a script</source>
+        <translation>改编为脚本</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Generate an image</source>
+        <translation>生成图片</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -2244,6 +2351,61 @@
     </message>
     <message>
         <location line="+11"/>
+        <source>Text</source>
+        <translation>文本</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Image</source>
+        <translation>图片</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Audio</source>
+        <translation>音频</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No source needed</source>
+        <translation>无需原始素材</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Translate an original into another language; keep a separate output.</source>
+        <translation>将原文翻译为其他语言，译文独立保存。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Extract the main points into a concise summary.</source>
+        <translation>提炼原文要点，生成简洁摘要。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Improve grammar, clarity and flow while keeping the meaning.</source>
+        <translation>保留原意，改善语法、表达与行文。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Develop a short text into a fuller draft.</source>
+        <translation>补充说明与细节，将短文扩展为完整稿件。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Organize an original into headings and key points.</source>
+        <translation>将原文整理为标题、层次与要点。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Turn an original into a narration script with roles and timing.</source>
+        <translation>将原文改编为包含角色、停顿和节奏的口播脚本。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Create an image from a description with Codex Luna through Infer.</source>
+        <translation>通过 Infer 调用 Codex Luna，根据描述生成图片。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Start with an idea or write manually; choose plain text or a narration script.</source>
         <translation>从想法开始或手动写作，可选择普通文本或口播脚本。</translation>
     </message>
@@ -2273,12 +2435,12 @@
         <translation>下一步</translation>
     </message>
     <message>
-        <location line="+308"/>
+        <location line="+322"/>
         <source>No matching creative step was found.</source>
         <translation>没有找到匹配的创作步骤。</translation>
     </message>
     <message>
-        <location line="-145"/>
+        <location line="-148"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -3519,7 +3681,7 @@
         <translation>规则和示例随 Shape 内置，离线也可查看。</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+25"/>
         <source>Write the content first. Use instructions on their own lines to control delivery. Shape reads spoken text and inserts pauses and sound cues during synthesis.</source>
         <translation>先写内容，再用单独成行的指令安排朗读。Shape 只朗读正文，在合成时加入停顿和音效。</translation>
     </message>
@@ -3649,7 +3811,7 @@
 %4</translation>
     </message>
     <message>
-        <location filename="../qml/components/SpeechScriptPanel.qml" line="+62"/>
+        <location filename="../qml/components/SpeechScriptPanel.qml" line="+65"/>
         <source>Default voice</source>
         <translation>默认音色</translation>
     </message>
@@ -3911,7 +4073,7 @@
         <translation type="vanished">自由文字</translation>
     </message>
     <message>
-        <location filename="../qml/components/TextAuthoringWorkspace.qml" line="+187"/>
+        <location filename="../qml/components/TextAuthoringWorkspace.qml" line="+193"/>
         <source>Format and examples</source>
         <translation>格式与示例</translation>
     </message>
@@ -4022,6 +4184,21 @@
         <location line="+0"/>
         <source>Prepare a script</source>
         <translation>编排脚本</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Polish</source>
+        <translation>润色</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Expand</source>
+        <translation>扩写</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Outline</source>
+        <translation>大纲</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -4267,7 +4444,7 @@
         <translation>已接受</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+35"/>
         <source>CANDIDATE</source>
         <translation>候选</translation>
     </message>

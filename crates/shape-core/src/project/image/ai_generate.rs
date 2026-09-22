@@ -94,7 +94,7 @@ impl ShapeProject {
     ///
     /// # Errors
     ///
-    /// Rejects unsupported physical request shapes, malformed or mismatched PNG
+    /// Rejects unsupported physical request shapes, malformed PNG
     /// output, missing stable Core/Capability Job provenance, or executor failure.
     pub fn propose_generated_image(
         &self,
@@ -133,11 +133,8 @@ impl ShapeProject {
         else {
             return Err(CoreError::ImageGenerationOutputContractMismatch);
         };
-        let expected = parameters.output();
         if output.media_type != IMAGE_MEDIA_TYPE
             || output.bytes.is_empty()
-            || output_contract.width != expected.width()
-            || output_contract.height != expected.height()
             || receipt.executor_job_id.is_none()
             || receipt
                 .external_provenance

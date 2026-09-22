@@ -170,11 +170,11 @@ impl JobPolicyProfile {
         }
     }
 
-    const fn named_deployment(self) -> Option<&'static str> {
+    const fn named_deployment(self) -> &'static str {
         match self {
-            Self::LocalTextEdit => Some(TEXT_EDIT_DEPLOYMENT),
-            Self::LocalSpeech => Some(SPEECH_DEPLOYMENT),
-            Self::CloudImageInteractive => None,
+            Self::LocalTextEdit => TEXT_EDIT_DEPLOYMENT,
+            Self::LocalSpeech => SPEECH_DEPLOYMENT,
+            Self::CloudImageInteractive => super::image_generation::IMAGE_DEPLOYMENT,
         }
     }
 
@@ -265,7 +265,7 @@ fn validate_shape_policy(
     validate_named_route(
         constraints.get("named_route"),
         snapshot.routing.named_route.as_ref(),
-        profile.named_deployment(),
+        Some(profile.named_deployment()),
         &snapshot.deployment,
     )?;
 

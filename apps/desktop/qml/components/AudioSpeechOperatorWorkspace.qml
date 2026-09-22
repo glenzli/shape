@@ -290,9 +290,18 @@ Item {
                 color: Theme.surface
                 border.color: Theme.border
 
-                ColumnLayout {
+                ScrollView {
+                    id: speechColumn0
+                    objectName: "speechColumn0"
                     anchors.fill: parent
                     anchors.margins: 18
+                    clip: true
+                    contentWidth: availableWidth
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ScrollBar.vertical.policy: contentHeight > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                    ScrollBar.vertical.interactive: true
+                    ColumnLayout {
+                    width: speechColumn0.availableWidth - 12
                     spacing: 10
 
                     Text {
@@ -318,22 +327,21 @@ Item {
                         font.weight: Font.Medium
                         elide: Text.ElideRight
                     }
-                    Text {
+                    ShapeTextEditor {
+                        readOnly: true
                         visible: !workspace.scriptMode
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        Layout.preferredHeight: 280
                         text: workspace.sourceText.length > 0
                               ? workspace.sourceText
                               : qsTr("The accepted source remains immutable and is read only here.")
                         color: Theme.textSoft
                         font.pixelSize: 15
-                        lineHeight: 1.3
-                        wrapMode: Text.WordWrap
-                        elide: Text.ElideRight
+                        wrapMode: TextEdit.Wrap
                     }
                     SpeechScriptPanel {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        Layout.preferredHeight: Math.max(280, Math.min(480, speechColumn0.height - 110))
                         visible: workspace.scriptMode
                         enabled: !workspace.inferSpeech.running && !workspace.backend.speechCueImporting
                         backend: workspace.backend
@@ -350,6 +358,7 @@ Item {
                         wrapMode: Text.WordWrap
                     }
                 }
+                }
             }
 
             Rectangle {
@@ -360,9 +369,18 @@ Item {
                 color: Theme.surface
                 border.color: workspace.hasCandidateAudio ? Theme.accent : Theme.border
 
-                ColumnLayout {
+                ScrollView {
+                    id: speechColumn1
+                    objectName: "speechColumn1"
                     anchors.fill: parent
                     anchors.margins: 18
+                    clip: true
+                    contentWidth: availableWidth
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ScrollBar.vertical.policy: contentHeight > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                    ScrollBar.vertical.interactive: true
+                    ColumnLayout {
+                    width: speechColumn1.availableWidth - 12
                     spacing: 12
 
                     Text {
@@ -592,6 +610,7 @@ Item {
                         font.pixelSize: 9
                         wrapMode: Text.WordWrap
                     }
+                }
                 }
             }
         }

@@ -21,6 +21,9 @@ ListView {
     clip: true
     model: (preview.plan?.events || []).filter(event => ["speech", "pause", "cue", "heading", "scene", "repeat_start", "repeat_end"].indexOf(event.kind) >= 0)
     spacing: 6
+    // Include the role/cue header when a newly loaded playback plan settles.
+    onCountChanged: Qt.callLater(() => panel.positionViewAtBeginning())
+    Component.onCompleted: Qt.callLater(() => panel.positionViewAtBeginning())
     delegate: Label {
         required property var modelData
         width: panel.width
@@ -31,7 +34,7 @@ ListView {
         wrapMode: Text.WordWrap
         padding: 4
     }
-    ScrollBar.vertical: ScrollBar {}
+    ScrollBar.vertical: ScrollBar { policy: panel.contentHeight > panel.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
 
     function currentOptions() : var {
         const draft = backend.operatorDrafts.find(item => item.id === draftId)

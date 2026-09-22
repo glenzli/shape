@@ -121,7 +121,13 @@ impl TextAuthoring {
         self.validate_production()?;
         if !matches!(
             self.mode.as_str(),
-            "rewrite" | "translate" | "summarize" | "prepare_script"
+            "rewrite"
+                | "translate"
+                | "summarize"
+                | "polish"
+                | "expand"
+                | "outline"
+                | "prepare_script"
         ) {
             return Err("invalid_writing_mode".into());
         }
@@ -208,6 +214,15 @@ impl TextAuthoring {
             "summarize" => {
                 "Summarize the source accurately, preserving essential claims and facts."
             }
+            "polish" => {
+                "Polish grammar, clarity and flow. Preserve the source's meaning, factual claims and voice; do not add facts."
+            }
+            "expand" => {
+                "Expand the source into a fuller draft with useful explanation and examples. Do not invent factual claims or citations; mark assumptions when needed."
+            }
+            "outline" => {
+                "Turn the source into a clearly structured outline with headings and concise points. Preserve its main claims and logical order."
+            }
             "prepare_script" => {
                 "Prepare the source for spoken delivery using the selected output format."
             }
@@ -230,6 +245,32 @@ impl TextAuthoring {
             self.instruction, self.material, self.repair_feedback
         ))
     }
+}
+
+/// Node-library templates reuse the typed text.edit owner and persist their task.
+/// They reserve an independent output and never alter the original document.
+pub(crate) fn node_preset(key: &str) -> Result<Option<TextAuthoring>, String> {
+    let mode = match key {
+        "text.translate" => "translate",
+        "text.summarize" => "summarize",
+        "text.polish" => "polish",
+        "text.expand" => "expand",
+        "text.outline" => "outline",
+        "text.prepare_script" => "prepare_script",
+        _ => return Ok(None),
+    };
+    let mut state = TextAuthoring::new(if mode == "prepare_script" {
+        "narration"
+    } else {
+        "plain"
+    })?;
+    state.mode = mode.into();
+    state.entry = WritingEntry::Adapt;
+    if mode == "translate" {
+        state.instruction =
+            "Translate into Simplified Chinese. Preserve any existing Chinese text.".into();
+    }
+    Ok(Some(state))
 }
 
 pub(crate) fn from_draft(draft: &WorkingOperatorDraft) -> Result<Option<TextAuthoring>, String> {

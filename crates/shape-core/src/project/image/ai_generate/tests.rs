@@ -221,3 +221,28 @@ fn duplicate_accept_and_untrusted_provenance_fail_without_a_second_artifact() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn native_image_size_and_requested_canvas_both_survive_acceptance() {
+    let root = test_root("native-size");
+    let mut project = ShapeProject::create(&root, "Native Image").unwrap();
+    let artifact = project
+        .create_artifact("Native", ArtifactKind::ImageRaster)
+        .unwrap();
+    let candidate = project
+        .propose_generated_image(artifact.id, &parameters(), &ImageExecutor::new(6, 4))
+        .unwrap();
+    assert_eq!(
+        (candidate.contract().width, candidate.contract().height),
+        (6, 4)
+    );
+    assert_eq!(candidate.parameters(), &parameters());
+    let revision = project.accept_generated_image(candidate).unwrap();
+    assert_eq!(
+        revision.content_contract,
+        Some(ArtifactContentContract::ImageRaster(
+            ImageExecutor::new(6, 4).contract
+        ))
+    );
+    fs::remove_dir_all(root).unwrap();
+}

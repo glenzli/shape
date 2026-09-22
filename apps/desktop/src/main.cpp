@@ -1,6 +1,7 @@
 #include "audio_export_controller.hpp"
 #include "audio_preview_controller.hpp"
 #include "desktop_backend.hpp"
+#include "image_live_smoke.hpp"
 #include "image_preview_provider.hpp"
 #include "infer_image_controller.hpp"
 #include "infer_runtime_controller.hpp"
@@ -46,6 +47,7 @@ struct Arguments {
     std::optional<QString> speech_live_directory;
     std::optional<QString> speech_script_directory;
     std::optional<QString> text_authoring_directory;
+    std::optional<QString> image_live_directory;
 };
 
 std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
@@ -67,6 +69,8 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             arguments.speech_script_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-speech-live" && index + 1 < argc) {
             arguments.speech_live_directory = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--smoke-image-generation" && index + 1 < argc) {
+            arguments.image_live_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-text-authoring" && index + 1 < argc) {
             arguments.text_authoring_directory = QString::fromLocal8Bit(argv[++index]);
         } else {
@@ -132,7 +136,7 @@ bool run_smoke_raster_cycle(
     QObject* const workspace_surface =
         root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
     if (image_palette == nullptr || workspace_surface == nullptr
-        || image_palette->property("compatibleOperatorCount").toInt() != 2) {
+        || image_palette->property("compatibleOperatorCount").toInt() != 3) {
         std::cerr << "desktop raster smoke did not expose the universal text editor beside the "
                      "unified image editor"
                   << std::endl;
@@ -941,6 +945,17 @@ int main(int argc, char* argv[]) {
     installMacTitleBarAlignment(qobject_cast<QQuickWindow*>(root_object), title_bar_height);
 #endif
 
+    if (arguments->image_live_directory.has_value()) {
+        QTimer::singleShot(0, &application, [&]() {
+            const bool passed = image_live_smoke::run(
+                *backend,
+                infer_image,
+                *root_object,
+                *arguments->image_live_directory
+            );
+            QCoreApplication::exit(passed ? 0 : 8);
+        });
+    }
     if (arguments->speech_script_directory.has_value()) {
         QTimer::singleShot(0, &application, [&]() {
             const bool passed = speech_live_smoke::run_script(

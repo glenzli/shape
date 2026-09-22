@@ -26,6 +26,7 @@ use super::{
 pub const IMAGE_GENERATE_CAPABILITY: &str = "image.generate";
 
 const IMAGE_INTENT: &str = "image.generate";
+pub(super) const IMAGE_DEPLOYMENT: &str = "codex_gpt_5_6_luna";
 const IMAGE_MEDIA_TYPE: &str = "image/png";
 const MAX_INSTRUCTION_BYTES: usize = 32 * 1024;
 const MAX_GENERATED_IMAGE_BYTES: usize = 20 * 1024 * 1024;
@@ -83,9 +84,9 @@ impl InferRuntimeImageGenerationExecutor {
     ) -> Result<ExecutionOutput, ExecutionFailure> {
         let response = self
             .sdk
-            .create_response(&image_request(parameters.instruction()), REQUEST_TIMEOUT)
+            .create_response(&image_request(parameters), REQUEST_TIMEOUT)
             .map_err(map_failure)?;
-        let parsed = parse_image_response(response, parameters)?;
+        let parsed = parse_image_response(response)?;
         let job = self.sdk.job(&parsed.job_id).map_err(map_failure)?;
         let provenance = parse_job_snapshot(
             &parsed.job_id,
@@ -131,14 +132,22 @@ impl Executor for InferRuntimeImageGenerationExecutor {
     }
 }
 
-fn image_request(input: &str) -> ResponsesRequest {
+fn image_request(parameters: &AiImageGenerateParameters) -> ResponsesRequest {
     ResponsesRequest {
         model: IMAGE_INTENT.to_owned(),
-        input: Value::String(input.to_owned()),
-        instructions: None,
+        input: Value::String(parameters.instruction().to_owned()),
+        instructions: Some(Value::String(format!(
+            "Generate exactly one PNG image with a canvas of {} by {} pixels. Use the requested aspect ratio and size. Return the generated image through the image_generation tool.",
+            parameters.output().width(),
+            parameters.output().height()
+        ))),
         stream: false,
         background: false,
         metadata: BTreeMap::from([
+            (
+                "infer.deployment_ids".to_owned(),
+                IMAGE_DEPLOYMENT.to_owned(),
+            ),
             ("infer.capability_floor".to_owned(), "capable".to_owned()),
             ("infer.fallback".to_owned(), "none".to_owned()),
             ("infer.max_cost_usd".to_owned(), "0".to_owned()),
@@ -167,7 +176,6 @@ struct ParsedImageResponse {
 
 fn parse_image_response(
     response: ResponsesResult,
-    parameters: &AiImageGenerateParameters,
 ) -> Result<ParsedImageResponse, ExecutionFailure> {
     let [image] = response.output.as_slice() else {
         return Err(failure("infer_invalid_response", false));
@@ -202,10 +210,8 @@ fn parse_image_response(
         MAX_GENERATED_IMAGE_PIXELS,
     )
     .map_err(|_| failure("invalid_generated_image", false))?;
-    let expected = parameters.output();
-    if contract.width != expected.width() || contract.height != expected.height() {
-        return Err(failure("generated_image_geometry_mismatch", false));
-    }
+    // The canvas is a generation request, not a deterministic resize contract.
+    // Preserve native pixels; an explicit image.resize node owns exact sizing.
     Ok(ParsedImageResponse {
         job_id: response.id,
         png,

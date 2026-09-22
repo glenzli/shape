@@ -127,6 +127,14 @@ impl DesktopSession {
         source_id: &str,
         profile: &str,
     ) -> Result<ffi::OperatorDraftWire, String> {
+        self.create_text_derivation_with_state(source_id, TextAuthoring::new(profile)?)
+    }
+
+    pub(super) fn create_text_derivation_with_state(
+        &mut self,
+        source_id: &str,
+        mut state: TextAuthoring,
+    ) -> Result<ffi::OperatorDraftWire, String> {
         let source_id = parse_artifact_id(source_id)?;
         let source = self
             .project
@@ -139,7 +147,6 @@ impl DesktopSession {
         let revision_id = source
             .accepted_revision
             .ok_or("missing_accepted_revision")?;
-        let mut state = TextAuthoring::new(profile)?;
         state.entry = WritingEntry::Adapt;
         let artifact = Artifact::new(
             format!(

@@ -12,3 +12,5 @@
 /local-data/
 /tmp/
 
+# Local Infer diagnostics may initialize managed access files here.
+/.infer-runtime/
