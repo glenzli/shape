@@ -266,11 +266,12 @@ code is isolated to native window-control alignment; QML layout, themes, and set
 
 `SpeechScriptHelpDialog.qml` exposes the packaged script rules and AI writing prompt from the speech workspace, including plain-text mode. `SpeechScriptDocumentation` reads the canonical `docs/SPEECH_SCRIPT*.md` resources and copies their exact text; no source checkout or network access is required at runtime.
 
-The New Content dialog exposes Free Writing and Narration Script before requesting text. Listening,
-narration and dialogue templates open `TextAuthoringWorkspace.qml` with an empty persisted draft.
+The New Content dialog exposes Free Writing and Production Script before requesting text. Listening
+and dialogue are optional writing examples within the script format; all entries open
+`TextAuthoringWorkspace.qml` with an empty persisted draft.
 AI drafting, adapting reference text and manual writing share explicit candidate acceptance. The
 writing workspace offers the rules before content entry, full-text reading/source review and a direct
-handoff to voices with script parsing enabled. Returning to writing retains the profile and voice
+handoff to voices with script parsing enabled. Returning to writing retains the format, writing example and voice
 settings; a new accepted text revision invalidates transient speech previews without changing saved
 recordings. `SpeechScriptReadingView.qml` renders Rust's parser projection rather than parsing QML text.
 
@@ -291,7 +292,8 @@ focus, padding and popup treatment. Loading indicators stay inside the existing 
 Script format `20260922.2` declares production purpose, role identities, delivery and sound cues before
 playback. The source script owns roles, pauses, cues, delivery and repeats for both AI drafts and
 handwritten text. Writing examples guide the first draft without adding a separate validation
-contract. The bridge checks the same grammar for preview and adoption. `ScriptPresentation.js` owns
+contract. Legacy drafts that stored listening, narration or dialogue as the profile are read as the
+script format with the corresponding example. The bridge checks the same grammar for preview and adoption. `ScriptPresentation.js` owns
 shared localized diagnostics and control labels.
 
 `shape-domain::speech_script::production` owns portable delivery and declaration values. The parser

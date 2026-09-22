@@ -4299,12 +4299,16 @@
     <message>
         <location line="+7"/>
         <source>Use an example request</source>
-        <translation>使用听力需求示例</translation>
+        <translation>使用需求示例</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Create one fifth-grade English listening question about a boy doing tai chi in the park this Sunday. Include a short Chinese introduction and English narration.</source>
         <translation>写一道五年级英语听力题：一个男孩打算本周日去公园打太极。包含简短的中文说明和英文朗读正文。</translation>
+    </message>
+    <message>
+        <source>Write a short conversation between two friends planning a weekend trip. Give each person a consistent role and let them alternate naturally.</source>
+        <translation>写一段两个朋友计划周末出游的简短对话。为两人分别设置固定角色，并让他们自然交替发言。</translation>
     </message>
     <message>
         <location line="+4"/>

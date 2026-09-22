@@ -65,10 +65,10 @@ ApplicationWindow {
         return matches
     }
 
-    function startTextAuthoring(profile) : void {
-        const names = {plain: qsTr("Untitled text"), listening: qsTr("Untitled listening exercise"),
-            narration: qsTr("Untitled production script"), dialogue: qsTr("Untitled dialogue")}
-        if (!backend.createTextAuthoring(names[profile] || names.plain, profile)) return
+    function startTextAuthoring(preset) : void {
+        const names = {plain: qsTr("Untitled text"), script: qsTr("Untitled production script"),
+            listening: qsTr("Untitled listening exercise"), dialogue: qsTr("Untitled dialogue")}
+        if (!backend.createTextAuthoring(names[preset] || names.plain, preset)) return
         selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
         selectedCandidateId = ""
         compareMode = false
@@ -94,7 +94,7 @@ ApplicationWindow {
     function returnToWriting(artifactId, scriptMode) : void {
         const index = artifactIndex(artifactId)
         if (index < 0) return
-        const draftId = backend.beginTextAuthoring(artifactId, scriptMode ? "narration" : "plain")
+        const draftId = backend.beginTextAuthoring(artifactId, scriptMode ? "script" : "plain")
         if (draftId.length === 0) return
         openDraftTarget(draftId)
     }

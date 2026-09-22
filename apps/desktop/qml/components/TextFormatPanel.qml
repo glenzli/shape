@@ -7,7 +7,9 @@ import Shape.Desktop
 Rectangle {
     id: panel
     property string profile: "plain"
+    property string example: "general"
     signal profileSelected(string profile)
+    signal exampleSelected(string example)
     signal guideRequested()
     color: Theme.surface
     border.color: Theme.border
@@ -27,21 +29,22 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 8
             ShapeButton { text: qsTr("Plain text"); selected: panel.profile === "plain"; onClicked: panel.profileSelected("plain") }
-            ShapeButton { text: qsTr("Production script"); selected: panel.profile !== "plain"; onClicked: panel.profileSelected("narration") }
+            ShapeButton { text: qsTr("Production script"); selected: panel.profile === "script"; onClicked: panel.profileSelected("script") }
             Item { Layout.fillWidth: true }
         }
         RowLayout {
-            visible: panel.profile !== "plain"
+            visible: panel.profile === "script"
             Layout.fillWidth: true
             Label { text: qsTr("Writing example"); color: Theme.muted; Layout.rightMargin: 6 }
             Repeater {
-                model: [{key: "narration", label: qsTr("General script")}, {key: "listening", label: qsTr("Listening exercise")}, {key: "dialogue", label: qsTr("Dialogue")}]
+                model: [{key: "general", label: qsTr("General script")}, {key: "listening", label: qsTr("Listening exercise")}, {key: "dialogue", label: qsTr("Dialogue")}]
                 delegate: ShapeButton {
                     required property var modelData
+                    objectName: "scriptExample" + modelData.key
                     text: modelData.label
-                    selected: panel.profile === modelData.key
+                    selected: panel.example === modelData.key
                     quiet: !selected
-                    onClicked: panel.profileSelected(modelData.key)
+                    onClicked: panel.exampleSelected(modelData.key)
                 }
             }
             Item { Layout.fillWidth: true }

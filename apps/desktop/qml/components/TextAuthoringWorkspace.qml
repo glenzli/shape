@@ -36,6 +36,7 @@ Item {
     property bool showReference: false
     property bool showSource: false
     property string profile: "plain"
+    property string example: "general"
     property string entry: "generate"
     property string outputText: ""
     property string repairFeedback: ""
@@ -54,7 +55,9 @@ Item {
         if (!initialized || dirty || draftJson.length === 0) return
         const saved = JSON.parse(draftJson)
         loading = true
-        profile = saved.profile
+        profile = saved.profile === "plain" ? "plain" : "script"
+        example = saved.profile === "listening" ? "listening"
+                : saved.profile === "dialogue" ? "dialogue" : saved.example || "general"
         mode = saved.mode || "rewrite"
         expressionJson = JSON.stringify(saved.expression || {tones: [{kind: "preset", preset: "neutral"}], intensity: "balanced", audience: {kind: "preset", preset: "general"}})
         style = saved.style || "natural"
@@ -87,7 +90,7 @@ Item {
         refreshOutput()
     }
     function stateJson() : string {
-        return JSON.stringify({profile: profile, mode: mode, expression: JSON.parse(expressionJson), style: style, entry: entry,
+        return JSON.stringify({profile: profile, example: example, mode: mode, expression: JSON.parse(expressionJson), style: style, entry: entry,
             instruction: instructionEditor.text, repair_feedback: repairFeedback, material: materialEditor.text,
             text: manualEditor.text})
     }
@@ -218,9 +221,14 @@ Item {
                 TextFormatPanel {
                     Layout.fillWidth: true
                     profile: workspace.profile
+                    example: workspace.example
                     enabled: !workspace.generationRunning
                     onProfileSelected: profile => {
                         workspace.profile = profile
+                        workspace.changed()
+                    }
+                    onExampleSelected: example => {
+                        workspace.example = example
                         workspace.changed()
                     }
                     onGuideRequested: helpDialog.open()
@@ -262,7 +270,7 @@ Item {
                             currentIndex: keys.indexOf(workspace.mode)
                             onActivated: index => {
                                 workspace.mode = keys[index]
-                                if (workspace.mode === "prepare_script" && !workspace.scriptMode) workspace.profile = "narration"
+                                if (workspace.mode === "prepare_script" && !workspace.scriptMode) workspace.profile = "script"
                                 workspace.changed()
                             }
                         }
@@ -306,7 +314,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 150
                         enabled: !workspace.generationRunning
-                        placeholderText: workspace.profile === "listening"
+                        placeholderText: workspace.scriptMode && workspace.example === "listening"
                             ? qsTr("For example: a fifth-grade English listening exercise about weekend plans, with Chinese instructions and English questions.")
                             : qsTr("Describe the subject, audience, length and what you want to say…")
                         onTextChanged: workspace.changed()
@@ -331,11 +339,13 @@ Item {
                             onClicked: workspace.showReference = !workspace.showReference
                         }
                         ShapeButton {
-                            visible: workspace.profile === "listening"
+                            visible: workspace.scriptMode && workspace.example !== "general"
                             text: qsTr("Use an example request")
                             quiet: true
                             enabled: !workspace.generationRunning
-                            onClicked: instructionEditor.text = qsTr("Create one fifth-grade English listening question about a boy doing tai chi in the park this Sunday. Include a short Chinese introduction and English narration.")
+                            onClicked: instructionEditor.text = workspace.example === "listening"
+                                ? qsTr("Create one fifth-grade English listening question about a boy doing tai chi in the park this Sunday. Include a short Chinese introduction and English narration.")
+                                : qsTr("Write a short conversation between two friends planning a weekend trip. Give each person a consistent role and let them alternate naturally.")
                         }
                         Item { Layout.fillWidth: true }
                     }

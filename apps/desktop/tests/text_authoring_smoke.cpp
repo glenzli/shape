@@ -92,6 +92,20 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
         ))
         return false;
     auto* writer = current();
+    if (!check(
+            writer->property("profile").toString() == QStringLiteral("script")
+                && writer->property("example").toString() == QStringLiteral("listening"),
+            "listening is an example of the shared script format"
+        ))
+        return false;
+    if (!click(*writer, "scriptExamplegeneral")
+        || !check(
+            writer->property("profile").toString() == QStringLiteral("script")
+                && writer->property("example").toString() == QStringLiteral("general"),
+            "switching examples leaves the script format unchanged"
+        )
+        || !click(*writer, "scriptExamplelistening"))
+        return false;
     auto* prompt = writer->findChild<QObject*>(QStringLiteral("writingInstructionEditor"));
     auto* generate = writer->findChild<QObject*>(QStringLiteral("writingGenerateButton"));
     if (!check(
@@ -285,9 +299,10 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
         ))
         return false;
     if (!check(
-            current()->property("profile").toString() == QStringLiteral("listening")
+            current()->property("profile").toString() == QStringLiteral("script")
+                && current()->property("example").toString() == QStringLiteral("listening")
                 && current()->property("hasAcceptedRevision").toBool(),
-            "profile survives accepted-source transition"
+            "format and writing example survive accepted-source transition"
         ))
         return false;
     auto* palette = root.findChild<QObject*>(QStringLiteral("operatorPalette"));

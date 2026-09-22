@@ -3,6 +3,16 @@ use super::*;
 #[test]
 fn empty_drafts_are_valid_but_generation_requires_authored_intent() {
     let state = TextAuthoring::new("listening").unwrap();
+    assert_eq!(state.profile, WritingProfile::Script);
+    assert_eq!(state.example, WritingExample::Listening);
+    assert_eq!(
+        TextAuthoring::new("script").unwrap().example,
+        WritingExample::General
+    );
+    assert_eq!(
+        state.content_contract(),
+        TextAuthoring::new("script").unwrap().content_contract()
+    );
     assert!(state.configuration().is_ok());
     assert!(
         !serde_json::to_string(&state)
@@ -87,7 +97,21 @@ fn script_source_controls_ai_output_without_duplicate_form_constraints() {
         assert!(validate_output(&state, &bad).is_err());
     }
     let old_draft = serde_json::json!({"profile":"listening","entry":"generate","instruction":"write","material":"","text":""});
-    assert!(TextAuthoring::from_json(&old_draft.to_string()).is_ok());
+    let migrated = TextAuthoring::from_json(&old_draft.to_string()).unwrap();
+    assert_eq!(migrated.profile, WritingProfile::Script);
+    assert_eq!(migrated.example, WritingExample::Listening);
+    let canonical = serde_json::to_value(migrated).unwrap();
+    assert_eq!(canonical["profile"], "script");
+    assert_eq!(canonical["example"], "listening");
+    for (legacy, example) in [
+        ("narration", WritingExample::General),
+        ("dialogue", WritingExample::Dialogue),
+    ] {
+        let old = serde_json::json!({"profile":legacy,"entry":"generate","instruction":"write","material":"","text":""});
+        let migrated = TextAuthoring::from_json(&old.to_string()).unwrap();
+        assert_eq!(migrated.profile, WritingProfile::Script);
+        assert_eq!(migrated.example, example);
+    }
 }
 
 #[test]

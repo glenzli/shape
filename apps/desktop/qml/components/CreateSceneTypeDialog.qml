@@ -7,11 +7,11 @@ import Shape.Desktop
 ShapeDialog {
     id: dialog
     objectName: "createSceneTypeDialog"
-    signal textAuthoringRequested(string profile)
+    signal textAuthoringRequested(string preset)
     signal aiImageSceneRequested()
     signal importImageRequested()
     function openForCreation() : void { open() }
-    function start(profile) : void { close(); textAuthoringRequested(profile) }
+    function start(preset) : void { close(); textAuthoringRequested(preset) }
     parent: Overlay.overlay
     anchors.centerIn: parent
     width: Math.min(700, parent.width - 48)
@@ -66,7 +66,7 @@ ShapeDialog {
                     Label { text: qsTr("Production script"); color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold }
                     Label { Layout.fillWidth: true; text: qsTr("Write spoken lines and place roles, pauses, cues and repeats in the script itself."); wrapMode: Text.WordWrap; color: Theme.muted; font.pixelSize: 12 }
                     Item { Layout.fillHeight: true }
-                    ShapeButton { objectName: "createProductionScriptButton"; text: qsTr("Start a script"); primary: true; onClicked: dialog.start("narration") }
+                    ShapeButton { objectName: "createProductionScriptButton"; text: qsTr("Start a script"); primary: true; onClicked: dialog.start("script") }
                     Label { text: qsTr("Examples"); color: Theme.muted; font.pixelSize: 11 }
                     Flow {
                         Layout.fillWidth: true

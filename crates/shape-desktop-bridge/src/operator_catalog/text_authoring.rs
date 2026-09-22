@@ -16,8 +16,19 @@ const WRITING_GUIDE: &str = include_str!("../../../../docs/SPEECH_SCRIPT_PROMPT.
 #[serde(rename_all = "snake_case")]
 pub(crate) enum WritingProfile {
     Plain,
+    Script,
+    // Read older drafts that stored a writing example as the format.
     Listening,
     Narration,
+    Dialogue,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum WritingExample {
+    #[default]
+    General,
+    Listening,
     Dialogue,
 }
 
@@ -33,6 +44,8 @@ pub(crate) enum WritingEntry {
 #[serde(deny_unknown_fields)]
 pub(crate) struct TextAuthoring {
     pub profile: WritingProfile,
+    #[serde(default)]
+    pub example: WritingExample,
     #[serde(default = "default_mode")]
     pub mode: String,
     #[serde(default)]
@@ -82,15 +95,16 @@ fn default_mode() -> String {
 
 impl TextAuthoring {
     pub fn new(profile: &str) -> Result<Self, String> {
-        let profile = match profile {
-            "plain" => WritingProfile::Plain,
-            "listening" => WritingProfile::Listening,
-            "narration" => WritingProfile::Narration,
-            "dialogue" => WritingProfile::Dialogue,
+        let (profile, example) = match profile {
+            "plain" => (WritingProfile::Plain, WritingExample::General),
+            "script" | "narration" => (WritingProfile::Script, WritingExample::General),
+            "listening" => (WritingProfile::Script, WritingExample::Listening),
+            "dialogue" => (WritingProfile::Script, WritingExample::Dialogue),
             _ => return Err("invalid_writing_profile".into()),
         };
         Ok(Self {
             profile,
+            example,
             mode: default_mode(),
             expression: super::text_transform::TextExpression::default(),
             style: default_style(),
@@ -112,7 +126,15 @@ impl TextAuthoring {
         if json.len() > 64 * 1024 {
             return Err("writing_draft_too_large".into());
         }
-        let state: Self = serde_json::from_str(json).map_err(|_| "invalid_writing_draft")?;
+        let mut state: Self = serde_json::from_str(json).map_err(|_| "invalid_writing_draft")?;
+        state.example = match state.profile {
+            WritingProfile::Listening => WritingExample::Listening,
+            WritingProfile::Dialogue => WritingExample::Dialogue,
+            _ => state.example,
+        };
+        if state.profile != WritingProfile::Plain {
+            state.profile = WritingProfile::Script;
+        }
         state.validate()?;
         Ok(state)
     }
@@ -176,15 +198,20 @@ impl TextAuthoring {
         {
             return Err("invalid_prompt".into());
         }
-        let purpose = match self.profile {
-            WritingProfile::Plain => "Write a complete document in the user's requested language.",
-            WritingProfile::Listening => {
-                "Create a production script suited to the requested listening material. Use only the requested roles, cues, pauses and repeats."
-            }
-            WritingProfile::Narration => {
+        let example = match self.profile {
+            WritingProfile::Listening => WritingExample::Listening,
+            WritingProfile::Dialogue => WritingExample::Dialogue,
+            _ => self.example,
+        };
+        let purpose = match (self.is_script(), example) {
+            (false, _) => "Write a complete document in the user's requested language.",
+            (true, WritingExample::General) => {
                 "Create a production script for the requested audience and purpose."
             }
-            WritingProfile::Dialogue => {
+            (true, WritingExample::Listening) => {
+                "Create a production script suited to the requested listening material. Use only the requested roles, cues, pauses and repeats."
+            }
+            (true, WritingExample::Dialogue) => {
                 "Create a spoken dialogue with short, consistent role names."
             }
         };
@@ -252,7 +279,7 @@ pub(crate) fn node_preset(key: &str) -> Result<Option<TextAuthoring>, String> {
         _ => return Ok(None),
     };
     let mut state = TextAuthoring::new(if mode == "prepare_script" {
-        "narration"
+        "script"
     } else {
         "plain"
     })?;
