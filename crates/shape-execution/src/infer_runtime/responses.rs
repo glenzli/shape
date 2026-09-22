@@ -30,6 +30,7 @@ pub struct InferRuntimeExecutor {
     identity: ExecutorIdentity,
     sdk: Box<dyn InferRuntimeSdk>,
     deployment: &'static str,
+    effort: Option<&'static str>,
 }
 
 impl std::fmt::Debug for InferRuntimeExecutor {
@@ -38,6 +39,7 @@ impl std::fmt::Debug for InferRuntimeExecutor {
             .debug_struct("InferRuntimeExecutor")
             .field("identity", &self.identity)
             .field("deployment", &self.deployment)
+            .field("effort", &self.effort)
             .field("sdk", &"official-infer-runtime-client")
             .finish()
     }
@@ -68,19 +70,30 @@ impl InferRuntimeExecutor {
         explicit_override: &str,
         credential_path: impl Into<PathBuf>,
         model_key: &str,
+        effort_key: &str,
     ) -> Result<Self, crate::ExecutionError> {
         let deployment =
             text_deployment(model_key).ok_or(crate::ExecutionError::InvalidExecutorIdentity)?;
+        let effort = text_effort(model_key, effort_key)
+            .map_err(|()| crate::ExecutionError::InvalidExecutorIdentity)?;
         let sdk = official_sdk(explicit_override, credential_path.into())
             .map_err(|_| crate::ExecutionError::InvalidExecutorIdentity)?;
-        Ok(Self::with_sdk_and_deployment(Box::new(sdk), deployment))
+        Ok(Self::with_sdk_and_deployment(
+            Box::new(sdk),
+            deployment,
+            effort,
+        ))
     }
 
     fn with_sdk(sdk: Box<dyn InferRuntimeSdk>) -> Self {
-        Self::with_sdk_and_deployment(sdk, TEXT_EDIT_DEPLOYMENT)
+        Self::with_sdk_and_deployment(sdk, TEXT_EDIT_DEPLOYMENT, None)
     }
 
-    fn with_sdk_and_deployment(sdk: Box<dyn InferRuntimeSdk>, deployment: &'static str) -> Self {
+    fn with_sdk_and_deployment(
+        sdk: Box<dyn InferRuntimeSdk>,
+        deployment: &'static str,
+        effort: Option<&'static str>,
+    ) -> Self {
         Self {
             identity: ExecutorIdentity::new(
                 "shape.infer-runtime-consumer",
@@ -90,13 +103,17 @@ impl InferRuntimeExecutor {
             .expect("built-in Infer Runtime identity is valid"),
             sdk,
             deployment,
+            effort,
         }
     }
 
     fn execute_text(&self, prompt: &str) -> Result<ExecutionOutput, ExecutionFailure> {
         let response = self
             .sdk
-            .create_response(&text_request(prompt, self.deployment), REQUEST_TIMEOUT)
+            .create_response(
+                &text_request(prompt, self.deployment, self.effort),
+                REQUEST_TIMEOUT,
+            )
             .map_err(map_failure)?;
         if !valid_job_id(&response.id) {
             return Err(failure("infer_invalid_response", false));
@@ -141,7 +158,7 @@ impl Executor for InferRuntimeExecutor {
 
 #[cfg(test)]
 fn local_text_request(prompt: &str) -> ResponsesRequest {
-    text_request(prompt, TEXT_EDIT_DEPLOYMENT)
+    text_request(prompt, TEXT_EDIT_DEPLOYMENT, None)
 }
 
 fn text_deployment(model_key: &str) -> Option<&'static str> {
@@ -153,7 +170,27 @@ fn text_deployment(model_key: &str) -> Option<&'static str> {
     }
 }
 
-fn text_request(prompt: &str, deployment: &'static str) -> ResponsesRequest {
+fn text_effort(model_key: &str, effort_key: &str) -> Result<Option<&'static str>, ()> {
+    if model_key == "local_qwen" {
+        return if effort_key.is_empty() {
+            Ok(None)
+        } else {
+            Err(())
+        };
+    }
+    let effort = match effort_key {
+        "low" => "low",
+        "medium" => "medium",
+        "high" => "high",
+        "xhigh" => "xhigh",
+        "max" => "max",
+        "ultra" if model_key == "gpt_6_sol" => "ultra",
+        _ => return Err(()),
+    };
+    Ok(Some(effort))
+}
+
+fn text_request(prompt: &str, deployment: &'static str, effort: Option<&str>) -> ResponsesRequest {
     let cloud = deployment != TEXT_EDIT_DEPLOYMENT;
     let mut metadata = BTreeMap::from([
         (
@@ -194,7 +231,7 @@ fn text_request(prompt: &str, deployment: &'static str) -> ResponsesRequest {
         background: false,
         metadata,
         tools: Vec::new(),
-        reasoning: cloud.then(|| json!({"effort": "low"})),
+        reasoning: effort.map(|key| json!({"effort": key})),
         max_output_tokens: None,
     }
 }

@@ -35,7 +35,7 @@ class InferImageController : public QObject {
 
     Q_INVOKABLE void
     generate(const QString& projectPath, const QString& artifactId, const QString& draftId,
-             const QString& modelKey);
+             const QString& modelKey, const QString& effortKey);
 
   signals:
     void statusChanged();

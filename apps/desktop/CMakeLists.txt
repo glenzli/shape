@@ -159,11 +159,9 @@ qt_add_qml_module(shape-desktop
         qml/components/RasterEffectsWorkspace.qml
         qml/components/RasterResizeOperatorWorkspace.qml
         qml/components/SceneGraphToolbar.qml
-        qml/components/SceneGraphContextStrip.qml
         qml/components/SceneOperatorGraphWorkspace.qml
         qml/components/ProjectNavigator.qml
         qml/components/ProjectWelcome.qml
-        qml/components/ReadOnlyNodeWorkspace.qml
         qml/components/ShapeButton.qml
         qml/components/ShapeTextField.qml
         qml/components/ShapeTextArea.qml

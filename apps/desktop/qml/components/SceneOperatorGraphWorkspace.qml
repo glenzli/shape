@@ -724,8 +724,10 @@ Rectangle {
                                                  && acceptedNode.artifact.hasAcceptedRevision
                             continueAvailable: graph.nextStepFrom(acceptedNode.modelData.id) !== null
                             stageNumber: graph.nodeStage(acceptedNode.modelData.id, {})
-                            onOutputSelected: graph.selectAcceptedNode(acceptedNode.modelData.outputNodeId)
-                            onOutputOpened: graph.nodeOpened(acceptedNode.modelData.outputNodeId)
+                            onOutputOpened: {
+                                graph.selectAcceptedNode(acceptedNode.modelData.outputNodeId)
+                                graph.nodeOpened(acceptedNode.modelData.outputNodeId)
+                            }
                             onOutputNodeRequested: {
                                 graph.selectAcceptedNode(acceptedNode.modelData.id);
                                 const next = graph.nextStepFrom(acceptedNode.modelData.id);

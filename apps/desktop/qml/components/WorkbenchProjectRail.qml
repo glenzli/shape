@@ -203,21 +203,29 @@ Rectangle {
                 }
             }
 
-            ShapeIconButton {
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            ShapeButton {
                 objectName: "railNewProjectButton"
-                source: "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
-                toolTipText: qsTr("New project")
-                accessibleName: toolTipText
+                text: qsTr("New")
+                Accessible.name: qsTr("New project")
+                quiet: true
                 onClicked: rail.newProjectRequested()
             }
 
-            ShapeIconButton {
+            ShapeButton {
                 objectName: "railOpenProjectButton"
-                source: "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
-                toolTipText: qsTr("Open project")
-                accessibleName: toolTipText
+                text: qsTr("Open")
+                Accessible.name: qsTr("Open project")
+                quiet: true
                 onClicked: rail.openProjectRequested()
             }
+
+            Item { Layout.fillWidth: true }
         }
 
         RowLayout {

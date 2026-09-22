@@ -412,23 +412,6 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
-            SceneGraphContextStrip {
-                Layout.fillWidth: true
-                Layout.preferredHeight: visible ? 78 : 0
-                visible: workspaceSurface.focusActive && !workspaceSurface.guidedAuthoringActive
-                sceneName: workspaceSurface.workRoot !== null
-                           ? workspaceSurface.workRoot.name : ""
-                nodes: workspaceSurface.workGraph.nodes
-                drafts: window.artifactDrafts.filter(d => !workspaceSurface.workGraph.nodes.some(n => n.id === d.id))
-                candidateCount: window.artifactCandidates.length
-                selectedNodeId: workspaceSurface.selectedNodeId
-                onGraphRequested: workspaceSurface.showGraph()
-                onNodeSelected: nodeId => workspaceSurface.selectArtifactForNode(nodeId)
-                onNodeOpened: nodeId => workspaceSurface.openNode(nodeId)
-                onDraftSelected: draftId => workspaceSurface.selectNode(draftId)
-                onDraftOpened: draftId => workspaceSurface.openOperatorDraft(draftId)
-            }
-
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -591,14 +574,15 @@ ApplicationWindow {
                                 styleKey, variantCount)) {
                             window.inferText.generate(
                                 window.backend.bundlePath, artifactId, draftId,
-                                window.uiPreferences.textModel)
+                                window.uiPreferences.textModel,
+                                window.uiPreferences.textModel === "local_qwen" ? "" : "low")
                         }
                     }
                     onTextCandidateLockRequested: candidateId =>
                                                       window.acceptCandidate(candidateId)
-                    onAuthoringGenerationRequested: (artifactId, draftId, modelKey) =>
+                    onAuthoringGenerationRequested: (artifactId, draftId, modelKey, effortKey) =>
                         window.inferText.generate(window.backend.bundlePath, artifactId, draftId,
-                                                  modelKey)
+                                                  modelKey, effortKey)
                     onAuthoringSpeechRequested: artifactId => window.openAuthoringSpeech(artifactId)
                     onWritingRequested: (artifactId, scriptMode) => window.returnToWriting(artifactId, scriptMode)
                     onAudioExportRequested: (artifactId, candidateId) => audioExportDialog.openForAudio(artifactId, candidateId)
@@ -648,13 +632,14 @@ ApplicationWindow {
                     onPrimaryActionRequested: {
                         const draft = workspaceSurface.selectedDraft
                         const modelKey = aiImageIntent.selectedModelKey
+                        const effortKey = aiImageIntent.selectedEffortKey
                         if (draft !== null && window.backend.updateAiImageDraft(
                                 draft.id, editedIntentText,
                                 draft.aiImageOutputWidth, draft.aiImageOutputHeight)) {
                             window.inferImage.generate(
                                 window.backend.bundlePath,
                                 draft.contextArtifactId, draft.id,
-                                modelKey)
+                                modelKey, effortKey)
                         }
                     }
                 }

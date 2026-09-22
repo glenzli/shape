@@ -254,13 +254,11 @@ Item {
                 enabled: !workspace.inferSpeech.running
                 onClicked: workspace.writingRequested()
             }
-            Label { text: "›"; color: Theme.muted }
             ShapeButton {
                 objectName: "speechWorkspaceTitle"
                 text: qsTr("Voices and audition")
                 selected: true
             }
-            Label { text: "›"; color: Theme.muted }
             ShapeButton {
                 objectName: "speechExportButton"
                 text: qsTr("Export audio")

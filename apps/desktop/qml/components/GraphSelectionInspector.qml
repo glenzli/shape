@@ -107,17 +107,14 @@ Rectangle {
             onClicked: inspector.discardRequested()
         }
 
-        ShapeIconButton {
+        ShapeButton {
             objectName: inspector.reviewAvailable ? "reviewSelectedCandidateButton"
                                                   : "openSelectedNodeButton"
             visible: inspector.openAvailable || inspector.reviewAvailable
             primary: true
-            source: "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
-            toolTipText: inspector.reviewAvailable
+            text: inspector.reviewAvailable
                          ? qsTr("Review selected version")
                          : qsTr("Open selected step")
-            accessibleName: toolTipText
-            buttonSize: 30
             onClicked: {
                 if (inspector.reviewAvailable) inspector.reviewRequested()
                 else inspector.openRequested()

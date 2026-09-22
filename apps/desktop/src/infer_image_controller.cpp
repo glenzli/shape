@@ -52,7 +52,8 @@ void InferImageController::generate(
     const QString& projectPath,
     const QString& artifactId,
     const QString& draftId,
-    const QString& modelKey
+    const QString& modelKey,
+    const QString& effortKey
 ) {
     if (running_) {
         setErrorCode(QStringLiteral("generation_busy"));
@@ -77,6 +78,7 @@ void InferImageController::generate(
                            artifactId,
                            draftId,
                            modelKey,
+                           effortKey,
                            credential_path,
                            explicit_override]() mutable {
             GenerationResult result;
@@ -90,7 +92,8 @@ void InferImageController::generate(
                         toUtf8(draftId),
                         toUtf8(credential_path),
                         toUtf8(explicit_override),
-                        toUtf8(modelKey)
+                        toUtf8(modelKey),
+                        toUtf8(effortKey)
                     )
                 );
             } catch (const rust::Error& error) {

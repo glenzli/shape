@@ -37,8 +37,6 @@ Rectangle {
             return "none";
         if (openedRoleKey === "source")
             return "source.readonly";
-        if (openedRoleKey === "output")
-            return "output.readonly";
         if (openedRoleKey !== "operator")
             return "node.unknown";
         if (hasRegisteredOperatorWorkspace) {
@@ -52,8 +50,6 @@ Rectangle {
     readonly property Component routedWorkspace: {
         if (routeKey === "source.readonly")
             return sourceMaterialWorkspace;
-        if (routeKey === "output.readonly")
-            return readOnlyWorkspace;
         if (hasRegisteredOperatorWorkspace) {
             return operatorWorkspaces[openedOperatorTypeKey];
         }
@@ -66,7 +62,7 @@ Rectangle {
     signal workspaceLoaded(var workspace)
 
     function openWorkspace(nodeId, roleKey, operatorTypeKey, artifactId, revisionId, transformationId, nodeData): bool {
-        if (nodeId.length === 0 || roleKey.length === 0)
+        if (nodeId.length === 0 || roleKey.length === 0 || roleKey === "output")
             return false;
         openedNodeId = nodeId;
         openedRoleKey = roleKey;
@@ -116,10 +112,10 @@ Rectangle {
     function workspaceTitle(): string {
         if (routeKey === "source.readonly")
             return qsTr("Starting material");
-        if (routeKey === "output.readonly")
-            return qsTr("Current result");
         if (hasRegisteredOperatorWorkspace) {
             switch (openedOperatorTypeKey) {
+            case "text.create":
+                return qsTr("Text creation");
             case "text.edit":
             case "text.transform":
                 return qsTr("AI text editor");
@@ -153,18 +149,6 @@ Rectangle {
 
         SourceMaterialWorkspace {
             nodeData: host.openedNodeData
-        }
-    }
-
-    Component {
-        id: readOnlyWorkspace
-
-        ReadOnlyNodeWorkspace {
-            nodeId: host.openedNodeId
-            roleKey: host.openedRoleKey
-            operatorTypeKey: host.openedOperatorTypeKey
-            artifactId: host.openedArtifactId
-            revisionId: host.openedRevisionId
         }
     }
 
@@ -252,12 +236,10 @@ Rectangle {
                 anchors.rightMargin: 4
                 spacing: 8
 
-                ShapeIconButton {
+                ShapeButton {
                     objectName: "returnToSceneGraphButton"
-                    source: "qrc:/qt/qml/Shape/Desktop/icons/back.svg"
-                    toolTipText: qsTr("Return to workflow")
-                    accessibleName: toolTipText
-                    buttonSize: 34
+                    text: qsTr("Return to workflow")
+                    quiet: true
                     onClicked: host.requestReturn()
                 }
 
@@ -267,7 +249,7 @@ Rectangle {
 
                     Text {
                         Layout.fillWidth: true
-                        text: host.compactNavigation ? qsTr("Return to workflow") : host.workspaceTitle()
+                        text: host.workspaceTitle()
                         color: Theme.text
                         font.pixelSize: 15
                         font.weight: Font.DemiBold

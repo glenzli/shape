@@ -10,7 +10,7 @@ use shape_domain::{
 
 use super::{
     IMAGE_GENERATE_CAPABILITY, IMAGE_MEDIA_TYPE, InferRuntimeImageGenerationExecutor,
-    image_deployment, image_request, image_request_for_deployment,
+    image_deployment, image_effort, image_request, image_request_for_deployment,
 };
 use crate::infer_runtime::{job_provenance::tests::image_job, test_support::FakeSdk};
 use crate::{CapabilityId, ExecutionRequest, Executor as _};
@@ -97,11 +97,16 @@ fn cloud_image_choices_keep_the_selected_deployment() {
         ("gpt_6_sol", "codex_gpt_6_sol"),
     ] {
         assert_eq!(image_deployment(key), Some(deployment));
-        let request = image_request_for_deployment(&parameters(1024, 1024, 1), deployment);
+        let request =
+            image_request_for_deployment(&parameters(1024, 1024, 1), deployment, Some("high"));
         assert_eq!(request.metadata["infer.deployment_ids"], deployment);
         assert_eq!(request.metadata["infer.fallback"], "none");
+        assert_eq!(request.reasoning, Some(json!({"effort": "high"})));
     }
     assert_eq!(image_deployment("arbitrary_deployment"), None);
+    assert_eq!(image_effort("gpt_6_luna", "ultra"), Err(()));
+    assert_eq!(image_effort("gpt_6_sol", "ultra"), Ok(Some("ultra")));
+    assert_eq!(image_effort("gpt_5_6_luna", ""), Ok(None));
 }
 
 #[test]

@@ -33,7 +33,7 @@ class InferTextController : public QObject {
 
     Q_INVOKABLE void
     generate(const QString& projectPath, const QString& artifactId, const QString& draftId,
-             const QString& modelKey);
+             const QString& modelKey, const QString& effortKey);
     Q_INVOKABLE bool installCredential(const QString& token);
     Q_INVOKABLE void refreshCredentialStatus();
 

@@ -110,7 +110,10 @@ bool verify_packaged_node_route(
         return false;
     }
     const auto node_index = std::distance(graph_nodes.cbegin(), selected_node);
-    const QString click_target = node.value(QStringLiteral("roleKey")) == QStringLiteral("output")
+    const bool output_endpoint = node.value(QStringLiteral("roleKey")) == QStringLiteral("output");
+    const QVariantMap opened_node = output_endpoint ? selected_node->toMap() : node;
+    const QString opened_node_id = opened_node.value(QStringLiteral("id")).toString();
+    const QString click_target = output_endpoint
                                      ? QStringLiteral("acceptedGraphOutput-") + node_id
                                      : QStringLiteral("acceptedGraphNode-%1").arg(node_index);
     if (!invoke_packaged_click(
@@ -118,15 +121,15 @@ bool verify_packaged_node_route(
             click_target,
             "desktop graph smoke could not click a packaged node"
         )
-        || workspace_surface.property("selectedNodeId").toString() != node_id
-        || workspace_surface.property("currentMode").toInt() != 0) {
+        || workspace_surface.property("selectedNodeId").toString() != opened_node_id
+        || workspace_surface.property("currentMode").toInt() != (output_endpoint ? 1 : 0)) {
         std::cerr << "desktop graph smoke selection mismatch for "
                   << node_id.toStdString() << ": selected="
                   << workspace_surface.property("selectedNodeId").toString().toStdString()
                   << " mode=" << workspace_surface.property("currentMode").toInt() << std::endl;
         return false;
     }
-    if (!invoke_packaged_click(
+    if (!output_endpoint && !invoke_packaged_click(
             workspace_surface,
             QStringLiteral("openSelectedNodeButton"),
             "desktop graph smoke could not click the packaged open action"
@@ -140,13 +143,13 @@ bool verify_packaged_node_route(
         || !workspace_surface.property("focusActive").toBool()
         || workspace_surface.property("workspaceRouteKey").toString() != expected_route
         || workspace_surface.property("loadedWorkspaceObjectName").toString() != expected_workspace
-        || host->property("openedNodeId").toString() != node_id
+        || host->property("openedNodeId").toString() != opened_node_id
         || host->property("openedArtifactId").toString()
-               != node.value(QStringLiteral("artifactId")).toString()
+               != opened_node.value(QStringLiteral("artifactId")).toString()
         || host->property("openedRevisionId").toString()
-               != node.value(QStringLiteral("revisionId")).toString()
+               != opened_node.value(QStringLiteral("revisionId")).toString()
         || host->property("openedTransformationId").toString()
-               != node.value(QStringLiteral("transformationId")).toString()
+               != opened_node.value(QStringLiteral("transformationId")).toString()
         || host->property("selectedCandidateId").toString() != expected_candidate_id) {
         std::cerr << "desktop graph smoke entered the wrong packaged node workspace" << std::endl;
         return false;
@@ -184,7 +187,7 @@ bool verify_packaged_node_route(
         )
         || workspace_surface.property("currentMode").toInt() != 0
         || !workspace_surface.property("graphActive").toBool()
-        || workspace_surface.property("selectedNodeId").toString() != node_id
+        || workspace_surface.property("selectedNodeId").toString() != opened_node_id
         || host->property("active").toBool()) {
         std::cerr << "desktop graph smoke did not preserve selection on return" << std::endl;
         return false;
@@ -512,8 +515,8 @@ bool verifySceneGraphRoutes(QObject& root_object) {
         || !verify_packaged_node_route(
             *workspace_surface,
             *output_node,
-            QStringLiteral("output.readonly"),
-            QStringLiteral("outputReadOnlyWorkspace")
+            QStringLiteral("operator.text.edit"),
+            QStringLiteral("textAuthoringWorkspace")
         )) {
         return false;
     }
@@ -1000,6 +1003,27 @@ bool verifyManualSourceAcrossSpeechSelection(QObject& root_object, DesktopBacken
     root_object.setProperty("selectedArtifactIndex", source_index);
     if (!graph_has_three_nodes()) {
         std::cerr << "desktop graph smoke split the manual source after returning to text"
+                  << std::endl;
+        return false;
+    }
+    const QString audio_id = backend.artifacts()[source_index + 1]
+                                 .toMap().value(QStringLiteral("id")).toString();
+    const QString output_id = QStringLiteral("output.") + audio_id;
+    if (!invoke_packaged_click(
+            *surface, QStringLiteral("acceptedGraphOutput-") + output_id,
+            "desktop graph smoke could not open the pending audio endpoint"
+        )) {
+        return false;
+    }
+    QObject* const host = surface->findChild<QObject*>(QStringLiteral("operatorWorkspaceHost"));
+    if (host == nullptr || surface->property("currentMode").toInt() != 1
+        || surface->property("workspaceRouteKey").toString()
+               != QStringLiteral("operator.audio.speech_synthesize")
+        || host->property("openedNodeId").toString() != speech_id
+        || root_object.property("selectedArtifactIndex").toInt() != source_index + 1
+        || surface->property("loadedWorkspaceObjectName").toString()
+               != QStringLiteral("audioSpeechOperatorWorkspace")) {
+        std::cerr << "desktop graph smoke opened a placeholder for pending audio"
                   << std::endl;
         return false;
     }

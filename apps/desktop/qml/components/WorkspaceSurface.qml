@@ -126,7 +126,8 @@ Item {
                                          int variantCount)
     signal textCandidateLockRequested(string candidateId)
     signal inferAccessSetupRequested()
-    signal authoringGenerationRequested(string artifactId, string draftId, string modelKey)
+    signal authoringGenerationRequested(string artifactId, string draftId,
+                                        string modelKey, string effortKey)
     signal authoringSpeechRequested(string artifactId)
     signal writingRequested(string artifactId, bool scriptMode)
     signal audioExportRequested(string artifactId, string candidateId)
@@ -326,6 +327,11 @@ Item {
         }
         if (node === null) node = nodeForId(nodeId)
         if (node === null) return false
+        if (node.roleKey === "output") {
+            const incoming = workGraph.edges.filter(edge => edge.targetNodeId === node.id)
+            if (incoming.length !== 1) return false
+            return openNode(incoming[0].sourceNodeId)
+        }
         if (hasSelectedArtifact && node.artifactId !== selectedArtifact.id) {
             for (let index = 0; index < allArtifacts.length; ++index) {
                 if (allArtifacts[index].id === node.artifactId) {
@@ -422,7 +428,8 @@ Item {
             runtimeCompatible: surface.inferRuntimeCompatible
             credentialConfigured: surface.inferCredentialConfigured
             defaultTextModel: surface.defaultTextModel
-            onGenerationRequested: (artifactId, draftId, modelKey) => surface.authoringGenerationRequested(artifactId, draftId, modelKey)
+            onGenerationRequested: (artifactId, draftId, modelKey, effortKey) =>
+                surface.authoringGenerationRequested(artifactId, draftId, modelKey, effortKey)
             onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
             onSpeechRequested: artifactId => surface.authoringSpeechRequested(artifactId)
             onSetupRequested: surface.inferAccessSetupRequested()

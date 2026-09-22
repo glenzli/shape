@@ -196,8 +196,8 @@ second settings domain or a second top-level workspace creates a concrete growth
 
 The workbench shell now composes four additional presentation owners instead of retaining a
 permanent three-column dashboard. `WorkbenchProjectRail` owns compact project navigation;
-`SceneGraphContextStrip` preserves clickable Source/Operator/Output context above a focused media
-workspace; `CandidateFilmstrip` owns horizontal transient-result review actions; and
+`OperatorWorkspaceHost` provides the labeled return from focused media workspaces to the graph;
+`CandidateFilmstrip` owns horizontal transient-result review actions; and
 `OperatorIntentSidebar` owns the reusable Intent/Change/Preserve/Reference presentation and is now
 consumed by the persisted zero-input `image.generate` draft. `Main.qml` only binds these regions to backend identities and
 signals. None of these QML owners may write project state or infer acceptance.
@@ -252,16 +252,16 @@ Scene-graph-first navigation and the explicit node-focused workspace boundary. S
 updates shared context, while explicit open/review intent enters the media-specific workspace.
 `TextAuthoringWorkspace.qml` is the single text editor for creation and derivation. Its optional
 `TextExpressionPalette.qml` preserves tone composition, intensity, audience and personal preset snapshots.
-`AiModelPicker.qml` displays the effective settings default and optional model for the current text or image run; model choice enters the request at dispatch and does not rewrite a project draft.
+`AiModelPicker.qml` displays the effective settings model and optional model/effort choices for the current text or image run; both choices enter the request at dispatch and do not rewrite a project draft.
 The authoring codec combines those settings with editing task, text format and exact buffers, and reads older preset drafts.
 `TextFormatPanel.qml` owns the plain-text or script format choice; the offline guide displays
 instruction examples and exposes the complete canonical rules and AI writing prompt for copying.
 `ImageEditorWorkspace.qml`
 presents one Image Editing stage; `image.crop` and `image.resize` remain exact internal contracts and
 accepted Transformation identities rather than separate palette entries;
-`AudioSpeechOperatorWorkspace.qml` serves preset-only `audio.speech_synthesize`; Source, Output,
-future family fallbacks and unknown Operators use `ReadOnlyNodeWorkspace.qml` without acquiring edit
-authority.
+`AudioSpeechOperatorWorkspace.qml` serves preset-only `audio.speech_synthesize`; Source uses
+`SourceMaterialWorkspace.qml`, while Output endpoints open their producing step. Future family
+fallbacks and unknown Operators use a generic unavailable workspace without acquiring edit authority.
 `VariantsPanel.qml` owns artifact-scoped Candidate Shelf selection and review controls, while
 candidate identity and mutation remain in Rust. QML never becomes durable graph authority.
 

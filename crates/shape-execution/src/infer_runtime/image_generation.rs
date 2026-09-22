@@ -40,6 +40,7 @@ pub struct InferRuntimeImageGenerationExecutor {
     identity: ExecutorIdentity,
     sdk: Box<dyn InferRuntimeSdk>,
     deployment: &'static str,
+    effort: Option<&'static str>,
 }
 
 impl std::fmt::Debug for InferRuntimeImageGenerationExecutor {
@@ -48,6 +49,7 @@ impl std::fmt::Debug for InferRuntimeImageGenerationExecutor {
             .debug_struct("InferRuntimeImageGenerationExecutor")
             .field("identity", &self.identity)
             .field("deployment", &self.deployment)
+            .field("effort", &self.effort)
             .field("sdk", &"official-infer-runtime-client")
             .finish()
     }
@@ -77,19 +79,30 @@ impl InferRuntimeImageGenerationExecutor {
         explicit_override: &str,
         credential_path: impl Into<PathBuf>,
         model_key: &str,
+        effort_key: &str,
     ) -> Result<Self, crate::ExecutionError> {
         let deployment =
             image_deployment(model_key).ok_or(crate::ExecutionError::InvalidExecutorIdentity)?;
+        let effort = image_effort(model_key, effort_key)
+            .map_err(|()| crate::ExecutionError::InvalidExecutorIdentity)?;
         let sdk = official_sdk(explicit_override, credential_path.into())
             .map_err(|_| crate::ExecutionError::InvalidExecutorIdentity)?;
-        Ok(Self::with_sdk_and_deployment(Box::new(sdk), deployment))
+        Ok(Self::with_sdk_and_deployment(
+            Box::new(sdk),
+            deployment,
+            effort,
+        ))
     }
 
     fn with_sdk(sdk: Box<dyn InferRuntimeSdk>) -> Self {
-        Self::with_sdk_and_deployment(sdk, IMAGE_DEPLOYMENT)
+        Self::with_sdk_and_deployment(sdk, IMAGE_DEPLOYMENT, None)
     }
 
-    fn with_sdk_and_deployment(sdk: Box<dyn InferRuntimeSdk>, deployment: &'static str) -> Self {
+    fn with_sdk_and_deployment(
+        sdk: Box<dyn InferRuntimeSdk>,
+        deployment: &'static str,
+        effort: Option<&'static str>,
+    ) -> Self {
         Self {
             identity: ExecutorIdentity::new(
                 "shape.infer-runtime-image-generation-consumer",
@@ -99,6 +112,7 @@ impl InferRuntimeImageGenerationExecutor {
             .expect("built-in Infer Runtime identity is valid"),
             sdk,
             deployment,
+            effort,
         }
     }
 
@@ -109,7 +123,7 @@ impl InferRuntimeImageGenerationExecutor {
         let response = self
             .sdk
             .create_response(
-                &image_request_for_deployment(parameters, self.deployment),
+                &image_request_for_deployment(parameters, self.deployment, self.effort),
                 REQUEST_TIMEOUT,
             )
             .map_err(map_failure)?;
@@ -161,7 +175,7 @@ impl Executor for InferRuntimeImageGenerationExecutor {
 
 #[cfg(test)]
 fn image_request(parameters: &AiImageGenerateParameters) -> ResponsesRequest {
-    image_request_for_deployment(parameters, IMAGE_DEPLOYMENT)
+    image_request_for_deployment(parameters, IMAGE_DEPLOYMENT, None)
 }
 
 fn image_deployment(model_key: &str) -> Option<&'static str> {
@@ -173,9 +187,24 @@ fn image_deployment(model_key: &str) -> Option<&'static str> {
     }
 }
 
+fn image_effort(model_key: &str, effort_key: &str) -> Result<Option<&'static str>, ()> {
+    let effort = match effort_key {
+        "" => return Ok(None),
+        "low" => "low",
+        "medium" => "medium",
+        "high" => "high",
+        "xhigh" => "xhigh",
+        "max" => "max",
+        "ultra" if model_key == "gpt_6_sol" => "ultra",
+        _ => return Err(()),
+    };
+    Ok(Some(effort))
+}
+
 fn image_request_for_deployment(
     parameters: &AiImageGenerateParameters,
     deployment: &'static str,
+    effort: Option<&str>,
 ) -> ResponsesRequest {
     ResponsesRequest {
         model: IMAGE_INTENT.to_owned(),
@@ -203,7 +232,7 @@ fn image_request_for_deployment(
             ),
         ]),
         tools: vec![json!({"type": "image_generation"})],
-        reasoning: None,
+        reasoning: effort.map(|key| json!({"effort": key})),
         max_output_tokens: None,
     }
 }

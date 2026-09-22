@@ -29,7 +29,6 @@ Item {
     property int stageNumber: 0
 
     signal outputNodeRequested
-    signal outputSelected
     signal outputOpened
 
     readonly property bool isSource: nodeData.roleKey === "source"
@@ -357,7 +356,7 @@ Item {
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 9
-                    anchors.rightMargin: 32
+                    anchors.rightMargin: 62
                     spacing: 6
 
                     Text {
@@ -381,20 +380,16 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: card.outputSelected()
-                    onDoubleClicked: card.outputOpened()
+                    onClicked: card.outputOpened()
                 }
 
-                ShapeIconButton {
+                ShapeButton {
                     objectName: "acceptedGraphOutput-" + card.nodeData.outputNodeId
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    buttonSize: 28
-                    iconSize: 13
-                    source: "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
-                    accessibleName: card.nodeData.outputArtifactName
-                    toolTipText: card.nodeData.outputArtifactName
-                    onClicked: card.outputSelected()
+                    text: card.hasAcceptedRevision ? qsTr("View") : qsTr("Continue")
+                    quiet: true
+                    onClicked: card.outputOpened()
                 }
             }
 

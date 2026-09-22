@@ -98,6 +98,7 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
     auto* writer = current();
     auto* modelPicker = writer->findChild<QObject*>(QStringLiteral("writingModelPicker"));
     auto* modelChoice = modelPicker ? modelPicker->findChild<QObject*>(QStringLiteral("aiModelChoice")) : nullptr;
+    auto* effortChoice = modelPicker ? modelPicker->findChild<QObject*>(QStringLiteral("aiEffortChoice")) : nullptr;
     if (!check(
             modelChoice && writer->property("selectedModelKey").toString()
                                == writer->property("defaultTextModel").toString()
@@ -106,12 +107,18 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
                 )
                 && writer->property("selectedModelKey").toString()
                        == QStringLiteral("gpt_6_sol")
+                && effortChoice
+                && QMetaObject::invokeMethod(
+                    effortChoice, "activated", Qt::DirectConnection, Q_ARG(int, 3)
+                )
+                && writer->property("selectedEffortKey").toString() == QStringLiteral("high")
                 && QMetaObject::invokeMethod(
                     modelChoice, "activated", Qt::DirectConnection, Q_ARG(int, 0)
                 )
                 && writer->property("selectedModelKey").toString()
-                       == writer->property("defaultTextModel").toString(),
-            "writing model can override and return to settings default"
+                       == writer->property("defaultTextModel").toString()
+                && writer->property("selectedEffortKey").toString().isEmpty(),
+            "writing model and effort can override for one run and return to local default"
         ))
         return false;
     if (!check(

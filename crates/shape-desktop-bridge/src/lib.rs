@@ -279,6 +279,7 @@ mod ffi {
             credential_path: &str,
             explicit_override: &str,
             model_key: &str,
+            effort_key: &str,
         ) -> Result<Box<InferTextCandidate>>;
 
         type SpeechSynthesisControl;
@@ -317,6 +318,7 @@ mod ffi {
             credential_path: &str,
             explicit_override: &str,
             model_key: &str,
+            effort_key: &str,
         ) -> Result<Box<InferImageCandidate>>;
 
         /// Opens one mutable desktop session. The session remains the sole

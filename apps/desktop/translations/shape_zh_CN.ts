@@ -3,6 +3,14 @@
 <TS version="2.1" language="zh_CN">
 <context>
     <name>AiModelPicker</name>
+    <message><source>Effort for this run</source><translation>本次推理投入</translation></message>
+    <message><source>Runtime default</source><translation>运行时默认</translation></message>
+    <message><source>Low</source><translation>低</translation></message>
+    <message><source>Medium</source><translation>中</translation></message>
+    <message><source>High</source><translation>高</translation></message>
+    <message><source>Extra high</source><translation>很高</translation></message>
+    <message><source>Max</source><translation>最高</translation></message>
+    <message><source>Ultra</source><translation>极高</translation></message>
     <message>
         <source>Local Qwen 3.5</source>
         <translation>本地 Qwen 3.5</translation>
@@ -1326,6 +1334,8 @@
 </context>
 <context>
     <name>CreativeGraphNodeCard</name>
+    <message><source>View</source><translation>查看</translation></message>
+    <message><source>Continue</source><translation>继续</translation></message>
     <message>
         <source>EARLIER SOURCE VERSION</source>
         <translation>较早的源版本</translation>
@@ -2464,6 +2474,7 @@
 </context>
 <context>
     <name>OperatorWorkspaceHost</name>
+    <message><source>Text creation</source><translation>文本创作</translation></message>
     <message>
         <location filename="../qml/components/OperatorWorkspaceHost.qml" line="+108"/>
         <source>Text</source>
@@ -5035,6 +5046,8 @@
 </context>
 <context>
     <name>WorkbenchProjectRail</name>
+    <message><source>New</source><translation>新建</translation></message>
+    <message><source>Open</source><translation>打开</translation></message>
     <message>
         <location filename="../qml/components/WorkbenchProjectRail.qml" line="376"/>
         <source>Text and audio</source>

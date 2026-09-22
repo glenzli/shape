@@ -68,9 +68,8 @@ Presentation uses progressive disclosure. The project rail calls compatibility S
 Source/Operator appear as starting point/creative step, with each Output shown at its producing
 step's endpoint. Candidate actions appear as new versions and “Use this version.” These labels do
 not alter Rust identities or durable contracts. The endpoint keeps the result's own selection and
-history identity; its full text, image, or audio opens in the focused workspace. The focused
-workspace header never displays raw route keys; “See workflow” remains the
-explicit route back to the graph for users who want structural control.
+history identity; opening it focuses its producing step, which presents accepted content and
+pending work together. The focused workspace header has a labeled return to the graph.
 The rail groups text edits and speech-derived audio under their source text as one visible work.
 The work canvas joins each Artifact's existing graph at an exact accepted input revision: an
 original text can lead to script text, speech synthesis, and audio output in one view. A downstream
@@ -199,8 +198,8 @@ their accepted Transformation records the exact versioned parameters, while QML 
 history, or executor policy. Rust remains the exact pixel, draft, and persistence authority.
 `WorkbenchProjectRail.qml` now owns the compact Scene/Component/Asset navigation surface while
 accepted Artifact projection remains the temporary Scene compatibility model. Entering an Operator
-uses `SceneGraphContextStrip.qml` above general media workspaces; guided writing and speech keep a compact return action. The strip it emits identity-based open
-intent without owning the graph. `CandidateFilmstrip.qml` replaces the permanent dashboard shelf
+uses a labeled return action in `OperatorWorkspaceHost.qml` for all focused workspaces.
+`CandidateFilmstrip.qml` replaces the permanent dashboard shelf
 with horizontal, identity-addressed Select/Compare/Accept/Discard/Branch actions wired to the same
 session authority. `OperatorIntentSidebar.qml` is the extracted presentation owner for
 comprehensive Intent/Change/Preserve/Reference nodes and is instantiated for the real persisted
@@ -337,8 +336,7 @@ The Rust node catalog exposes six text-edit task templates and the zero-input im
 Templates reuse `text.edit` input/output/CAS semantics and store their task in authoring configuration.
 The image consumer pins the selected, allowlisted deployment (`codex_gpt_5_6_luna` by default), compiles the preferred canvas into its model instructions,
 and checks the bounded PNG and named route. Native pixels and actual dimensions are retained;
-exact sizing belongs to an image editing node. No model fallback is requested. Text editing defaults to local Qwen; GPT-6 Luna/Sol are explicit cloud subscription choices. Settings hold defaults; `AiModelPicker.qml` allows a model choice for the current text or image run without changing those defaults or the project draft. Each request snapshots its selected model.
-The cloud text choices explicitly request low reasoning effort because Runtime's local `text.edit` default of none is not admitted by the GPT-6 deployments. Shape verifies the selected named deployment in the returned Job before creating a Candidate.
+exact sizing belongs to an image editing node. No model fallback is requested. Text editing defaults to local Qwen; GPT-6 Luna/Sol are explicit cloud subscription choices. Settings hold model defaults; `AiModelPicker.qml` allows model and reasoning effort choices for the current text or image run without changing settings or the project draft. Each request snapshots both choices. The local text model uses its Runtime effort; cloud text defaults to low, while image generation defaults to Runtime effort. The picker limits `ultra` to Sol and rejects unsupported effort choices at the bridge and executor boundaries. Shape verifies the selected named deployment in the returned Job before creating a Candidate.
 `--smoke-image-generation DIRECTORY` exercises the real controller, candidate preview, explicit
 acceptance and project reopening; it is an opt-in live test, not part of ordinary desktop smoke.
 

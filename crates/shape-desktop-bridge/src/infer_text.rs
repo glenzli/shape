@@ -31,10 +31,9 @@ pub(super) fn generate_infer_text_candidate(
     credential_path: &str,
     explicit_override: &str,
     model_key: &str,
+    effort_key: &str,
 ) -> Result<Box<InferTextCandidate>, String> {
-    if !matches!(model_key, "local_qwen" | "gpt_6_luna" | "gpt_6_sol") {
-        return Err("invalid_model_choice".to_owned());
-    }
+    validate_execution_choice(model_key, effort_key)?;
     let artifact_id = artifact_id
         .parse::<ArtifactId>()
         .map_err(|_| "invalid_artifact".to_owned())?;
@@ -88,9 +87,13 @@ pub(super) fn generate_infer_text_candidate(
     let parameters =
         TextTransformParameters::new(mode, instruction).map_err(|_| "invalid_prompt".to_owned())?;
     let credential_path = crate::infer_runtime_access::sdk_credential_path(credential_path)?;
-    let executor =
-        InferRuntimeExecutor::new_with_model(explicit_override, credential_path, model_key)
-            .map_err(|_| "executor_invalid".to_owned())?;
+    let executor = InferRuntimeExecutor::new_with_model(
+        explicit_override,
+        credential_path,
+        model_key,
+        effort_key,
+    )
+    .map_err(|_| "executor_invalid".to_owned())?;
     let candidate = if let Some(instruction) = authoring_instruction {
         project.propose_text_node(
             artifact_id,
@@ -128,6 +131,22 @@ pub(super) fn generate_infer_text_candidate(
         candidate,
         request_draft: Some(draft.clone()),
     }))
+}
+
+fn validate_execution_choice(model_key: &str, effort_key: &str) -> Result<(), String> {
+    if !matches!(model_key, "local_qwen" | "gpt_6_luna" | "gpt_6_sol") {
+        return Err("invalid_model_choice".to_owned());
+    }
+    let supported = if model_key == "local_qwen" {
+        effort_key.is_empty()
+    } else {
+        matches!(effort_key, "low" | "medium" | "high" | "xhigh" | "max")
+            || (model_key == "gpt_6_sol" && effort_key == "ultra")
+    };
+    if !supported {
+        return Err("invalid_effort_choice".to_owned());
+    }
+    Ok(())
 }
 
 fn core_error_code(error: CoreError) -> String {

@@ -31,9 +31,14 @@ Rectangle {
     property string modelContextId: ""
     property string modelOverride: ""
     readonly property string selectedModelKey: modelPicker.effectiveModelKey
+    property string effortOverride: ""
+    readonly property string selectedEffortKey: modelPicker.effectiveEffortKey
     readonly property string editedIntentText: intentEditor.text
 
-    onModelContextIdChanged: modelOverride = ""
+    onModelContextIdChanged: {
+        modelOverride = ""
+        effortOverride = ""
+    }
 
     signal intentEdited(string text)
     signal intentCommitRequested(string text)
@@ -274,8 +279,10 @@ Rectangle {
             family: "image"
             defaultModelKey: sidebar.defaultModelKey
             overrideKey: sidebar.modelOverride
+            effortOverrideKey: sidebar.effortOverride
             enabled: sidebar.editable && !sidebar.running
             onChoiceSelected: key => sidebar.modelOverride = key
+            onEffortSelected: key => sidebar.effortOverride = key
         }
 
         ShapeButton {

@@ -5,7 +5,8 @@ use serde_json::json;
 use shape_domain::TransformationId;
 
 use super::{
-    InferRuntimeExecutor, TEXT_EDIT_DEPLOYMENT, local_text_request, text_deployment, text_request,
+    InferRuntimeExecutor, TEXT_EDIT_DEPLOYMENT, local_text_request, text_deployment, text_effort,
+    text_request,
 };
 use crate::{CapabilityId, ExecutionRequest, Executor as _};
 
@@ -67,7 +68,7 @@ fn cloud_text_choices_keep_one_explicit_route_and_cloud_policy() {
         ("gpt_6_sol", "codex_gpt_6_sol"),
     ] {
         assert_eq!(text_deployment(key), Some(deployment));
-        let request = text_request("bounded fixture", deployment);
+        let request = text_request("bounded fixture", deployment, Some("low"));
         assert_eq!(request.metadata["infer.deployment_ids"], deployment);
         assert_eq!(request.metadata["infer.placement"], "cloud_only");
         assert_eq!(
@@ -80,6 +81,14 @@ fn cloud_text_choices_keep_one_explicit_route_and_cloud_policy() {
         assert!(!request.metadata.contains_key("infer.latency"));
     }
     assert_eq!(text_deployment("arbitrary_deployment"), None);
+    assert_eq!(text_effort("local_qwen", ""), Ok(None));
+    assert_eq!(text_effort("local_qwen", "low"), Err(()));
+    assert_eq!(text_effort("gpt_6_luna", "ultra"), Err(()));
+    assert_eq!(text_effort("gpt_6_sol", "ultra"), Ok(Some("ultra")));
+    assert_eq!(
+        text_request("bounded fixture", "codex_gpt_6_sol", Some("high")).reasoning,
+        Some(json!({"effort": "high"}))
+    );
 }
 
 #[test]

@@ -34,9 +34,15 @@ pub(super) fn generate_infer_image_candidate(
     credential_path: &str,
     explicit_override: &str,
     model_key: &str,
+    effort_key: &str,
 ) -> Result<Box<InferImageCandidate>, String> {
     if !matches!(model_key, "gpt_5_6_luna" | "gpt_6_luna" | "gpt_6_sol") {
         return Err("invalid_model_choice".to_owned());
+    }
+    if !(matches!(effort_key, "" | "low" | "medium" | "high" | "xhigh" | "max")
+        || (model_key == "gpt_6_sol" && effort_key == "ultra"))
+    {
+        return Err("invalid_effort_choice".to_owned());
     }
     let artifact_id = artifact_id
         .parse::<ArtifactId>()
@@ -83,6 +89,7 @@ pub(super) fn generate_infer_image_candidate(
         explicit_override,
         credential_path,
         model_key,
+        effort_key,
     )
     .map_err(|_| "executor_invalid".to_owned())?;
     let candidate = project

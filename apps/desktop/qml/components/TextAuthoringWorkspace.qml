@@ -31,6 +31,8 @@ Item {
     property string defaultTextModel: "local_qwen"
     property string modelOverride: ""
     readonly property string selectedModelKey: modelPicker.effectiveModelKey
+    property string effortOverride: ""
+    readonly property string selectedEffortKey: modelPicker.effectiveEffortKey
     property bool initialized: false
     property bool loading: false
     property bool dirty: false
@@ -50,7 +52,7 @@ Item {
     readonly property bool canGenerate: inputCurrent && !generationRunning && runtimeCompatible && credentialConfigured
                                          && (editing ? true : entry === "adapt" ? materialEditor.text.trim().length > 0
                                              : instructionEditor.text.trim().length > 0 || materialEditor.text.trim().length > 0)
-    signal generationRequested(string artifactId, string draftId, string modelKey)
+    signal generationRequested(string artifactId, string draftId, string modelKey, string effortKey)
     signal candidateSelected(string candidateId)
     signal speechRequested(string artifactId)
     signal setupRequested()
@@ -145,7 +147,8 @@ Item {
     }
     function generate() : void {
         const modelKey = selectedModelKey
-        if (canGenerate && checkpoint()) generationRequested(artifactId, draftId, modelKey)
+        const effortKey = selectedEffortKey
+        if (canGenerate && checkpoint()) generationRequested(artifactId, draftId, modelKey, effortKey)
     }
     function editOutput() : void {
         const textToEdit = reviewText
@@ -232,7 +235,6 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
                     ShapeButton { text: qsTr("Write"); selected: true; onClicked: workspace.reviewing = false }
-                    Label { text: "›"; color: Theme.muted }
                     ShapeButton {
                         text: qsTr("Voices and audition")
                         quiet: true
@@ -324,8 +326,10 @@ Item {
                     family: "text"
                     defaultModelKey: workspace.defaultTextModel
                     overrideKey: workspace.modelOverride
+                    effortOverrideKey: workspace.effortOverride
                     enabled: !workspace.generationRunning
                     onChoiceSelected: key => workspace.modelOverride = key
+                    onEffortSelected: key => workspace.effortOverride = key
                 }
                 ColumnLayout {
                     visible: !workspace.reviewing
