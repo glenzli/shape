@@ -1502,7 +1502,7 @@
     <name>DesktopBackend</name>
     <message><source>Choose a local file for the accepted result.</source><translation>请选择本地文件来保存已采用的结果。</translation></message>
     <message><source>Accept a result before exporting it.</source><translation>先采用一个结果，再导出文件。</translation></message>
-    <message><source>Export this result as a TXT or PNG file.</source><translation>请将此结果导出为 TXT 或 PNG 文件。</translation></message>
+    <message><source>Export text or code as a supported UTF-8 file, or an image as PNG.</source><translation>请将文本或代码导出为支持的 UTF-8 文件，图像导出为 PNG。</translation></message>
     <message><source>Could not read the accepted result.</source><translation>无法读取已采用的结果。</translation></message>
     <message><source>Could not save the final file.</source><translation>无法保存最终文件。</translation></message>
     <message>
@@ -2066,7 +2066,7 @@
     <name>Main</name>
     <message><source>Export accepted result</source><translation>导出已采用的结果</translation></message>
     <message><source>PNG image (*.png)</source><translation>PNG 图像 (*.png)</translation></message>
-    <message><source>UTF-8 text (*.txt)</source><translation>UTF-8 文本 (*.txt)</translation></message>
+    <message><source>UTF-8 text and code (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</source><translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation></message>
     <message><source>Finishing the current image, then stopping. %1 of %2 ready.</source><translation>当前图片完成后停止，已完成 %1/%2 个。</translation></message>
     <message><source>%1 of %2 image versions are ready.</source><translation>已完成 %1/%2 个图片候选。</translation></message>
     <message><source>Stopped. %1 of %2 image versions are ready.</source><translation>已停止，完成了 %1/%2 个图片候选。</translation></message>
@@ -3701,6 +3701,7 @@
         <source>Original text</source>
         <translation>原始文本</translation>
     </message>
+    <message><source>Original code</source><translation>原始代码</translation></message>
     <message>
         <location line="+1"/>
         <source>Original image</source>

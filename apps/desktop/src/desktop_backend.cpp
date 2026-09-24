@@ -30,6 +30,13 @@ std::string to_utf8(const QString& value) {
     return std::string(bytes.constData(), static_cast<std::size_t>(bytes.size()));
 }
 
+bool is_text_file_suffix(const QString& suffix) {
+    return suffix == QStringLiteral("txt") || suffix == QStringLiteral("md")
+           || suffix == QStringLiteral("js") || suffix == QStringLiteral("mjs")
+           || suffix == QStringLiteral("html") || suffix == QStringLiteral("css")
+           || suffix == QStringLiteral("json") || suffix == QStringLiteral("svg");
+}
+
 QString artifact_kind_label(const QString& key) {
     if (key == QStringLiteral("text_document")) {
         return DesktopBackend::tr("Text document");
@@ -1193,7 +1200,8 @@ bool DesktopBackend::importMaterial(const QUrl& sourceUrl) {
     const QString sourcePath = sourceUrl.toLocalFile();
     const QFileInfo file(sourcePath);
     const QString suffix = file.suffix().toLower();
-    const QString artifactName = file.completeBaseName().trimmed();
+    const QString artifactName = is_text_file_suffix(suffix) ? file.fileName().trimmed()
+                                                            : file.completeBaseName().trimmed();
     if (artifactName.isEmpty()) {
         setLastError(tr("The material needs a usable file name."));
         return false;
@@ -1207,10 +1215,7 @@ bool DesktopBackend::importMaterial(const QUrl& sourceUrl) {
             applySnapshot(session_->session->session_import_audio_wav(
                 to_utf8(sourcePath), to_utf8(artifactName)
             ));
-        } else if (suffix == QStringLiteral("txt") || suffix == QStringLiteral("md")
-                   || suffix == QStringLiteral("js") || suffix == QStringLiteral("mjs")
-                   || suffix == QStringLiteral("html") || suffix == QStringLiteral("css")
-                   || suffix == QStringLiteral("json") || suffix == QStringLiteral("svg")) {
+        } else if (is_text_file_suffix(suffix)) {
             applySnapshot(session_->session->session_import_text_file(
                 to_utf8(sourcePath), to_utf8(artifactName)
             ));
@@ -1244,20 +1249,21 @@ bool DesktopBackend::exportAcceptedMaterial(const QString& artifactId, const QUr
     }
     const QString kind = item->toMap().value(QStringLiteral("kindKey")).toString();
     const QString path = targetUrl.toLocalFile();
+    const QString suffix = QFileInfo(path).suffix().toLower();
     QByteArray bytes;
     try {
-        if (kind == QStringLiteral("text_document") && path.endsWith(QStringLiteral(".txt"), Qt::CaseInsensitive)) {
+        if (kind == QStringLiteral("text_document") && is_text_file_suffix(suffix)) {
             bytes = from_rust(session_->session->session_text_authoring_content(
                 to_utf8(artifactId), to_utf8(QString())
             )).toUtf8();
-        } else if (kind == QStringLiteral("image_raster") && path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        } else if (kind == QStringLiteral("image_raster") && suffix == QStringLiteral("png")) {
             const auto image = session_->session->session_image_preview(
                 to_utf8(artifactId), to_utf8(QString())
             );
             bytes = QByteArray(reinterpret_cast<const char*>(image.png_bytes.data()),
                                static_cast<qsizetype>(image.png_bytes.size()));
         } else {
-            setLastError(tr("Export this result as a TXT or PNG file."));
+            setLastError(tr("Export text or code as a supported UTF-8 file, or an image as PNG."));
             return false;
         }
     } catch (const rust::Error& error) {

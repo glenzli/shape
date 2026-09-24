@@ -25,6 +25,7 @@ Rectangle {
     readonly property bool isText: dataTypeKey === "text.document"
     readonly property bool isImage: dataTypeKey === "image.raster"
     readonly property bool isAudio: dataTypeKey === "audio.clip"
+    readonly property bool isCode: /\.(js|mjs|html|css|json|svg)$/i.test(nodeData.artifactName || "")
     readonly property string textPreview: nodeData.hasTextPreview === true
                                                    ? nodeData.textPreview : ""
     property string completeText: ""
@@ -37,7 +38,7 @@ Rectangle {
     }
 
     function materialTitle() : string {
-        if (isText) return qsTr("Original text")
+        if (isText) return isCode ? qsTr("Original code") : qsTr("Original text")
         if (isImage) return qsTr("Original image")
         if (isAudio) return qsTr("Original audio")
         return qsTr("Source material")
@@ -127,12 +128,14 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             readOnly: true
+            textFormat: TextEdit.PlainText
             selectByMouse: true
             text: workspace.completeText.length > 0 ? workspace.completeText
                                                      : workspace.textPreview.length > 0
                                                        ? workspace.textPreview : qsTr("Empty text")
             color: Theme.text
-            font.pixelSize: 17
+            font.pixelSize: workspace.isCode ? 14 : 17
+            font.family: workspace.isCode ? "monospace" : ""
             wrapMode: TextEdit.Wrap
             leftPadding: 18
             rightPadding: 18

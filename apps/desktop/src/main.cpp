@@ -945,13 +945,48 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         std::cerr << "desktop authoring smoke could not import external material" << std::endl;
         return false;
     }
-    const QString text_id = backend.artifacts()[prior_count].toMap().value(QStringLiteral("id")).toString();
-    const QString exported_text = material_directory.filePath(QStringLiteral("accepted.txt"));
+    const QVariantMap imported_code = backend.artifacts()[prior_count].toMap();
+    const QString text_id = imported_code.value(QStringLiteral("id")).toString();
+    const QString exported_text = material_directory.filePath(QStringLiteral("accepted.js"));
     QFile exported_text_file(exported_text);
-    if (!backend.exportAcceptedMaterial(text_id, QUrl::fromLocalFile(exported_text))
+    if (imported_code.value(QStringLiteral("name")).toString()
+            != QStringLiteral("animation.js")
+        || !backend.exportAcceptedMaterial(text_id, QUrl::fromLocalFile(exported_text))
         || !exported_text_file.open(QIODevice::ReadOnly)
         || exported_text_file.readAll() != code) {
-        std::cerr << "desktop authoring smoke could not export accepted UTF-8 text" << std::endl;
+        std::cerr << "desktop authoring smoke lost the code file identity or exact UTF-8 export"
+                  << std::endl;
+        return false;
+    }
+    root_object.setProperty("selectedArtifactIndex", prior_count);
+    QCoreApplication::processEvents();
+    if (!QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
+        return false;
+    }
+    const QVariantList code_nodes = imported_code.value(QStringLiteral("operatorNodes")).toList();
+    const auto code_source = std::find_if(
+        code_nodes.cbegin(), code_nodes.cend(), [](const QVariant& value) {
+            return value.toMap().value(QStringLiteral("roleKey")) == QStringLiteral("source");
+        }
+    );
+    if (code_source == code_nodes.cend()) return false;
+    QQmlExpression open_code_source(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("openNode('%1')").arg(code_source->toMap().value(QStringLiteral("id")).toString())
+    );
+    if (!open_code_source.evaluate().toBool() || open_code_source.hasError()) return false;
+    QCoreApplication::processEvents();
+    QObject* const code_workspace = workspace_surface->findChild<QObject*>(
+        QStringLiteral("sourceMaterialWorkspace")
+    );
+    QObject* const code_editor = code_workspace
+                                     ? code_workspace->findChild<QObject*>(QStringLiteral("sourceMaterialText"))
+                                     : nullptr;
+    if (!code_workspace || !code_workspace->property("isCode").toBool() || !code_editor
+        || code_editor->property("text").toString().toUtf8() != code) {
+        std::cerr << "desktop authoring smoke did not show the exact imported code as code"
+                  << std::endl;
         return false;
     }
     const QVariantMap audio = backend.artifacts().last().toMap();

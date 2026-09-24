@@ -56,7 +56,7 @@ Rectangle {
     // A file is a rendered snapshot of an accepted result, not another Scene node.
     readonly property string finalFileFormat: artifactKindKey === "audio_clip" ? "WAV"
                                               : artifactKindKey === "image_raster" ? "PNG"
-                                              : artifactKindKey === "text_document" ? "TXT" : ""
+                                              : artifactKindKey === "text_document" ? qsTr("Text") : ""
     readonly property var inspectedNode: nodeForId(selectedNodeId)
     readonly property var inspectedDraft: draftForId(selectedNodeId)
     readonly property var inspectedCandidate: candidateForId(selectedCandidateId)

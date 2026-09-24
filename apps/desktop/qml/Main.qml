@@ -361,11 +361,12 @@ ApplicationWindow {
         id: finalMaterialDialog
         property string artifactId: ""
         property string kindKey: ""
+        property string preferredSuffix: "txt"
         title: qsTr("Export accepted result")
         fileMode: FileDialog.SaveFile
-        defaultSuffix: kindKey === "image_raster" ? "png" : "txt"
+        defaultSuffix: kindKey === "image_raster" ? "png" : preferredSuffix
         nameFilters: kindKey === "image_raster" ? [qsTr("PNG image (*.png)")]
-                                             : [qsTr("UTF-8 text (*.txt)")]
+                                             : [qsTr("UTF-8 text and code (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)")]
         onAccepted: window.backend.exportAcceptedMaterial(artifactId, selectedFile)
     }
 
@@ -624,6 +625,14 @@ ApplicationWindow {
                     onMaterialExportRequested: (artifactId, kindKey) => {
                         finalMaterialDialog.artifactId = artifactId
                         finalMaterialDialog.kindKey = kindKey
+                        finalMaterialDialog.preferredSuffix = "txt"
+                        if (kindKey === "text_document") {
+                            const artifact = window.backend.artifacts.find(a => a.id === artifactId)
+                            const match = artifact !== undefined
+                                    ? /\.([^.]+)$/.exec(artifact.name.toLowerCase()) : null
+                            if (match !== null && ["txt", "md", "js", "mjs", "html", "css", "json", "svg"].indexOf(match[1]) >= 0)
+                                finalMaterialDialog.preferredSuffix = match[1]
+                        }
                         finalMaterialDialog.open()
                     }
                     onInferAccessSetupRequested: settingsDialog.open()

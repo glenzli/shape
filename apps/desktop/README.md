@@ -24,7 +24,10 @@ never executed. Audio imported from outside Shape carries an unverified-origin d
 than claiming it was recorded or synthesized by Shape. The source path is not needed to reopen the
 accepted material. Video, runnable JS bundles, arbitrary audio codecs, and an agent workspace
 handoff are not implemented by this intake path.
-The final-file strip exports accepted text as UTF-8 TXT, accepted raster images as canonical PNG,
+Imported text/code retains the original file suffix in its work name; the source viewer presents
+code as plain, monospaced text. Accepted text can be exported byte-for-byte as a supported UTF-8
+text/code extension, including `.js`, without making it executable inside Shape.
+The final-file strip exports accepted text as UTF-8 text/code, accepted raster images as canonical PNG,
 and accepted audio as WAV through its existing export dialog. Files are outside the Shape bundle
 and do not create extra graph nodes.
 Accepted text can also enter the preset-only Speech Synthesis workspace, produce a transient
