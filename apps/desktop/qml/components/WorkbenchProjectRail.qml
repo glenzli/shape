@@ -46,6 +46,7 @@ Rectangle {
     signal createSceneRequested()
     signal createComponentRequested()
     signal importAssetRequested()
+    signal pasteAssetRequested()
 
     function itemId(item) : string {
         if (!item) return ""
@@ -152,7 +153,7 @@ Rectangle {
 
     function createLabel(sectionKey) : string {
         if (sectionKey === "components") return qsTr("New Component")
-        if (sectionKey === "assets") return qsTr("Import Asset")
+        if (sectionKey === "assets") return qsTr("Import…")
         return qsTr("New content")
     }
 
@@ -460,16 +461,32 @@ Rectangle {
             }
         }
 
-        ShapeButton {
-            objectName: "railCreateItemButton"
+        RowLayout {
             Layout.fillWidth: true
-            implicitHeight: Theme.controlHeight
-            iconSource: rail.currentSection === "assets"
-                        ? "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
-                        : "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
-            text: rail.createLabel(rail.currentSection)
-            enabled: rail.projectOpen
-            onClicked: rail.requestCreation()
+            spacing: 6
+
+            ShapeButton {
+                objectName: "railCreateItemButton"
+                implicitHeight: Theme.controlHeight
+                iconSource: rail.currentSection === "assets"
+                            ? "qrc:/qt/qml/Shape/Desktop/icons/open.svg"
+                            : "qrc:/qt/qml/Shape/Desktop/icons/add.svg"
+                text: rail.createLabel(rail.currentSection)
+                enabled: rail.projectOpen
+                onClicked: rail.requestCreation()
+            }
+
+            ShapeButton {
+                objectName: "railPasteAssetButton"
+                visible: rail.currentSection === "assets"
+                implicitHeight: Theme.controlHeight
+                text: qsTr("Paste")
+                Accessible.name: qsTr("Paste clipboard material")
+                enabled: rail.projectOpen
+                onClicked: rail.pasteAssetRequested()
+            }
+
+            Item { Layout.fillWidth: true }
         }
     }
 }

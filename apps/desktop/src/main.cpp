@@ -769,6 +769,20 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         return false;
     }
     QMetaObject::invokeMethod(creative_start, "close", Qt::DirectConnection);
+    root_object.setProperty("workbenchSection", QStringLiteral("assets"));
+    QCoreApplication::processEvents();
+    QObject* const asset_import =
+        root_object.findChild<QObject*>(QStringLiteral("railCreateItemButton"));
+    QObject* const asset_paste =
+        root_object.findChild<QObject*>(QStringLiteral("railPasteAssetButton"));
+    if (!asset_import || !asset_paste || !asset_paste->property("visible").toBool()
+        || asset_import->property("width").toReal() >= 160
+        || asset_paste->property("width").toReal() >= 160) {
+        std::cerr << "desktop authoring smoke found oversized or missing Asset actions"
+                  << std::endl;
+        return false;
+    }
+    root_object.setProperty("workbenchSection", QStringLiteral("scenes"));
 
     if (!backend.createTextScene(
             QStringLiteral("Opening"),

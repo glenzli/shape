@@ -80,11 +80,15 @@ ApplicationWindow {
         })
     }
 
-    function pasteMaterialIntoProject() : void {
+    function pasteMaterialIntoProject(originSection) : void {
         if (!backend.pasteMaterial()) return
         selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
         selectedCandidateId = ""
         compareMode = false
+        if (originSection === "assets") {
+            const added = backend.artifacts[selectedArtifactIndex]
+            workbenchSection = added.kindKey === "text_document" ? "scenes" : "assets"
+        }
         workspaceSurface.showGraph()
         Qt.callLater(window.refreshSelectedImage)
     }
@@ -448,6 +452,7 @@ ApplicationWindow {
             onCreateSceneRequested: createSceneTypeDialog.openForCreation()
             onCreateComponentRequested: componentPreviewDialog.open()
             onImportAssetRequested: materialImportDialog.open()
+            onPasteAssetRequested: window.pasteMaterialIntoProject("assets")
         }
 
         ColumnLayout {

@@ -29,6 +29,9 @@ Text keeps its exact UTF-8 content within 1 MiB. PNG/JPEG clipboard payloads ent
 raster import path; a decoded clipboard image is encoded as PNG before that import. Both become
 accepted Source revisions without a temporary file or recorded source path. Shape currently keeps
 the canonical image revision rather than a separate original clipboard payload.
+In the active Asset rail, compact Import and Paste actions expose those same paths after project
+creation. Pasted text switches to Works, where text sources are currently listed; pasted images
+stay in Assets.
 Imported text/code retains the original file suffix in its work name; the source viewer presents
 code as plain, monospaced text. Accepted text can be exported byte-for-byte as a supported UTF-8
 text/code extension, including `.js`, without making it executable inside Shape.

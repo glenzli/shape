@@ -5177,9 +5177,11 @@
     </message>
     <message>
         <location line="+1"/>
-        <source>Import Asset</source>
-        <translation>导入素材</translation>
+        <source>Import…</source>
+        <translation>导入…</translation>
     </message>
+    <message><source>Paste</source><translation>粘贴</translation></message>
+    <message><source>Paste clipboard material</source><translation>粘贴剪贴板素材</translation></message>
     <message>
         <location line="+34"/>
         <source>Shape Project</source>
