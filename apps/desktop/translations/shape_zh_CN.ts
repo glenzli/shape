@@ -600,6 +600,7 @@
         <source>Recorded source</source>
         <translation>录制来源</translation>
     </message>
+    <message><source>Imported audio · origin unverified</source><translation>导入音频 · 来源未核实</translation></message>
     <message>
         <location line="+1"/>
         <source>Synthetic sound · disclosed</source>
@@ -1194,8 +1195,8 @@
     </message>
     <message>
         <location line="+5"/>
-        <source>Image</source>
-        <translation>图像</translation>
+        <source>Image and external material</source>
+        <translation>图像与外部素材</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1204,9 +1205,10 @@
     </message>
     <message>
         <location line="+1"/>
-        <source>Import an image</source>
-        <translation>导入图片</translation>
+        <source>Import material…</source>
+        <translation>导入素材…</translation>
     </message>
+    <message><source>Code files are kept as text; Shape does not run them.</source><translation>代码文件以文本保存；Shape 不会运行它们。</translation></message>
 </context>
 <context>
     <name>CreateTextSceneDialog</name>
@@ -1498,6 +1500,11 @@
 </context>
 <context>
     <name>DesktopBackend</name>
+    <message><source>Choose a local file for the accepted result.</source><translation>请选择本地文件来保存已采用的结果。</translation></message>
+    <message><source>Accept a result before exporting it.</source><translation>先采用一个结果，再导出文件。</translation></message>
+    <message><source>Export this result as a TXT or PNG file.</source><translation>请将此结果导出为 TXT 或 PNG 文件。</translation></message>
+    <message><source>Could not read the accepted result.</source><translation>无法读取已采用的结果。</translation></message>
+    <message><source>Could not save the final file.</source><translation>无法保存最终文件。</translation></message>
     <message>
         <location filename="../src/desktop_backend.cpp" line="+34"/>
         <source>Text document</source>
@@ -1856,6 +1863,10 @@
         <source>Could not import this image. Use an 8-bit PNG or JPEG within the local size limit.</source>
         <translation>无法导入此图像。请使用本地大小限制内的 8 位 PNG 或 JPEG 图像。</translation>
     </message>
+    <message><source>Choose a local image, UTF-8 text, or PCM WAV file.</source><translation>请选择本地图像、UTF-8 文本或 PCM WAV 文件。</translation></message>
+    <message><source>The material needs a usable file name.</source><translation>素材需要一个可用的文件名。</translation></message>
+    <message><source>Choose a PNG, JPEG, UTF-8 text/code, or PCM WAV file.</source><translation>请选择 PNG、JPEG、UTF-8 文本或代码文件，或 PCM WAV 文件。</translation></message>
+    <message><source>Could not import this file. Check its encoding, format, and size.</source><translation>无法导入此文件。请检查编码、格式和大小。</translation></message>
     <message>
         <location line="+14"/>
         <source>Choose a valid crop area.</source>
@@ -2053,6 +2064,9 @@
 </context>
 <context>
     <name>Main</name>
+    <message><source>Export accepted result</source><translation>导出已采用的结果</translation></message>
+    <message><source>PNG image (*.png)</source><translation>PNG 图像 (*.png)</translation></message>
+    <message><source>UTF-8 text (*.txt)</source><translation>UTF-8 文本 (*.txt)</translation></message>
     <message><source>Finishing the current image, then stopping. %1 of %2 ready.</source><translation>当前图片完成后停止，已完成 %1/%2 个。</translation></message>
     <message><source>%1 of %2 image versions are ready.</source><translation>已完成 %1/%2 个图片候选。</translation></message>
     <message><source>Stopped. %1 of %2 image versions are ready.</source><translation>已停止，完成了 %1/%2 个图片候选。</translation></message>
@@ -2096,8 +2110,8 @@
     </message>
     <message>
         <location line="+122"/>
-        <source>Choose an image to work with</source>
-        <translation>选择要处理的图片</translation>
+        <source>Import material into this project</source>
+        <translation>将素材导入此项目</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -2173,6 +2187,9 @@
         <source>Images (*.png *.jpg *.jpeg)</source>
         <translation>图像 (*.png *.jpg *.jpeg)</translation>
     </message>
+    <message><source>Supported material (*.png *.jpg *.jpeg *.txt *.md *.js *.mjs *.html *.css *.json *.svg *.wav)</source><translation>支持的素材 (*.png *.jpg *.jpeg *.txt *.md *.js *.mjs *.html *.css *.json *.svg *.wav)</translation></message>
+    <message><source>UTF-8 text and code (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</source><translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation></message>
+    <message><source>PCM WAV audio (*.wav)</source><translation>PCM WAV 音频 (*.wav)</translation></message>
     <message>
         <location line="+13"/>
         <source>Components</source>
@@ -2616,8 +2633,8 @@
     </message>
     <message>
         <location line="+119"/>
-        <source>Import image…</source>
-        <translation>导入图像…</translation>
+        <source>Import material…</source>
+        <translation>导入素材…</translation>
     </message>
     <message>
         <location line="-57"/>
@@ -3098,10 +3115,10 @@
 </context>
 <context>
     <name>SceneOperatorGraphWorkspace</name>
-    <message><source>Final file · %1 audio</source><translation>最终文件 · %1 音频</translation></message>
-    <message><source>Save the accepted audio as a file outside this project.</source><translation>将已采用的音频保存为项目外的文件。</translation></message>
-    <message><source>Accept an audio version before exporting a final file.</source><translation>先采用一个音频版本，再导出最终文件。</translation></message>
-    <message><source>Export WAV…</source><translation>导出 WAV…</translation></message>
+    <message><source>Final file · %1</source><translation>最终文件 · %1</translation></message>
+    <message><source>Save the accepted result as a file outside this project.</source><translation>将已采用的结果保存为项目外的文件。</translation></message>
+    <message><source>Accept a version before exporting a final file.</source><translation>先采用一个版本，再导出最终文件。</translation></message>
+    <message><source>Export %1…</source><translation>导出 %1…</translation></message>
     <message>
         <source>Earlier version</source>
         <translation>较早版本</translation>
@@ -3739,6 +3756,9 @@
         <source>This material is preserved exactly as the node input.</source>
         <translation>此素材会作为节点输入原样保留。</translation>
     </message>
+    <message><source>Imported audio is preserved as selected. Its recording or generation origin has not been verified.</source><translation>导入音频按所选内容保存；录制或生成来源尚未核实。</translation></message>
+    <message><source>Pause preview</source><translation>暂停试听</translation></message>
+    <message><source>Play preview</source><translation>播放试听</translation></message>
     <message>
         <location line="+12"/>
         <source>Preview shortened · the complete source remains preserved</source>

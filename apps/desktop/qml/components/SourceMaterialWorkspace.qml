@@ -13,6 +13,11 @@ Rectangle {
     objectName: "sourceMaterialWorkspace"
 
     required property var nodeData
+    required property string artifactId
+    required property string revisionId
+    required property var backend
+    required property var audioPreview
+    required property string audioOriginKey
 
     readonly property var outputPorts: nodeData.outputPorts || []
     readonly property string dataTypeKey: outputPorts.length > 0
@@ -22,6 +27,14 @@ Rectangle {
     readonly property bool isAudio: dataTypeKey === "audio.clip"
     readonly property string textPreview: nodeData.hasTextPreview === true
                                                    ? nodeData.textPreview : ""
+    property string completeText: ""
+
+    Component.onCompleted: {
+        if (isText && revisionId.length > 0 && backend !== null)
+            completeText = backend.sourceRevisionText(revisionId)
+        if (isAudio && revisionId.length > 0 && audioPreview !== null)
+            audioPreview.loadPreview(artifactId, "", revisionId)
+    }
 
     function materialTitle() : string {
         if (isText) return qsTr("Original text")
@@ -115,7 +128,9 @@ Rectangle {
             Layout.fillHeight: true
             readOnly: true
             selectByMouse: true
-            text: workspace.textPreview.length > 0 ? workspace.textPreview : qsTr("Empty text")
+            text: workspace.completeText.length > 0 ? workspace.completeText
+                                                     : workspace.textPreview.length > 0
+                                                       ? workspace.textPreview : qsTr("Empty text")
             color: Theme.text
             font.pixelSize: 17
             wrapMode: TextEdit.Wrap
@@ -163,17 +178,29 @@ Rectangle {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("This material is preserved exactly as the node input.")
+                    text: workspace.isAudio
+                          && workspace.audioOriginKey === "imported_unverified"
+                          ? qsTr("Imported audio is preserved as selected. Its recording or generation origin has not been verified.")
+                          : qsTr("This material is preserved exactly as the node input.")
                     color: Theme.muted
                     font.pixelSize: 10
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
+                }
+                ShapeButton {
+                    visible: workspace.isAudio
+                    Layout.alignment: Qt.AlignHCenter
+                    text: workspace.audioPreview !== null && workspace.audioPreview.playing
+                          ? qsTr("Pause preview") : qsTr("Play preview")
+                    enabled: workspace.audioPreview !== null && workspace.audioPreview.hasAudio
+                    onClicked: workspace.audioPreview.togglePlayback()
                 }
             }
         }
 
         Text {
             visible: workspace.nodeData.textPreviewTruncated === true
+                     && workspace.completeText.length === 0
             Layout.fillWidth: true
             text: qsTr("Preview shortened · the complete source remains preserved")
             color: Theme.muted

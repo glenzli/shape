@@ -1044,6 +1044,46 @@ fn shelf_accumulates_candidates_and_accepting_one_clears_stale_siblings() {
 }
 
 #[test]
+fn source_revision_reads_the_pinned_text_and_external_audio_after_heads_change() {
+    let root = test_root();
+    let source = root.with_extension("wav");
+    let wav = bridge_wav();
+    fs::write(&source, &wav).unwrap();
+    let mut session = create_desktop_project(root.to_str().unwrap(), "Source revisions").unwrap();
+    let first = session
+        .session_create_text_document("Story", "Earlier text")
+        .unwrap();
+    let text_id = first.artifacts[0].id.clone();
+    let first_revision = first.artifacts[0].accepted_revision_id.clone();
+    let candidate = session
+        .session_propose_text(&text_id, "Later text")
+        .unwrap();
+    session
+        .session_accept_candidate(&candidate.candidate_id)
+        .unwrap();
+    assert_eq!(
+        session.session_source_text(&first_revision).unwrap(),
+        "Earlier text"
+    );
+    let imported = session
+        .session_import_audio_wav(source.to_str().unwrap(), "External audio")
+        .unwrap();
+    let audio = imported.artifacts.last().unwrap();
+    let audio_revision = audio.accepted_revision_id.clone();
+    assert_eq!(audio.audio_origin_key, "imported_unverified");
+    fs::remove_file(&source).unwrap();
+    assert_eq!(
+        session
+            .session_audio_revision_preview(&audio_revision)
+            .unwrap()
+            .wav_bytes,
+        wav
+    );
+    assert!(session.session_source_text(&audio_revision).is_err());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn raster_import_crop_candidate_accept_and_reopen_cross_the_desktop_bridge() {
     use image::{ColorType, ImageEncoder, codecs::png::PngEncoder};
 

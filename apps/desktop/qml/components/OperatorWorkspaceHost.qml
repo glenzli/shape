@@ -14,6 +14,9 @@ Rectangle {
     // The composition root registers only real packaged consumers. The Host
     // owns generic exact-key dispatch without becoming an Operator SDK.
     property var operatorWorkspaces: ({})
+    property var backend: null
+    property var audioPreview: null
+    property string sourceAudioOriginKey: ""
     property string selectedCandidateId: ""
     property bool compactNavigation: false
 
@@ -149,6 +152,11 @@ Rectangle {
 
         SourceMaterialWorkspace {
             nodeData: host.openedNodeData
+            artifactId: host.openedArtifactId
+            revisionId: host.openedRevisionId
+            backend: host.backend
+            audioPreview: host.audioPreview
+            audioOriginKey: host.sourceAudioOriginKey
         }
     }
 

@@ -43,7 +43,7 @@ Rectangle {
     signal newProjectRequested()
     signal openProjectRequested()
     signal createTextSceneRequested()
-    signal importImageRequested()
+    signal importMaterialRequested()
 
     radius: Theme.radiusLarge
     color: Theme.surface
@@ -173,10 +173,10 @@ Rectangle {
             }
 
             ShapeButton {
-                objectName: "importImageSceneButton"
-                text: qsTr("Import image…")
+                objectName: "importMaterialSceneButton"
+                text: qsTr("Import material…")
                 enabled: navigator.projectOpen
-                onClicked: navigator.importImageRequested()
+                onClicked: navigator.importMaterialRequested()
             }
             Item { Layout.fillWidth: true }
         }

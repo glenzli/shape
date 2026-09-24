@@ -59,8 +59,12 @@ QString AudioPreviewController::errorCode() const {
     return error_code_;
 }
 
-bool AudioPreviewController::loadPreview(const QString& artifactId, const QString& candidateId) {
-    const auto preview = backend_.audioPreview(artifactId, candidateId);
+bool AudioPreviewController::loadPreview(
+    const QString& artifactId,
+    const QString& candidateId,
+    const QString& revisionId
+) {
+    const auto preview = backend_.audioPreview(artifactId, candidateId, revisionId);
     if (!preview.has_value()) {
         setErrorCode(QStringLiteral("preview_unavailable"));
         return false;

@@ -94,6 +94,7 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE QString beginTextAuthoring(const QString& artifactId, const QString& profile);
     Q_INVOKABLE bool updateTextAuthoring(const QString& draftId, const QString& json);
     Q_INVOKABLE QString textAuthoringContent(const QString& artifactId, const QString& candidateId);
+    Q_INVOKABLE QString sourceRevisionText(const QString& revisionId);
     Q_INVOKABLE QString
     textAuthoringConfiguredPreview(const QString& settings, const QString& text);
     Q_INVOKABLE QString textAuthoringPreview(const QString& profile, const QString& text);
@@ -146,6 +147,8 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE bool
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);
     Q_INVOKABLE bool importRaster(const QUrl& sourceUrl);
+    Q_INVOKABLE bool importMaterial(const QUrl& sourceUrl);
+    Q_INVOKABLE bool exportAcceptedMaterial(const QString& artifactId, const QUrl& targetUrl);
     Q_INVOKABLE bool
     proposeRasterCrop(const QString& artifactId, int x, int y, int width, int height);
     Q_INVOKABLE bool proposeRasterResize(const QString& artifactId, const QString& draftId);
@@ -186,7 +189,11 @@ class DesktopBackend : public QObject {
 
     /// Fetches exact WAV bytes only for the preview selected by the audio controller.
     [[nodiscard]] std::optional<AudioPreviewData>
-    audioPreview(const QString& artifactId, const QString& candidateId = QString());
+    audioPreview(
+        const QString& artifactId,
+        const QString& candidateId = QString(),
+        const QString& revisionId = QString()
+    );
 
     /// Rebuilds translated presentation values after a runtime locale change.
     void retranslate();

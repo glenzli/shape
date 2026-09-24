@@ -17,6 +17,16 @@ persisted format and owns only delivery settings. Stable text/speech nodes survi
 An 8-bit PNG/JPEG can be imported into a canonical `image.raster` revision, cropped,
 resized, losslessly reoriented, blurred, or given a flattened drop shadow; every edit is compared
 as a transient Candidate before its exact versioned operation is accepted and reopened.
+The single Import material action also accepts bounded UTF-8 text/code files as editable text
+sources and PCM S16 LE WAV files as playable audio sources. Explicit import accepts an immutable
+source revision; later generated edits still use reviewable Candidates. Code is stored as text and
+never executed. Audio imported from outside Shape carries an unverified-origin disclosure rather
+than claiming it was recorded or synthesized by Shape. The source path is not needed to reopen the
+accepted material. Video, runnable JS bundles, arbitrary audio codecs, and an agent workspace
+handoff are not implemented by this intake path.
+The final-file strip exports accepted text as UTF-8 TXT, accepted raster images as canonical PNG,
+and accepted audio as WAV through its existing export dialog. Files are outside the Shape bundle
+and do not create extra graph nodes.
 Accepted text can also enter the preset-only Speech Synthesis workspace, produce a transient
 `audio.clip` Candidate through Infer Runtime, play the selected exact WAV in memory, and accept it
 as a new cross-artifact output without advancing the source text.

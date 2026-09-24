@@ -296,7 +296,7 @@ ApplicationWindow {
         id: createSceneTypeDialog
         onTextAuthoringRequested: profile => window.startTextAuthoring(profile)
         onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
-        onImportImageRequested: imageImportDialog.open()
+        onImportMaterialRequested: materialImportDialog.open()
     }
 
     CreateTextSceneDialog {
@@ -340,18 +340,33 @@ ApplicationWindow {
     }
 
     FileDialog {
-        id: imageImportDialog
-        title: qsTr("Choose an image to work with")
+        id: materialImportDialog
+        title: qsTr("Import material into this project")
         fileMode: FileDialog.OpenFile
-        nameFilters: [qsTr("Images (*.png *.jpg *.jpeg)")]
+        nameFilters: [qsTr("Supported material (*.png *.jpg *.jpeg *.txt *.md *.js *.mjs *.html *.css *.json *.svg *.wav)"),
+                      qsTr("Images (*.png *.jpg *.jpeg)"),
+                      qsTr("UTF-8 text and code (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)"),
+                      qsTr("PCM WAV audio (*.wav)")]
         onAccepted: {
-            if (window.backend.importRaster(selectedFile)) {
+            if (window.backend.importMaterial(selectedFile)) {
                 window.selectedArtifactIndex = Math.max(0, window.backend.artifactCount - 1)
                 window.compareMode = false
                 workspaceSurface.showGraph()
                 Qt.callLater(window.refreshSelectedImage)
             }
         }
+    }
+
+    FileDialog {
+        id: finalMaterialDialog
+        property string artifactId: ""
+        property string kindKey: ""
+        title: qsTr("Export accepted result")
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: kindKey === "image_raster" ? "png" : "txt"
+        nameFilters: kindKey === "image_raster" ? [qsTr("PNG image (*.png)")]
+                                             : [qsTr("UTF-8 text (*.txt)")]
+        onAccepted: window.backend.exportAcceptedMaterial(artifactId, selectedFile)
     }
 
     MessageDialog {
@@ -421,7 +436,7 @@ ApplicationWindow {
             onOpenProjectRequested: projectOpenDialog.open()
             onCreateSceneRequested: createSceneTypeDialog.openForCreation()
             onCreateComponentRequested: componentPreviewDialog.open()
-            onImportAssetRequested: imageImportDialog.open()
+            onImportAssetRequested: materialImportDialog.open()
         }
 
         ColumnLayout {
@@ -606,6 +621,11 @@ ApplicationWindow {
                     onAuthoringSpeechRequested: artifactId => window.openAuthoringSpeech(artifactId)
                     onWritingRequested: (artifactId, scriptMode) => window.returnToWriting(artifactId, scriptMode)
                     onAudioExportRequested: (artifactId, candidateId) => audioExportDialog.openForAudio(artifactId, candidateId)
+                    onMaterialExportRequested: (artifactId, kindKey) => {
+                        finalMaterialDialog.artifactId = artifactId
+                        finalMaterialDialog.kindKey = kindKey
+                        finalMaterialDialog.open()
+                    }
                     onInferAccessSetupRequested: settingsDialog.open()
                 }
 

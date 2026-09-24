@@ -1,8 +1,66 @@
 //! Bounded validation for materialized audio executor outputs.
 
-use shape_domain::{AudioOriginDisclosure, AudioValueContract};
+use shape_domain::{ArtifactContentContract, AudioOriginDisclosure, AudioValueContract};
 
-use crate::ExecutionFailure;
+use crate::{
+    CapabilityId, ExecutionError, ExecutionFailure, ExecutionOutput, ExecutionRequest, Executor,
+    ExecutorIdentity,
+};
+
+/// Imports exact externally supplied WAV bytes without asserting how they were made.
+pub const AUDIO_IMPORT_CAPABILITY: &str = "audio.clip.import";
+
+/// Exact, bounded adapter for an external audio file selected by the user.
+#[derive(Debug)]
+pub struct AudioImportExecutor {
+    identity: ExecutorIdentity,
+}
+
+impl AudioImportExecutor {
+    /// Creates the built-in import executor.
+    /// # Errors
+    /// Returns an invalid identity error if the built-in constants drift.
+    pub fn new() -> Result<Self, ExecutionError> {
+        Ok(Self {
+            identity: ExecutorIdentity::new(
+                "shape.builtin.audio-import",
+                env!("CARGO_PKG_VERSION"),
+                "20260925.1",
+            )?,
+        })
+    }
+}
+
+impl Executor for AudioImportExecutor {
+    fn identity(&self) -> &ExecutorIdentity {
+        &self.identity
+    }
+
+    fn supports(&self, capability: &CapabilityId) -> bool {
+        capability.as_str() == AUDIO_IMPORT_CAPABILITY
+    }
+
+    fn execute(&self, request: &ExecutionRequest) -> Result<ExecutionOutput, ExecutionFailure> {
+        if !request.inputs.is_empty() || request.output_media_type != "audio/wav" {
+            return Err(ExecutionFailure::new(
+                "invalid_audio_import",
+                "Audio import requires one exact WAV payload and no accepted inputs",
+                false,
+            ));
+        }
+        let contract = parse_pcm_s16le_wav(
+            &request.instruction,
+            AudioOriginDisclosure::ImportedUnverified,
+        )?;
+        Ok(ExecutionOutput {
+            bytes: request.instruction.clone(),
+            media_type: "audio/wav".to_owned(),
+            executor_job_id: None,
+            external_provenance: None,
+            content_contract: Some(ArtifactContentContract::AudioClip(contract)),
+        })
+    }
+}
 
 pub(crate) const MAX_AUDIO_OUTPUT_BYTES: usize = 128 * 1024 * 1024;
 

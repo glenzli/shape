@@ -51,6 +51,10 @@ pub enum CoreError {
         "raster source must be a non-empty regular PNG or JPEG no larger than {maximum_bytes} bytes"
     )]
     InvalidRasterSource { maximum_bytes: u64 },
+    #[error(
+        "import source must be a regular, non-empty supported file no larger than {maximum_bytes} bytes"
+    )]
+    InvalidImportSource { maximum_bytes: u64 },
     #[error("artifact {artifact_id} does not carry a valid image.raster content contract")]
     InvalidRasterContent { artifact_id: ArtifactId },
     #[error("crop matches the full accepted raster and would create no change")]

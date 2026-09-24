@@ -336,6 +336,7 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::MissingAudioOutputContract
         | CoreError::AudioOutputContractMismatch
         | CoreError::InvalidRasterSource { .. }
+        | CoreError::InvalidImportSource { .. }
         | CoreError::InvalidRasterContent { .. }
         | CoreError::NoOpRasterCrop
         | CoreError::NoOpRasterResize

@@ -155,6 +155,7 @@ Item {
     function originLabel(key) : string {
         if (key === "synthetic_speech") return qsTr("Synthetic speech · disclosed")
         if (key === "recorded_source") return qsTr("Recorded source")
+        if (key === "imported_unverified") return qsTr("Imported audio · origin unverified")
         if (key === "synthetic_sound") return qsTr("Synthetic sound · disclosed")
         if (key === "transformed_audio") return qsTr("Transformed audio")
         return qsTr("Audio origin unavailable")

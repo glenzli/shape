@@ -1,6 +1,7 @@
 //! Project bundle facade and routing to media-specific creative use cases.
 
 mod audio;
+mod file_import;
 mod image;
 mod scene;
 mod text;

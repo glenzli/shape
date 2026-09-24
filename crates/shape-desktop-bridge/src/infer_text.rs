@@ -168,6 +168,7 @@ fn core_error_code(error: CoreError) -> String {
         }
         CoreError::BranchRequiresAcceptedSource { .. } => "project_unavailable".to_owned(),
         CoreError::InvalidRasterSource { .. }
+        | CoreError::InvalidImportSource { .. }
         | CoreError::InvalidRasterContent { .. }
         | CoreError::NoOpRasterCrop
         | CoreError::NoOpRasterResize

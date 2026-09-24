@@ -36,7 +36,11 @@ class AudioPreviewController : public QObject {
     [[nodiscard]] QString identity() const;
     [[nodiscard]] QString errorCode() const;
 
-    Q_INVOKABLE bool loadPreview(const QString& artifactId, const QString& candidateId = QString());
+    Q_INVOKABLE bool loadPreview(
+        const QString& artifactId,
+        const QString& candidateId = QString(),
+        const QString& revisionId = QString()
+    );
     Q_INVOKABLE void togglePlayback();
     Q_INVOKABLE void seekTo(qint64 positionMillis);
     Q_INVOKABLE void clear();

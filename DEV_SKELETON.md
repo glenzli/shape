@@ -30,6 +30,9 @@
   none owns the Creative Document Model.
 - Existing accepted bytes remain viewable when an executor, model, or external application is
   unavailable.
+- Local material intake keeps file paths out of accepted history. Bounded text/code becomes a
+  text source, PCM WAV becomes an audio source with unverified origin, and source import is the
+  user's explicit initial acceptance. Executable packages need a separate controlled contract.
 
 ## Entry hints
 

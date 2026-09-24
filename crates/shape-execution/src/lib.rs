@@ -18,7 +18,7 @@ mod provenance;
 mod raster;
 pub mod speech_script;
 
-pub use audio::parse_pcm_s16le_wav;
+pub use audio::{AUDIO_IMPORT_CAPABILITY, AudioImportExecutor, parse_pcm_s16le_wav};
 pub use coordinator::{ExecutedCandidate, ExecutionCoordinator};
 pub use error::{ExecutionError, ExecutionFailure};
 pub use executor::{

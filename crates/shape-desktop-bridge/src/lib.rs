@@ -494,6 +494,17 @@ mod ffi {
             source_path: &str,
             artifact_name: &str,
         ) -> Result<ProjectSnapshotWire>;
+        fn session_import_text_file(
+            self: &mut DesktopSession,
+            source_path: &str,
+            artifact_name: &str,
+        ) -> Result<ProjectSnapshotWire>;
+        fn session_import_audio_wav(
+            self: &mut DesktopSession,
+            source_path: &str,
+            artifact_name: &str,
+        ) -> Result<ProjectSnapshotWire>;
+        fn session_source_text(self: &DesktopSession, revision_id: &str) -> Result<String>;
         fn session_propose_text(
             self: &mut DesktopSession,
             artifact_id: &str,
@@ -563,6 +574,10 @@ mod ffi {
             self: &DesktopSession,
             artifact_id: &str,
             candidate_id: &str,
+        ) -> Result<AudioPreviewWire>;
+        fn session_audio_revision_preview(
+            self: &DesktopSession,
+            revision_id: &str,
         ) -> Result<AudioPreviewWire>;
         /// Adopts one completed background result only if its target head is
         /// still current and it is not already on the Candidate Shelf.
@@ -897,6 +912,7 @@ const fn transformation_kind_key(kind: TransformationKind) -> &'static str {
 const fn audio_origin_key(origin: AudioOriginDisclosure) -> &'static str {
     match origin {
         AudioOriginDisclosure::RecordedSource => "recorded_source",
+        AudioOriginDisclosure::ImportedUnverified => "imported_unverified",
         AudioOriginDisclosure::SyntheticSpeech => "synthetic_speech",
         AudioOriginDisclosure::SyntheticSound => "synthetic_sound",
         AudioOriginDisclosure::TransformedAudio => "transformed_audio",

@@ -12,7 +12,7 @@ use shape_core::{
 use shape_domain::{
     Artifact, ArtifactContentContract, ArtifactId, ArtifactKind, IntentSpec, RasterCrop,
     RasterDropShadow, RasterGaussianBlur, RasterShadowColor, RasterTransform, RasterUnsharpMask,
-    SpeechVoiceSelection, TransformationOperation,
+    RevisionId, SpeechVoiceSelection, TransformationOperation,
 };
 
 use crate::{audio_origin_key, bounded_text_preview, ffi, project_snapshot};
@@ -471,6 +471,47 @@ impl DesktopSession {
         self.session_snapshot()
     }
 
+    /// Imports a user-selected UTF-8 file as an editable text source.
+    pub fn session_import_text_file(
+        &mut self,
+        source_path: &str,
+        artifact_name: &str,
+    ) -> Result<ffi::ProjectSnapshotWire, String> {
+        self.project
+            .import_text_file(source_path, artifact_name)
+            .map_err(|error| error.to_string())?;
+        self.session_snapshot()
+    }
+
+    /// Imports a user-selected PCM WAV without assigning a synthetic or recorded origin.
+    pub fn session_import_audio_wav(
+        &mut self,
+        source_path: &str,
+        artifact_name: &str,
+    ) -> Result<ffi::ProjectSnapshotWire, String> {
+        self.project
+            .import_audio_wav(source_path, artifact_name)
+            .map_err(|error| error.to_string())?;
+        self.session_snapshot()
+    }
+
+    /// Reads the exact immutable UTF-8 source revision opened by a graph node.
+    pub fn session_source_text(&self, revision_id: &str) -> Result<String, String> {
+        let revision_id = revision_id
+            .parse::<RevisionId>()
+            .map_err(|_| "revision identity is invalid".to_owned())?;
+        let accepted = self
+            .project
+            .read_revision_content(revision_id)
+            .map_err(|error| error.to_string())?;
+        if accepted.revision.content.media_type != "text/plain; charset=utf-8"
+            || accepted.bytes.len() > 1024 * 1024
+        {
+            return Err("source revision is not bounded UTF-8 text".to_owned());
+        }
+        String::from_utf8(accepted.bytes).map_err(|_| "source revision is not UTF-8".to_owned())
+    }
+
     /// Executes a literal user-authored text draft as a transient candidate.
     pub fn session_propose_text(
         &mut self,
@@ -912,6 +953,31 @@ impl DesktopSession {
         let Some(ArtifactContentContract::AudioClip(contract)) = accepted.revision.content_contract
         else {
             return Err("accepted content is not an audio clip".to_owned());
+        };
+        Ok(ffi::AudioPreviewWire {
+            identity: accepted.revision.id.to_string(),
+            duration_millis: contract.duration_millis(),
+            sample_rate_hz: contract.sample_rate_hz,
+            channels: contract.channels,
+            wav_bytes: accepted.bytes,
+        })
+    }
+
+    /// Returns the exact audio revision bound to a historical Source node.
+    pub fn session_audio_revision_preview(
+        &self,
+        revision_id: &str,
+    ) -> Result<ffi::AudioPreviewWire, String> {
+        let revision_id = revision_id
+            .parse::<RevisionId>()
+            .map_err(|_| "revision identity is invalid".to_owned())?;
+        let accepted = self
+            .project
+            .read_revision_content(revision_id)
+            .map_err(|error| error.to_string())?;
+        let Some(ArtifactContentContract::AudioClip(contract)) = accepted.revision.content_contract
+        else {
+            return Err("source revision is not an audio clip".to_owned());
         };
         Ok(ffi::AudioPreviewWire {
             identity: accepted.revision.id.to_string(),

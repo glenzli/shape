@@ -132,6 +132,7 @@ Item {
     signal authoringSpeechRequested(string artifactId)
     signal writingRequested(string artifactId, bool scriptMode)
     signal audioExportRequested(string artifactId, string candidateId)
+    signal materialExportRequested(string artifactId, string kindKey)
     readonly property var openedTextDraft: textDraftForArtifact(operatorWorkspaceHost.openedArtifactId)
     readonly property bool authoringRoute: openedTextDraft !== null && (openedTextDraft.textAuthoringJson || "").length > 0
 
@@ -640,7 +641,14 @@ Item {
                 onNodeSelected: nodeId => surface.selectArtifactForNode(nodeId)
                 onNodeOpened: nodeId => surface.openNode(nodeId)
                 onNodeOutputRequested: nodeId => surface.selectArtifactForNode(nodeId)
-                onFinalFileExportRequested: artifactId => surface.audioExportRequested(artifactId, "")
+                onFinalFileExportRequested: artifactId => {
+                    if (surface.selectedArtifact !== null
+                            && surface.selectedArtifact.kindKey === "audio_clip")
+                        surface.audioExportRequested(artifactId, "")
+                    else if (surface.selectedArtifact !== null)
+                        surface.materialExportRequested(artifactId,
+                                                       surface.selectedArtifact.kindKey)
+                }
                 onDraftRequested: operatorTypeKey => {
                     if (operatorTypeKey === "image.edit") surface.openImageEditor()
                     else surface.operatorDraftRequested(operatorTypeKey)
@@ -655,6 +663,12 @@ Item {
 
             OperatorWorkspaceHost {
                 id: operatorWorkspaceHost
+                backend: surface.backend
+                audioPreview: surface.audioPreview
+                sourceAudioOriginKey: {
+                    const artifact = surface.artifactForId(operatorWorkspaceHost.openedArtifactId)
+                    return artifact !== null ? artifact.audioOriginKey : ""
+                }
                 compactNavigation: surface.guidedAuthoringActive
                 selectedCandidateId: surface.selectedCandidateId
                 operatorWorkspaces: ({

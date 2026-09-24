@@ -54,7 +54,9 @@ Rectangle {
     readonly property real maximumZoom: 1.5
     readonly property bool currentResultPreviewAvailable: (artifactKindKey === "image_raster" && acceptedImageSource.toString().length > 0) || artifactKindKey === "text_document" || artifactKindKey === "audio_clip"
     // A file is a rendered snapshot of an accepted result, not another Scene node.
-    readonly property string finalFileFormat: artifactKindKey === "audio_clip" ? "WAV" : ""
+    readonly property string finalFileFormat: artifactKindKey === "audio_clip" ? "WAV"
+                                              : artifactKindKey === "image_raster" ? "PNG"
+                                              : artifactKindKey === "text_document" ? "TXT" : ""
     readonly property var inspectedNode: nodeForId(selectedNodeId)
     readonly property var inspectedDraft: draftForId(selectedNodeId)
     readonly property var inspectedCandidate: candidateForId(selectedCandidateId)
@@ -836,7 +838,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 3
                     Text {
-                        text: qsTr("Final file · %1 audio").arg(graph.finalFileFormat)
+                        text: qsTr("Final file · %1").arg(graph.finalFileFormat)
                         color: Theme.text
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
@@ -844,8 +846,8 @@ Rectangle {
                     Text {
                         Layout.fillWidth: true
                         text: graph.hasAcceptedRevision
-                              ? qsTr("Save the accepted audio as a file outside this project.")
-                              : qsTr("Accept an audio version before exporting a final file.")
+                              ? qsTr("Save the accepted result as a file outside this project.")
+                              : qsTr("Accept a version before exporting a final file.")
                         color: Theme.muted
                         font.pixelSize: Theme.fontMeta
                         elide: Text.ElideRight
@@ -853,7 +855,7 @@ Rectangle {
                 }
                 ShapeButton {
                     objectName: "finalFileExportButton"
-                    text: qsTr("Export WAV…")
+                    text: qsTr("Export %1…").arg(graph.finalFileFormat)
                     enabled: graph.hasAcceptedRevision && graph.selectedArtifactId.length > 0
                     onClicked: graph.finalFileExportRequested(graph.selectedArtifactId)
                 }

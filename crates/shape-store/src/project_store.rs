@@ -18,7 +18,7 @@ use shape_domain::{
     Artifact, ArtifactContentContract, ArtifactId, ArtifactKind, ArtifactRevision, ContentRef,
     NamedSceneOutput, OperatorGraph, OperatorNodeBinding, ProjectMetadata, RevisionId,
     SHAPE_PROJECT_SCHEMA_REVISION, Scene, SceneId, SceneRevision, SceneRevisionId, Transformation,
-    TransformationId,
+    TransformationId, TransformationKind,
 };
 use shape_execution::{AttemptId, ExecutionOutcome, ExecutionReceipt};
 use uuid::Uuid;
@@ -981,7 +981,11 @@ fn validate_new_artifact_commit(commit: &NewArtifactCommit) -> Result<(), StoreE
         ));
     }
     if commit.artifact.kind == ArtifactKind::AudioClip {
-        audio::validate_speech_synthesis_commit(commit)?;
+        if commit.transformation.kind == TransformationKind::Import {
+            audio::validate_audio_import_commit(commit)?;
+        } else {
+            audio::validate_speech_synthesis_commit(commit)?;
+        }
     }
     Ok(())
 }

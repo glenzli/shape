@@ -156,6 +156,7 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::InvalidTextArtifact { .. }
         | CoreError::InvalidTextTransformInstruction
         | CoreError::InvalidRasterSource { .. }
+        | CoreError::InvalidImportSource { .. }
         | CoreError::InvalidRasterContent { .. }
         | CoreError::NoOpRasterCrop
         | CoreError::NoOpRasterResize

@@ -42,6 +42,8 @@ pub enum AudioSampleFormat {
 #[serde(rename_all = "snake_case")]
 pub enum AudioOriginDisclosure {
     RecordedSource,
+    /// Imported audio whose creation process has not been verified by Shape.
+    ImportedUnverified,
     SyntheticSpeech,
     SyntheticSound,
     TransformedAudio,

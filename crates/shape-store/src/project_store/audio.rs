@@ -4,10 +4,35 @@ use shape_domain::{
     ArtifactContentContract, AudioOriginDisclosure, SpeechVoiceSelection, TransformationKind,
     TransformationOperation,
 };
+use shape_execution::AUDIO_IMPORT_CAPABILITY;
 use shape_execution::parse_pcm_s16le_wav;
 
 use super::NewArtifactCommit;
 use crate::StoreError;
+
+pub(super) fn validate_audio_import_commit(commit: &NewArtifactCommit) -> Result<(), StoreError> {
+    let Some(ArtifactContentContract::AudioClip(contract)) = commit.content_contract.as_ref()
+    else {
+        return Err(StoreError::InvalidCommit(
+            "audio import requires an audio clip contract",
+        ));
+    };
+    if commit.transformation.operation.is_some()
+        || !commit.transformation.inputs.is_empty()
+        || !commit.expected_input_heads.is_empty()
+        || contract.origin != AudioOriginDisclosure::ImportedUnverified
+        || commit.output_media_type != "audio/wav"
+        || commit.receipt.capability.as_str() != AUDIO_IMPORT_CAPABILITY
+        || commit.receipt.executor.id != "shape.builtin.audio-import"
+        || commit.receipt.executor_job_id.is_some()
+        || commit.receipt.external_provenance.is_some()
+    {
+        return Err(StoreError::InvalidCommit(
+            "audio import must preserve an unverified external origin",
+        ));
+    }
+    Ok(())
+}
 
 pub(super) fn validate_speech_synthesis_commit(
     commit: &NewArtifactCommit,

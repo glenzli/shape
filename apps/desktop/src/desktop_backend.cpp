@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QFutureWatcher>
 #include <QImage>
 #include <QVariantMap>
@@ -776,6 +777,16 @@ DesktopBackend::textAuthoringContent(const QString& artifactId, const QString& c
     }
 }
 
+QString DesktopBackend::sourceRevisionText(const QString& revisionId) {
+    if (!session_ || revisionId.isEmpty()) return {};
+    try {
+        return from_rust(session_->session->session_source_text(to_utf8(revisionId)));
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not read the complete text."));
+        return {};
+    }
+}
+
 QString DesktopBackend::textAuthoringPreview(const QString& profile, const QString& text) {
     if (!session_)
         return {};
@@ -1172,6 +1183,96 @@ bool DesktopBackend::importRaster(const QUrl& sourceUrl) {
         );
         return false;
     }
+}
+
+bool DesktopBackend::importMaterial(const QUrl& sourceUrl) {
+    if (session_ == nullptr || !sourceUrl.isLocalFile()) {
+        setLastError(tr("Choose a local image, UTF-8 text, or PCM WAV file."));
+        return false;
+    }
+    const QString sourcePath = sourceUrl.toLocalFile();
+    const QFileInfo file(sourcePath);
+    const QString suffix = file.suffix().toLower();
+    const QString artifactName = file.completeBaseName().trimmed();
+    if (artifactName.isEmpty()) {
+        setLastError(tr("The material needs a usable file name."));
+        return false;
+    }
+    if (suffix == QStringLiteral("png") || suffix == QStringLiteral("jpg")
+        || suffix == QStringLiteral("jpeg")) {
+        return importRaster(sourceUrl);
+    }
+    try {
+        if (suffix == QStringLiteral("wav")) {
+            applySnapshot(session_->session->session_import_audio_wav(
+                to_utf8(sourcePath), to_utf8(artifactName)
+            ));
+        } else if (suffix == QStringLiteral("txt") || suffix == QStringLiteral("md")
+                   || suffix == QStringLiteral("js") || suffix == QStringLiteral("mjs")
+                   || suffix == QStringLiteral("html") || suffix == QStringLiteral("css")
+                   || suffix == QStringLiteral("json") || suffix == QStringLiteral("svg")) {
+            applySnapshot(session_->session->session_import_text_file(
+                to_utf8(sourcePath), to_utf8(artifactName)
+            ));
+        } else {
+            setLastError(tr("Choose a PNG, JPEG, UTF-8 text/code, or PCM WAV file."));
+            return false;
+        }
+        applyCandidates(session_->session->session_candidates());
+        setLastError(QString());
+        emit projectChanged();
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not import material:" << error.what();
+        setLastError(tr("Could not import this file. Check its encoding, format, and size."));
+        return false;
+    }
+}
+
+bool DesktopBackend::exportAcceptedMaterial(const QString& artifactId, const QUrl& targetUrl) {
+    if (session_ == nullptr || !targetUrl.isLocalFile() || artifactId.isEmpty()) {
+        setLastError(tr("Choose a local file for the accepted result."));
+        return false;
+    }
+    const auto item = std::find_if(artifacts_.cbegin(), artifacts_.cend(), [&](const QVariant& entry) {
+        return entry.toMap().value(QStringLiteral("id")).toString() == artifactId;
+    });
+    if (item == artifacts_.cend() || !item->toMap().value(QStringLiteral("hasAcceptedRevision")).toBool()) {
+        setLastError(tr("Accept a result before exporting it."));
+        return false;
+    }
+    const QString kind = item->toMap().value(QStringLiteral("kindKey")).toString();
+    const QString path = targetUrl.toLocalFile();
+    QByteArray bytes;
+    try {
+        if (kind == QStringLiteral("text_document") && path.endsWith(QStringLiteral(".txt"), Qt::CaseInsensitive)) {
+            bytes = from_rust(session_->session->session_text_authoring_content(
+                to_utf8(artifactId), to_utf8(QString())
+            )).toUtf8();
+        } else if (kind == QStringLiteral("image_raster") && path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+            const auto image = session_->session->session_image_preview(
+                to_utf8(artifactId), to_utf8(QString())
+            );
+            bytes = QByteArray(reinterpret_cast<const char*>(image.png_bytes.data()),
+                               static_cast<qsizetype>(image.png_bytes.size()));
+        } else {
+            setLastError(tr("Export this result as a TXT or PNG file."));
+            return false;
+        }
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not read accepted material for export:" << error.what();
+        setLastError(tr("Could not read the accepted result."));
+        return false;
+    }
+    QSaveFile file(path);
+    if (bytes.isEmpty() || !file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()
+        || !file.commit()) {
+        setLastError(tr("Could not save the final file."));
+        return false;
+    }
+    setLastError(QString());
+    return true;
 }
 
 bool DesktopBackend::proposeRasterCrop(
@@ -1613,14 +1714,19 @@ QStringList DesktopBackend::adoptInferImageBatch(rust::Box<shape::desktop::Infer
 }
 
 std::optional<AudioPreviewData>
-DesktopBackend::audioPreview(const QString& artifactId, const QString& candidateId) {
-    if (session_ == nullptr || artifactId.isEmpty()) {
+DesktopBackend::audioPreview(
+    const QString& artifactId,
+    const QString& candidateId,
+    const QString& revisionId
+) {
+    if (session_ == nullptr || (artifactId.isEmpty() && revisionId.isEmpty())) {
         setLastError(tr("Open a project before previewing audio."));
         return std::nullopt;
     }
     try {
-        auto preview =
-            session_->session->session_audio_preview(to_utf8(artifactId), to_utf8(candidateId));
+        auto preview = revisionId.isEmpty()
+            ? session_->session->session_audio_preview(to_utf8(artifactId), to_utf8(candidateId))
+            : session_->session->session_audio_revision_preview(to_utf8(revisionId));
         AudioPreviewData projected;
         projected.identity = from_rust(preview.identity);
         projected.wav_bytes = QByteArray(

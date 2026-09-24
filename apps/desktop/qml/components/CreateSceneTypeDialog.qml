@@ -9,7 +9,7 @@ ShapeDialog {
     objectName: "createSceneTypeDialog"
     signal textAuthoringRequested(string preset)
     signal aiImageSceneRequested()
-    signal importImageRequested()
+    signal importMaterialRequested()
     function openForCreation() : void { open() }
     function start(preset) : void { close(); textAuthoringRequested(preset) }
     parent: Overlay.overlay
@@ -70,12 +70,19 @@ ShapeDialog {
                 }
             }
         }
-        Label { text: qsTr("Image"); color: Theme.muted; font.pixelSize: 12 }
+        Label { text: qsTr("Image and external material"); color: Theme.muted; font.pixelSize: 12 }
         RowLayout {
             Layout.fillWidth: true
             ShapeButton { objectName: "createAiImageSceneTypeButton"; text: qsTr("Generate an image with AI"); onClicked: { dialog.close(); dialog.aiImageSceneRequested() } }
-            ShapeButton { objectName: "importImageStartButton"; text: qsTr("Import an image"); onClicked: { dialog.close(); dialog.importImageRequested() } }
+            ShapeButton { objectName: "importMaterialStartButton"; text: qsTr("Import material…"); onClicked: { dialog.close(); dialog.importMaterialRequested() } }
             Item { Layout.fillWidth: true }
+        }
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("Code files are kept as text; Shape does not run them.")
+            color: Theme.muted
+            font.pixelSize: 11
+            wrapMode: Text.WordWrap
         }
     }
 }

@@ -21,6 +21,7 @@
 
 #include <QColor>
 #include <QDir>
+#include <QFile>
 #include <QGuiApplication>
 #include <QImage>
 #include <QQmlApplicationEngine>
@@ -121,6 +122,12 @@ bool run_smoke_raster_cycle(
     const QString artifact_id = imported_artifact.value(QStringLiteral("id")).toString();
     const QString imported_head =
         imported_artifact.value(QStringLiteral("acceptedRevisionId")).toString();
+    const QString exported_png = fixture_directory.filePath(QStringLiteral("accepted.png"));
+    if (!backend.exportAcceptedMaterial(artifact_id, QUrl::fromLocalFile(exported_png))
+        || QImage(exported_png).size() != QSize(8, 6)) {
+        std::cerr << "desktop raster smoke could not export accepted PNG" << std::endl;
+        return false;
+    }
     const int artifact_index =
         static_cast<int>(std::distance(imported_artifacts.cbegin(), imported));
     root_object.setProperty("selectedArtifactIndex", artifact_index);
@@ -755,7 +762,7 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         || root_object.findChild<QObject*>(QStringLiteral("createTextSceneTypeButton")) == nullptr
         || root_object.findChild<QObject*>(QStringLiteral("createAiImageSceneTypeButton"))
                == nullptr
-        || root_object.findChild<QObject*>(QStringLiteral("importImageStartButton")) == nullptr) {
+        || root_object.findChild<QObject*>(QStringLiteral("importMaterialStartButton")) == nullptr) {
         std::cerr << "desktop authoring smoke found an incomplete creative start chooser"
                   << std::endl;
         return false;
@@ -907,8 +914,60 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
                   << std::endl;
         return false;
     }
-    return workspace_host_smoke::verifyProjectedDraftRemoval(root_object, backend)
-           && workspace_host_smoke::verifyManualSourceAcrossSpeechSelection(root_object, backend);
+    if (!workspace_host_smoke::verifyProjectedDraftRemoval(root_object, backend)
+        || !workspace_host_smoke::verifyManualSourceAcrossSpeechSelection(root_object, backend)) {
+        return false;
+    }
+    QTemporaryDir material_directory;
+    if (!material_directory.isValid()) return false;
+    const QString code_path = material_directory.filePath(QStringLiteral("animation.js"));
+    const QString wav_path = material_directory.filePath(QStringLiteral("voice.wav"));
+    const QByteArray code("export const frame = time => time * 2;\n");
+    const QByteArray wav = QByteArray::fromHex(
+        "524946462800000057415645666d74201000000001000100c05d000080bb0000"
+        "02001000646174610400000000000000"
+    );
+    QFile code_file(code_path);
+    QFile wav_file(wav_path);
+    if (!code_file.open(QIODevice::WriteOnly) || code_file.write(code) != code.size()
+        || !wav_file.open(QIODevice::WriteOnly) || wav_file.write(wav) != wav.size()) {
+        return false;
+    }
+    code_file.close();
+    wav_file.close();
+    const int prior_count = backend.artifactCount();
+    if (!backend.importMaterial(QUrl::fromLocalFile(code_path))
+        || backend.artifactCount() != prior_count + 1
+        || backend.artifacts().last().toMap().value(QStringLiteral("kindKey")).toString()
+               != QStringLiteral("text_document")
+        || !backend.importMaterial(QUrl::fromLocalFile(wav_path))
+        || backend.artifactCount() != prior_count + 2) {
+        std::cerr << "desktop authoring smoke could not import external material" << std::endl;
+        return false;
+    }
+    const QString text_id = backend.artifacts()[prior_count].toMap().value(QStringLiteral("id")).toString();
+    const QString exported_text = material_directory.filePath(QStringLiteral("accepted.txt"));
+    QFile exported_text_file(exported_text);
+    if (!backend.exportAcceptedMaterial(text_id, QUrl::fromLocalFile(exported_text))
+        || !exported_text_file.open(QIODevice::ReadOnly)
+        || exported_text_file.readAll() != code) {
+        std::cerr << "desktop authoring smoke could not export accepted UTF-8 text" << std::endl;
+        return false;
+    }
+    const QVariantMap audio = backend.artifacts().last().toMap();
+    const QString audio_id = audio.value(QStringLiteral("id")).toString();
+    const auto preview = backend.audioPreview(audio_id);
+    if (audio.value(QStringLiteral("kindKey")).toString() != QStringLiteral("audio_clip")
+        || audio.value(QStringLiteral("audioOriginKey")).toString()
+               != QStringLiteral("imported_unverified")
+        || !preview.has_value() || preview->wav_bytes != wav
+        || !backend.openProject(QUrl::fromLocalFile(bundle_path))
+        || !backend.audioPreview(audio_id).has_value()) {
+        std::cerr << "desktop authoring smoke lost imported WAV provenance or playback"
+                  << std::endl;
+        return false;
+    }
+    return true;
 }
 
 } // namespace
