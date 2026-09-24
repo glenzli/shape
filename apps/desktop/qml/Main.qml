@@ -80,6 +80,15 @@ ApplicationWindow {
         })
     }
 
+    function pasteMaterialIntoProject() : void {
+        if (!backend.pasteMaterial()) return
+        selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
+        selectedCandidateId = ""
+        compareMode = false
+        workspaceSurface.showGraph()
+        Qt.callLater(window.refreshSelectedImage)
+    }
+
     function openAuthoringSpeech(artifactId) : void {
         openDraftTarget(backend.beginAuthoringSpeech(artifactId))
     }
@@ -297,6 +306,7 @@ ApplicationWindow {
         onTextAuthoringRequested: profile => window.startTextAuthoring(profile)
         onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
         onImportMaterialRequested: materialImportDialog.open()
+        onPasteMaterialRequested: window.pasteMaterialIntoProject()
     }
 
     CreateTextSceneDialog {

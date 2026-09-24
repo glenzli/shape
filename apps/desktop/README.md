@@ -24,6 +24,11 @@ never executed. Audio imported from outside Shape carries an unverified-origin d
 than claiming it was recorded or synthesized by Shape. The source path is not needed to reopen the
 accepted material. Video, runnable JS bundles, arbitrary audio codecs, and an agent workspace
 handoff are not implemented by this intake path.
+The material chooser can also paste clipboard text or an image directly into the open project.
+Text keeps its exact UTF-8 content within 1 MiB. PNG/JPEG clipboard payloads enter the bounded
+raster import path; a decoded clipboard image is encoded as PNG before that import. Both become
+accepted Source revisions without a temporary file or recorded source path. Shape currently keeps
+the canonical image revision rather than a separate original clipboard payload.
 Imported text/code retains the original file suffix in its work name; the source viewer presents
 code as plain, monospaced text. Accepted text can be exported byte-for-byte as a supported UTF-8
 text/code extension, including `.js`, without making it executable inside Shape.

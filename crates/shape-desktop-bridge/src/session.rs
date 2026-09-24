@@ -471,6 +471,18 @@ impl DesktopSession {
         self.session_snapshot()
     }
 
+    /// Imports clipboard image bytes as an accepted Source without a file path.
+    pub fn session_import_raster_bytes(
+        &mut self,
+        source_bytes: &[u8],
+        artifact_name: &str,
+    ) -> Result<ffi::ProjectSnapshotWire, String> {
+        self.project
+            .import_raster_bytes(source_bytes.to_vec(), artifact_name)
+            .map_err(|error| error.to_string())?;
+        self.session_snapshot()
+    }
+
     /// Imports a user-selected UTF-8 file as an editable text source.
     pub fn session_import_text_file(
         &mut self,

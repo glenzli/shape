@@ -20,6 +20,39 @@ fn fixture(path: &Path) {
 }
 
 #[test]
+fn clipboard_bytes_create_a_reopenable_image_without_a_source_file() {
+    let root = test_root();
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&[25, 60, 90, 255], 1, 1, ColorType::Rgba8.into())
+        .unwrap();
+    let mut project = ShapeProject::create(&root, "Clipboard Raster").unwrap();
+    let revision = project.import_raster_bytes(png, "Pasted image").unwrap();
+    drop(project);
+
+    let reopened = ShapeProject::open(&root).unwrap();
+    let accepted = reopened
+        .read_accepted(revision.artifact_id)
+        .unwrap()
+        .unwrap();
+    assert!(accepted.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+    assert_eq!(reopened.snapshot().unwrap().artifacts.len(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn empty_clipboard_image_does_not_create_an_artifact() {
+    let root = test_root();
+    let mut project = ShapeProject::create(&root, "Clipboard Raster").unwrap();
+    assert!(matches!(
+        project.import_raster_bytes(Vec::new(), "Pasted image"),
+        Err(CoreError::InvalidRasterSource { .. })
+    ));
+    assert!(project.snapshot().unwrap().artifacts.is_empty());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn import_materializes_an_accepted_canonical_raster_origin() {
     let root = test_root();
     let source = root.with_extension("png");

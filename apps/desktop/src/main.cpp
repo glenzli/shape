@@ -20,6 +20,7 @@
 #include "rust/cxx.h"
 
 #include <QColor>
+#include <QClipboard>
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
@@ -1000,6 +1001,44 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         || !backend.audioPreview(audio_id).has_value()) {
         std::cerr << "desktop authoring smoke lost imported WAV provenance or playback"
                   << std::endl;
+        return false;
+    }
+    QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words\n"));
+    const int pasted_text_index = backend.artifactCount();
+    if (!backend.pasteMaterial() || backend.artifactCount() != pasted_text_index + 1) {
+        std::cerr << "desktop authoring smoke could not paste text" << std::endl;
+        return false;
+    }
+    const QVariantMap pasted_text = backend.artifacts()[pasted_text_index].toMap();
+    if (pasted_text.value(QStringLiteral("kindKey")).toString()
+            != QStringLiteral("text_document")
+        || backend.sourceRevisionText(
+               pasted_text.value(QStringLiteral("acceptedRevisionId")).toString()
+           ) != QStringLiteral("Pasted words\n")) {
+        std::cerr << "desktop authoring smoke changed pasted text" << std::endl;
+        return false;
+    }
+    QImage clipboard_image(2, 3, QImage::Format_RGBA8888);
+    clipboard_image.fill(QColor(13, 29, 47, 255));
+    QGuiApplication::clipboard()->setImage(clipboard_image);
+    const int pasted_image_index = backend.artifactCount();
+    if (!backend.pasteMaterial() || backend.artifactCount() != pasted_image_index + 1) {
+        std::cerr << "desktop authoring smoke could not paste an image" << std::endl;
+        return false;
+    }
+    const QVariantMap pasted_image = backend.artifacts()[pasted_image_index].toMap();
+    const QString pasted_image_id = pasted_image.value(QStringLiteral("id")).toString();
+    const QString pasted_image_export = material_directory.filePath(QStringLiteral("pasted.png"));
+    QFile pasted_image_file(pasted_image_export);
+    if (pasted_image.value(QStringLiteral("kindKey")).toString()
+            != QStringLiteral("image_raster")
+        || pasted_image.value(QStringLiteral("imageWidth")).toInt() != 2
+        || pasted_image.value(QStringLiteral("imageHeight")).toInt() != 3
+        || !backend.openProject(QUrl::fromLocalFile(bundle_path))
+        || !backend.exportAcceptedMaterial(pasted_image_id, QUrl::fromLocalFile(pasted_image_export))
+        || !pasted_image_file.open(QIODevice::ReadOnly)
+        || !pasted_image_file.readAll().startsWith(QByteArray::fromHex("89504e470d0a1a0a"))) {
+        std::cerr << "desktop authoring smoke lost the pasted image after reopening" << std::endl;
         return false;
     }
     return true;

@@ -148,6 +148,7 @@ class DesktopBackend : public QObject {
     proposeTextCandidate(const QString& artifactId, const QString& replacementText);
     Q_INVOKABLE bool importRaster(const QUrl& sourceUrl);
     Q_INVOKABLE bool importMaterial(const QUrl& sourceUrl);
+    Q_INVOKABLE bool pasteMaterial();
     Q_INVOKABLE bool exportAcceptedMaterial(const QString& artifactId, const QUrl& targetUrl);
     Q_INVOKABLE bool
     proposeRasterCrop(const QString& artifactId, int x, int y, int width, int height);

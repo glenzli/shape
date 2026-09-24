@@ -2,6 +2,8 @@
 #include "image_preview_provider.hpp"
 
 #include <QByteArray>
+#include <QBuffer>
+#include <QClipboard>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -9,6 +11,8 @@
 #include <QSaveFile>
 #include <QFutureWatcher>
 #include <QImage>
+#include <QGuiApplication>
+#include <QMimeData>
 #include <QVariantMap>
 #include <QtConcurrent/QtConcurrentRun>
 
@@ -1231,6 +1235,77 @@ bool DesktopBackend::importMaterial(const QUrl& sourceUrl) {
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not import material:" << error.what();
         setLastError(tr("Could not import this file. Check its encoding, format, and size."));
+        return false;
+    }
+}
+
+bool DesktopBackend::pasteMaterial() {
+    if (session_ == nullptr) {
+        setLastError(tr("Open a Shape project before pasting material."));
+        return false;
+    }
+    const QMimeData* const material = QGuiApplication::clipboard()->mimeData();
+    if (material == nullptr) {
+        setLastError(tr("Copy text or an image, then try again."));
+        return false;
+    }
+    try {
+        if (material->hasImage() || material->hasFormat(QStringLiteral("image/png"))
+            || material->hasFormat(QStringLiteral("image/jpeg"))) {
+            constexpr qint64 kMaximumPixels = 64LL * 1024 * 1024;
+            constexpr qsizetype kMaximumEncodedBytes = 128 * 1024 * 1024;
+            QByteArray sourceBytes;
+            if (material->hasFormat(QStringLiteral("image/png"))) {
+                sourceBytes = material->data(QStringLiteral("image/png"));
+            } else if (material->hasFormat(QStringLiteral("image/jpeg"))) {
+                sourceBytes = material->data(QStringLiteral("image/jpeg"));
+            } else {
+                const QImage image = qvariant_cast<QImage>(material->imageData());
+                if (image.isNull() || image.width() > 32768 || image.height() > 32768
+                    || static_cast<qint64>(image.width()) * image.height() > kMaximumPixels) {
+                    setLastError(tr("The clipboard image is invalid or too large."));
+                    return false;
+                }
+                QBuffer buffer(&sourceBytes);
+                if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "PNG")) {
+                    setLastError(tr("Could not encode the clipboard image within the size limit."));
+                    return false;
+                }
+            }
+            if (sourceBytes.isEmpty() || sourceBytes.size() > kMaximumEncodedBytes) {
+                setLastError(tr("The clipboard image is invalid or too large."));
+                return false;
+            }
+            applySnapshot(session_->session->session_import_raster_bytes(
+                rust::Slice<const std::uint8_t>(
+                    reinterpret_cast<const std::uint8_t*>(sourceBytes.constData()),
+                    static_cast<std::size_t>(sourceBytes.size())
+                ),
+                to_utf8(tr("Pasted image"))
+            ));
+        } else if (material->hasText()) {
+            const QString source = material->text();
+            const QByteArray utf8 = source.toUtf8();
+            if (source.trimmed().isEmpty() || utf8.size() > 1024 * 1024) {
+                setLastError(tr("Paste non-empty UTF-8 text up to 1 MiB."));
+                return false;
+            }
+            applySnapshot(session_->session->session_create_text_document(
+                to_utf8(tr("Pasted text")),
+                std::string(utf8.constData(), static_cast<std::size_t>(utf8.size()))
+            ));
+        } else {
+            setLastError(tr("Copy text or an image, then try again."));
+            return false;
+        }
+        applyCandidates(session_->session->session_candidates());
+        setLastError(QString());
+        emit projectChanged();
+        emit candidateChanged();
+        return true;
+    } catch (const rust::Error& error) {
+        qWarning().noquote() << "could not paste material:" << error.what();
+        setLastError(tr("Could not paste this material into Shape."));
         return false;
     }
 }

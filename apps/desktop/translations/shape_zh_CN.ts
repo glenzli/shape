@@ -1208,6 +1208,7 @@
         <source>Import material…</source>
         <translation>导入素材…</translation>
     </message>
+    <message><source>Paste material</source><translation>粘贴素材</translation></message>
     <message><source>Code files are kept as text; Shape does not run them.</source><translation>代码文件以文本保存；Shape 不会运行它们。</translation></message>
 </context>
 <context>
@@ -1500,6 +1501,14 @@
 </context>
 <context>
     <name>DesktopBackend</name>
+    <message><source>Open a Shape project before pasting material.</source><translation>请先打开 Shape 项目，再粘贴素材。</translation></message>
+    <message><source>Copy text or an image, then try again.</source><translation>请先复制文字或图片，再重试。</translation></message>
+    <message><source>The clipboard image is invalid or too large.</source><translation>剪贴板图片无效或过大。</translation></message>
+    <message><source>Could not encode the clipboard image within the size limit.</source><translation>无法在大小限制内编码剪贴板图片。</translation></message>
+    <message><source>Pasted image</source><translation>粘贴的图片</translation></message>
+    <message><source>Paste non-empty UTF-8 text up to 1 MiB.</source><translation>请粘贴不超过 1 MiB 的非空 UTF-8 文字。</translation></message>
+    <message><source>Pasted text</source><translation>粘贴的文字</translation></message>
+    <message><source>Could not paste this material into Shape.</source><translation>无法将该素材粘贴到 Shape。</translation></message>
     <message><source>Choose a local file for the accepted result.</source><translation>请选择本地文件来保存已采用的结果。</translation></message>
     <message><source>Accept a result before exporting it.</source><translation>先采用一个结果，再导出文件。</translation></message>
     <message><source>Export text or code as a supported UTF-8 file, or an image as PNG.</source><translation>请将文本或代码导出为支持的 UTF-8 文件，图像导出为 PNG。</translation></message>

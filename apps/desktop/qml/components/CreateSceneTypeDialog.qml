@@ -10,6 +10,7 @@ ShapeDialog {
     signal textAuthoringRequested(string preset)
     signal aiImageSceneRequested()
     signal importMaterialRequested()
+    signal pasteMaterialRequested()
     function openForCreation() : void { open() }
     function start(preset) : void { close(); textAuthoringRequested(preset) }
     parent: Overlay.overlay
@@ -75,6 +76,7 @@ ShapeDialog {
             Layout.fillWidth: true
             ShapeButton { objectName: "createAiImageSceneTypeButton"; text: qsTr("Generate an image with AI"); onClicked: { dialog.close(); dialog.aiImageSceneRequested() } }
             ShapeButton { objectName: "importMaterialStartButton"; text: qsTr("Import material…"); onClicked: { dialog.close(); dialog.importMaterialRequested() } }
+            ShapeButton { objectName: "pasteMaterialStartButton"; text: qsTr("Paste material"); onClicked: { dialog.close(); dialog.pasteMaterialRequested() } }
             Item { Layout.fillWidth: true }
         }
         Label {

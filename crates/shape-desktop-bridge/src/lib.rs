@@ -494,6 +494,11 @@ mod ffi {
             source_path: &str,
             artifact_name: &str,
         ) -> Result<ProjectSnapshotWire>;
+        fn session_import_raster_bytes(
+            self: &mut DesktopSession,
+            source_bytes: &[u8],
+            artifact_name: &str,
+        ) -> Result<ProjectSnapshotWire>;
         fn session_import_text_file(
             self: &mut DesktopSession,
             source_path: &str,

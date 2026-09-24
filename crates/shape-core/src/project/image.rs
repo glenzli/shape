@@ -48,6 +48,25 @@ impl ShapeProject {
         artifact_name: impl Into<String>,
     ) -> Result<ArtifactRevision, CoreError> {
         let source = read_source(source_path.as_ref())?;
+        self.import_raster_bytes(source, artifact_name)
+    }
+
+    /// Imports PNG/JPEG bytes directly, including a clipboard snapshot, without
+    /// creating or recording a synthetic source path.
+    ///
+    /// # Errors
+    ///
+    /// Rejects empty, oversized, unsupported, or unsafe image bytes.
+    pub fn import_raster_bytes(
+        &mut self,
+        source: Vec<u8>,
+        artifact_name: impl Into<String>,
+    ) -> Result<ArtifactRevision, CoreError> {
+        if source.is_empty() || source.len() as u64 > MAX_RASTER_SOURCE_BYTES {
+            return Err(CoreError::InvalidRasterSource {
+                maximum_bytes: MAX_RASTER_SOURCE_BYTES,
+            });
+        }
         let artifact = Artifact::new(artifact_name, ArtifactKind::ImageRaster)?;
         let transformation = Transformation::new(
             TransformationKind::Import,
