@@ -13,8 +13,8 @@ use crate::{
 };
 
 use super::{
-    INFER_RUNTIME_CONTRACT_VERSION, INFER_RUNTIME_RESPONSES_CAPABILITY,
-    INFER_RUNTIME_SPEECH_CAPABILITY,
+    INFER_RUNTIME_AGENT_TASK_CAPABILITY, INFER_RUNTIME_CONTRACT_VERSION,
+    INFER_RUNTIME_RESPONSES_CAPABILITY, INFER_RUNTIME_SPEECH_CAPABILITY,
 };
 
 const MAX_PROVENANCE_TEXT_BYTES: usize = 256;
@@ -31,6 +31,7 @@ pub(super) enum JobPolicyProfile {
     CloudTextEdit(&'static str),
     LocalSpeech,
     CloudImageInteractive(&'static str),
+    AgentFileTask,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -170,6 +171,7 @@ impl JobPolicyProfile {
                 INFER_RUNTIME_RESPONSES_CAPABILITY
             }
             Self::LocalSpeech => INFER_RUNTIME_SPEECH_CAPABILITY,
+            Self::AgentFileTask => INFER_RUNTIME_AGENT_TASK_CAPABILITY,
         }
     }
 
@@ -178,12 +180,13 @@ impl JobPolicyProfile {
             Self::LocalTextEdit => TEXT_EDIT_DEPLOYMENT,
             Self::CloudTextEdit(deployment) | Self::CloudImageInteractive(deployment) => deployment,
             Self::LocalSpeech => SPEECH_DEPLOYMENT,
+            Self::AgentFileTask => "codex_agent_gpt_6_sol",
         }
     }
 
     const fn capability_floor(self) -> &'static str {
         match self {
-            Self::LocalTextEdit | Self::CloudTextEdit(_) => "foundational",
+            Self::LocalTextEdit | Self::CloudTextEdit(_) | Self::AgentFileTask => "foundational",
             Self::LocalSpeech | Self::CloudImageInteractive(_) => "capable",
         }
     }
@@ -205,6 +208,9 @@ fn validate_shape_policy(
     snapshot: &JobSnapshot,
     profile: JobPolicyProfile,
 ) -> Result<ValidatedShapePolicy, JobProvenanceError> {
+    if profile == JobPolicyProfile::AgentFileTask {
+        return validate_agent_file_policy(snapshot);
+    }
     let constraints = snapshot
         .constraints
         .as_object()
@@ -254,6 +260,7 @@ fn validate_shape_policy(
                 && snapshot.policy == "balanced"
                 && snapshot.priority == "interactive"
         }
+        JobPolicyProfile::AgentFileTask => unreachable!("Agent policy returned above"),
     };
     if !valid_profile
         || fallback != "none"
@@ -282,6 +289,40 @@ fn validate_shape_policy(
         latency,
         fallback,
         deadline_ms,
+    })
+}
+
+fn validate_agent_file_policy(
+    snapshot: &JobSnapshot,
+) -> Result<ValidatedShapePolicy, JobProvenanceError> {
+    let constraints = snapshot
+        .constraints
+        .as_object()
+        .ok_or(JobProvenanceError::InvalidResponse)?;
+    if constraints.get("deadline_ms").and_then(Value::as_u64) != Some(300_000)
+        || constraints
+            .iter()
+            .any(|(key, value)| key != "deadline_ms" && !value.is_null())
+        || snapshot.policy != "balanced"
+        || snapshot.priority != "normal"
+        || snapshot.placement != "cloud"
+        || snapshot.provider != "codex-agent"
+        || snapshot.deployment != "codex_agent_gpt_6_sol"
+        || snapshot.routing.capability_floor != "foundational"
+        || snapshot.routing.named_route.is_some()
+    {
+        return Err(JobProvenanceError::PolicyViolation);
+    }
+    Ok(ValidatedShapePolicy {
+        policy: "service_default".into(),
+        priority: "service_default".into(),
+        provider_access_class: None,
+        placement: "service_default".into(),
+        preference: "service_default".into(),
+        offline_required: false,
+        latency: None,
+        fallback: "service_default".into(),
+        deadline_ms: Some(300_000),
     })
 }
 

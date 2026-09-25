@@ -1,11 +1,13 @@
 //! Project bundle facade and routing to media-specific creative use cases.
 
+mod agent_file;
 mod audio;
 mod file_import;
 mod image;
 mod scene;
 mod text;
 
+pub use agent_file::AgentTextCandidate;
 pub use audio::AudioCandidate;
 pub use image::{AiImageCandidate, ImageCandidate, ImageEditCandidate, ImageResizeCandidate};
 pub use scene::SceneGraphCandidate;

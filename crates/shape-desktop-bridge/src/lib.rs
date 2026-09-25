@@ -5,6 +5,7 @@
 //! receives explicit presence flags and presentation-safe values through one
 //! generated CXX contract. QML never reads or writes project files directly.
 
+mod infer_agent;
 mod infer_image;
 mod infer_runtime_access;
 mod infer_speech;
@@ -19,6 +20,7 @@ use shape_domain::{
 };
 use shape_execution::{InferRuntimeClientError, InferRuntimeProbe, probe_infer_runtime_contract};
 
+use infer_agent::{InferAgentTextCandidate, generate_infer_agent_text_candidate};
 use infer_image::{
     ImageGenerationControl, InferImageBatch, InferImageCandidate, generate_infer_image_batch,
     generate_infer_image_batch_controlled, generate_infer_image_candidate,
@@ -266,6 +268,7 @@ mod ffi {
         type ImageGenerationControl;
         type InferSpeechCandidate;
         type InferTextCandidate;
+        type InferAgentTextCandidate;
 
         /// Opens and validates one `.shape` bundle, then returns a bounded
         /// read-only snapshot for the desktop shell.
@@ -290,6 +293,15 @@ mod ffi {
             model_key: &str,
             effort_key: &str,
         ) -> Result<Box<InferTextCandidate>>;
+
+        fn generate_infer_agent_text_candidate(
+            project_path: &str,
+            artifact_id: &str,
+            revision_id: &str,
+            instruction: &str,
+            credential_path: &str,
+            explicit_override: &str,
+        ) -> Result<Box<InferAgentTextCandidate>>;
 
         type SpeechSynthesisControl;
         #[allow(clippy::unnecessary_box_returns)] // CXX opaque Rust ownership requires Box.
@@ -589,6 +601,10 @@ mod ffi {
         fn session_adopt_infer_text(
             self: &mut DesktopSession,
             candidate: Box<InferTextCandidate>,
+        ) -> Result<CandidateWire>;
+        fn session_adopt_infer_agent_text(
+            self: &mut DesktopSession,
+            candidate: Box<InferAgentTextCandidate>,
         ) -> Result<CandidateWire>;
         /// Adopts one completed speech result only if its source head remains current.
         fn session_adopt_infer_speech(

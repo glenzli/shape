@@ -1,8 +1,8 @@
 //! Transient cross-media candidate collection with exact identity mutation.
 
 use shape_core::{
-    AiImageCandidate, AudioCandidate, ImageCandidate, ImageEditCandidate, ImageResizeCandidate,
-    TextCandidate,
+    AgentTextCandidate, AiImageCandidate, AudioCandidate, ImageCandidate, ImageEditCandidate,
+    ImageResizeCandidate, TextCandidate,
 };
 use shape_domain::ArtifactId;
 
@@ -10,6 +10,7 @@ use shape_domain::ArtifactId;
 #[derive(Debug, Clone)]
 pub(super) enum Candidate {
     Text(TextCandidate),
+    AgentText(AgentTextCandidate),
     Image(ImageCandidate),
     ImageResize(ImageResizeCandidate),
     ImageEdit(ImageEditCandidate),
@@ -21,6 +22,7 @@ impl Candidate {
     pub(super) fn id(&self) -> String {
         match self {
             Self::Text(candidate) => candidate.receipt().attempt_id.to_string(),
+            Self::AgentText(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Image(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::ImageResize(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::ImageEdit(candidate) => candidate.receipt().attempt_id.to_string(),
@@ -32,6 +34,7 @@ impl Candidate {
     pub(super) const fn artifact_id(&self) -> ArtifactId {
         match self {
             Self::Text(candidate) => candidate.artifact_id(),
+            Self::AgentText(candidate) => candidate.artifact_id(),
             Self::Image(candidate) => candidate.artifact_id(),
             Self::ImageResize(candidate) => candidate.artifact_id(),
             Self::ImageEdit(candidate) => candidate.artifact_id(),

@@ -87,6 +87,8 @@ qt_add_executable(shape-desktop
     src/infer_runtime_controller.hpp
     src/infer_text_controller.cpp
     src/infer_text_controller.hpp
+    src/infer_agent_controller.cpp
+    src/infer_agent_controller.hpp
     src/infer_speech_controller.cpp
     src/infer_speech_controller.hpp
     src/infer_image_controller.cpp
@@ -177,6 +179,7 @@ qt_add_qml_module(shape-desktop
         qml/components/ShapeIcon.qml
         qml/components/ShapeIconButton.qml
         qml/components/SourceMaterialWorkspace.qml
+        qml/components/AgentFileTaskWorkspace.qml
         qml/components/WebAnimationPreview.qml
         qml/components/TextCompareWorkspace.qml
         qml/components/TextExpressionPalette.qml

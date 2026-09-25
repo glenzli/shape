@@ -1719,6 +1719,18 @@ DesktopBackend::adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandi
     return candidate_id;
 }
 
+QString DesktopBackend::adoptInferAgentTextCandidate(
+    rust::Box<shape::desktop::InferAgentTextCandidate> candidate
+) {
+    if (session_ == nullptr) return {};
+    const auto adopted = session_->session->session_adopt_infer_agent_text(std::move(candidate));
+    const QString candidate_id = from_rust(adopted.candidate_id);
+    applyCandidates(session_->session->session_candidates(), candidate_id);
+    setLastError({});
+    emit candidateChanged();
+    return candidate_id;
+}
+
 QString DesktopBackend::adoptInferSpeechCandidate(
     rust::Box<shape::desktop::InferSpeechCandidate> candidate
 ) {

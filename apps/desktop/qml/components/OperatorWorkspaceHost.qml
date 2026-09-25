@@ -16,6 +16,9 @@ Rectangle {
     property var operatorWorkspaces: ({})
     property var backend: null
     property var audioPreview: null
+    property var inferAgent: null
+    property bool inferCredentialConfigured: false
+    property var selectedCandidate: null
     property string sourceAudioOriginKey: ""
     property string selectedCandidateId: ""
     property bool compactNavigation: false
@@ -157,6 +160,9 @@ Rectangle {
             backend: host.backend
             audioPreview: host.audioPreview
             audioOriginKey: host.sourceAudioOriginKey
+            inferAgent: host.inferAgent
+            inferCredentialConfigured: host.inferCredentialConfigured
+            selectedCandidate: host.selectedCandidate
         }
     }
 

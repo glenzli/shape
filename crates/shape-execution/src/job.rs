@@ -207,7 +207,7 @@ impl ExecutionJob {
         self.finish(
             attempt_id,
             completed_at_unix_ms,
-            None,
+            failure.executor_job_id.clone(),
             None,
             ExecutionOutcome::Failed {
                 code: failure.code.clone(),

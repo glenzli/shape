@@ -18,6 +18,9 @@ Rectangle {
     required property var backend
     required property var audioPreview
     required property string audioOriginKey
+    required property InferAgentController inferAgent
+    required property bool inferCredentialConfigured
+    required property var selectedCandidate
 
     readonly property var outputPorts: nodeData.outputPorts || []
     readonly property string dataTypeKey: outputPorts.length > 0
@@ -31,10 +34,30 @@ Rectangle {
                                                    ? nodeData.textPreview : ""
     property string completeText: ""
     property bool previewMode: false
+    property bool agentMode: false
+    onArtifactIdChanged: {
+        previewMode = false
+        agentMode = false
+    }
+    onRevisionIdChanged: refreshAcceptedText()
+    onBackendChanged: refreshAcceptedText()
+    onSelectedCandidateChanged: {
+        if (selectedCandidate !== null
+                && selectedCandidate.contextArtifactId === artifactId
+                && selectedCandidate.artifactId !== artifactId
+                && selectedCandidate.kindKey === "text_document") {
+            previewMode = false
+            agentMode = true
+        }
+    }
+
+    function refreshAcceptedText(): void {
+        completeText = isText && revisionId.length > 0 && backend !== null
+                       ? backend.sourceRevisionText(revisionId) : ""
+    }
 
     Component.onCompleted: {
-        if (isText && revisionId.length > 0 && backend !== null)
-            completeText = backend.sourceRevisionText(revisionId)
+        refreshAcceptedText()
         if (isAudio && revisionId.length > 0 && audioPreview !== null)
             audioPreview.loadPreview(artifactId, "", revisionId)
     }
@@ -102,7 +125,21 @@ Rectangle {
                 visible: workspace.isHtml && workspace.completeText.length > 0
                 text: workspace.previewMode ? qsTr("View HTML source") : qsTr("Preview HTML animation")
                 selected: workspace.previewMode
-                onClicked: workspace.previewMode = !workspace.previewMode
+                onClicked: {
+                    workspace.agentMode = false
+                    workspace.previewMode = !workspace.previewMode
+                }
+            }
+
+            ShapeButton {
+                objectName: "agentFileTaskButton"
+                visible: workspace.isText && workspace.revisionId.length > 0
+                text: workspace.agentMode ? qsTr("View source") : qsTr("Edit with Agent")
+                selected: workspace.agentMode
+                onClicked: {
+                    workspace.previewMode = false
+                    workspace.agentMode = !workspace.agentMode
+                }
             }
 
             Rectangle {
@@ -125,9 +162,11 @@ Rectangle {
 
         Text {
             Layout.fillWidth: true
-            text: workspace.isHtml
-                  ? qsTr("Preview runs this self-contained HTML in an offline browser. Export preserves the accepted file exactly.")
-                  : qsTr("This is the exact material connected to the workflow. Add an editing node after it to create a new version.")
+            text: workspace.agentMode
+                  ? qsTr("The accepted source stays unchanged while you review an Agent result.")
+                  : workspace.isHtml
+                    ? qsTr("Preview runs this self-contained HTML in an offline browser. Export preserves the accepted file exactly.")
+                    : qsTr("This is the exact material connected to the workflow. Add an editing node after it to create a new version.")
             color: Theme.muted
             font.pixelSize: 10
             wrapMode: Text.WordWrap
@@ -136,7 +175,7 @@ Rectangle {
         ShapeTextEditor {
             id: sourceText
             objectName: "sourceMaterialText"
-            visible: workspace.isText && !workspace.previewMode
+            visible: workspace.isText && !workspace.previewMode && !workspace.agentMode
             Layout.fillWidth: true
             Layout.fillHeight: true
             readOnly: true
@@ -161,7 +200,7 @@ Rectangle {
         }
 
         Loader {
-            visible: workspace.isHtml && workspace.previewMode
+            visible: workspace.isHtml && workspace.previewMode && !workspace.agentMode
             active: visible
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -171,6 +210,21 @@ Rectangle {
                     previewProfile: webAnimationPreviewProfile
                 }
             }
+        }
+
+        AgentFileTaskWorkspace {
+            visible: workspace.isText && workspace.agentMode
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            projectPath: workspace.backend.bundlePath
+            artifactId: workspace.artifactId
+            revisionId: workspace.revisionId
+            sourceName: workspace.nodeData.artifactName || ""
+            sourceText: workspace.completeText
+            selectedCandidate: workspace.selectedCandidate
+            backend: workspace.backend
+            inferAgent: workspace.inferAgent
+            credentialConfigured: workspace.inferCredentialConfigured
         }
 
         Rectangle {

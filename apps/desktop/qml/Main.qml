@@ -14,6 +14,7 @@ ApplicationWindow {
     required property DesktopBackend backend
     required property InferRuntimeController inferRuntime
     required property InferTextController inferText
+    required property InferAgentController inferAgent
     required property InferSpeechController inferSpeech
     required property InferImageController inferImage
     required property AudioPreviewController audioPreview
@@ -490,6 +491,7 @@ ApplicationWindow {
                     inferImage: window.inferImage
                     backend: window.backend
                     inferSpeech: window.inferSpeech
+                    inferAgent: window.inferAgent
                     audioPreview: window.audioPreview
                     projectPath: window.backend.bundlePath
                     inferCredentialConfigured: window.inferText.credentialConfigured
@@ -743,6 +745,7 @@ ApplicationWindow {
                 selectedPreviewSource: window.backend.candidateImageSource
                 candidateThumbnailSource: candidateId => window.backend.candidateThumbnailSource(candidateId)
                 mutationEnabled: window.backend.projectOpen && !window.inferImage.running
+                                 && !window.inferAgent.running
                 compareAvailable: window.candidateForSelected
                 onCandidateSelected: candidateId => window.activateCandidate(candidateId)
                 onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
@@ -793,6 +796,15 @@ ApplicationWindow {
 
         function onOperatorDraftsChanged() : void {
             Qt.callLater(workspaceSurface.synchronizeNodeSelection)
+        }
+    }
+
+    Connections {
+        target: window.inferAgent
+
+        function onCandidateCreated(candidateId, sourceArtifactId) : void {
+            if (window.hasSelectedArtifact && window.selectedArtifact.id === sourceArtifactId)
+                window.activateCandidate(candidateId)
         }
     }
 

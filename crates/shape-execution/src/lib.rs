@@ -27,15 +27,15 @@ pub use executor::{
 pub use ids::{AttemptId, JobId};
 pub use infer_runtime::{
     AUDIO_SPEECH_SYNTHESIZE_CAPABILITY, IMAGE_GENERATE_CAPABILITY,
-    INFER_RUNTIME_CAPABILITY_CATALOG, INFER_RUNTIME_CONTRACT_VERSION,
-    INFER_RUNTIME_RESPONSES_CAPABILITY, INFER_RUNTIME_SPEECH_CAPABILITY,
-    INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION, INFER_SPEECH_VOICE_CATALOG_REVISION,
-    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1,
-    InferRuntimeClientError, InferRuntimeContract, InferRuntimeCredentialError,
-    InferRuntimeCredentialStore, InferRuntimeEndpointSource, InferRuntimeExecutor,
-    InferRuntimeImageGenerationExecutor, InferRuntimeProbe, InferRuntimeSpeechExecutor,
-    ResolvedInferRuntimeEndpoint, SPEECH_PRESETS, SpeechPreset, SpeechSynthesisControl,
-    probe_infer_runtime_contract, supported_speech_operation,
+    INFER_RUNTIME_AGENT_TASK_CAPABILITY, INFER_RUNTIME_CAPABILITY_CATALOG,
+    INFER_RUNTIME_CONTRACT_VERSION, INFER_RUNTIME_RESPONSES_CAPABILITY,
+    INFER_RUNTIME_SPEECH_CAPABILITY, INFER_SPEECH_VOICE_ALIAS_CATALOG_REVISION,
+    INFER_SPEECH_VOICE_CATALOG_REVISION, INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_LANGUAGE,
+    INFER_SPEECH_VOICE_ZH_BRIGHT_FEMALE_V1, InferRuntimeAgentFileExecutor, InferRuntimeClientError,
+    InferRuntimeContract, InferRuntimeCredentialError, InferRuntimeCredentialStore,
+    InferRuntimeEndpointSource, InferRuntimeExecutor, InferRuntimeImageGenerationExecutor,
+    InferRuntimeProbe, InferRuntimeSpeechExecutor, ResolvedInferRuntimeEndpoint, SPEECH_PRESETS,
+    SpeechPreset, SpeechSynthesisControl, probe_infer_runtime_contract, supported_speech_operation,
 };
 pub use job::{ExecutionJob, ExecutionOutcome, ExecutionReceipt, JobState};
 pub use provenance::{

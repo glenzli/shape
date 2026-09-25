@@ -8,6 +8,7 @@ use infer_runtime_client::{
 };
 use thiserror::Error;
 
+mod agent_file;
 mod credential;
 mod image_generation;
 mod job_provenance;
@@ -18,6 +19,7 @@ pub(crate) mod speech;
 #[cfg(test)]
 mod test_support;
 
+pub use agent_file::InferRuntimeAgentFileExecutor;
 pub use credential::{InferRuntimeCredentialError, InferRuntimeCredentialStore};
 pub use image_generation::{IMAGE_GENERATE_CAPABILITY, InferRuntimeImageGenerationExecutor};
 pub use responses::InferRuntimeExecutor;
@@ -39,6 +41,8 @@ pub const INFER_RUNTIME_CAPABILITY_CATALOG: &str = "infer-runtime.capability-cat
 pub const INFER_RUNTIME_RESPONSES_CAPABILITY: &str = "infer.responses@20260812.1";
 /// Exact stable unary speech capability consumed by Shape.
 pub const INFER_RUNTIME_SPEECH_CAPABILITY: &str = "infer.audio.speech@20260811.1";
+/// Exact stable Agent file-task capability consumed by Shape.
+pub const INFER_RUNTIME_AGENT_TASK_CAPABILITY: &str = "infer.agent.task@20260925.1";
 
 /// Validated public contracts of one compatible Infer Runtime instance.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -5,8 +5,8 @@ use std::{
 };
 
 use infer_runtime_client::{
-    AudioBytesResponse, CapabilityCatalog, ContractManifest, JobSnapshot, ResponsesRequest,
-    ResponsesResult, SpeechRequest,
+    AgentTaskRequest, AgentTaskResult, AudioBytesResponse, CapabilityCatalog, ContractManifest,
+    JobSnapshot, ResponsesRequest, ResponsesResult, SpeechRequest,
 };
 
 use super::sdk::{InferRuntimeSdk, SdkAdapterError};
@@ -17,6 +17,8 @@ pub(super) struct FakeSdk {
     pub responses: Mutex<VecDeque<Result<ResponsesResult, SdkAdapterError>>>,
     pub speeches: Mutex<VecDeque<Result<AudioBytesResponse, SdkAdapterError>>>,
     pub jobs: Mutex<VecDeque<Result<JobSnapshot, SdkAdapterError>>>,
+    pub agent_tasks: Mutex<VecDeque<Result<AgentTaskResult, SdkAdapterError>>>,
+    pub seen_agent_tasks: Mutex<Vec<AgentTaskRequest>>,
     pub seen_responses: Mutex<Vec<ResponsesRequest>>,
     pub seen_speeches: Arc<Mutex<Vec<SpeechRequest>>>,
 }
@@ -29,6 +31,8 @@ impl FakeSdk {
             responses: Mutex::new(VecDeque::new()),
             speeches: Mutex::new(VecDeque::new()),
             jobs: Mutex::new(VecDeque::new()),
+            agent_tasks: Mutex::new(VecDeque::new()),
+            seen_agent_tasks: Mutex::new(Vec::new()),
             seen_responses: Mutex::new(Vec::new()),
             seen_speeches: Arc::new(Mutex::new(Vec::new())),
         }
@@ -99,5 +103,18 @@ impl InferRuntimeSdk for FakeSdk {
             .unwrap()
             .pop_front()
             .expect("fake Job result")
+    }
+
+    fn create_agent_task(
+        &self,
+        request: &AgentTaskRequest,
+        _timeout: Duration,
+    ) -> Result<AgentTaskResult, SdkAdapterError> {
+        self.seen_agent_tasks.lock().unwrap().push(request.clone());
+        self.agent_tasks
+            .lock()
+            .unwrap()
+            .pop_front()
+            .expect("fake Agent task result")
     }
 }

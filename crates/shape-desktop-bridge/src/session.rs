@@ -6,8 +6,8 @@ mod speech_script;
 mod text_authoring;
 
 use shape_core::{
-    AiImageCandidate, AudioCandidate, ImageCandidate, ImageEditCandidate, ImageResizeCandidate,
-    ShapeProject, TextCandidate, TextEditParameters,
+    AgentTextCandidate, AiImageCandidate, AudioCandidate, ImageCandidate, ImageEditCandidate,
+    ImageResizeCandidate, ShapeProject, TextCandidate, TextEditParameters,
 };
 use shape_domain::{
     Artifact, ArtifactContentContract, ArtifactId, ArtifactKind, IntentSpec, RasterCrop,
@@ -28,6 +28,7 @@ use crate::operator_catalog::{
     style_from_draft, tone_from_draft, variant_count_from_draft,
 };
 
+use crate::infer_agent::InferAgentTextCandidate;
 use crate::infer_image::{InferImageBatch, InferImageCandidate};
 use crate::infer_speech::InferSpeechCandidate;
 use crate::infer_text::InferTextCandidate;
@@ -797,6 +798,10 @@ impl DesktopSession {
                 .project
                 .accept_text(candidate)
                 .map_err(|error| error.to_string())?,
+            Candidate::AgentText(candidate) => self
+                .project
+                .accept_agent_text_file(candidate)
+                .map_err(|error| error.to_string())?,
             Candidate::Image(candidate) => self
                 .project
                 .accept_raster_crop(candidate)
@@ -911,7 +916,7 @@ impl DesktopSession {
                 | Candidate::AiImage(_) => {
                     Err("candidate does not belong to the selected artifact".to_owned())
                 }
-                Candidate::Text(_) | Candidate::Audio(_) => {
+                Candidate::Text(_) | Candidate::AgentText(_) | Candidate::Audio(_) => {
                     Err("candidate is not an image preview".to_owned())
                 }
             };
@@ -1048,6 +1053,26 @@ impl DesktopSession {
         }
         let wire = text_candidate_wire(&candidate);
         self.candidates.push(Candidate::Text(candidate));
+        Ok(wire)
+    }
+
+    /// Adopts a file-task result only while its exact accepted source is current.
+    pub fn session_adopt_infer_agent_text(
+        &mut self,
+        candidate: Box<InferAgentTextCandidate>,
+    ) -> Result<ffi::CandidateWire, String> {
+        let candidate = (*candidate).into_candidate();
+        let snapshot = self.project.snapshot().map_err(|_| "project_unavailable")?;
+        let source = snapshot
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.id == candidate.source_artifact_id())
+            .ok_or("invalid_artifact")?;
+        if source.accepted_revision != Some(candidate.expected_source_head()) {
+            return Err("stale_candidate".into());
+        }
+        let wire = agent_text_candidate_wire(&candidate);
+        self.candidates.push(Candidate::AgentText(candidate));
         Ok(wire)
     }
 
@@ -1347,6 +1372,7 @@ fn parse_artifact_id(value: &str) -> Result<ArtifactId, String> {
 fn candidate_wire(candidate: &Candidate) -> ffi::CandidateWire {
     match candidate {
         Candidate::Text(candidate) => text_candidate_wire(candidate),
+        Candidate::AgentText(candidate) => agent_text_candidate_wire(candidate),
         Candidate::Image(candidate) => image_candidate_wire(candidate),
         Candidate::ImageResize(candidate) => image_resize_candidate_wire(candidate),
         Candidate::ImageEdit(candidate) => image_edit_candidate_wire(candidate),
@@ -1392,6 +1418,32 @@ fn text_candidate_wire(candidate: &TextCandidate) -> ffi::CandidateWire {
         has_expected_head: expected_head.is_some(),
         expected_head: expected_head.map_or_else(String::new, |head| head.to_string()),
         can_branch: expected_head.is_some(),
+        has_text_preview: true,
+        text_preview_truncated,
+        text_preview,
+        has_image_preview: false,
+        image_width: 0,
+        image_height: 0,
+        has_audio_preview: false,
+        audio_duration_millis: 0,
+        audio_sample_rate_hz: 0,
+        audio_channels: 0,
+        audio_origin_key: String::new(),
+    }
+}
+
+fn agent_text_candidate_wire(candidate: &AgentTextCandidate) -> ffi::CandidateWire {
+    let (text_preview, text_preview_truncated) =
+        bounded_text_preview(candidate.text().as_bytes()).expect("agent text is valid UTF-8");
+    ffi::CandidateWire {
+        candidate_id: candidate.receipt().attempt_id.to_string(),
+        artifact_id: candidate.artifact_id().to_string(),
+        context_artifact_id: candidate.source_artifact_id().to_string(),
+        artifact_name: candidate.artifact_name().to_owned(),
+        kind_key: "text_document".to_owned(),
+        has_expected_head: true,
+        expected_head: candidate.expected_source_head().to_string(),
+        can_branch: false,
         has_text_preview: true,
         text_preview_truncated,
         text_preview,

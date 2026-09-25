@@ -206,8 +206,13 @@ impl DesktopSession {
         let artifact_id = parse_artifact_id(artifact_id)?;
         if !candidate_id.is_empty() {
             let candidate = self.candidates.clone_candidate(candidate_id)?;
-            if let Candidate::Text(candidate) = candidate
+            if let Candidate::Text(candidate) = &candidate
                 && candidate.artifact_id() == artifact_id
+            {
+                return Ok(candidate.text().to_owned());
+            }
+            if let Candidate::AgentText(candidate) = &candidate
+                && candidate.source_artifact_id() == artifact_id
             {
                 return Ok(candidate.text().to_owned());
             }

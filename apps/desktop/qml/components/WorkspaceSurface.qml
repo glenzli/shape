@@ -27,6 +27,7 @@ Item {
     required property InferImageController inferImage
     required property DesktopBackend backend
     required property InferSpeechController inferSpeech
+    required property InferAgentController inferAgent
     required property AudioPreviewController audioPreview
     property string projectPath: ""
     property bool inferCredentialConfigured: false
@@ -665,6 +666,9 @@ Item {
                 id: operatorWorkspaceHost
                 backend: surface.backend
                 audioPreview: surface.audioPreview
+                inferAgent: surface.inferAgent
+                inferCredentialConfigured: surface.inferCredentialConfigured
+                selectedCandidate: surface.selectedCandidate
                 sourceAudioOriginKey: {
                     const artifact = surface.artifactForId(operatorWorkspaceHost.openedArtifactId)
                     return artifact !== null ? artifact.audioOriginKey : ""

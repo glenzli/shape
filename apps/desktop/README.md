@@ -215,7 +215,11 @@ translation lifecycle, and persistence. `MainTitleBar.qml` owns the fused toolba
 The shared shell uses Qt's expanded client area and safe-area margins on every platform; the small
 Objective-C++ adapter only aligns native macOS traffic-light buttons with that shared toolbar.
 `DesktopBackend` is a presentation facade over the Rust session; project and candidate authority
-never enters QML or UI settings. `ProjectWelcome.qml`, `CreateProjectDialog.qml`,
+never enters QML or UI settings. `InferAgentController` runs a bounded Agent file task from an
+accepted text/code Source on a worker thread. `AgentFileTaskWorkspace.qml` lets the user write a
+task and review the complete returned file beside its source. The result joins the transient
+Candidate Shelf; Accept creates a separate text Artifact tied to the exact source Revision. The
+project does not hand Infer a host file path. `ProjectWelcome.qml`, `CreateProjectDialog.qml`,
 `CreateSceneTypeDialog.qml`, `CreateTextSceneDialog.qml`, and `CreateAiImageSceneDialog.qml` own the
 goal-first launch and first-content presentation flow without acquiring
 persistence authority. `RecentProjects` stores only paths and display names after successful opens;

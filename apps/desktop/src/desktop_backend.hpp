@@ -179,6 +179,8 @@ class DesktopBackend : public QObject {
     /// Stale-head validation remains authoritative in the Rust session.
     [[nodiscard]] QString
     adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandidate> candidate);
+    [[nodiscard]] QString
+    adoptInferAgentTextCandidate(rust::Box<shape::desktop::InferAgentTextCandidate> candidate);
     /// Adopts one background speech result on the UI thread after Rust revalidates its source.
     [[nodiscard]] QString
     adoptInferSpeechCandidate(rust::Box<shape::desktop::InferSpeechCandidate> candidate);

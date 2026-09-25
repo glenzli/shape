@@ -8,6 +8,7 @@
 #include "infer_runtime_controller.hpp"
 #include "infer_speech_controller.hpp"
 #include "infer_text_controller.hpp"
+#include "infer_agent_controller.hpp"
 #include "speech_live_smoke.hpp"
 #include "text_authoring_smoke.hpp"
 #include "ui_preferences.hpp"
@@ -1195,6 +1196,7 @@ int main(int argc, char* argv[]) {
         QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation))
             .filePath(QStringLiteral("secrets/infer-runtime.token"));
     InferTextController infer_text(*backend, infer_credential_path, &application);
+    InferAgentController infer_agent(*backend, infer_credential_path, &application);
     InferSpeechController infer_speech(*backend, infer_credential_path, &application);
     InferImageController infer_image(*backend, infer_credential_path, &application);
     AudioPreviewController audio_preview(*backend, &application);
@@ -1245,6 +1247,7 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
         {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
         {QStringLiteral("inferText"), QVariant::fromValue(&infer_text)},
+        {QStringLiteral("inferAgent"), QVariant::fromValue(&infer_agent)},
         {QStringLiteral("inferSpeech"), QVariant::fromValue(&infer_speech)},
         {QStringLiteral("inferImage"), QVariant::fromValue(&infer_image)},
         {QStringLiteral("audioPreview"), QVariant::fromValue(&audio_preview)},

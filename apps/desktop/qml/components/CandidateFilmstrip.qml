@@ -152,6 +152,7 @@ Rectangle {
                 toolTipText: qsTr("Start a separate work from this version")
                 accessibleName: toolTipText
                 enabled: filmstrip.mutationEnabled && filmstrip.selectedCandidate !== null
+                         && filmstrip.selectedCandidate.canBranch === true
                 onClicked: filmstrip.branchRequested(
                                String(filmstrip.selectedCandidate.id))
             }

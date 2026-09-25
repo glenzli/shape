@@ -3,8 +3,9 @@
 use std::{future::Future, path::PathBuf, sync::Mutex, time::Duration};
 
 use infer_runtime_client::{
-    AudioBytesResponse, CapabilityCatalog, Client, ContractManifest, DiscoveryResolver, Error,
-    JobSnapshot, ResponsesRequest, ResponsesResult, SpeechRequest,
+    AgentTaskRequest, AgentTaskResult, AudioBytesResponse, CapabilityCatalog, Client,
+    ContractManifest, DiscoveryResolver, Error, JobSnapshot, ResponsesRequest, ResponsesResult,
+    SpeechRequest,
 };
 use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 
@@ -79,6 +80,11 @@ pub(super) trait InferRuntimeSdk: Send + Sync {
         timeout: Duration,
     ) -> Result<AudioBytesResponse, SdkAdapterError>;
     fn job(&self, job_id: &str) -> Result<JobSnapshot, SdkAdapterError>;
+    fn create_agent_task(
+        &self,
+        request: &AgentTaskRequest,
+        timeout: Duration,
+    ) -> Result<AgentTaskResult, SdkAdapterError>;
 }
 
 pub(super) struct OfficialSdkClient {
@@ -162,5 +168,13 @@ impl InferRuntimeSdk for OfficialSdkClient {
 
     fn job(&self, job_id: &str) -> Result<JobSnapshot, SdkAdapterError> {
         self.run(JOB_TIMEOUT, self.client.job(job_id))
+    }
+
+    fn create_agent_task(
+        &self,
+        request: &AgentTaskRequest,
+        timeout: Duration,
+    ) -> Result<AgentTaskResult, SdkAdapterError> {
+        self.run(timeout, self.client.create_agent_task(request))
     }
 }

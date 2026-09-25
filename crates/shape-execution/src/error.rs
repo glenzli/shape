@@ -14,6 +14,9 @@ pub struct ExecutionFailure {
     pub message: String,
     /// Whether the same physical plan may be attempted again.
     pub retryable: bool,
+    /// Executor Job already created before local validation failed. This is
+    /// payload-free audit evidence and forbids an implicit replay.
+    pub executor_job_id: Option<String>,
 }
 
 impl ExecutionFailure {
@@ -24,7 +27,16 @@ impl ExecutionFailure {
             code: code.into(),
             message: message.into(),
             retryable,
+            executor_job_id: None,
         }
+    }
+
+    /// Attaches an already-dispatched executor Job to a local failure.
+    #[must_use]
+    pub fn with_executor_job_id(mut self, job_id: impl Into<String>) -> Self {
+        self.executor_job_id = Some(job_id.into());
+        self.retryable = false;
+        self
     }
 }
 

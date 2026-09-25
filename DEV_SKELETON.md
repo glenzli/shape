@@ -70,7 +70,7 @@ numeric-loopback validation, proxy/redirect policy, owner-only credential loadin
 `infer-runtime.consumer-core@20260813.1` and
 `infer-runtime.capability-catalog@20260813.1` negotiation, capability headers, and public error
 decoding. `infer_runtime::sdk` is only the synchronous `Executor` adaptation consumed by the probe,
-Responses, speech, image generation, and Job clients; it does not recreate wire contracts. An
+Responses, speech, image generation, Agent file task, and Job clients; it does not recreate wire contracts. An
 explicit development endpoint may override Discovery, but there is no product fixed-port fallback.
 The separate Shape `credential` owner continues only the existing managed-token install/status
 lifecycle; token bytes are handed to the SDK by owner-only file path.
@@ -248,6 +248,13 @@ parameters, result type, and failure policy evolve independently from Text.
 `InferImageController` likewise owns the high-payload cloud-image lifecycle, UI-thread progress
 delivery, and stop-after-current control; large PNG bytes remain
 opaque until the UI-thread session adopts the Candidate and a selected preview is requested.
+`InferAgentController` owns one background accepted-text/code file task. `shape-core::project::agent_file`
+materializes verified source bytes and reserves a distinct text output; `infer_runtime::agent_file`
+uses the dated official SDK capability and checks the exact Job policy before returning one file.
+The desktop session rechecks the source head when adopting the Candidate, and Store rechecks it
+atomically on explicit Accept. `AgentFileTaskWorkspace.qml` keeps the instruction and full result
+review separate from the read-only Source viewer; neither host paths nor candidate bytes become
+accepted history before Accept.
 The graph-aware desktop information architecture adds `ProjectNavigator.qml` for Scene selection
 and `ContextInspector.qml` for Explore, Details, and Lineage modes. `OperatorWorkspaceHost.qml`
 owns focused-workspace routing and lifecycle; text, image editing, and audio workspaces remain

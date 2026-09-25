@@ -3705,6 +3705,8 @@
 </context>
 <context>
     <name>SourceMaterialWorkspace</name>
+    <message><source>View source</source><translation>查看源内容</translation></message>
+    <message><source>Edit with Agent</source><translation>用 Agent 编辑</translation></message>
     <message><source>View HTML source</source><translation>查看 HTML 源码</translation></message>
     <message><source>Preview HTML animation</source><translation>预览 HTML 动画</translation></message>
     <message><source>Preview runs this self-contained HTML in an offline browser. Export preserves the accepted file exactly.</source><translation>预览会在离线浏览器中运行这份自包含 HTML；导出会原样保存已采纳的文件。</translation></message>
@@ -3741,6 +3743,11 @@
     </message>
     <message>
         <location line="+10"/>
+        <source>The accepted source stays unchanged while you review an Agent result.</source>
+        <translation>审阅 Agent 结果期间，已接受的源内容保持不变。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>This is the exact material connected to the workflow. Add an editing node after it to create a new version.</source>
         <translation>这是连接到工作流的确切素材。在它后面添加编辑节点即可创建新版本。</translation>
     </message>
@@ -3777,6 +3784,28 @@
         <source>Preview shortened · the complete source remains preserved</source>
         <translation>预览已缩短 · 完整源内容仍会保留</translation>
     </message>
+</context>
+<context>
+    <name>AgentFileTaskWorkspace</name>
+    <message><source>Configure Infer access in Settings before running this task.</source><translation>运行此任务前，请先在设置中配置 Infer 访问。</translation></message>
+    <message><source>Agent file tasks are not enabled for Shape in Infer.</source><translation>Infer 尚未为 Shape 启用 Agent 文件任务。</translation></message>
+    <message><source>The Agent provider is unavailable. Try again later.</source><translation>Agent 提供方当前不可用，请稍后重试。</translation></message>
+    <message><source>The source changed while the task was running. Review the current source and run again.</source><translation>任务运行期间源内容发生变化。请检查当前源内容后重新运行。</translation></message>
+    <message><source>The Agent result failed validation and was not added as a candidate.</source><translation>Agent 结果未通过校验，未加入候选。</translation></message>
+    <message><source>Infer is unavailable. Check its status and try again.</source><translation>Infer 当前不可用，请检查其状态后重试。</translation></message>
+    <message><source>Infer did not confirm the task outcome. Check its Jobs before starting another task.</source><translation>Infer 未能确认任务结果。开始新任务前，请先检查 Infer 中的任务记录。</translation></message>
+    <message><source>Describe the change you want the Agent to make.</source><translation>请描述希望 Agent 完成的修改。</translation></message>
+    <message><source>The Agent task failed. No project content was changed.</source><translation>Agent 任务失败，项目内容未发生变化。</translation></message>
+    <message><source>Infer sends a copy of this accepted source to the authorized cloud Agent. Review its result before adding it to the project.</source><translation>Infer 会将这份已接受源内容的副本发送给已授权的云端 Agent。加入项目前请先审阅结果。</translation></message>
+    <message><source>Describe the file change, for example: make this animation loop smoothly without changing its colors.</source><translation>描述文件修改，例如：让这个动画平滑循环，同时保持颜色不变。</translation></message>
+    <message><source>Running…</source><translation>运行中…</translation></message>
+    <message><source>Run Agent</source><translation>运行 Agent</translation></message>
+    <message><source>The Agent is working on a private copy. The accepted source stays available.</source><translation>Agent 正在处理独立副本；已接受的源内容仍可使用。</translation></message>
+    <message><source>Accepted source · %1</source><translation>已接受的源内容 · %1</translation></message>
+    <message><source>Candidate · %1</source><translation>候选 · %1</translation></message>
+    <message><source>Agent result</source><translation>Agent 结果</translation></message>
+    <message><source>Run the task to create a reviewable candidate.</source><translation>运行任务后会生成可审阅的候选。</translation></message>
+    <message><source>Use the candidate controls below to accept or discard this result. Accept creates a separate work and keeps the source unchanged.</source><translation>使用下方候选操作接受或丢弃结果。接受后会创建独立作品，源内容保持不变。</translation></message>
 </context>
 <context>
     <name>WebAnimationPreview</name>
