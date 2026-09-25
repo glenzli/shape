@@ -1,4 +1,4 @@
-find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Multimedia Quick QuickControls2 LinguistTools)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Multimedia Quick QuickControls2 WebEngineQuick LinguistTools)
 find_package(Threads REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.9 I18N_TRANSLATED_LANGUAGES zh_CN)
@@ -106,6 +106,8 @@ qt_add_executable(shape-desktop
     src/speech_script_documentation.hpp
     src/text_expression_library.cpp
     src/text_expression_library.hpp
+    src/web_animation_preview.cpp
+    src/web_animation_preview.hpp
     src/mac_titlebar.hpp
     tests/workspace_host_smoke.cpp
     tests/workspace_host_smoke.hpp
@@ -175,6 +177,7 @@ qt_add_qml_module(shape-desktop
         qml/components/ShapeIcon.qml
         qml/components/ShapeIconButton.qml
         qml/components/SourceMaterialWorkspace.qml
+        qml/components/WebAnimationPreview.qml
         qml/components/TextCompareWorkspace.qml
         qml/components/TextExpressionPalette.qml
         qml/components/VariantsPanel.qml
@@ -231,6 +234,7 @@ target_link_libraries(shape-desktop
         Qt6::QuickControls2
         Qt6::Concurrent
         Qt6::Multimedia
+        Qt6::WebEngineQuick
         shape-desktop-rust
         Threads::Threads
         ${CMAKE_DL_LIBS}

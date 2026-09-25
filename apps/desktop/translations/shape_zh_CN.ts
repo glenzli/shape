@@ -1209,7 +1209,7 @@
         <translation>导入素材…</translation>
     </message>
     <message><source>Paste material</source><translation>粘贴素材</translation></message>
-    <message><source>Code files are kept as text; Shape does not run them.</source><translation>代码文件以文本保存；Shape 不会运行它们。</translation></message>
+    <message><source>Self-contained HTML can be previewed offline and exported. Other code files remain text sources.</source><translation>自包含 HTML 可离线预览和导出；其他代码文件仍作为文本素材保存。</translation></message>
 </context>
 <context>
     <name>CreateTextSceneDialog</name>
@@ -3705,6 +3705,9 @@
 </context>
 <context>
     <name>SourceMaterialWorkspace</name>
+    <message><source>View HTML source</source><translation>查看 HTML 源码</translation></message>
+    <message><source>Preview HTML animation</source><translation>预览 HTML 动画</translation></message>
+    <message><source>Preview runs this self-contained HTML in an offline browser. Export preserves the accepted file exactly.</source><translation>预览会在离线浏览器中运行这份自包含 HTML；导出会原样保存已采纳的文件。</translation></message>
     <message>
         <location filename="../qml/components/SourceMaterialWorkspace.qml" line="+27"/>
         <source>Original text</source>
@@ -3774,6 +3777,11 @@
         <source>Preview shortened · the complete source remains preserved</source>
         <translation>预览已缩短 · 完整源内容仍会保留</translation>
     </message>
+</context>
+<context>
+    <name>WebAnimationPreview</name>
+    <message><source>This HTML could not be previewed.</source><translation>无法预览这份 HTML。</translation></message>
+    <message><source>This HTML is too large for the in-app preview. You can still inspect and export the original file.</source><translation>这份 HTML 超出应用内预览大小限制；仍可查看并导出原文件。</translation></message>
 </context>
 <context>
     <name>SpeechScriptHelpDialog</name>

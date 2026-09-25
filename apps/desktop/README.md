@@ -19,11 +19,15 @@ resized, losslessly reoriented, blurred, or given a flattened drop shadow; every
 as a transient Candidate before its exact versioned operation is accepted and reopened.
 The single Import material action also accepts bounded UTF-8 text/code files as editable text
 sources and PCM S16 LE WAV files as playable audio sources. Explicit import accepts an immutable
-source revision; later generated edits still use reviewable Candidates. Code is stored as text and
-never executed. Audio imported from outside Shape carries an unverified-origin disclosure rather
+source revision; later generated edits still use reviewable Candidates. Self-contained `.html`
+files remain exact text Sources and can be opened in an ephemeral, offline Qt WebEngine preview.
+The preview uses a memory-only profile, denies external URL requests, local files, permissions,
+clipboard access, popups, and storage; closing it destroys the script context. Export preserves
+the accepted HTML bytes. Other code files remain text and are not run. Audio imported from
+outside Shape carries an unverified-origin disclosure rather
 than claiming it was recorded or synthesized by Shape. The source path is not needed to reopen the
-accepted material. Video, runnable JS bundles, arbitrary audio codecs, and an agent workspace
-handoff are not implemented by this intake path.
+accepted material. Frame-accurate video export, runnable JS bundles, arbitrary audio codecs, and
+an agent workspace handoff are not implemented by this intake path.
 The material chooser can also paste clipboard text or an image directly into the open project.
 Text keeps its exact UTF-8 content within 1 MiB. PNG/JPEG clipboard payloads enter the bounded
 raster import path; a decoded clipboard image is encoded as PNG before that import. Both become

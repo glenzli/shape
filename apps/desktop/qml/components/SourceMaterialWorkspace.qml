@@ -26,9 +26,11 @@ Rectangle {
     readonly property bool isImage: dataTypeKey === "image.raster"
     readonly property bool isAudio: dataTypeKey === "audio.clip"
     readonly property bool isCode: /\.(js|mjs|html|css|json|svg)$/i.test(nodeData.artifactName || "")
+    readonly property bool isHtml: isText && /\.html?$/i.test(nodeData.artifactName || "")
     readonly property string textPreview: nodeData.hasTextPreview === true
                                                    ? nodeData.textPreview : ""
     property string completeText: ""
+    property bool previewMode: false
 
     Component.onCompleted: {
         if (isText && revisionId.length > 0 && backend !== null)
@@ -95,6 +97,14 @@ Rectangle {
                 }
             }
 
+            ShapeButton {
+                objectName: "htmlAnimationPreviewButton"
+                visible: workspace.isHtml && workspace.completeText.length > 0
+                text: workspace.previewMode ? qsTr("View HTML source") : qsTr("Preview HTML animation")
+                selected: workspace.previewMode
+                onClicked: workspace.previewMode = !workspace.previewMode
+            }
+
             Rectangle {
                 Layout.preferredWidth: lockedLabel.implicitWidth + 22
                 Layout.preferredHeight: 30
@@ -115,7 +125,9 @@ Rectangle {
 
         Text {
             Layout.fillWidth: true
-            text: qsTr("This is the exact material connected to the workflow. Add an editing node after it to create a new version.")
+            text: workspace.isHtml
+                  ? qsTr("Preview runs this self-contained HTML in an offline browser. Export preserves the accepted file exactly.")
+                  : qsTr("This is the exact material connected to the workflow. Add an editing node after it to create a new version.")
             color: Theme.muted
             font.pixelSize: 10
             wrapMode: Text.WordWrap
@@ -124,7 +136,7 @@ Rectangle {
         ShapeTextEditor {
             id: sourceText
             objectName: "sourceMaterialText"
-            visible: workspace.isText
+            visible: workspace.isText && !workspace.previewMode
             Layout.fillWidth: true
             Layout.fillHeight: true
             readOnly: true
@@ -145,6 +157,19 @@ Rectangle {
                 radius: Theme.radiusMedium
                 color: Theme.raised
                 border.color: Theme.border
+            }
+        }
+
+        Loader {
+            visible: workspace.isHtml && workspace.previewMode
+            active: visible
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            sourceComponent: Component {
+                WebAnimationPreview {
+                    html: workspace.completeText
+                    previewProfile: webAnimationPreviewProfile
+                }
             }
         }
 

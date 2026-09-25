@@ -81,7 +81,7 @@ ShapeDialog {
         }
         Label {
             Layout.fillWidth: true
-            text: qsTr("Code files are kept as text; Shape does not run them.")
+            text: qsTr("Self-contained HTML can be previewed offline and exported. Other code files remain text sources.")
             color: Theme.muted
             font.pixelSize: 11
             wrapMode: Text.WordWrap

@@ -12,6 +12,7 @@
 #include "text_authoring_smoke.hpp"
 #include "ui_preferences.hpp"
 #include "workspace_host_smoke.hpp"
+#include "web_animation_preview.hpp"
 
 #if defined(Q_OS_MACOS)
 #include "mac_titlebar.hpp"
@@ -22,10 +23,13 @@
 #include <QColor>
 #include <QClipboard>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QGuiApplication>
 #include <QImage>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQmlExpression>
 #include <QQuickWindow>
 #include <QStandardPaths>
@@ -33,6 +37,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVariant>
+#include <QtWebEngineQuick/qtwebenginequickglobal.h>
 
 #include <algorithm>
 #include <iostream>
@@ -1017,6 +1022,102 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
                   << std::endl;
         return false;
     }
+    const QString html_path = material_directory.filePath(QStringLiteral("animation.html"));
+    const QByteArray html(
+        "<!doctype html><html><head><title>Shape animation</title></head>"
+        "<body><div id='frame'>Frame</div><script>"
+        "document.getElementById('frame').style.opacity='0.8'"
+        "</script></body></html>\n"
+    );
+    QFile html_file(html_path);
+    if (!html_file.open(QIODevice::WriteOnly) || html_file.write(html) != html.size()) {
+        return false;
+    }
+    html_file.close();
+    const int html_index = backend.artifactCount();
+    const QString html_export = material_directory.filePath(QStringLiteral("accepted.html"));
+    if (!backend.importMaterial(QUrl::fromLocalFile(html_path))
+        || backend.artifactCount() != html_index + 1) {
+        std::cerr << "desktop authoring smoke could not import HTML animation" << std::endl;
+        return false;
+    }
+    const QVariantMap imported_html = backend.artifacts()[html_index].toMap();
+    QFile exported_html_file(html_export);
+    if (!backend.exportAcceptedMaterial(
+            imported_html.value(QStringLiteral("id")).toString(),
+            QUrl::fromLocalFile(html_export)
+        )
+        || !exported_html_file.open(QIODevice::ReadOnly)
+        || exported_html_file.readAll() != html) {
+        std::cerr << "desktop authoring smoke changed exact HTML export bytes" << std::endl;
+        return false;
+    }
+    root_object.setProperty("selectedArtifactIndex", html_index);
+    QCoreApplication::processEvents();
+    if (!QMetaObject::invokeMethod(workspace_surface, "showGraph", Qt::DirectConnection)) {
+        return false;
+    }
+    const QVariantList html_nodes = imported_html.value(QStringLiteral("operatorNodes")).toList();
+    const auto html_source = std::find_if(
+        html_nodes.cbegin(), html_nodes.cend(), [](const QVariant& value) {
+            return value.toMap().value(QStringLiteral("roleKey")) == QStringLiteral("source");
+        }
+    );
+    if (html_source == html_nodes.cend()) return false;
+    QQmlExpression open_html_source(
+        QQmlEngine::contextForObject(workspace_surface),
+        workspace_surface,
+        QStringLiteral("openNode('%1')").arg(html_source->toMap().value(QStringLiteral("id")).toString())
+    );
+    if (!open_html_source.evaluate().toBool() || open_html_source.hasError()) return false;
+    QCoreApplication::processEvents();
+    QObject* const html_host = workspace_surface->findChild<QObject*>(
+        QStringLiteral("operatorWorkspaceHost")
+    );
+    QObject* const html_workspace = html_host
+                                        ? html_host->property("loadedWorkspace").value<QObject*>()
+                                        : nullptr;
+    QObject* const preview_button = html_workspace
+                                        ? html_workspace->findChild<QObject*>(
+                                              QStringLiteral("htmlAnimationPreviewButton")
+                                          )
+                                        : nullptr;
+    if (!html_workspace || !html_workspace->property("isHtml").toBool()
+        || !preview_button || !preview_button->property("visible").toBool()
+        || !QMetaObject::invokeMethod(preview_button, "clicked", Qt::DirectConnection)) {
+        std::cerr << "desktop authoring smoke did not offer HTML preview" << std::endl;
+        return false;
+    }
+    QCoreApplication::processEvents();
+    QObject* const html_preview = html_workspace->findChild<QObject*>(
+        QStringLiteral("webAnimationPreview")
+    );
+    if (!html_workspace->property("previewMode").toBool() || !html_preview
+        || !html_preview->property("fitsWebEngine").toBool()) {
+        std::cerr << "desktop authoring smoke did not open bounded HTML preview" << std::endl;
+        return false;
+    }
+    QObject* const html_browser = html_preview->findChild<QObject*>(
+        QStringLiteral("webAnimationPreviewBrowser")
+    );
+    QElapsedTimer html_load_timeout;
+    html_load_timeout.start();
+    while (html_browser && html_browser->property("title").toString()
+                               != QStringLiteral("Shape animation")
+           && html_load_timeout.elapsed() < 5000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+    }
+    if (!html_browser
+        || html_browser->property("title").toString() != QStringLiteral("Shape animation")) {
+        std::cerr << "desktop authoring smoke did not render the HTML document" << std::endl;
+        return false;
+    }
+    QMetaObject::invokeMethod(preview_button, "clicked", Qt::DirectConnection);
+    QCoreApplication::processEvents();
+    if (html_workspace->property("previewMode").toBool()) {
+        std::cerr << "desktop authoring smoke did not close HTML preview" << std::endl;
+        return false;
+    }
     QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words\n"));
     const int pasted_text_index = backend.artifactCount();
     if (!backend.pasteMaterial() || backend.artifactCount() != pasted_text_index + 1) {
@@ -1070,6 +1171,8 @@ int main(int argc, char* argv[]) {
     }
 
     qputenv("QT_QUICK_CONTROLS_STYLE", "Basic");
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    QtWebEngineQuick::initialize();
     QGuiApplication application(argc, argv);
     application.setApplicationName(QStringLiteral("Shape"));
     application.setOrganizationName(QStringLiteral("Shape"));
@@ -1098,6 +1201,7 @@ int main(int argc, char* argv[]) {
     AudioExportController audio_export(*backend, &application);
     UiPreferences ui_preferences(application);
     RecentProjects recent_projects;
+    WebAnimationPreviewProfile web_animation_preview;
     const bool smoke_mode = arguments->smoke_exit || arguments->smoke_text_cycle
                             || arguments->smoke_raster_cycle
                             || arguments->speech_live_directory.has_value()
@@ -1122,6 +1226,9 @@ int main(int argc, char* argv[]) {
     );
     backend->retranslate();
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("webAnimationPreviewProfile"), web_animation_preview.profile()
+    );
     engine.addImageProvider(
         QStringLiteral("shape-preview"),
         new ImagePreviewProvider(backend->imagePreviewStore())

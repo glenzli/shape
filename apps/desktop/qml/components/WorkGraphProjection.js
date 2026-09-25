@@ -128,7 +128,8 @@ function graphFor(artifacts, selectedId, drafts) {
             let copy = Object.assign({}, node, {id: id})
             if (rootSource && node.roleKey === "output") {
                 copy = Object.assign({}, copy, {
-                    roleKey: "source", outputPorts: rootSource.outputPorts
+                    roleKey: "source", outputPorts: rootSource.outputPorts,
+                    artifactName: artifact.name
                 })
                 if (importSource) {
                     copy.hasTextPreview = rootSource.hasTextPreview
