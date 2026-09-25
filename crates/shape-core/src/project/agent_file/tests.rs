@@ -180,7 +180,16 @@ fn live_synthetic_file_task_creates_reviewable_candidate_before_accept() {
     assert_eq!(project.snapshot().unwrap().artifacts.len(), 1);
     assert!(candidate.text().contains(&marker));
     assert!(candidate.receipt().executor_job_id.is_some());
-    assert!(candidate.receipt().external_provenance.is_some());
+    let provenance = candidate.receipt().external_provenance.as_ref().unwrap();
+    println!(
+        "Agent Job {} used {} / {}",
+        candidate.receipt().executor_job_id.as_deref().unwrap(),
+        provenance.deployment,
+        provenance.model_build
+    );
+    if let Ok(expected_deployment) = std::env::var("SHAPE_TEST_INFER_EXPECTED_AGENT_DEPLOYMENT") {
+        assert_eq!(provenance.deployment, expected_deployment);
+    }
     let output = project.accept_agent_text_file(candidate).unwrap();
     assert_eq!(project.snapshot().unwrap().artifacts.len(), 2);
     assert_eq!(

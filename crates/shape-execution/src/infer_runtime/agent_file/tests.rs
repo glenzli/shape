@@ -24,6 +24,11 @@ fn existing_agent_job_has_acceptable_shape_provenance() {
         snapshot,
     )
     .unwrap();
-    assert_eq!(provenance.deployment, "codex_agent_gpt_6_sol");
+    assert!(
+        super::super::job_provenance::approved_agent_deployment_build(
+            &provenance.deployment,
+            &provenance.model_build
+        )
+    );
     assert!(provenance.is_bounded());
 }

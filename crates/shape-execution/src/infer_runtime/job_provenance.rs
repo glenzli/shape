@@ -24,6 +24,10 @@ const MAX_REASON_CODES: usize = 32;
 
 pub(super) const TEXT_EDIT_DEPLOYMENT: &str = "ollama_qwen3_5_4b";
 pub(super) const SPEECH_DEPLOYMENT: &str = "mlx_qwen3_tts_custom_voice_1_7b";
+const AGENT_SOL_DEPLOYMENT: &str = "codex_agent_gpt_6_sol";
+const AGENT_SOL_BUILD: &str = "codex_gpt_6_sol_agent";
+const AGENT_LUNA_DEPLOYMENT: &str = "codex_agent_gpt_6_luna";
+const AGENT_LUNA_BUILD: &str = "codex_gpt_6_luna_agent";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum JobPolicyProfile {
@@ -175,12 +179,12 @@ impl JobPolicyProfile {
         }
     }
 
-    const fn named_deployment(self) -> &'static str {
+    fn named_deployment(self) -> &'static str {
         match self {
             Self::LocalTextEdit => TEXT_EDIT_DEPLOYMENT,
             Self::CloudTextEdit(deployment) | Self::CloudImageInteractive(deployment) => deployment,
             Self::LocalSpeech => SPEECH_DEPLOYMENT,
-            Self::AgentFileTask => "codex_agent_gpt_6_sol",
+            Self::AgentFileTask => unreachable!("Agent tasks do not request a named route"),
         }
     }
 
@@ -307,7 +311,7 @@ fn validate_agent_file_policy(
         || snapshot.priority != "normal"
         || snapshot.placement != "cloud"
         || snapshot.provider != "codex-agent"
-        || snapshot.deployment != "codex_agent_gpt_6_sol"
+        || !approved_agent_deployment_build(&snapshot.deployment, &snapshot.model_build)
         || snapshot.routing.capability_floor != "foundational"
         || snapshot.routing.named_route.is_some()
     {
@@ -324,6 +328,13 @@ fn validate_agent_file_policy(
         fallback: "service_default".into(),
         deadline_ms: Some(300_000),
     })
+}
+
+pub(super) fn approved_agent_deployment_build(deployment: &str, model_build: &str) -> bool {
+    matches!(
+        (deployment, model_build),
+        (AGENT_SOL_DEPLOYMENT, AGENT_SOL_BUILD) | (AGENT_LUNA_DEPLOYMENT, AGENT_LUNA_BUILD)
+    )
 }
 
 fn validate_named_route(

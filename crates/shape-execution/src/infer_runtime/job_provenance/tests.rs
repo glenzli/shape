@@ -1,5 +1,6 @@
 use infer_runtime_client::{
-    AttemptSnapshot, CandidateDecision, JobSnapshot, NamedRouteDecision, RoutingDecision,
+    AGENT_TASK_INTENT, AttemptSnapshot, CandidateDecision, JobSnapshot, NamedRouteDecision,
+    RoutingDecision,
 };
 use serde_json::json;
 
@@ -8,8 +9,8 @@ use super::{
     parse_job_snapshot,
 };
 use crate::infer_runtime::{
-    INFER_RUNTIME_CONTRACT_VERSION, INFER_RUNTIME_RESPONSES_CAPABILITY,
-    INFER_RUNTIME_SPEECH_CAPABILITY,
+    INFER_RUNTIME_AGENT_TASK_CAPABILITY, INFER_RUNTIME_CONTRACT_VERSION,
+    INFER_RUNTIME_RESPONSES_CAPABILITY, INFER_RUNTIME_SPEECH_CAPABILITY,
 };
 
 fn local_job(intent: &str, deployment: &str, capability: &str, floor: &str) -> JobSnapshot {
@@ -132,6 +133,105 @@ fn cloud_text_job(deployment: &str) -> JobSnapshot {
     job.routing.candidates[0].deployment = deployment.into();
     job.attempts[0].deployment = deployment.into();
     job
+}
+
+fn agent_file_job(deployment: &str, model_build: &str) -> JobSnapshot {
+    let mut job = local_job(
+        AGENT_TASK_INTENT,
+        deployment,
+        INFER_RUNTIME_AGENT_TASK_CAPABILITY,
+        "foundational",
+    );
+    job.provider = "codex-agent".into();
+    job.model_build = model_build.into();
+    job.placement = "cloud".into();
+    job.policy = "balanced".into();
+    job.priority = "normal".into();
+    job.constraints = json!({"deadline_ms": 300_000});
+    job.routing.named_route = None;
+    job.routing.candidates[0].provider = job.provider.clone();
+    job.attempts[0].provider = job.provider.clone();
+    job
+}
+
+#[test]
+fn agent_file_job_accepts_only_the_configured_deployment_build_pairs() {
+    let routes = [
+        ("codex_agent_gpt_6_sol", "codex_gpt_6_sol_agent"),
+        ("codex_agent_gpt_6_luna", "codex_gpt_6_luna_agent"),
+    ];
+    for (deployment, model_build) in routes {
+        let provenance = parse_job_snapshot(
+            "resp_shape_job",
+            AGENT_TASK_INTENT,
+            JobPolicyProfile::AgentFileTask,
+            agent_file_job(deployment, model_build),
+        )
+        .expect("configured Agent route is accepted");
+        assert_eq!(provenance.deployment, deployment);
+        assert_eq!(provenance.model_build, model_build);
+        assert_eq!(provenance.provider, "codex-agent");
+        assert_eq!(provenance.requested_deadline_ms, Some(300_000));
+        assert!(provenance.named_route.is_none());
+    }
+
+    for (deployment, model_build) in [
+        ("codex_agent_gpt_6_sol", "codex_gpt_6_luna_agent"),
+        ("codex_agent_gpt_6_luna", "codex_gpt_6_sol_agent"),
+        ("codex_agent_gpt_6_astra", "codex_gpt_6_astra_agent"),
+    ] {
+        assert_eq!(
+            parse_job_snapshot(
+                "resp_shape_job",
+                AGENT_TASK_INTENT,
+                JobPolicyProfile::AgentFileTask,
+                agent_file_job(deployment, model_build),
+            ),
+            Err(JobProvenanceError::PolicyViolation)
+        );
+    }
+}
+
+#[test]
+fn agent_file_job_keeps_provider_capability_and_policy_narrow() {
+    let mut wrong_provider = agent_file_job("codex_agent_gpt_6_luna", "codex_gpt_6_luna_agent");
+    wrong_provider.provider = "other-agent".into();
+    assert_eq!(
+        parse_job_snapshot(
+            "resp_shape_job",
+            AGENT_TASK_INTENT,
+            JobPolicyProfile::AgentFileTask,
+            wrong_provider,
+        ),
+        Err(JobProvenanceError::PolicyViolation)
+    );
+
+    let mut named_route = agent_file_job("codex_agent_gpt_6_luna", "codex_gpt_6_luna_agent");
+    named_route.routing.named_route = Some(NamedRouteDecision {
+        kind: "deployment".into(),
+        ordered_ids: vec!["codex_agent_gpt_6_luna".into()],
+    });
+    assert_eq!(
+        parse_job_snapshot(
+            "resp_shape_job",
+            AGENT_TASK_INTENT,
+            JobPolicyProfile::AgentFileTask,
+            named_route,
+        ),
+        Err(JobProvenanceError::PolicyViolation)
+    );
+
+    let mut wrong_capability = agent_file_job("codex_agent_gpt_6_luna", "codex_gpt_6_luna_agent");
+    wrong_capability.capability_contract = Some(INFER_RUNTIME_RESPONSES_CAPABILITY.into());
+    assert_eq!(
+        parse_job_snapshot(
+            "resp_shape_job",
+            AGENT_TASK_INTENT,
+            JobPolicyProfile::AgentFileTask,
+            wrong_capability,
+        ),
+        Err(JobProvenanceError::InvalidResponse)
+    );
 }
 
 #[test]
