@@ -177,6 +177,7 @@ qt_add_qml_module(shape-desktop
         qml/components/ShapeTextEditor.qml
         qml/components/ShapeComboBox.qml
         qml/components/ShapeDialog.qml
+        qml/components/ShapeMessageDialog.qml
         qml/components/TextAuthoringWorkspace.qml
         qml/components/ScriptPresentation.js
         qml/components/TextFormatPanel.qml

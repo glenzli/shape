@@ -26,10 +26,10 @@ Item {
         onAccepted: exportDialog.controller.exportAudio(exportDialog.artifactId, exportDialog.candidateId, selectedFile)
     }
 
-    MessageDialog {
+    ShapeMessageDialog {
         id: resultDialog
+        objectName: "audioExportResultDialog"
         title: qsTr("Export audio")
-        buttons: MessageDialog.Ok
     }
 
     Connections {

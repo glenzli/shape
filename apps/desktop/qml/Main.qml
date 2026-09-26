@@ -398,11 +398,11 @@ ApplicationWindow {
         onAccepted: window.backend.exportAcceptedMaterial(artifactId, selectedFile)
     }
 
-    MessageDialog {
+    ShapeMessageDialog {
         id: componentPreviewDialog
+        objectName: "componentPreviewDialog"
         title: qsTr("Components")
         text: qsTr("Reusable components are coming next. This section is reserved so larger projects can organize repeated creative work without changing today's project structure.")
-        buttons: MessageDialog.Ok
     }
 
     BranchArtifactDialog {

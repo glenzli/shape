@@ -343,6 +343,9 @@ Qwen speech and byte-verified WAV export in an isolated project; it requires con
 
 `ShapeButton`, `ShapeTextField`, `ShapeTextArea`, `ShapeComboBox` and `ShapeDialog` own shared theme,
 focus, padding and popup treatment. Loading indicators stay inside the existing button geometry.
+`ShapeMessageDialog` presents application notices and export results with those same components,
+a localized, content-sized close button, bounded plain-text content, and Enter/Escape dismissal.
+Native file and folder pickers retain their platform behavior.
 
 ### Production scripts
 

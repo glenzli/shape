@@ -5286,4 +5286,8 @@
     <message><source>Sound task: %1 · Seed %2 · %3 s</source><translation>声音任务：%1 · 种子 %2 · %3 秒</translation></message>
     <message><source>This version is accepted. You can listen, export WAV, or inspect its generation details.</source><translation>此版本已采用。你可以试听、导出 WAV 或查看生成详情。</translation></message>
 </context>
+<context>
+    <name>ShapeMessageDialog</name>
+    <message><source>Close</source><translation>关闭</translation></message>
+</context>
 </TS>
