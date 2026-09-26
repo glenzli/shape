@@ -407,6 +407,7 @@ fn operator_type(
         }
         (Some(TransformationOperation::AudioSpeechSynthesis(_)), _, _) => "audio.speech_synthesize",
         (Some(TransformationOperation::AiImageGenerate(_)), _, _) => "image.generate",
+        (Some(TransformationOperation::AudioGenerate(_)), _, _) => "audio.generate",
         (_, TransformationKind::TextRewrite, _) => TEXT_EDIT_OPERATOR_TYPE,
         (_, TransformationKind::GenerativeEdit, ArtifactKind::TextDocument) => {
             TEXT_TRANSFORM_OPERATOR_TYPE

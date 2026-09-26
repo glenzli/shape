@@ -22,6 +22,7 @@ Rectangle {
     property string sourceAudioOriginKey: ""
     property string selectedCandidateId: ""
     property bool compactNavigation: false
+    property bool viewingAcceptedVersion: false
 
     property bool active: false
     property string openedNodeId: ""
@@ -135,6 +136,8 @@ Rectangle {
             case "image.unsharp_mask":
             case "image.drop_shadow":
                 return qsTr("Image editing");
+            case "audio.generate":
+                return qsTr("Create sound effects or music");
             case "audio.speech_synthesize":
                 return qsTr("Turn text into speech");
             default:
@@ -273,7 +276,9 @@ Rectangle {
                     Text {
                         Layout.fillWidth: true
                         visible: !host.compactNavigation
-                        text: host.selectedCandidateId.length > 0 ? qsTr("Reviewing a new version") : qsTr("Working on this creative step")
+                        text: host.selectedCandidateId.length > 0 ? qsTr("Reviewing a new version")
+                              : host.viewingAcceptedVersion ? qsTr("Viewing the accepted version")
+                              : qsTr("Working on this creative step")
                         color: Theme.muted
                         font.pixelSize: 10
                         elide: Text.ElideRight
@@ -290,7 +295,8 @@ Rectangle {
                     Text {
                         id: workspaceStateText
                         anchors.centerIn: parent
-                        text: host.selectedCandidateId.length > 0 ? qsTr("Reviewing") : qsTr("Draft")
+                        text: host.selectedCandidateId.length > 0 ? qsTr("Reviewing")
+                              : host.viewingAcceptedVersion ? qsTr("Accepted") : qsTr("Draft")
                         color: host.selectedCandidateId.length > 0 ? Theme.accent : Theme.textSoft
                         font.pixelSize: 9
                         font.weight: Font.DemiBold

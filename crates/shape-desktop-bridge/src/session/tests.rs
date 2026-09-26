@@ -183,6 +183,7 @@ fn bridge_speech_operation() -> SpeechSynthesisOperation {
 
 fn bridge_provenance() -> ExternalExecutionProvenance {
     ExternalExecutionProvenance {
+        sound_prompt: None,
         speech_segments: Vec::new(),
         speech_script: None,
         contract_revision: INFER_RUNTIME_CONTRACT_VERSION.to_owned(),
@@ -316,7 +317,7 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
             .session_operator_descriptors(&artifact.id)
             .expect("catalog projects")
             .len(),
-        10
+        11
     );
 
     drop(session);

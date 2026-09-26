@@ -720,7 +720,7 @@ dependencies = [
 [[package]]
 name = "infer-artifact-lease"
 version = "0.1.0"
-source = "git+https://github.com/glenzli/infer-runtime.git?rev=679b121a0a338a66e99f920073620158d32d3e4e#679b121a0a338a66e99f920073620158d32d3e4e"
+source = "git+https://github.com/glenzli/infer-runtime.git?rev=05af950570d15beef6934e5315d3162281a62d8b#05af950570d15beef6934e5315d3162281a62d8b"
 dependencies = [
  "libc",
  "serde",
@@ -733,7 +733,7 @@ dependencies = [
 [[package]]
 name = "infer-runtime-client"
 version = "1.0.0"
-source = "git+https://github.com/glenzli/infer-runtime.git?rev=679b121a0a338a66e99f920073620158d32d3e4e#679b121a0a338a66e99f920073620158d32d3e4e"
+source = "git+https://github.com/glenzli/infer-runtime.git?rev=05af950570d15beef6934e5315d3162281a62d8b#05af950570d15beef6934e5315d3162281a62d8b"
 dependencies = [
  "base64",
  "bytes",

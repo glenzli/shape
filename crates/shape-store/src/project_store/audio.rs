@@ -200,3 +200,44 @@ impl super::ProjectStore {
         .map_err(|_| invalid())
     }
 }
+
+/// Generated sounds have no material inputs and can only accept their verified successful result.
+pub(super) fn validate_sound_generation_commit(
+    commit: &super::AcceptedCommit,
+) -> Result<(), StoreError> {
+    let invalid = || {
+        StoreError::InvalidCommit(
+            "sound generation output or provenance violates the accepted contract",
+        )
+    };
+    let Some(TransformationOperation::AudioGenerate(operation)) = &commit.transformation.operation
+    else {
+        return Err(invalid());
+    };
+    let Some(ArtifactContentContract::AudioClip(contract)) = &commit.content_contract else {
+        return Err(invalid());
+    };
+    let Some(provenance) = &commit.receipt.external_provenance else {
+        return Err(invalid());
+    };
+    if commit.expected_head.is_some()
+        || commit.transformation.kind != TransformationKind::GenerativeEdit
+        || !commit.transformation.inputs.is_empty()
+        || !commit.transformation.references.is_empty()
+        || commit.output_media_type != "audio/wav"
+        || commit.receipt.capability.as_str() != shape_execution::AUDIO_GENERATE_CAPABILITY
+        || commit
+            .receipt
+            .executor_job_id
+            .as_ref()
+            .is_none_or(String::is_empty)
+        || !shape_execution::valid_sound_output(operation, contract, provenance)
+    {
+        return Err(invalid());
+    }
+    validate_audio_content(
+        &commit.output_media_type,
+        commit.content_contract.as_ref(),
+        &commit.output_bytes,
+    )
+}

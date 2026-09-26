@@ -16,6 +16,7 @@ pub(super) enum Candidate {
     ImageEdit(ImageEditCandidate),
     AiImage(AiImageCandidate),
     Audio(AudioCandidate),
+    Sound(shape_core::SoundCandidate),
 }
 
 impl Candidate {
@@ -28,6 +29,7 @@ impl Candidate {
             Self::ImageEdit(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::AiImage(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Audio(candidate) => candidate.receipt().attempt_id.to_string(),
+            Self::Sound(candidate) => candidate.receipt().attempt_id.to_string(),
         }
     }
 
@@ -40,6 +42,7 @@ impl Candidate {
             Self::ImageEdit(candidate) => candidate.artifact_id(),
             Self::AiImage(candidate) => candidate.artifact_id(),
             Self::Audio(candidate) => candidate.artifact_id(),
+            Self::Sound(candidate) => candidate.artifact_id(),
         }
     }
 }

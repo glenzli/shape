@@ -188,6 +188,7 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::AudioOutputContractMismatch
         | CoreError::ImageGenerationOutputContractMismatch
         | CoreError::InvalidImageGenerationTarget { .. }
+        | CoreError::InvalidSoundGenerationTarget { .. }
         | CoreError::Execution(_) => "execution_invalid".to_owned(),
     }
 }

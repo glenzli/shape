@@ -384,3 +384,25 @@ acceptance and project reopening; it is an opt-in live test, not part of ordinar
 
 The node library supports Chinese search, arrow-key selection and Enter. It shows human-readable
 input/output types; text comparison and the offline script guide expose scrollbars when overflowing.
+
+### Local sound and music
+
+The zero-input `audio.generate` source opens `SoundGenerationWorkspace.qml`. The draft owns
+original prompt, SFX/music choice, 1–30 second duration and explicit u32 seed. Generate snapshots
+all displayed fields before dispatch; `InferSoundController` owns asynchronous execution and
+cancellation, while the bridge reopens the checkpointed draft and rejects stale adoption.
+Chinese/mixed descriptions use the explicit versioned SDK preparation helper once per unchanged
+prompt in the controller session. Preparation is local Qwen 3.5 4B; failures stop the chain.
+English stays byte-exact. Retries reuse the verified preparation; a changed original invalidates it.
+Only `model_choice` selects Stable Audio 3 Small SFX/Music; deployment metadata is forbidden by the
+sound contract. Job readback binds the selected physical model, exact seed/duration and local-only,
+offline, no-fallback, zero-cost policy to verified 44.1 kHz stereo PCM16 WAV bytes.
+
+A sound remains a transient Candidate until explicit acceptance. Playback, exact WAV export,
+switching and deletion use the existing audio and Candidate owners. Acceptance validates the
+original/effective prompt record and authored-request digest again, then stores immutable audio and
+provenance. Generation details remain inspectable after reopening. Stop and controller destruction
+drop waiting futures and prevent adoption; they do not claim to terminate an already running provider.
+The opt-in `--smoke-sound-live ABS_OUTPUT_DIRECTORY` path checks real Chinese SFX, mixed Chinese
+instruments, English bypass, numeric field snapshots, failure/stop, reuse, candidate switching/deletion,
+playback, exact export, acceptance and reopen using the production controller and packaged workspace.

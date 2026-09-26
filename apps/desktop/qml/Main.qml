@@ -14,6 +14,7 @@ ApplicationWindow {
     required property DesktopBackend backend
     required property InferRuntimeController inferRuntime
     required property InferTextController inferText
+    required property InferSoundController inferSound
     required property InferAgentController inferAgent
     required property InferSpeechController inferSpeech
     required property InferImageController inferImage
@@ -206,6 +207,17 @@ ApplicationWindow {
         backend.prepareImagePreviews(selectedArtifact.id, imageCandidateId)
     }
 
+    function startSoundScene(): void {
+        if (!backend.createSoundScene(qsTr("Untitled sound"))) return
+        selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
+        selectedCandidateId = ""
+        compareMode = false
+        Qt.callLater(function() {
+            const drafts = window.draftsForArtifact(window.selectedArtifact.id)
+            if (drafts.length > 0) workspaceSurface.openOperatorDraft(drafts[0].id)
+        })
+    }
+
     function imageGenerationStatus(errorCode) : string {
         if (window.inferImage.running) {
             if (window.inferImage.stopRequested) {
@@ -309,6 +321,7 @@ ApplicationWindow {
     CreateSceneTypeDialog {
         id: createSceneTypeDialog
         onTextAuthoringRequested: profile => window.startTextAuthoring(profile)
+        onSoundSceneRequested: window.startSoundScene()
         onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
         onImportMaterialRequested: materialImportDialog.open()
         onPasteMaterialRequested: window.pasteMaterialIntoProject()
@@ -492,6 +505,7 @@ ApplicationWindow {
                     backend: window.backend
                     inferSpeech: window.inferSpeech
                     inferAgent: window.inferAgent
+                    inferSound: window.inferSound
                     audioPreview: window.audioPreview
                     projectPath: window.backend.bundlePath
                     inferCredentialConfigured: window.inferText.credentialConfigured
@@ -593,6 +607,7 @@ ApplicationWindow {
                             draftId, instruction, outputWidth, outputHeight, candidateCount)
                     }
                     onOperatorDraftRequested: operatorTypeKey => {
+                        if (operatorTypeKey === "audio.generate") { window.startSoundScene(); return }
                         if (operatorTypeKey === "text.create") { window.startTextAuthoring("plain"); return }
                         if (operatorTypeKey === "image.generate") { createAiImageSceneDialog.openForCreation(); return }
                         if (operatorTypeKey === "text.edit"
@@ -745,7 +760,7 @@ ApplicationWindow {
                 selectedPreviewSource: window.backend.candidateImageSource
                 candidateThumbnailSource: candidateId => window.backend.candidateThumbnailSource(candidateId)
                 mutationEnabled: window.backend.projectOpen && !window.inferImage.running
-                                 && !window.inferAgent.running
+                                 && !window.inferAgent.running && !window.inferSound.running
                 compareAvailable: window.candidateForSelected
                 onCandidateSelected: candidateId => window.activateCandidate(candidateId)
                 onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
@@ -796,6 +811,14 @@ ApplicationWindow {
 
         function onOperatorDraftsChanged() : void {
             Qt.callLater(workspaceSurface.synchronizeNodeSelection)
+        }
+    }
+
+    Connections {
+        target: window.inferSound
+        function onCandidateCreated(candidateId, artifactId): void {
+            if (window.hasSelectedArtifact && window.selectedArtifact.id === artifactId)
+                window.activateCandidate(candidateId)
         }
     }
 

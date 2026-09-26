@@ -132,6 +132,49 @@ impl OperatorDrafts {
 
     /// Begins one zero-input `image.generate` draft against an unaccepted
     /// `ImageRaster` Artifact.
+    pub(crate) fn begin_sound_source(
+        &mut self,
+        artifact: &Artifact,
+        instruction: &str,
+        kind: &str,
+        seconds: u8,
+        seed: u32,
+    ) -> Result<WorkingOperatorDraft, String> {
+        if artifact.kind != ArtifactKind::AudioClip || artifact.accepted_revision.is_some() {
+            return Err("audio.generate requires an unaccepted audio.clip target".to_owned());
+        }
+        if self
+            .graphs
+            .iter()
+            .any(|graph| graph.context_artifact_id() == artifact.id)
+        {
+            return Err("the source Artifact already has a Working Graph".to_owned());
+        }
+        let mut graph = ArtifactWorkingGraph::new_source(artifact.id);
+        let draft = graph
+            .add_source_operator(
+                OperatorTypeId::new("audio.generate").map_err(|error| error.to_string())?,
+                OperatorDataTypeId::new("audio.clip").map_err(|error| error.to_string())?,
+            )
+            .map_err(|error| error.to_string())?;
+        let configuration = crate::operator_catalog::sound_generation::configuration(
+            instruction,
+            kind,
+            seconds,
+            seed,
+        )?;
+        if !graph.set_operator_configuration(draft.id(), Some(configuration)) {
+            return Err("Sound generation draft disappeared during creation".to_owned());
+        }
+        let configured = graph
+            .operators()
+            .first()
+            .cloned()
+            .ok_or_else(|| "Sound generation draft disappeared during creation".to_owned())?;
+        self.graphs.push(graph);
+        Ok(configured)
+    }
+
     pub(crate) fn begin_ai_image_source(
         &mut self,
         artifact: &Artifact,
@@ -496,6 +539,48 @@ impl OperatorDrafts {
             target_height,
             aspect_policy_key,
             resampling_key,
+        )?;
+        let artifact_id = self.graphs[graph_index].context_artifact_id();
+        if !self.graphs[graph_index].set_operator_configuration(&draft_id, Some(configuration)) {
+            return Err("Operator draft disappeared during configuration".to_owned());
+        }
+        let draft = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("configured draft remains in its Working Graph")
+            .clone();
+        Ok((artifact_id, draft))
+    }
+
+    pub(crate) fn update_sound_configuration(
+        &mut self,
+        draft_id: &str,
+        instruction: &str,
+        kind: &str,
+        seconds: u8,
+        seed: u32,
+    ) -> Result<(ArtifactId, WorkingOperatorDraft), String> {
+        let draft_id = OperatorNodeId::new(draft_id).map_err(|error| error.to_string())?;
+        let Some(graph_index) = self.graph_index_for_draft(&draft_id) else {
+            return Err("Operator draft does not exist".to_owned());
+        };
+        let draft = self.graphs[graph_index]
+            .operators()
+            .iter()
+            .find(|draft| draft.id() == &draft_id)
+            .expect("located draft remains in its Working Graph");
+        if draft.operator_type().as_str() != "audio.generate"
+            || draft.input_data_type().is_some()
+            || self.graphs[graph_index].expected_revision_id().is_some()
+        {
+            return Err("draft is not a source-less audio.generate Operator".to_owned());
+        }
+        let configuration = crate::operator_catalog::sound_generation::configuration(
+            instruction,
+            kind,
+            seconds,
+            seed,
         )?;
         let artifact_id = self.graphs[graph_index].context_artifact_id();
         if !self.graphs[graph_index].set_operator_configuration(&draft_id, Some(configuration)) {

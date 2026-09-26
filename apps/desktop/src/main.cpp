@@ -9,7 +9,9 @@
 #include "infer_speech_controller.hpp"
 #include "infer_text_controller.hpp"
 #include "infer_agent_controller.hpp"
+#include "infer_sound_controller.hpp"
 #include "speech_live_smoke.hpp"
+#include "sound_live_smoke.hpp"
 #include "text_authoring_smoke.hpp"
 #include "ui_preferences.hpp"
 #include "workspace_host_smoke.hpp"
@@ -53,6 +55,7 @@ struct Arguments {
     bool smoke_exit = false;
     bool smoke_text_cycle = false;
     bool smoke_raster_cycle = false;
+    std::optional<QString> sound_live_directory;
     std::optional<QString> speech_live_directory;
     std::optional<QString> speech_script_directory;
     std::optional<QString> text_authoring_directory;
@@ -74,6 +77,8 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             arguments.smoke_text_cycle = true;
         } else if (argument == "--smoke-raster-cycle") {
             arguments.smoke_raster_cycle = true;
+        } else if (argument == "--smoke-sound-live" && index + 1 < argc) {
+            arguments.sound_live_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-speech-script" && index + 1 < argc) {
             arguments.speech_script_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-speech-live" && index + 1 < argc) {
@@ -151,8 +156,8 @@ bool run_smoke_raster_cycle(
     QObject* const workspace_surface =
         root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
     if (image_palette == nullptr || workspace_surface == nullptr
-        || image_palette->property("compatibleOperatorCount").toInt() != 3) {
-        std::cerr << "desktop raster smoke did not expose the universal text editor beside the "
+        || image_palette->property("compatibleOperatorCount").toInt() != 4) {
+        std::cerr << "desktop raster smoke did not expose source creation beside the "
                      "unified image editor"
                   << std::endl;
         return false;
@@ -1196,6 +1201,7 @@ int main(int argc, char* argv[]) {
         QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation))
             .filePath(QStringLiteral("secrets/infer-runtime.token"));
     InferTextController infer_text(*backend, infer_credential_path, &application);
+    InferSoundController infer_sound(*backend, infer_credential_path, &application);
     InferAgentController infer_agent(*backend, infer_credential_path, &application);
     InferSpeechController infer_speech(*backend, infer_credential_path, &application);
     InferImageController infer_image(*backend, infer_credential_path, &application);
@@ -1247,6 +1253,7 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
         {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
         {QStringLiteral("inferText"), QVariant::fromValue(&infer_text)},
+        {QStringLiteral("inferSound"), QVariant::fromValue(&infer_sound)},
         {QStringLiteral("inferAgent"), QVariant::fromValue(&infer_agent)},
         {QStringLiteral("inferSpeech"), QVariant::fromValue(&infer_speech)},
         {QStringLiteral("inferImage"), QVariant::fromValue(&infer_image)},
@@ -1307,6 +1314,19 @@ int main(int argc, char* argv[]) {
                 *arguments->text_authoring_directory
             );
             QCoreApplication::exit(passed ? 0 : 7);
+        });
+    }
+    if (arguments->sound_live_directory.has_value()) {
+        QTimer::singleShot(0, &application, [&]() {
+            const bool passed = sound_live_smoke::run(
+                *backend,
+                infer_sound,
+                audio_preview,
+                audio_export,
+                *root_object,
+                *arguments->sound_live_directory
+            );
+            QCoreApplication::exit(passed ? 0 : 9);
         });
     }
     if (arguments->speech_live_directory.has_value()) {

@@ -101,6 +101,8 @@ Item {
             return qsTr("Image editing");
         if (nodeData.operatorTypeKey === "text.edit" || nodeData.operatorTypeKey === "text.transform")
             return qsTr("AI text editor");
+        if (nodeData.operatorTypeKey === "audio.generate")
+            return qsTr("Sound generation");
         if (nodeData.operatorTypeKey === "image.generate")
             return qsTr("AI image creation");
         return nodeData.operatorTypeLabel;
@@ -117,6 +119,8 @@ Item {
         if (nodeData.operatorTypeKey === "text.edit" || nodeData.operatorTypeKey === "text.transform") {
             return qsTr("Write · Expand · Polish");
         }
+        if (nodeData.operatorTypeKey === "audio.generate")
+            return qsTr("Description · Duration · Seed");
         if (isAiCreator)
             return qsTr("Prompt · Canvas · Candidates");
         return nodeData.operatorTypeLabel;

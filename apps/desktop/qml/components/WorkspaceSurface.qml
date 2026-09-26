@@ -28,6 +28,7 @@ Item {
     required property DesktopBackend backend
     required property InferSpeechController inferSpeech
     required property InferAgentController inferAgent
+    required property InferSoundController inferSound
     required property AudioPreviewController audioPreview
     property string projectPath: ""
     property bool inferCredentialConfigured: false
@@ -139,7 +140,10 @@ Item {
 
     function showArtifact() : bool {
         if (selectedCandidate !== null && selectedCandidate.hasAudioPreview) {
-            return openSpeechWorkspace()
+            for (const draft of operatorDrafts || []) {
+                if (draft.operatorTypeKey === "audio.generate") return openOperatorDraft(draft.id)
+            }
+            if (selectedArtifact.kindKey === "text_document") return openSpeechWorkspace()
         }
         if (selectedCandidate !== null && selectedCandidate.hasImagePreview) {
             const drafts = operatorDrafts || []
@@ -521,6 +525,21 @@ Item {
     }
 
     Component {
+        id: soundGenerationWorkspace
+        SoundGenerationWorkspace {
+            backend: surface.backend
+            inferSound: surface.inferSound
+            audioPreview: surface.audioPreview
+            credentialConfigured: surface.inferCredentialConfigured
+            artifactId: operatorWorkspaceHost.openedArtifactId
+            draft: surface.draftForId(operatorWorkspaceHost.openedNodeId)
+            candidateId: surface.candidateForSelected ? surface.selectedCandidateId : ""
+            acceptedRevisionId: surface.hasSelectedArtifact ? surface.selectedArtifact.acceptedRevisionId : ""
+            onExportRequested: surface.audioExportRequested(artifactId, candidateId)
+        }
+    }
+
+    Component {
         id: audioSpeechOperatorWorkspace
 
         AudioSpeechOperatorWorkspace {
@@ -673,6 +692,10 @@ Item {
                     const artifact = surface.artifactForId(operatorWorkspaceHost.openedArtifactId)
                     return artifact !== null ? artifact.audioOriginKey : ""
                 }
+                viewingAcceptedVersion: operatorWorkspaceHost.openedOperatorTypeKey === "audio.generate"
+                    && surface.draftForId(operatorWorkspaceHost.openedNodeId) === null
+                    && surface.hasSelectedArtifact && surface.selectedArtifact.hasAcceptedRevision
+                    && surface.selectedCandidateId.length === 0
                 compactNavigation: surface.guidedAuthoringActive
                 selectedCandidateId: surface.selectedCandidateId
                 operatorWorkspaces: ({
@@ -687,6 +710,7 @@ Item {
                     "image.unsharp_mask": imageEditorWorkspace,
                     "image.drop_shadow": imageEditorWorkspace,
                     "image.generate": aiImageOperatorWorkspace,
+                    "audio.generate": soundGenerationWorkspace,
                     "audio.speech_synthesize": audioSpeechOperatorWorkspace
                 })
                 onReturnRequested: surface.showGraph()

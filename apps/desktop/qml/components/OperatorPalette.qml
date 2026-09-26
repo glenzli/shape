@@ -28,6 +28,7 @@ Popup {
         case "text.expand": return qsTr("Expand")
         case "text.outline": return qsTr("Outline")
         case "text.prepare_script": return qsTr("Prepare a script")
+        case "audio.generate": return qsTr("Create sound effects or music")
         case "image.generate": return qsTr("Generate an image")
         case "text.edit":
         case "text.transform": return qsTr("Text editing")
@@ -70,6 +71,7 @@ Popup {
         case "text.expand": return qsTr("Develop a short text into a fuller draft.")
         case "text.outline": return qsTr("Organize an original into headings and key points.")
         case "text.prepare_script": return qsTr("Turn an original into a narration script with roles and timing.")
+        case "audio.generate": return qsTr("Generate local sound effects or short music from a description.")
         case "image.generate": return qsTr("Create an image from a description with Codex Luna through Infer.")
         case "text.create": return qsTr("Start with an idea or write manually; choose plain text or a narration script.")
         case "text.edit":

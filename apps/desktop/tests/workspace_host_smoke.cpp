@@ -566,7 +566,7 @@ bool verifySceneGraphRoutes(QObject& root_object) {
         QQmlEngine::contextForObject(host),
         host,
         QStringLiteral(
-            "openWorkspace('operator.future.audio', 'operator', 'audio.generate', "
+            "openWorkspace('operator.future.audio', 'operator', 'audio.future', "
             "'artifact.future', 'revision.future', 'transformation.future')"
         )
     );

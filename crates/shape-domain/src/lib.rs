@@ -26,6 +26,10 @@
 mod ai_image;
 mod artifact;
 mod audio;
+mod sound_generation;
+pub use sound_generation::{
+    SOUND_GENERATION_REVISION, SoundGenerationKind, SoundGenerationOperation,
+};
 mod content;
 mod error;
 mod ids;

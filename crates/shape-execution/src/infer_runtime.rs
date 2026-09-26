@@ -14,6 +14,11 @@ mod image_generation;
 mod job_provenance;
 mod responses;
 mod sdk;
+mod sound_generation;
+pub use sound_generation::{
+    AUDIO_GENERATE_CAPABILITY, INFER_RUNTIME_SOUND_GENERATION_CAPABILITY,
+    InferRuntimeSoundExecutor, SoundGenerationControl, valid_sound_output,
+};
 pub(crate) mod speech;
 
 #[cfg(test)]
@@ -228,13 +233,13 @@ fn endpoint_projection(
 
 fn map_probe_sdk_error(error: SdkAdapterError) -> InferRuntimeClientError {
     match error {
-        SdkAdapterError::InvalidEndpoint | SdkAdapterError::RuntimeUnavailable => {
-            InferRuntimeClientError::InvalidEndpoint
-        }
+        SdkAdapterError::Cancelled
+        | SdkAdapterError::InvalidEndpoint
+        | SdkAdapterError::RuntimeUnavailable
+        | SdkAdapterError::Sdk(SdkError::Discovery(_)) => InferRuntimeClientError::InvalidEndpoint,
         SdkAdapterError::Timeout | SdkAdapterError::Sdk(SdkError::Transport(_)) => {
             InferRuntimeClientError::Unavailable
         }
-        SdkAdapterError::Sdk(SdkError::Discovery(_)) => InferRuntimeClientError::InvalidEndpoint,
         SdkAdapterError::Sdk(SdkError::ContractMismatch) => {
             InferRuntimeClientError::IncompatibleContract {
                 actual: "contract_mismatch".to_owned(),

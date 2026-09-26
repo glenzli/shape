@@ -8,6 +8,7 @@ use shape_domain::ArtifactKind;
 mod ai_image_generate;
 mod audio_speech;
 mod image_resize;
+pub(crate) mod sound_generation;
 pub(crate) mod text_authoring;
 mod text_transform;
 
@@ -54,7 +55,15 @@ pub(crate) struct OperatorDescriptor {
     pub(crate) icon_key: &'static str,
 }
 
-const DESCRIPTORS: [OperatorDescriptor; 12] = [
+const DESCRIPTORS: [OperatorDescriptor; 13] = [
+    OperatorDescriptor {
+        type_key: "audio.generate",
+        source_kind: ArtifactKind::AudioClip,
+        input_data_type: "",
+        output_data_type: AUDIO_CLIP_DATA,
+        category_key: "audio",
+        icon_key: "waveform",
+    },
     OperatorDescriptor {
         type_key: TEXT_CREATE_OPERATOR,
         source_kind: ArtifactKind::TextDocument,
@@ -197,6 +206,7 @@ pub(crate) fn validate_draft_configuration(
     draft: &shape_domain::WorkingOperatorDraft,
 ) -> Result<(), String> {
     match (draft.operator_type().as_str(), draft.configuration()) {
+        ("audio.generate", configuration) => sound_generation::decode(configuration).map(|_| ()),
         (AUDIO_SPEECH_OPERATOR, configuration) => {
             validate_audio_speech_configuration(configuration)
         }

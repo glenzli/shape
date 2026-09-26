@@ -54,7 +54,11 @@ fn unsupported_families_and_unknown_types_fail_closed() {
         compatible_descriptors(ArtifactKind::AudioClip)
             .map(|d| d.type_key)
             .collect::<Vec<_>>(),
-        [TEXT_CREATE_OPERATOR, IMAGE_GENERATE_OPERATOR]
+        [
+            "audio.generate",
+            TEXT_CREATE_OPERATOR,
+            IMAGE_GENERATE_OPERATOR
+        ]
     );
     assert!(descriptor_for(ArtifactKind::TextDocument, "image.crop").is_err());
     assert!(descriptor_for(ArtifactKind::ImageRaster, "image.unknown").is_err());

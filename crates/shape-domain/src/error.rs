@@ -5,6 +5,10 @@ use thiserror::Error;
 /// A violation of a platform-independent Shape domain invariant.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum DomainError {
+    #[error(
+        "sound generation requires a bounded prompt, supported kind, and duration from 1 to 30 seconds"
+    )]
+    InvalidSoundGenerationOperation,
     /// A project name is empty or exceeds the portable limit.
     #[error("project name must contain 1..={max_bytes} UTF-8 bytes")]
     InvalidProjectName { max_bytes: usize },

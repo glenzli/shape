@@ -4,8 +4,8 @@ use std::{future::Future, path::PathBuf, sync::Mutex, time::Duration};
 
 use infer_runtime_client::{
     AgentTaskRequest, AgentTaskResult, AudioBytesResponse, CapabilityCatalog, Client,
-    ContractManifest, DiscoveryResolver, Error, JobSnapshot, ResponsesRequest, ResponsesResult,
-    SpeechRequest,
+    ContractManifest, DiscoveryResolver, Error, JobSnapshot, PreparedSoundPrompt, ResponsesRequest,
+    ResponsesResult, SoundGenerationRequest, SoundGenerationResponse, SpeechRequest,
 };
 use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 
@@ -16,12 +16,14 @@ const JOB_TIMEOUT: Duration = Duration::from_secs(10);
 pub(super) enum SdkAdapterError {
     Sdk(Error),
     Timeout,
+    Cancelled,
     InvalidEndpoint,
     RuntimeUnavailable,
 }
 
 pub(super) fn execution_failure(error: SdkAdapterError) -> (String, bool) {
     match error {
+        SdkAdapterError::Cancelled => ("generation_cancelled".to_owned(), false),
         SdkAdapterError::InvalidEndpoint | SdkAdapterError::Sdk(Error::Discovery(_)) => {
             ("infer_invalid_endpoint".to_owned(), false)
         }
@@ -79,6 +81,23 @@ pub(super) trait InferRuntimeSdk: Send + Sync {
         request: &SpeechRequest,
         timeout: Duration,
     ) -> Result<AudioBytesResponse, SdkAdapterError>;
+    fn prepare_sound_prompt(
+        &self,
+        prompt: &str,
+        timeout: Duration,
+        control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<PreparedSoundPrompt, SdkAdapterError>;
+    fn sound_job(
+        &self,
+        id: &str,
+        control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<JobSnapshot, SdkAdapterError>;
+    fn generate_sound(
+        &self,
+        request: &SoundGenerationRequest,
+        timeout: Duration,
+        control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<SoundGenerationResponse, SdkAdapterError>;
     fn job(&self, job_id: &str) -> Result<JobSnapshot, SdkAdapterError>;
     fn create_agent_task(
         &self,
@@ -139,6 +158,34 @@ impl OfficialSdkClient {
                 .map_err(SdkAdapterError::Sdk)
         })
     }
+    fn run_controlled<T>(
+        &self,
+        timeout: Duration,
+        control: &super::sound_generation::SoundGenerationControl,
+        future: impl Future<Output = infer_runtime_client::Result<T>>,
+    ) -> Result<T, SdkAdapterError> {
+        let runtime = self
+            .runtime
+            .lock()
+            .map_err(|_| SdkAdapterError::RuntimeUnavailable)?;
+        runtime.block_on(async {
+            let mut future = std::pin::pin!(future);
+            let deadline = tokio::time::Instant::now() + timeout;
+            loop {
+                if control.cancelled() {
+                    return Err(SdkAdapterError::Cancelled);
+                }
+                if tokio::time::Instant::now() >= deadline {
+                    return Err(SdkAdapterError::Timeout);
+                }
+                if let Ok(result) =
+                    tokio::time::timeout(Duration::from_millis(50), &mut future).await
+                {
+                    return result.map_err(SdkAdapterError::Sdk);
+                }
+            }
+        })
+    }
 }
 
 impl InferRuntimeSdk for OfficialSdkClient {
@@ -164,6 +211,30 @@ impl InferRuntimeSdk for OfficialSdkClient {
         timeout: Duration,
     ) -> Result<AudioBytesResponse, SdkAdapterError> {
         self.run(timeout, self.client.synthesize_speech(request))
+    }
+
+    fn generate_sound(
+        &self,
+        request: &SoundGenerationRequest,
+        timeout: Duration,
+        control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<SoundGenerationResponse, SdkAdapterError> {
+        self.run_controlled(timeout, control, self.client.generate_sound_effect(request))
+    }
+    fn prepare_sound_prompt(
+        &self,
+        prompt: &str,
+        timeout: Duration,
+        control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<PreparedSoundPrompt, SdkAdapterError> {
+        self.run_controlled(timeout, control, self.client.prepare_sound_prompt(prompt))
+    }
+    fn sound_job(
+        &self,
+        id: &str,
+        control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<JobSnapshot, SdkAdapterError> {
+        self.run_controlled(JOB_TIMEOUT, control, self.client.job(id))
     }
 
     fn job(&self, job_id: &str) -> Result<JobSnapshot, SdkAdapterError> {

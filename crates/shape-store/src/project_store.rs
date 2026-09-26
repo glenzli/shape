@@ -529,6 +529,30 @@ impl ProjectStore {
         Ok(serde_json::from_str(&transformation_json)?)
     }
 
+    /// Loads the accepted receipt associated with an immutable transformation.
+    /// # Errors
+    /// Rejects inconsistent stored receipt identifiers or database failures.
+    pub fn transformation_receipt(
+        &self,
+        id: shape_domain::TransformationId,
+    ) -> Result<Option<ExecutionReceipt>, StoreError> {
+        let attempt: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT attempt_id FROM execution_receipts WHERE transformation_id = ?1",
+                [id.to_string()],
+                |row| row.get(0),
+            )
+            .optional()?;
+        attempt
+            .map(|s| {
+                s.parse()
+                    .map_err(|_| StoreError::InvalidCommit("stored attempt id is invalid"))
+                    .and_then(|id| self.execution_receipt(id))
+            })
+            .transpose()
+    }
+
     /// Loads one immutable execution receipt by physical attempt identity.
     ///
     /// # Errors
@@ -928,6 +952,13 @@ fn validate_scene_graph_bindings(
 }
 
 fn validate_commit(commit: &AcceptedCommit) -> Result<(), StoreError> {
+    if matches!(
+        commit.transformation.operation,
+        Some(shape_domain::TransformationOperation::AudioGenerate(_))
+    ) || matches!(&commit.content_contract, Some(ArtifactContentContract::AudioClip(c)) if c.origin == shape_domain::AudioOriginDisclosure::SyntheticSound)
+    {
+        audio::validate_sound_generation_commit(commit)?;
+    }
     if commit.transformation.target_artifact_id != commit.artifact_id {
         return Err(StoreError::InvalidCommit(
             "transformation target does not match artifact",

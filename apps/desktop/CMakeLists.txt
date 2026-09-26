@@ -87,6 +87,8 @@ qt_add_executable(shape-desktop
     src/infer_runtime_controller.hpp
     src/infer_text_controller.cpp
     src/infer_text_controller.hpp
+    src/infer_sound_controller.cpp
+    src/infer_sound_controller.hpp
     src/infer_agent_controller.cpp
     src/infer_agent_controller.hpp
     src/infer_speech_controller.cpp
@@ -119,6 +121,8 @@ qt_add_executable(shape-desktop
     tests/image_live_smoke.hpp
     tests/text_authoring_smoke.cpp
     tests/text_authoring_smoke.hpp
+    tests/sound_live_smoke.cpp
+    tests/sound_live_smoke.hpp
     tests/speech_live_smoke.cpp
     tests/speech_live_smoke.hpp
 )
@@ -142,6 +146,7 @@ qt_add_qml_module(shape-desktop
         qml/components/SpeechScriptHelpDialog.qml
         qml/components/SpeechScriptPanel.qml
         qml/components/AudioSpeechOperatorWorkspace.qml
+        qml/components/SoundGenerationWorkspace.qml
         qml/components/AiImageOperatorWorkspace.qml
         qml/components/AiModelPicker.qml
         qml/components/CandidateFilmstrip.qml

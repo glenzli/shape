@@ -122,6 +122,9 @@ QString operator_type_label(const QString& key) {
     if (key == QStringLiteral("text.transform")) {
         return DesktopBackend::tr("AI text editor");
     }
+    if (key == QStringLiteral("audio.generate")) {
+        return DesktopBackend::tr("Sound generation");
+    }
     if (key == QStringLiteral("audio.speech_synthesize")) {
         return DesktopBackend::tr("Speech synthesis");
     }
@@ -267,6 +270,7 @@ QVariantMap operator_draft_projection(const shape::desktop::OperatorDraftWire& d
         QStringLiteral("imageResizeResampling"),
         from_rust(draft.image_resize_resampling)
     );
+    projected.insert(QStringLiteral("soundGenerationJson"), from_rust(draft.sound_generation_json));
     projected.insert(QStringLiteral("aiImageInstruction"), from_rust(draft.ai_image_instruction));
     projected.insert(QStringLiteral("aiImageCandidateCount"), draft.ai_image_candidate_count);
     projected.insert(
@@ -612,6 +616,79 @@ bool DesktopBackend::createTextScene(const QString& sceneName, const QString& in
         setLastError(tr("Could not create the text Scene."));
         return false;
     }
+}
+
+bool DesktopBackend::createSoundScene(const QString& name) {
+    if (session_ == nullptr || name.trimmed().isEmpty())
+        return false;
+    try {
+        applySnapshot(
+            session_->session
+                ->session_create_sound_draft(to_utf8(name.trimmed()), "", "sound_effect", 5, 42)
+        );
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError({});
+        emit projectChanged();
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not create the sound Scene."));
+        return false;
+    }
+}
+bool DesktopBackend::updateSoundDraft(
+    const QString& draftId,
+    const QString& prompt,
+    const QString& kind,
+    int seconds,
+    const QString& seed
+) {
+    bool valid = false;
+    const auto value = seed.toULongLong(&valid);
+    if (session_ == nullptr || !valid || value > 4294967295ULL || seconds < 1 || seconds > 30) {
+        setLastError(tr(
+            "Enter a description, a duration from 1 to 30 seconds, and a seed from 0 to 4294967295."
+        ));
+        return false;
+    }
+    try {
+        session_->session->session_update_sound_draft(
+            to_utf8(draftId),
+            to_utf8(prompt),
+            to_utf8(kind),
+            static_cast<std::uint8_t>(seconds),
+            static_cast<std::uint32_t>(value)
+        );
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        setLastError({});
+        emit operatorDraftsChanged();
+        return true;
+    } catch (const rust::Error&) {
+        setLastError(tr("Could not save the sound description."));
+        return false;
+    }
+}
+QString DesktopBackend::soundDetails(const QString& artifactId, const QString& candidateId) {
+    if (session_ == nullptr)
+        return {};
+    try {
+        return from_rust(
+            session_->session->session_sound_details(to_utf8(artifactId), to_utf8(candidateId))
+        );
+    } catch (const rust::Error&) {
+        return {};
+    }
+}
+QString
+DesktopBackend::adoptInferSoundCandidate(rust::Box<shape::desktop::InferSoundCandidate> candidate) {
+    if (session_ == nullptr)
+        return {};
+    const auto adopted = session_->session->session_adopt_infer_sound(std::move(candidate));
+    const QString id = from_rust(adopted.candidate_id);
+    applyCandidates(session_->session->session_candidates(), id);
+    setLastError({});
+    emit candidateChanged();
+    return id;
 }
 
 bool DesktopBackend::createAiImageScene(
@@ -1649,6 +1726,7 @@ bool DesktopBackend::acceptCandidate(const QString& candidateId) {
         }
         applySnapshot(session_->session->session_accept_candidate(to_utf8(candidateId)));
         applyCandidates(session_->session->session_candidates());
+        applyOperatorDrafts(session_->session->session_operator_drafts());
         for (const QString& image_id : retired_image_ids) {
             image_preview_store_->remove(image_id);
             image_preview_store_->remove(image_id + QStringLiteral("-thumbnail"));
@@ -1656,6 +1734,7 @@ bool DesktopBackend::acceptCandidate(const QString& candidateId) {
         setLastError(QString());
         emit projectChanged();
         emit candidateChanged();
+        emit operatorDraftsChanged();
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not accept desktop candidate:" << error.what();

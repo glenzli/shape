@@ -34,6 +34,7 @@ pub(super) enum JobPolicyProfile {
     LocalTextEdit,
     CloudTextEdit(&'static str),
     LocalSpeech,
+    LocalSound(&'static str),
     CloudImageInteractive(&'static str),
     AgentFileTask,
 }
@@ -125,6 +126,7 @@ pub(super) fn parse_job_snapshot(
     }
 
     Ok(ExternalExecutionProvenance {
+        sound_prompt: None,
         speech_segments: Vec::new(),
         speech_script: None,
         contract_revision: snapshot.consumer_core_contract,
@@ -175,6 +177,7 @@ impl JobPolicyProfile {
                 INFER_RUNTIME_RESPONSES_CAPABILITY
             }
             Self::LocalSpeech => INFER_RUNTIME_SPEECH_CAPABILITY,
+            Self::LocalSound(_) => super::INFER_RUNTIME_SOUND_GENERATION_CAPABILITY,
             Self::AgentFileTask => INFER_RUNTIME_AGENT_TASK_CAPABILITY,
         }
     }
@@ -182,7 +185,9 @@ impl JobPolicyProfile {
     fn named_deployment(self) -> &'static str {
         match self {
             Self::LocalTextEdit => TEXT_EDIT_DEPLOYMENT,
-            Self::CloudTextEdit(deployment) | Self::CloudImageInteractive(deployment) => deployment,
+            Self::CloudTextEdit(deployment)
+            | Self::CloudImageInteractive(deployment)
+            | Self::LocalSound(deployment) => deployment,
             Self::LocalSpeech => SPEECH_DEPLOYMENT,
             Self::AgentFileTask => unreachable!("Agent tasks do not request a named route"),
         }
@@ -190,7 +195,10 @@ impl JobPolicyProfile {
 
     const fn capability_floor(self) -> &'static str {
         match self {
-            Self::LocalTextEdit | Self::CloudTextEdit(_) | Self::AgentFileTask => "foundational",
+            Self::LocalTextEdit
+            | Self::CloudTextEdit(_)
+            | Self::LocalSound(_)
+            | Self::AgentFileTask => "foundational",
             Self::LocalSpeech | Self::CloudImageInteractive(_) => "capable",
         }
     }
@@ -238,7 +246,9 @@ fn validate_shape_policy(
         .ok_or(JobProvenanceError::InvalidResponse)?;
 
     let valid_profile = match profile {
-        JobPolicyProfile::LocalTextEdit | JobPolicyProfile::LocalSpeech => {
+        JobPolicyProfile::LocalTextEdit
+        | JobPolicyProfile::LocalSpeech
+        | JobPolicyProfile::LocalSound(_) => {
             policy == "local-first"
                 && priority == "interactive"
                 && provider_access_class
@@ -247,7 +257,12 @@ fn validate_shape_policy(
                 && placement == "local_only"
                 && preference == "local"
                 && offline_required
-                && latency.as_deref() == Some("interactive")
+                && latency.as_deref()
+                    == Some(if matches!(profile, JobPolicyProfile::LocalSound(_)) {
+                        "balanced"
+                    } else {
+                        "interactive"
+                    })
                 && snapshot.placement == "local"
                 && snapshot.policy == "local-first"
                 && snapshot.priority == "interactive"
@@ -279,7 +294,11 @@ fn validate_shape_policy(
     validate_named_route(
         constraints.get("named_route"),
         snapshot.routing.named_route.as_ref(),
-        Some(profile.named_deployment()),
+        if matches!(profile, JobPolicyProfile::LocalSound(_)) {
+            None
+        } else {
+            Some(profile.named_deployment())
+        },
         &snapshot.deployment,
     )?;
 

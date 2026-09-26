@@ -310,3 +310,9 @@ Rust formatting, Clippy, and tests for commits, cross-module handoffs, and relea
 A validated candidate app is copied into an immutable revision-stamped release, then a product-side
 lock guards the atomic `current-debug` symlink advance. The stable launcher never points at an
 agent-specific candidate build and never overwrites a running application bundle.
+
+Sound generation is a zero-input authored `audio.generate` operation. Domain owns portable kind,
+prompt, duration and seed; execution owns explicit local prompt preparation and sound Job validation;
+store repeats the immutable acceptance invariant; core owns Candidate proposal/acceptance; desktop
+owns draft controls, cancellation and selected-only playback. Original/effective descriptions and
+bounded text/sound provenance survive acceptance, without provider types entering the domain.

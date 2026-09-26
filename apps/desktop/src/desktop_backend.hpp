@@ -83,6 +83,10 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE bool createProject(const QUrl& parentDirectory, const QString& projectName);
     Q_INVOKABLE bool openProject(const QUrl& bundleUrl);
     Q_INVOKABLE bool createTextScene(const QString& sceneName, const QString& initialText);
+    Q_INVOKABLE bool createSoundScene(const QString& name);
+    Q_INVOKABLE bool updateSoundDraft(const QString& draftId, const QString& prompt, const QString& kind, int seconds, const QString& seed);
+    Q_INVOKABLE QString soundDetails(const QString& artifactId, const QString& candidateId);
+    QString adoptInferSoundCandidate(rust::Box<shape::desktop::InferSoundCandidate> candidate);
     Q_INVOKABLE bool createAiImageScene(
         const QString& sceneName,
         const QString& instruction,

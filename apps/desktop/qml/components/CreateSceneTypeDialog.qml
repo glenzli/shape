@@ -9,6 +9,7 @@ ShapeDialog {
     objectName: "createSceneTypeDialog"
     signal textAuthoringRequested(string preset)
     signal aiImageSceneRequested()
+    signal soundSceneRequested()
     signal importMaterialRequested()
     signal pasteMaterialRequested()
     function openForCreation() : void { open() }
@@ -71,6 +72,7 @@ ShapeDialog {
                 }
             }
         }
+        ShapeButton { objectName: "createSoundSceneTypeButton"; text: qsTr("Create sound effects or music"); onClicked: { dialog.close(); dialog.soundSceneRequested() } }
         Label { text: qsTr("Image and external material"); color: Theme.muted; font.pixelSize: 12 }
         RowLayout {
             Layout.fillWidth: true

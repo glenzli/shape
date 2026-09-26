@@ -1144,6 +1144,7 @@
 </context>
 <context>
     <name>CreateSceneTypeDialog</name>
+    <message><source>Create sound effects or music</source><translation>创作音效或音乐</translation></message>
     <message>
         <location filename="../qml/components/CreateSceneTypeDialog.qml" line="+19"/>
         <source>What do you want to make?</source>
@@ -1337,6 +1338,7 @@
 </context>
 <context>
     <name>CreativeGraphNodeCard</name>
+<message><source>Sound generation</source><translation>声音生成</translation></message>
     <message><source>View</source><translation>查看</translation></message>
     <message><source>Continue</source><translation>继续</translation></message>
     <message>
@@ -1498,9 +1500,13 @@
         <source>%1 × %2 px</source>
         <translation>%1 × %2 像素</translation>
     </message>
+    <message><source>Description · Duration · Seed</source><translation>描述 · 时长 · 种子</translation></message>
 </context>
 <context>
     <name>DesktopBackend</name>
+    <message><source>Could not create the sound Scene.</source><translation>无法创建声音场景。</translation></message>
+    <message><source>Enter a description, a duration from 1 to 30 seconds, and a seed from 0 to 4294967295.</source><translation>请输入描述、1 到 30 秒的时长，以及 0 到 4294967295 的种子。</translation></message>
+    <message><source>Could not save the sound description.</source><translation>无法保存声音描述。</translation></message>
     <message><source>Open a Shape project before pasting material.</source><translation>请先打开 Shape 项目，再粘贴素材。</translation></message>
     <message><source>Copy text or an image, then try again.</source><translation>请先复制文字或图片，再重试。</translation></message>
     <message><source>The clipboard image is invalid or too large.</source><translation>剪贴板图片无效或过大。</translation></message>
@@ -1991,6 +1997,7 @@
         <source>There is no candidate to accept.</source>
         <translation>没有可以接受的候选。</translation>
     </message>
+    <message><source>Sound generation</source><translation>声音生成</translation></message>
 </context>
 <context>
     <name>GraphSelectionInspector</name>
@@ -2073,6 +2080,7 @@
 </context>
 <context>
     <name>Main</name>
+    <message><source>Untitled sound</source><translation>未命名声音</translation></message>
     <message><source>Export accepted result</source><translation>导出已采用的结果</translation></message>
     <message><source>PNG image (*.png)</source><translation>PNG 图像 (*.png)</translation></message>
     <message><source>UTF-8 text and code (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</source><translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation></message>
@@ -2318,6 +2326,8 @@
 </context>
 <context>
     <name>OperatorPalette</name>
+<message><source>Create sound effects or music</source><translation>创作音效或音乐</translation></message>
+<message><source>Generate local sound effects or short music from a description.</source><translation>根据描述在本机生成音效或短音乐。</translation></message>
     <message>
         <source>AI text editor</source>
         <translation type="vanished">AI 文本编辑器</translation>
@@ -2510,6 +2520,7 @@
 </context>
 <context>
     <name>OperatorWorkspaceHost</name>
+    <message><source>Create sound effects or music</source><translation>创作音效或音乐</translation></message>
     <message><source>Text creation</source><translation>文本创作</translation></message>
     <message>
         <location filename="../qml/components/OperatorWorkspaceHost.qml" line="+108"/>
@@ -2632,6 +2643,8 @@
         <source>Transformation: %1</source>
         <translation>变换：%1</translation>
     </message>
+    <message><source>Viewing the accepted version</source><translation>正在查看已采用的版本</translation></message>
+    <message><source>Accepted</source><translation>已采用</translation></message>
 </context>
 <context>
     <name>ProjectNavigator</name>
@@ -5239,5 +5252,38 @@
         <source>Open project</source>
         <translation>打开项目</translation>
     </message>
+</context>
+<context>
+    <name>SoundGenerationWorkspace</name>
+    <message><source>Preparing your description locally…</source><translation>正在本机准备声音描述…</translation></message>
+    <message><source>Generating audio locally…</source><translation>正在本机生成音频…</translation></message>
+    <message><source>Stopped. Your description is ready to try again.</source><translation>已停止，可使用当前描述重试。</translation></message>
+    <message><source>Generation could not finish. Check Infer access and try again. (%1)</source><translation>生成未能完成，请检查 Infer 访问配置后重试。（%1）</translation></message>
+    <message><source>Chinese descriptions are translated locally. Listen to a version, then choose Use this version to keep it.</source><translation>中文描述会在本机转换。请先试听，再选择“采用此版本”保留结果。</translation></message>
+    <message><source>Sound effects and short music</source><translation>音效与短音乐</translation></message>
+    <message><source>Describe the sounds, instruments, rhythm and atmosphere you want.</source><translation>描述你想要的声音、乐器、节奏和氛围。</translation></message>
+    <message><source>Rain on a window, distant thunder, no speech or music…</source><translation>雨滴敲打窗户，远处传来雷声，没有人声和音乐…</translation></message>
+    <message><source>Model</source><translation>模型</translation></message>
+    <message><source>Stable Audio 3 Small · Sound effects</source><translation>Stable Audio 3 Small · 音效</translation></message>
+    <message><source>Stable Audio 3 Small · Music</source><translation>Stable Audio 3 Small · 音乐</translation></message>
+    <message><source>Seconds · 1–30</source><translation>时长 · 1–30 秒</translation></message>
+    <message><source>Seed</source><translation>种子</translation></message>
+    <message><source>Try again</source><translation>重试</translation></message>
+    <message><source>Generate a version</source><translation>生成一个版本</translation></message>
+    <message><source>Stop</source><translation>停止</translation></message>
+    <message><source>44.1 kHz · Stereo · WAV</source><translation>44.1 kHz · 立体声 · WAV</translation></message>
+    <message><source>Pause</source><translation>暂停</translation></message>
+    <message><source>Play</source><translation>播放</translation></message>
+    <message><source>Export WAV</source><translation>导出 WAV</translation></message>
+    <message><source>Audio playback is unavailable.</source><translation>音频暂时无法播放。</translation></message>
+    <message><source>Hide generation details</source><translation>收起生成详情</translation></message>
+    <message><source>Generation details</source><translation>生成详情</translation></message>
+    <message><source>Original description</source><translation>原始描述</translation></message>
+    <message><source>Description sent to the audio model</source><translation>提交给音频模型的描述</translation></message>
+    <message><source>Preparation: %1 · %2 ms</source><translation>描述转换：%1 · %2 毫秒</translation></message>
+    <message><source>Text task: %1 · %2</source><translation>文本任务：%1 · %2</translation></message>
+    <message><source>English description used unchanged</source><translation>英文描述按原文使用</translation></message>
+    <message><source>Sound task: %1 · Seed %2 · %3 s</source><translation>声音任务：%1 · 种子 %2 · %3 秒</translation></message>
+    <message><source>This version is accepted. You can listen, export WAV, or inspect its generation details.</source><translation>此版本已采用。你可以试听、导出 WAV 或查看生成详情。</translation></message>
 </context>
 </TS>

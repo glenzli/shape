@@ -2,6 +2,7 @@
 
 mod candidate_shelf;
 mod operator_drafts;
+mod sound_generation;
 mod speech_script;
 mod text_authoring;
 
@@ -818,6 +819,10 @@ impl DesktopSession {
                 .project
                 .accept_generated_image(candidate)
                 .map_err(|error| error.to_string())?,
+            Candidate::Sound(candidate) => self
+                .project
+                .accept_generated_sound(candidate)
+                .map_err(|error| error.to_string())?,
             Candidate::Audio(candidate) => self
                 .project
                 .accept_speech_synthesis(candidate)
@@ -916,9 +921,10 @@ impl DesktopSession {
                 | Candidate::AiImage(_) => {
                     Err("candidate does not belong to the selected artifact".to_owned())
                 }
-                Candidate::Text(_) | Candidate::AgentText(_) | Candidate::Audio(_) => {
-                    Err("candidate is not an image preview".to_owned())
-                }
+                Candidate::Text(_)
+                | Candidate::AgentText(_)
+                | Candidate::Audio(_)
+                | Candidate::Sound(_) => Err("candidate is not an image preview".to_owned()),
             };
         }
         let accepted = self
@@ -948,6 +954,18 @@ impl DesktopSession {
     ) -> Result<ffi::AudioPreviewWire, String> {
         let artifact_id = parse_artifact_id(artifact_id)?;
         if !candidate_id.is_empty() {
+            if let Candidate::Sound(candidate) = self.candidates.candidate(candidate_id)? {
+                if candidate.artifact_id() != artifact_id {
+                    return Err("candidate does not belong to the selected review context".into());
+                }
+                return Ok(ffi::AudioPreviewWire {
+                    identity: candidate_id.into(),
+                    duration_millis: candidate.contract().duration_millis(),
+                    sample_rate_hz: candidate.contract().sample_rate_hz,
+                    channels: candidate.contract().channels,
+                    wav_bytes: candidate.bytes().to_vec(),
+                });
+            }
             let Candidate::Audio(candidate) = self.candidates.candidate(candidate_id)? else {
                 return Err("candidate is not an audio preview".to_owned());
             };
@@ -1342,6 +1360,13 @@ fn operator_draft_wire(
         image_resize_resampling: image_resize.map_or_else(String::new, |resize| {
             resampling_key(resize.resampling()).to_owned()
         }),
+        sound_generation_json: if draft.operator_type().as_str() == "audio.generate" {
+            draft
+                .configuration()
+                .map_or_else(String::new, |c| c.json().into())
+        } else {
+            String::new()
+        },
         ai_image_instruction: ai_image
             .as_ref()
             .map_or_else(String::new, |state| state.instruction.clone()),
@@ -1378,6 +1403,7 @@ fn candidate_wire(candidate: &Candidate) -> ffi::CandidateWire {
         Candidate::ImageEdit(candidate) => image_edit_candidate_wire(candidate),
         Candidate::AiImage(candidate) => ai_image_candidate_wire(candidate),
         Candidate::Audio(candidate) => audio_candidate_wire(candidate),
+        Candidate::Sound(candidate) => sound_generation::sound_candidate_wire(candidate),
     }
 }
 

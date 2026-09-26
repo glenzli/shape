@@ -156,18 +156,8 @@ const AUDIO_OUTPUTS: [AudioPortContract; 1] = [AudioPortContract {
     data_type: AudioPortDataType::AudioClip,
     cardinality: AudioPortCardinality::Required,
 }];
-const GENERATE_INPUTS: [AudioPortContract; 2] = [
-    AudioPortContract {
-        id: "input.instruction",
-        data_type: AudioPortDataType::TextDocument,
-        cardinality: AudioPortCardinality::Required,
-    },
-    AudioPortContract {
-        id: "input.references",
-        data_type: AudioPortDataType::AudioClip,
-        cardinality: AudioPortCardinality::ZeroOrMore,
-    },
-];
+// Prompts are authored parameters; reference-audio generation is a separate future family.
+const GENERATE_INPUTS: [AudioPortContract; 0] = [];
 const SPEECH_INPUTS: [AudioPortContract; 2] = [
     AudioPortContract {
         id: "input.text",

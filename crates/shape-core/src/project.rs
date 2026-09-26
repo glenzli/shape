@@ -2,6 +2,8 @@
 
 mod agent_file;
 mod audio;
+mod sound_generation;
+pub use sound_generation::SoundCandidate;
 mod file_import;
 mod image;
 mod scene;
@@ -161,6 +163,16 @@ impl ShapeProject {
         transformation_id: TransformationId,
     ) -> Result<Transformation, CoreError> {
         Ok(self.store.transformation(transformation_id)?)
+    }
+
+    /// Loads the accepted receipt for one immutable transformation.
+    /// # Errors
+    /// Rejects malformed durable provenance or storage failure.
+    pub fn transformation_receipt(
+        &self,
+        id: shape_domain::TransformationId,
+    ) -> Result<Option<ExecutionReceipt>, CoreError> {
+        Ok(self.store.transformation_receipt(id)?)
     }
 
     /// Loads one accepted payload-free execution receipt for provenance inspection.

@@ -12,6 +12,9 @@ use infer_runtime_client::{
 use super::sdk::{InferRuntimeSdk, SdkAdapterError};
 
 pub(super) struct FakeSdk {
+    pub sounds:
+        Mutex<VecDeque<Result<infer_runtime_client::SoundGenerationResponse, SdkAdapterError>>>,
+    pub seen_sounds: Mutex<Vec<infer_runtime_client::SoundGenerationRequest>>,
     pub contract: Mutex<VecDeque<Result<ContractManifest, SdkAdapterError>>>,
     pub capabilities: Mutex<VecDeque<Result<CapabilityCatalog, SdkAdapterError>>>,
     pub responses: Mutex<VecDeque<Result<ResponsesResult, SdkAdapterError>>>,
@@ -26,6 +29,8 @@ pub(super) struct FakeSdk {
 impl FakeSdk {
     pub(super) fn new() -> Self {
         Self {
+            sounds: Mutex::new(VecDeque::new()),
+            seen_sounds: Mutex::new(Vec::new()),
             contract: Mutex::new(VecDeque::new()),
             capabilities: Mutex::new(VecDeque::new()),
             responses: Mutex::new(VecDeque::new()),
@@ -97,6 +102,40 @@ impl InferRuntimeSdk for FakeSdk {
             .expect("fake speech result")
     }
 
+    fn prepare_sound_prompt(
+        &self,
+        prompt: &str,
+        _timeout: Duration,
+        _control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<infer_runtime_client::PreparedSoundPrompt, SdkAdapterError> {
+        Ok(infer_runtime_client::PreparedSoundPrompt {
+            original_prompt: prompt.into(),
+            effective_prompt: prompt.into(),
+            rules_revision: infer_runtime_client::SOUND_PROMPT_RULES_REVISION.into(),
+            text_job: None,
+            preparation_elapsed_ms: 0,
+        })
+    }
+    fn sound_job(
+        &self,
+        id: &str,
+        _control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<JobSnapshot, SdkAdapterError> {
+        self.job(id)
+    }
+    fn generate_sound(
+        &self,
+        request: &infer_runtime_client::SoundGenerationRequest,
+        _timeout: Duration,
+        _control: &super::sound_generation::SoundGenerationControl,
+    ) -> Result<infer_runtime_client::SoundGenerationResponse, SdkAdapterError> {
+        self.seen_sounds.lock().unwrap().push(request.clone());
+        self.sounds
+            .lock()
+            .unwrap()
+            .pop_front()
+            .expect("fake sound response")
+    }
     fn job(&self, _job_id: &str) -> Result<JobSnapshot, SdkAdapterError> {
         self.jobs
             .lock()

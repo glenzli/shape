@@ -8,7 +8,12 @@
 mod infer_agent;
 mod infer_image;
 mod infer_runtime_access;
+mod infer_sound;
 mod infer_speech;
+use infer_sound::{
+    InferSoundCandidate, SoundGenerationControl, generate_infer_sound_candidate, new_sound_control,
+    sound_control_cancel, sound_control_resume, sound_control_stage,
+};
 mod infer_text;
 mod operator_catalog;
 mod operator_graph;
@@ -134,6 +139,7 @@ mod ffi {
         image_resize_target_height: u32,
         image_resize_aspect_policy: String,
         image_resize_resampling: String,
+        sound_generation_json: String,
         ai_image_instruction: String,
         ai_image_output_width: u32,
         ai_image_output_height: u32,
@@ -263,6 +269,46 @@ mod ffi {
 
     extern "Rust" {
         type DesktopSession;
+        type InferSoundCandidate;
+        type SoundGenerationControl;
+        #[allow(clippy::unnecessary_box_returns)] // CXX opaque ownership.
+        fn new_sound_control() -> Box<SoundGenerationControl>;
+        fn sound_control_resume(control: &SoundGenerationControl);
+        fn sound_control_stage(control: &SoundGenerationControl) -> u8;
+        fn sound_control_cancel(control: &SoundGenerationControl);
+        fn generate_infer_sound_candidate(
+            project_path: &str,
+            artifact_id: &str,
+            draft_id: &str,
+            credential_path: &str,
+            explicit_override: &str,
+            control: &SoundGenerationControl,
+        ) -> Result<Box<InferSoundCandidate>>;
+        fn session_sound_details(
+            self: &DesktopSession,
+            artifact_id: &str,
+            candidate_id: &str,
+        ) -> Result<String>;
+        fn session_create_sound_draft(
+            self: &mut DesktopSession,
+            name: &str,
+            prompt: &str,
+            kind: &str,
+            seconds: u8,
+            seed: u32,
+        ) -> Result<ProjectSnapshotWire>;
+        fn session_update_sound_draft(
+            self: &mut DesktopSession,
+            draft_id: &str,
+            prompt: &str,
+            kind: &str,
+            seconds: u8,
+            seed: u32,
+        ) -> Result<OperatorDraftWire>;
+        fn session_adopt_infer_sound(
+            self: &mut DesktopSession,
+            candidate: Box<InferSoundCandidate>,
+        ) -> Result<CandidateWire>;
         type InferImageCandidate;
         type InferImageBatch;
         type ImageGenerationControl;

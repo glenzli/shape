@@ -2040,3 +2040,11 @@ Candidate/Accept、immutable Revision、source-head CAS、provenance 与 selecte
 自动携带统一规范；角色、提示音、停顿、语气及重复由脚本指令表达。第三层检查完整阅读预览或脚本源码，
 显式采用后进入配音与试听并自动开启脚本模式，音频可导出。草稿自动保存不等于采用；返回改稿
 并采用后，过期音频候选移除，已采用音频保留。图谱入口继续提供工程视图。
+
+
+Local sound generation implementation (2026-09-26): a zero-input Scene can author an original
+prompt, choose Stable Audio 3 Small SFX or Music, set 1–30 seconds and a seed, then review a transient
+WAV Candidate before explicit acceptance. Chinese preparation is explicit, local, versioned and
+retained alongside the audio Job; failed preparation has no fallback. Saved accepted history retains
+both prompts and the clicked request. Generated sound uses the existing audio.clip playback/export
+contract. This slice does not add voice cloning, reference-audio generation, or a timeline editor.

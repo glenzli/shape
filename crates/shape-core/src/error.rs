@@ -6,6 +6,8 @@ use thiserror::Error;
 /// A failure in a Shape project use case.
 #[derive(Debug, Error)]
 pub enum CoreError {
+    #[error("artifact {artifact_id} is not an unaccepted audio.clip generation target")]
+    InvalidSoundGenerationTarget { artifact_id: ArtifactId },
     #[error("domain contract failed: {0}")]
     Domain(#[from] shape_domain::DomainError),
     #[error("execution failed: {0}")]

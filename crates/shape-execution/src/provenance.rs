@@ -56,6 +56,8 @@ pub struct ExternalRoutingCandidate {
 /// Payload-free physical facts copied from a runtime-owned Job snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExternalExecutionProvenance {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sound_prompt: Option<crate::sound_prompt::SoundPromptProvenance>,
     /// Exact ordered segment receipts for a locally assembled narration. Older
     /// single-request receipts omit this additive field and remain readable.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -129,6 +131,7 @@ impl ExternalExecutionProvenance {
                     && segment.frames > 0
                     && segment.runtime.speech_segments.is_empty()
                     && segment.runtime.speech_script.is_none()
+                    && segment.runtime.sound_prompt.is_none()
                     && segment.runtime.is_bounded()
                     && segment.runtime.intent == "speech.synthesize"
                     && segment.runtime.app_id == self.app_id
@@ -184,6 +187,12 @@ impl ExternalExecutionProvenance {
         self.speech_script
             .as_ref()
             .is_none_or(|script| script.is_bounded() && !self.speech_segments.is_empty())
+            && self.sound_prompt.as_ref().is_none_or(|p| {
+                self.intent == "audio.generate_sound"
+                    && self.speech_segments.is_empty()
+                    && self.speech_script.is_none()
+                    && p.valid_for(&p.original_prompt)
+            })
             && self.valid_speech_segments()
             && scalar_fields.iter().all(|value| bounded_text(value))
             && self.capability_contract.as_deref().is_none_or(bounded_text)

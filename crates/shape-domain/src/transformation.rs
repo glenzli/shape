@@ -46,6 +46,7 @@ pub enum TransformationOperation {
     RasterUnsharpMask(RasterUnsharpMask),
     AudioSpeechSynthesis(SpeechSynthesisOperation),
     AiImageGenerate(AiImageGenerateParameters),
+    AudioGenerate(crate::SoundGenerationOperation),
 }
 
 /// Bounded human-authored creative intent.
@@ -263,6 +264,12 @@ impl Transformation {
             ) => kind == TransformationKind::DeterministicEdit,
             Some(TransformationOperation::AudioSpeechSynthesis(_)) => {
                 kind == TransformationKind::GenerativeEdit
+            }
+            Some(TransformationOperation::AudioGenerate(parameters)) => {
+                parameters.validate()?;
+                kind == TransformationKind::GenerativeEdit
+                    && inputs.is_empty()
+                    && references.is_empty()
             }
             Some(TransformationOperation::AiImageGenerate(_)) => {
                 kind == TransformationKind::GenerativeEdit && inputs.is_empty()

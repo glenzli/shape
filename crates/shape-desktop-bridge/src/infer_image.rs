@@ -350,6 +350,7 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::RasterUnsharpMaskSourceTooLarge { .. }
         | CoreError::RasterDropShadowUnsupportedColorProfile
         | CoreError::RasterDropShadowOutputTooLarge { .. }
+        | CoreError::InvalidSoundGenerationTarget { .. }
         | CoreError::Execution(_) => "execution_invalid".to_owned(),
     }
 }
