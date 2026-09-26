@@ -12,6 +12,8 @@ use infer_runtime_client::{
 use super::sdk::{InferRuntimeSdk, SdkAdapterError};
 
 pub(super) struct FakeSdk {
+    pub preparations: Mutex<VecDeque<infer_runtime_client::PreparedSoundPrompt>>,
+    pub seen_preparations: Mutex<Vec<String>>,
     pub sounds:
         Mutex<VecDeque<Result<infer_runtime_client::SoundGenerationResponse, SdkAdapterError>>>,
     pub seen_sounds: Mutex<Vec<infer_runtime_client::SoundGenerationRequest>>,
@@ -29,6 +31,8 @@ pub(super) struct FakeSdk {
 impl FakeSdk {
     pub(super) fn new() -> Self {
         Self {
+            preparations: Mutex::new(VecDeque::new()),
+            seen_preparations: Mutex::new(Vec::new()),
             sounds: Mutex::new(VecDeque::new()),
             seen_sounds: Mutex::new(Vec::new()),
             contract: Mutex::new(VecDeque::new()),
@@ -108,6 +112,10 @@ impl InferRuntimeSdk for FakeSdk {
         _timeout: Duration,
         _control: &super::sound_generation::SoundGenerationControl,
     ) -> Result<infer_runtime_client::PreparedSoundPrompt, SdkAdapterError> {
+        self.seen_preparations.lock().unwrap().push(prompt.into());
+        if let Some(prepared) = self.preparations.lock().unwrap().pop_front() {
+            return Ok(prepared);
+        }
         Ok(infer_runtime_client::PreparedSoundPrompt {
             original_prompt: prompt.into(),
             effective_prompt: prompt.into(),

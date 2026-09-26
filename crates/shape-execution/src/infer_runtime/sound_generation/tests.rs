@@ -165,3 +165,118 @@ fn stop_prevents_io_and_prepared_prompt_is_cached_only_for_identical_original() 
         "wind"
     );
 }
+
+fn mixed_preparation() -> PreparedSoundPrompt {
+    let mut j = text_job();
+    j.provider = "ollama-local".into();
+    j.deployment = "ollama_qwen3_5_4b".into();
+    j.model_build = "qwen3_5_4b_mlx".into();
+    j.physical_model = "qwen3.5:4b-mlx".into();
+    j.priority = "background".into();
+    j.constraints["priority"] = json!("background");
+    j.constraints["latency"] = json!("balanced");
+    j.constraints["named_route"]["ordered_ids"] = json!([j.deployment]);
+    j.routing.named_route.as_mut().unwrap().ordered_ids = vec![j.deployment.clone()];
+    j.routing.candidates[0].provider.clone_from(&j.provider);
+    j.routing.candidates[0].deployment.clone_from(&j.deployment);
+    j.attempts[0].provider.clone_from(&j.provider);
+    j.attempts[0].deployment.clone_from(&j.deployment);
+    PreparedSoundPrompt {
+        original_prompt: "轻柔的 guqin 和 sparse piano，舒缓节奏，不要人声，不要鼓点。".into(),
+        effective_prompt: "Soft guqin and sparse piano, relaxed tempo, no vocals, no drum beats."
+            .into(),
+        rules_revision: infer_runtime_client::SOUND_PROMPT_RULES_REVISION.into(),
+        text_job: Some(j),
+        preparation_elapsed_ms: 1,
+    }
+}
+
+#[test]
+fn legacy_or_unfaithful_cache_is_prepared_again_and_current_cache_is_reused() {
+    let current = mixed_preparation();
+    let mut legacy = current.clone();
+    legacy.rules_revision = "infer.sound-prompt-preparation@20260926.1".into();
+    let mut unfaithful = current.clone();
+    unfaithful.effective_prompt.push_str(" No music.");
+    for old in [legacy, unfaithful] {
+        assert!(old.validate_for(&current.original_prompt, "shape").is_ok());
+        let control = SoundGenerationControl::default();
+        *control.0.prepared.lock().unwrap() = Some(old);
+        let sdk = FakeSdk::new();
+        sdk.preparations.lock().unwrap().push_back(current.clone());
+        let prepared = control.prepare(&sdk, &current.original_prompt).unwrap();
+        assert_eq!(prepared.rules_revision, current.rules_revision);
+        assert_eq!(prepared.effective_prompt, current.effective_prompt);
+        control.resume();
+        control.prepare(&sdk, &current.original_prompt).unwrap();
+        assert_eq!(
+            sdk.seen_preparations.lock().unwrap().as_slice(),
+            std::slice::from_ref(&current.original_prompt)
+        );
+    }
+}
+
+#[test]
+fn stale_or_invented_exclusions_from_sdk_never_reach_the_audio_request() {
+    let current = mixed_preparation();
+    let mut legacy = current.clone();
+    legacy.rules_revision = "infer.sound-prompt-preparation@20260926.1".into();
+    let mut unfaithful = current.clone();
+    unfaithful.effective_prompt.push_str(" No music.");
+    for bad in [legacy, unfaithful] {
+        let sdk = FakeSdk::new();
+        sdk.preparations.lock().unwrap().push_back(bad);
+        // No audio response is queued: reaching generate_sound would panic.
+        let executor =
+            InferRuntimeSoundExecutor::with_sdk(Box::new(sdk), SoundGenerationControl::default());
+        let mut request = input(SoundGenerationKind::ShortMusic);
+        request.instruction = serde_json::to_vec(
+            &SoundGenerationOperation::new(
+                &current.original_prompt,
+                SoundGenerationKind::ShortMusic,
+                1,
+                42,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            executor.execute(&request).unwrap_err().code,
+            "prompt_preparation_failed"
+        );
+    }
+}
+
+#[test]
+fn durable_prompt_separates_history_reading_from_new_acceptance() {
+    use crate::sound_prompt::SoundPromptProvenance;
+    let current = mixed_preparation();
+    let operation = SoundGenerationOperation::new(
+        &current.original_prompt,
+        SoundGenerationKind::ShortMusic,
+        1,
+        42,
+    )
+    .unwrap();
+    let p = SoundPromptProvenance::from_prepared(current.clone(), &operation).unwrap();
+    assert!(p.valid_for_generation(&operation.prompt));
+    for legacy in [false, true] {
+        let mut stale = current.clone();
+        if legacy {
+            stale.rules_revision = "infer.sound-prompt-preparation@20260926.1".into();
+        } else {
+            stale.effective_prompt.push_str(" No music.");
+        }
+        assert!(SoundPromptProvenance::from_prepared(stale.clone(), &operation).is_none());
+        let mut recorded = p.clone();
+        recorded.rules_revision = stale.rules_revision;
+        recorded.effective_prompt = stale.effective_prompt;
+        let restored: SoundPromptProvenance =
+            serde_json::from_slice(&serde_json::to_vec(&recorded).unwrap()).unwrap();
+        assert!(restored.valid_for(&operation.prompt));
+        assert!(!restored.valid_for_generation(&operation.prompt));
+    }
+    let other =
+        SoundGenerationOperation::new("Different", SoundGenerationKind::ShortMusic, 1, 42).unwrap();
+    assert!(SoundPromptProvenance::from_prepared(current, &other).is_none());
+}

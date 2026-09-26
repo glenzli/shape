@@ -88,7 +88,7 @@ bool run(
     const QString bundle = backend.bundlePath();
     const QStringList prompts{
         QStringLiteral("轻柔的雨滴落在窗户上，远处雷声，没有人声和音乐。"),
-        QStringLiteral("古琴与古筝轻柔对奏，80 BPM，soft piano 在远处，不要人声、鼓点或铃声。"),
+        QStringLiteral("轻柔的 guqin 和 sparse piano，舒缓节奏，不要人声，不要鼓点。"),
         QStringLiteral("Dry wooden knock followed by a soft bell, no speech or music")
     };
     QString first_text_job;
@@ -192,8 +192,25 @@ bool run(
             return false;
         if (!require(
                 prepared.value("original_prompt").toString() == prompts[index]
-                    && !prepared.value("effective_prompt").toString().isEmpty(),
+                    && !prepared.value("effective_prompt").toString().isEmpty()
+                    && prepared.value("rules_revision").toString()
+                           == "infer.sound-prompt-preparation@20260926.2",
                 "original and effective prompt binding"
+            ))
+            return false;
+        if (index == 1
+            && !require(
+                operation.value("kind").toString() == "short_music"
+                    && prepared.value("effective_prompt")
+                           .toString()
+                           .contains("guqin", Qt::CaseInsensitive)
+                    && prepared.value("effective_prompt")
+                           .toString()
+                           .contains("sparse piano", Qt::CaseInsensitive)
+                    && !prepared.value("effective_prompt")
+                            .toString()
+                            .contains("no music", Qt::CaseInsensitive),
+                "mixed Music regression preserves instruments and permits music"
             ))
             return false;
         if (index == 2
@@ -291,6 +308,44 @@ bool run(
         evidence.write(QJsonDocument(restored).toJson());
         std::cout << "sound " << index + 1
                   << " passed: " << restored.value("job_id").toString().toStdString() << std::endl;
+    }
+    // Opt-in read compatibility proof against an actual project accepted with v1.
+    const QString legacy_bundle = qEnvironmentVariable("SHAPE_SOUND_LEGACY_PROJECT");
+    if (!legacy_bundle.isEmpty()) {
+        if (!require(
+                backend.openProject(QUrl::fromLocalFile(legacy_bundle)),
+                "legacy project reopen"
+            ))
+            return false;
+        int legacy_count = 0;
+        for (const auto& entry : backend.artifacts()) {
+            const QString id = entry.toMap().value("id").toString();
+            const auto details =
+                QJsonDocument::fromJson(backend.soundDetails(id, QString()).toUtf8()).object();
+            const auto prepared =
+                details.value("provenance").toObject().value("sound_prompt").toObject();
+            if (prepared.isEmpty())
+                continue;
+            if (!require(
+                    prepared.value("rules_revision").toString()
+                            == "infer.sound-prompt-preparation@20260926.1"
+                        && backend.audioPreview(id).has_value(),
+                    "accepted legacy provenance and WAV remain readable"
+                ))
+                return false;
+            QFile evidence(
+                QDir(output).filePath(QStringLiteral("legacy-%1.json").arg(++legacy_count))
+            );
+            if (!evidence.open(QIODevice::WriteOnly))
+                return false;
+            evidence.write(QJsonDocument(details).toJson());
+        }
+        if (!require(
+                legacy_count > 0 && backend.openProject(QUrl::fromLocalFile(bundle)),
+                "legacy history restored without regeneration"
+            ))
+            return false;
+        std::cout << "legacy accepted sounds readable: " << legacy_count << std::endl;
     }
     if (!require(backend.createSoundScene("Close during sound"), "close test source"))
         return false;

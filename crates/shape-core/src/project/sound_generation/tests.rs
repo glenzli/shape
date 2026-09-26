@@ -41,7 +41,7 @@ fn provenance() -> ExternalExecutionProvenance {
             ),
             original_prompt: parameters().prompt.clone(),
             effective_prompt: parameters().prompt,
-            rules_revision: "infer.sound-prompt-preparation@20260926.1".into(),
+            rules_revision: "infer.sound-prompt-preparation@20260926.2".into(),
             text_job: None,
             preparation_elapsed_ms: 0,
         }),
@@ -217,6 +217,15 @@ fn accept_rechecks_prompt_seed_and_wav_against_the_generation_receipt() {
         .as_mut()
         .unwrap()
         .effective_prompt = "Wind".into();
+    assert!(project.accept_generated_sound(changed).is_err());
+    let mut changed = original.clone();
+    let legacy = changed.receipt.external_provenance.as_mut().unwrap();
+    legacy.sound_prompt.as_mut().unwrap().rules_revision =
+        "infer.sound-prompt-preparation@20260926.1".into();
+    assert!(
+        legacy.is_bounded(),
+        "accepted historical receipts remain readable"
+    );
     assert!(project.accept_generated_sound(changed).is_err());
     let mut changed = original;
     changed.output_bytes = wav(24_000, 1, 24_000).into();

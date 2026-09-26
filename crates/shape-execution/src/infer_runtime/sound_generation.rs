@@ -67,7 +67,7 @@ impl SoundGenerationControl {
             .map_err(|_| failure("prompt_preparation_failed"))?;
         if let Some(p) = cached
             .as_ref()
-            .filter(|p| p.validate_for(original, "shape").is_ok())
+            .filter(|p| p.validate_for_generation(original, "shape").is_ok())
         {
             return Ok(p.clone());
         }
@@ -79,7 +79,7 @@ impl SoundGenerationControl {
                 ExecutionFailure::new(code, "Sound prompt preparation did not complete", retryable)
             })?;
         prepared
-            .validate_for(original, "shape")
+            .validate_for_generation(original, "shape")
             .map_err(|_| failure("prompt_preparation_failed"))?;
         if self.cancelled() {
             return Err(failure("generation_cancelled"));
@@ -245,7 +245,8 @@ fn deployment(kind: SoundGenerationKind) -> &'static str {
         SoundGenerationKind::ShortMusic => "stable_audio_3_sm_music_mlx",
     }
 }
-/// The same durable output/provenance invariant is checked at proposal and acceptance.
+/// Current generation rules are required at proposal and new acceptance.
+/// Historical receipt reads use the compatible provenance validation separately.
 #[must_use]
 pub fn valid_sound_output(
     operation: &SoundGenerationOperation,
@@ -258,7 +259,7 @@ pub fn valid_sound_output(
         && contract.channels == 2
         && contract.frame_count == u64::from(operation.duration_seconds) * 44_100
         && p.sound_prompt.as_ref().is_some_and(|p| {
-            p.valid_for(&operation.prompt)
+            p.valid_for_generation(&operation.prompt)
                 && serde_json::to_vec(operation).is_ok_and(|bytes| {
                     shape_domain::ContentDigest::from_bytes(&bytes) == p.authored_request_digest
                 })

@@ -18,7 +18,7 @@ impl SoundPromptProvenance {
         p: PreparedSoundPrompt,
         operation: &shape_domain::SoundGenerationOperation,
     ) -> Option<Self> {
-        p.validate_for(&p.original_prompt, "shape").ok()?;
+        p.validate_for_generation(&operation.prompt, "shape").ok()?;
         Some(Self {
             authored_request_digest: shape_domain::ContentDigest::from_bytes(
                 &serde_json::to_vec(operation).ok()?,
@@ -30,32 +30,40 @@ impl SoundPromptProvenance {
             preparation_elapsed_ms: p.preparation_elapsed_ms,
         })
     }
+    /// Validates stored history without requiring today's generation rules.
     #[must_use]
     pub fn valid_for(&self, original: &str) -> bool {
+        self.prepared()
+            .is_some_and(|p| p.validate_for(original, "shape").is_ok())
+    }
+
+    /// Requires current preparation and exclusion checks for new Candidates and acceptance.
+    #[must_use]
+    pub fn valid_for_generation(&self, original: &str) -> bool {
+        self.prepared()
+            .is_some_and(|p| p.validate_for_generation(original, "shape").is_ok())
+    }
+
+    fn prepared(&self) -> Option<PreparedSoundPrompt> {
         if self
             .text_job
             .as_ref()
             .is_some_and(|j| j.to_string().len() > 65_536)
         {
-            return false;
+            return None;
         }
-        let Ok(job) = self
-            .text_job
-            .clone()
-            .map(serde_json::from_value)
-            .transpose()
-        else {
-            return false;
-        };
-        PreparedSoundPrompt {
+        Some(PreparedSoundPrompt {
             original_prompt: self.original_prompt.clone(),
             effective_prompt: self.effective_prompt.clone(),
             rules_revision: self.rules_revision.clone(),
-            text_job: job,
+            text_job: self
+                .text_job
+                .clone()
+                .map(serde_json::from_value)
+                .transpose()
+                .ok()?,
             preparation_elapsed_ms: self.preparation_elapsed_ms,
-        }
-        .validate_for(original, "shape")
-        .is_ok()
+        })
     }
 }
 
