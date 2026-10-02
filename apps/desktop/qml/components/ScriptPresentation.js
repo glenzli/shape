@@ -44,6 +44,7 @@ function issue(code) {
 function eventText(event) {
     switch (event.kind) {
     case "speech": return event.text
+    case "note": return qsTr("Production note · not spoken\n%1").arg(event.text)
     case "pause": return qsTr("Silence · %1 seconds").arg(event.milliseconds / 1000)
     case "cue": return qsTr("Sound cue · %1").arg(event.label)
     case "scene": return qsTr("Scene · %1").arg(event.label)

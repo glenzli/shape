@@ -84,7 +84,8 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
             !dialog->findChild<QObject*>(QStringLiteral("createListeningScriptButton"))
                 && !dialog->findChild<QObject*>(QStringLiteral("createDialogueScriptButton")),
             "script creation has no specialized presets"
-        ) || !click(*dialog, "createProductionScriptButton"))
+        )
+        || !click(*dialog, "createProductionScriptButton"))
         return false;
     const auto current = [&] { return qvariant_cast<QObject*>(host->property("loadedWorkspace")); };
     if (!check(
@@ -97,23 +98,34 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
         return false;
     auto* writer = current();
     auto* modelPicker = writer->findChild<QObject*>(QStringLiteral("writingModelPicker"));
-    auto* modelChoice = modelPicker ? modelPicker->findChild<QObject*>(QStringLiteral("aiModelChoice")) : nullptr;
-    auto* effortChoice = modelPicker ? modelPicker->findChild<QObject*>(QStringLiteral("aiEffortChoice")) : nullptr;
+    auto* modelChoice =
+        modelPicker ? modelPicker->findChild<QObject*>(QStringLiteral("aiModelChoice")) : nullptr;
+    auto* effortChoice =
+        modelPicker ? modelPicker->findChild<QObject*>(QStringLiteral("aiEffortChoice")) : nullptr;
     if (!check(
-            modelChoice && writer->property("selectedModelKey").toString()
-                               == writer->property("defaultTextModel").toString()
-                && QMetaObject::invokeMethod(
-                    modelChoice, "activated", Qt::DirectConnection, Q_ARG(int, 3)
-                )
+            modelChoice
                 && writer->property("selectedModelKey").toString()
-                       == QStringLiteral("gpt_6_sol")
+                       == writer->property("defaultTextModel").toString()
+                && QMetaObject::invokeMethod(
+                    modelChoice,
+                    "activated",
+                    Qt::DirectConnection,
+                    Q_ARG(int, 3)
+                )
+                && writer->property("selectedModelKey").toString() == QStringLiteral("gpt_6_sol")
                 && effortChoice
                 && QMetaObject::invokeMethod(
-                    effortChoice, "activated", Qt::DirectConnection, Q_ARG(int, 3)
+                    effortChoice,
+                    "activated",
+                    Qt::DirectConnection,
+                    Q_ARG(int, 3)
                 )
                 && writer->property("selectedEffortKey").toString() == QStringLiteral("high")
                 && QMetaObject::invokeMethod(
-                    modelChoice, "activated", Qt::DirectConnection, Q_ARG(int, 0)
+                    modelChoice,
+                    "activated",
+                    Qt::DirectConnection,
+                    Q_ARG(int, 0)
                 )
                 && writer->property("selectedModelKey").toString()
                        == writer->property("defaultTextModel").toString()
@@ -124,7 +136,11 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
     if (!check(
             writer->property("profile").toString() == QStringLiteral("script")
                 && !writer->findChild<QObject*>(QStringLiteral("scriptExamplelistening"))
-                && !QJsonDocument::fromJson(evaluate(*writer, QStringLiteral("stateJson()")).toString().toUtf8()).object().contains(QStringLiteral("example")),
+                && !QJsonDocument::fromJson(
+                        evaluate(*writer, QStringLiteral("stateJson()")).toString().toUtf8()
+                )
+                        .object()
+                        .contains(QStringLiteral("example")),
             "new scripts have one format and no writing preset"
         ))
         return false;
@@ -236,7 +252,8 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
         return false;
     const QString script =
         QStringLiteral(
-            "[role: Narrator]\n# Listening exercise\n[角色：Narrator]\nHello, 世界.\n[停顿：2秒]"
+            "[role: Narrator]\n# Listening exercise\n[note: 确认 Shape "
+            "的读音；此备注不朗读]\n[角色：Narrator]\nHello, 世界.\n[停顿：2秒]"
         )
         + QStringLiteral("\nThe boy is in the park. 中英混合正文。\n[pause: 1s]\n").repeated(60);
     editor->setProperty("text", script);
@@ -258,6 +275,44 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
             "script reading stays in its own bounded scroll area"
         ))
         return false;
+    evaluate(
+        *scroll,
+        QStringLiteral("contentItem.contentY = Math.max(0, contentHeight - availableHeight)")
+    );
+    QEventLoop settleReading;
+    QTimer::singleShot(200, &settleReading, &QEventLoop::quit);
+    settleReading.exec();
+    if (const QString screenshots = qEnvironmentVariable("SHAPE_LAYOUT_SMOKE_DIR");
+        !screenshots.isEmpty())
+        if (auto* window = qobject_cast<QQuickWindow*>(&root))
+            window->grabWindow().save(screenshots + QStringLiteral("/script-review-notes.png"));
+    auto* note =
+        visualChild(qobject_cast<QQuickItem*>(writer), QStringLiteral("scriptProductionNote"));
+    if (!check(
+            note && note->property("visible").toBool()
+                && note->property("text").toString().contains(QStringLiteral("确认 Shape 的读音")),
+            "non-spoken production note remains visible during script review"
+        ))
+        return false;
+    const QString previousLanguage =
+        evaluate(root, QStringLiteral("uiPreferences.languageMode")).toString();
+    evaluate(root, QStringLiteral("uiPreferences.languageMode = 'en'"));
+    QCoreApplication::processEvents();
+    if (!check(
+            note->property("text").toString().startsWith(QStringLiteral("Production note")),
+            "production note label translates to English"
+        ))
+        return false;
+    if (const QString screenshots = qEnvironmentVariable("SHAPE_LAYOUT_SMOKE_DIR");
+        !screenshots.isEmpty()) {
+        QEventLoop settleEnglish;
+        QTimer::singleShot(200, &settleEnglish, &QEventLoop::quit);
+        settleEnglish.exec();
+        if (auto* window = qobject_cast<QQuickWindow*>(&root))
+            window->grabWindow().save(screenshots + QStringLiteral("/script-review-notes-en.png"));
+    }
+    evaluate(root, QStringLiteral("uiPreferences.languageMode = '%1'").arg(previousLanguage));
+    QCoreApplication::processEvents();
     const QString artifactId = writer->property("artifactId").toString();
     if (!check(
             backend.textAuthoringContent(artifactId, QString()).isEmpty(),
@@ -319,6 +374,19 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
             "unbound named role blocks synthesis"
         ))
         return false;
+    if (!check(
+            evaluate(
+                *rolePanel,
+                QStringLiteral(
+                    "model.filter(event => event.kind === 'note').length === 1 && "
+                    "model.some(event => event.kind === 'note' && event.text.indexOf('确认 Shape "
+                    "的读音') >= 0)"
+                )
+            )
+                .toBool(),
+            "production note stays in the audition review sequence"
+        ))
+        return false;
     evaluate(*rolePanel, QStringLiteral("setRole('Narrator', 1)"));
     if (!check(
             waitUntil([&] {
@@ -372,10 +440,86 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
             "palette selection opens configured summary node"
         ))
         return false;
+    if (!check(
+            current()->property("artifactId").toString() != artifactId
+                && backend.textAuthoringContent(artifactId, QString()) == script,
+            "template output is separate and source remains unchanged"
+        ))
+        return false;
+
+    // Exercise a real accepted-head change while a separately authored branch stays open.
+    writer = current();
+    const QString branchArtifactId = writer->property("artifactId").toString();
+    if (!click(*writer, "writingMode_manual"))
+        return false;
+    editor = writer->findChild<QObject*>(QStringLiteral("writingManualEditor"));
+    const QString branchText = QStringLiteral("Reviewed branch. 已审阅的分支内容。");
+    if (!check(
+            editor && writer->property("inputCurrent").toBool(),
+            "branch starts on current input"
+        ))
+        return false;
+    editor->setProperty("text", branchText);
+    evaluate(*writer, QStringLiteral("updatePreview(); checkpoint()"));
+    adopt = writer->findChild<QObject*>(QStringLiteral("writingAdoptButton"));
+    if (!check(
+            adopt && adopt->property("enabled").toBool(),
+            "valid branch can initially be adopted"
+        ))
+        return false;
+    const QString updatedOriginal =
+        script + QStringLiteral("\nAnother contributor updated this original.");
+    if (!check(
+            backend.proposeTextCandidate(artifactId, updatedOriginal)
+                && backend.acceptCandidate(backend.candidateId()),
+            "accept a newer original through the real domain path"
+        ))
+        return false;
+    if (!check(
+            waitUntil([&] { return !writer->property("inputCurrent").toBool(); }),
+            "open branch detects the newer accepted input"
+        ))
+        return false;
+    auto* status = writer->findChild<QObject*>(QStringLiteral("writingReviewStatus"));
+    if (!check(
+            !adopt->property("enabled").toBool(),
+            "stale input disables adoption instead of offering a silent no-op"
+        ))
+        return false;
+    if (!check(
+            status
+                && status->property("text").toString().contains(
+                    previousLanguage == QStringLiteral("en") ? QStringLiteral("original changed")
+                                                             : QStringLiteral("原稿已更新")
+                ),
+            "adoption footer explains the stale input"
+        ))
+        return false;
+    if (!check(
+            backend.textAuthoringContent(branchArtifactId, QString()).isEmpty(),
+            "stale branch has no accepted output"
+        ))
+        return false;
+    if (!click(*writer, "writingRefreshInputButton"))
+        return false;
+    if (!check(
+            waitUntil([&] {
+                return writer->property("inputCurrent").toBool()
+                       && adopt->property("enabled").toBool();
+            }),
+            "explicit input refresh recovers the adoption action"
+        ))
+        return false;
+    if (!check(
+            editor->property("text").toString() == branchText,
+            "refresh preserves authored branch text"
+        ))
+        return false;
+    evaluate(*writer, QStringLiteral("adopt(false)"));
     return check(
-        current()->property("artifactId").toString() != artifactId
-            && backend.textAuthoringContent(artifactId, QString()) == script,
-        "template output is separate and source remains unchanged"
+        backend.textAuthoringContent(branchArtifactId, QString()) == branchText
+            && backend.textAuthoringContent(artifactId, QString()) == updatedOriginal,
+        "recovered adoption accepts only the branch and preserves the newer original"
     );
 }
 
@@ -429,7 +573,8 @@ bool text_authoring_smoke::runLive(
         QStringLiteral(
             "写一个极短的五年级英语听力练习。中文开场只说：请听录音。英语题目只说：Number one. The "
             "boy will play football this Sunday. "
-            "题末使用[audio: answer]提示音并停顿3秒；先声明beep提示音。题目使用[repeat: 2; gap: 2s]复读块。不要答案、选项、结束语或其他说明。"
+            "题末使用[audio: answer]提示音并停顿3秒；先声明beep提示音。题目使用[repeat: 2; gap: "
+            "2s]复读块。不要答案、选项、结束语或其他说明。"
         )
     );
     if (!check(waitUntil([&] { return generate->property("enabled").toBool(); }), "AI ready"))

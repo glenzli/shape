@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use shape_domain::{
     OperatorConfigurationSchemaId, WorkingOperatorConfiguration, WorkingOperatorDraft,
-    speech_script::parse_speech_script,
+    speech_script::{parse_speech_script, parse_speech_script_for_review},
 };
 
 pub(crate) const SCHEMA: &str = "shape.operator-draft.text-authoring@20260922.1";
@@ -342,14 +342,14 @@ pub(crate) fn configured_preview(settings: &str, text: &str) -> Result<String, S
     if text.len() > 4 * 1024 * 1024 {
         return Err("writing_text_too_large".into());
     }
-    let plan = parse_speech_script(text);
+    let (plan, note_lines) = parse_speech_script_for_review(text);
     let valid = if state.is_script() {
         plan.issues.is_empty()
     } else {
         !text.trim().is_empty()
     };
     serde_json::to_string(
-        &serde_json::json!({ "valid": valid, "script": state.is_script(), "plan": plan }),
+        &serde_json::json!({ "valid": valid, "script": state.is_script(), "plan": plan, "note_lines": note_lines }),
     )
     .map_err(|e| e.to_string())
 }

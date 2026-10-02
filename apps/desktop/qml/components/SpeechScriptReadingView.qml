@@ -36,7 +36,7 @@ ColumnLayout {
         }
     }
     Repeater {
-        model: (view.preview.plan?.events || []).filter(e => e.kind !== "note")
+        model: (view.preview.plan?.events || []).filter(e => e.kind !== "note" || (view.preview.note_lines || []).indexOf(e.line) >= 0)
         delegate: ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
@@ -49,14 +49,22 @@ ColumnLayout {
             }
             Label {
                 Layout.fillWidth: true
+                objectName: modelData.kind === "note" ? "scriptProductionNote" : ""
                 text: ScriptPresentation.eventText(modelData)
                 textFormat: Text.PlainText
                 color: modelData.kind === "speech" || (modelData.kind === "heading" || modelData.kind === "scene") ? Theme.text : Theme.muted
                 font.pixelSize: (modelData.kind === "heading" || modelData.kind === "scene") ? 17 : modelData.kind === "speech" ? 14 : 12
                 font.weight: (modelData.kind === "heading" || modelData.kind === "scene") ? Font.DemiBold : Font.Normal
                 wrapMode: Text.WordWrap
-                topPadding: modelData.kind === "pause" ? 6 : 0
-                bottomPadding: modelData.kind === "speech" ? 10 : 4
+                topPadding: modelData.kind === "note" ? 10 : modelData.kind === "pause" ? 6 : 0
+                bottomPadding: modelData.kind === "note" ? 10 : modelData.kind === "speech" ? 10 : 4
+                leftPadding: modelData.kind === "note" ? 12 : 0
+                rightPadding: modelData.kind === "note" ? 12 : 0
+                background: Rectangle {
+                    visible: modelData.kind === "note"
+                    color: Theme.accentSoft
+                    radius: Theme.radiusSmall
+                }
             }
         }
     }

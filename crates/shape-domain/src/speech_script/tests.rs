@@ -182,3 +182,23 @@ fn production_rejects_ambiguous_controls_and_late_or_unbound_names() {
         assert!(!plan.ready(&SpeechScriptOptions::default()));
     }
 }
+
+#[test]
+fn review_distinguishes_authored_notes_from_non_spoken_control_events() {
+    let source = "[role: Narrator]\n[speaker: Narrator]\n[language: English]\n[note: speaker: retain this review reminder]\n[备注：确认读音]\nHello.";
+    let (plan, note_lines) = parse_speech_script_for_review(source);
+    assert!(plan.issues.is_empty());
+    assert_eq!(note_lines, vec![4, 5]);
+    assert_eq!(plan.spoken_text(), "Hello.");
+    assert_eq!(
+        plan.events
+            .iter()
+            .filter(|event| matches!(event.kind, SpeechScriptEventKind::Note { .. }))
+            .count(),
+        4
+    );
+    assert_eq!(plan, parse_speech_script(source));
+    assert!(!serde_json::to_string(&plan).unwrap().contains("note_lines"));
+    let (_, note_lines) = parse_speech_script_for_review("[note: [invalid]]\nHello.");
+    assert!(note_lines.is_empty());
+}

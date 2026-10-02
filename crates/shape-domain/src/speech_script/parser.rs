@@ -10,6 +10,13 @@ use std::collections::BTreeMap;
 /// Parses exact source bytes; repeated audio is represented as control events, not duplicate text.
 #[must_use]
 pub fn parse_speech_script(source: &str) -> SpeechScriptPlan {
+    parse_speech_script_for_review(source).0
+}
+
+/// Returns the unchanged execution plan plus source lines of authored, non-spoken notes.
+/// Role/language control events retain their historical Note encoding but are not review notes.
+#[must_use]
+pub fn parse_speech_script_for_review(source: &str) -> (SpeechScriptPlan, Vec<u32>) {
     let mut parser = Parser {
         plan: SpeechScriptPlan {
             revision: SPEECH_SCRIPT_REVISION.into(),
@@ -21,6 +28,7 @@ pub fn parse_speech_script(source: &str) -> SpeechScriptPlan {
             events: Vec::new(),
             issues: Vec::new(),
         },
+        note_lines: Vec::new(),
         role: String::new(),
         language: None,
         delivery: None,
@@ -31,7 +39,7 @@ pub fn parse_speech_script(source: &str) -> SpeechScriptPlan {
     };
     if source.len() > 65_536 {
         parser.issue(1, "script_too_large", "");
-        return parser.plan;
+        return (parser.plan, parser.note_lines);
     }
     for (index, line) in source.lines().enumerate() {
         let number = u32::try_from(index + 1).unwrap_or(u32::MAX);
@@ -52,7 +60,7 @@ pub fn parse_speech_script(source: &str) -> SpeechScriptPlan {
     {
         parser.issue(1, "no_spoken_text", "");
     }
-    parser.plan
+    (parser.plan, parser.note_lines)
 }
 struct RepeatScope {
     line: u32,
@@ -63,6 +71,7 @@ struct RepeatScope {
 }
 struct Parser {
     plan: SpeechScriptPlan,
+    note_lines: Vec<u32>,
     role: String,
     language: Option<String>,
     delivery: Option<SpeechDelivery>,
@@ -265,7 +274,10 @@ impl Parser {
                     },
                 );
             }
-            "备注" | "note" => self.emit(line, Kind::Note { text: value.into() }),
+            "备注" | "note" => {
+                self.note_lines.push(line);
+                self.emit(line, Kind::Note { text: value.into() });
+            }
             _ => self.issue(line, "unknown_directive", directive),
         }
     }

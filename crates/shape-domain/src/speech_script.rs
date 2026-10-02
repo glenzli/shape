@@ -2,7 +2,7 @@
 mod parser;
 mod production;
 use crate::{ContentDigest, ContentRef, PresetVoiceSelection};
-pub use parser::parse_speech_script;
+pub use parser::{parse_speech_script, parse_speech_script_for_review};
 pub use production::{CueLevel, SpeechDelivery, SpeechProduction, SpeechRole};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

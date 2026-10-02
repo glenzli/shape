@@ -623,8 +623,8 @@
     </message>
     <message>
         <location line="+1"/>
-        <source>Stopped. Generate again to continue the completed segments with the same text and voice.</source>
-        <translation>已停止。保持文本和音色等设置不变，再次生成即可接着已完成的分段继续。</translation>
+        <source>Stopped. Retry in this session with the same text and all settings to reuse completed segments. Changed text or settings require a fresh synthesis.</source>
+        <translation>已停止。在当前会话中保持文本和全部设置不变，重试可复用已完成的分段。更改文本或设置后需要重新合成。</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -3298,6 +3298,12 @@
 </context>
 <context>
     <name>ScriptPresentation</name>
+    <message>
+        <source>Production note · not spoken
+%1</source>
+        <translation>制作备注 · 不朗读
+%1</translation>
+    </message>
     <message>
         <location filename="../qml/components/ScriptPresentation.js" line="+4"/>
         <source>Clear and even</source>

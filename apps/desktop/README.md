@@ -8,6 +8,11 @@ The current artifact-as-Scene implementation remains a compatibility projection 
 Scene-owned mutable graph is added; it must not be mistaken for the final multi-source persistence
 model.
 The text and speech workflow uses the [node contract](../../docs/NODE_MODEL.md).
+Production notes remain visible as non-spoken callouts during script review and voice audition,
+so pronunciation and timing reminders travel with the accepted script without entering speech.
+A failed audio selection clears the previous preview immediately, so playback cannot silently use
+another version. Speech retry guidance distinguishes same-session recovery from a fresh synthesis
+after text or settings change.
 Text creation starts empty and offers plain/script formats before the user writes. Text editing requires
 an accepted original and allocates an independent output, with rewrite, translate, summarize, polish, expand, outline and script
 preparation tasks. Both open `TextAuthoringWorkspace.qml`; optional tone, audience and style settings
@@ -419,3 +424,8 @@ Desktop smoke modes use a temporary settings file for appearance, language, mode
 recent projects, including the opt-in live sound path. Ordinary offscreen smoke also uses an
 empty temporary credential location; opt-in live tests continue to read the configured credential.
 These checks never rewrite the user's preferences or add synthetic projects to their recent list.
+
+Text authoring keeps the adoption action disabled when its pinned original becomes stale. The
+action footer explains the required input refresh; choosing the latest original preserves the
+authored branch text. Native smoke covers a real intervening accepted revision, explicit refresh,
+and separate-output adoption without overwriting that newer original.

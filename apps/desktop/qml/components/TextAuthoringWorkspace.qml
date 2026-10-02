@@ -275,7 +275,7 @@ Item {
                         spacing: 8
                         Label { text: qsTr("Original") + " · " + (workspace.inputArtifact ? workspace.inputArtifact.name : qsTr("Missing source")); color: Theme.text; font.weight: Font.DemiBold }
                         Label { Layout.fillWidth: true; text: workspace.inputCurrent ? qsTr("This node produces a separate document. The original stays available for other branches.") : qsTr("The original changed. Update the input before generating or adopting a result."); color: Theme.muted; wrapMode: Text.WordWrap }
-                        ShapeButton { visible: !workspace.inputCurrent && workspace.inputArtifact !== null; text: qsTr("Use latest original"); onClicked: workspace.backend.refreshTextInput(workspace.draftId) }
+                        ShapeButton { objectName: "writingRefreshInputButton"; visible: !workspace.inputCurrent && workspace.inputArtifact !== null; text: qsTr("Use latest original"); onClicked: workspace.backend.refreshTextInput(workspace.draftId) }
                         ShapeButton { text: workspace.showSource ? qsTr("Hide original") : qsTr("View original"); quiet: true; onClicked: workspace.showSource = !workspace.showSource }
                         ShapeTextEditor {
                             visible: workspace.showSource
@@ -475,7 +475,9 @@ Item {
                         wrapMode: Text.WordWrap
                         font.pixelSize: 12
                         color: Theme.muted
-                        text: workspace.generationRunning ? qsTr("AI is writing. This may take a moment…")
+                        objectName: "writingReviewStatus"
+                        text: !workspace.inputCurrent ? qsTr("The original changed. Update the input before generating or adopting a result.")
+                            : workspace.generationRunning ? qsTr("AI is writing. This may take a moment…")
                             : workspace.entry === "manual" || workspace.reviewing
                               ? workspace.preview.valid ? qsTr("Ready to adopt") : qsTr("Add spoken text and check the script instructions before continuing.")
                               : qsTr("Generated text remains a candidate until you adopt it.")
@@ -501,7 +503,7 @@ Item {
                         visible: workspace.reviewing || workspace.entry === "manual"
                         text: workspace.scriptMode ? qsTr("Adopt script and choose voices") : qsTr("Adopt text")
                         primary: true
-                        enabled: workspace.preview.valid === true && !workspace.generationRunning
+                        enabled: workspace.inputCurrent && workspace.preview.valid === true && !workspace.generationRunning
                         onClicked: workspace.adopt(workspace.scriptMode)
                     }
                 }

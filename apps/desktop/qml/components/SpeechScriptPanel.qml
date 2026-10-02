@@ -19,7 +19,7 @@ ListView {
     readonly property var options: optionsJson.length > 0 ? JSON.parse(optionsJson) : ({roles: {}, cues: {}})
     property string selectedCue: ""
     clip: true
-    model: (preview.plan?.events || []).filter(event => ["speech", "pause", "cue", "heading", "scene", "repeat_start", "repeat_end"].indexOf(event.kind) >= 0)
+    model: (preview.plan?.events || []).filter(event => ["speech", "pause", "cue", "heading", "scene", "repeat_start", "repeat_end"].indexOf(event.kind) >= 0 || (event.kind === "note" && (panel.preview.note_lines || []).indexOf(event.line) >= 0))
     spacing: 6
     // Include the role/cue header when a newly loaded playback plan settles.
     onCountChanged: Qt.callLater(() => panel.positionViewAtBeginning())
@@ -27,12 +27,18 @@ ListView {
     delegate: Label {
         required property var modelData
         width: panel.width
+        objectName: modelData.kind === "note" ? "scriptProductionNote" : ""
         text: panel.eventText(modelData)
         textFormat: Text.PlainText
         color: modelData.kind === "speech" ? Theme.text : Theme.muted
         font.pixelSize: 12
         wrapMode: Text.WordWrap
-        padding: 4
+        padding: modelData.kind === "note" ? 10 : 4
+        background: Rectangle {
+            visible: modelData.kind === "note"
+            color: Theme.accentSoft
+            radius: Theme.radiusSmall
+        }
     }
     ScrollBar.vertical: ScrollBar { policy: panel.contentHeight > panel.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
 

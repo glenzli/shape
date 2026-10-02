@@ -164,3 +164,14 @@ fn repair_feedback_is_separate_from_the_original_user_request() {
     state.repair_feedback = "x".repeat(4097);
     assert!(state.configuration().is_err());
 }
+
+#[test]
+fn script_review_exposes_authored_notes_without_exposing_controls_as_notes() {
+    let source =
+        "[role: Narrator]\n[speaker: Narrator]\n[note: speaker: a pronunciation reminder]\nHello.";
+    let preview: serde_json::Value =
+        serde_json::from_str(&preview("script", source).unwrap()).unwrap();
+    assert_eq!(preview["valid"], true);
+    assert_eq!(preview["note_lines"], serde_json::json!([3]));
+    assert_eq!(preview["plan"]["events"].as_array().unwrap().len(), 3);
+}

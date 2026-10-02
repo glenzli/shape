@@ -165,7 +165,7 @@ Item {
         switch (code) {
         case "": return ""
         case "invalid_speech_script": return qsTr("Check the script preview and resolve every cue before generating.")
-        case "speech_cancelled": return qsTr("Stopped. Generate again to continue the completed segments with the same text and voice.")
+        case "speech_cancelled": return qsTr("Stopped. Retry in this session with the same text and all settings to reuse completed segments. Changed text or settings require a fresh synthesis.")
         case "speech_format_changed": return qsTr("The speech service changed audio format between segments. Try again.")
         case "speech_audio_too_large": return qsTr("This narration exceeds the 128 MiB audio limit. Split the text into shorter parts.")
         case "speech_text_too_long":
