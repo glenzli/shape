@@ -1,33 +1,40 @@
-//! Runnable public consumer for the first Shape vertical slice.
+//! Public command routing; use cases and script diagnostics retain their own owners.
+
+mod script_check;
 
 use std::{
     env,
     error::Error,
     io,
     path::{Path, PathBuf},
+    process::ExitCode,
 };
 
 use shape_core::ShapeProject;
 use shape_domain::{ArtifactKind, Constraint, ConstraintKind, ConstraintStrength, IntentSpec};
 
-fn main() {
-    if let Err(error) = run() {
-        eprintln!("shape-cli: {error}");
-        std::process::exit(1);
+fn main() -> ExitCode {
+    match run() {
+        Ok(code) => ExitCode::from(code),
+        Err(error) => {
+            eprintln!("shape-cli: {error}");
+            ExitCode::FAILURE
+        }
     }
 }
 
-fn run() -> Result<(), Box<dyn Error>> {
-    let mut arguments = env::args().skip(1);
+fn run() -> Result<u8, Box<dyn Error>> {
+    let mut arguments = env::args_os().skip(1);
     let command = arguments.next().ok_or_else(usage_error)?;
     let path = PathBuf::from(arguments.next().ok_or_else(usage_error)?);
     if arguments.next().is_some() {
         return Err(usage_error().into());
     }
 
-    match command.as_str() {
-        "demo" => demo(&path),
-        "inspect" => inspect(&path),
+    match command.to_str() {
+        Some("demo") => demo(&path).map(|()| 0),
+        Some("inspect") => inspect(&path).map(|()| 0),
+        Some("script-check") => script_check::run(&path),
         _ => Err(usage_error().into()),
     }
 }
@@ -93,6 +100,6 @@ fn inspect(path: &Path) -> Result<(), Box<dyn Error>> {
 fn usage_error() -> io::Error {
     io::Error::new(
         io::ErrorKind::InvalidInput,
-        "usage: shape-cli <demo|inspect> <project.shape>",
+        "usage: shape-cli <demo|inspect> <project.shape> | script-check <script.txt>",
     )
 }

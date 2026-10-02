@@ -9,6 +9,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+serde_json.workspace = true
 shape-core.workspace = true
 shape-domain.workspace = true
 
