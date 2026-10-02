@@ -121,6 +121,8 @@ qt_add_executable(shape-desktop
     tests/image_live_smoke.hpp
     tests/text_authoring_smoke.cpp
     tests/text_authoring_smoke.hpp
+    tests/audio_preview_smoke.cpp
+    tests/audio_preview_smoke.hpp
     tests/sound_live_smoke.cpp
     tests/sound_live_smoke.hpp
     tests/speech_live_smoke.cpp

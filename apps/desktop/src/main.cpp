@@ -1,5 +1,6 @@
 #include "audio_export_controller.hpp"
 #include "audio_preview_controller.hpp"
+#include "audio_preview_smoke.hpp"
 #include "desktop_backend.hpp"
 #include "image_live_smoke.hpp"
 #include "image_preview_provider.hpp"
@@ -1356,6 +1357,7 @@ int main(int argc, char* argv[]) {
         });
     }
     if (arguments->smoke_exit) {
+        if (!audio_preview_smoke::verify()) return 3;
         const bool began_without_project = !backend->projectOpen();
         if (!workspace_host_smoke::verifyDraftConflicts(ui_preferences)
             || !workspace_host_smoke::verifyRecentProjects()

@@ -66,6 +66,7 @@ bool AudioPreviewController::loadPreview(
 ) {
     const auto preview = backend_.audioPreview(artifactId, candidateId, revisionId);
     if (!preview.has_value()) {
+        clear();
         setErrorCode(QStringLiteral("preview_unavailable"));
         return false;
     }
@@ -78,6 +79,7 @@ bool AudioPreviewController::loadPreview(
         || preview->wav_bytes.mid(8, 4) != QByteArrayLiteral("WAVE")
         || preview->duration_millis <= 0 || preview->sample_rate_hz <= 0
         || preview->channels <= 0) {
+        clear();
         setErrorCode(QStringLiteral("preview_invalid"));
         return false;
     }
