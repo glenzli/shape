@@ -621,6 +621,63 @@ bool verifySceneGraphRoutes(QObject& root_object) {
                   == operator_node->value(QStringLiteral("id")).toString();
 }
 
+bool verifyDraftConflicts(UiPreferences& ui_preferences) {
+    QTemporaryDir temporary;
+    DesktopBackend first;
+    DesktopBackend stale;
+    if (!temporary.isValid()
+        || !first.createProject(QUrl::fromLocalFile(temporary.path()), QStringLiteral("Conflict"))
+        || !first.createTextAuthoring(QStringLiteral("Shared draft"), QStringLiteral("plain"))
+        || !stale.openProject(QUrl::fromLocalFile(first.bundlePath()))) {
+        return false;
+    }
+    const auto draft = first.operatorDrafts().first().toMap();
+    const auto id = draft.value(QStringLiteral("id")).toString();
+    auto state = QJsonDocument::fromJson(
+                     draft.value(QStringLiteral("textAuthoringJson")).toString().toUtf8()
+    )
+                     .object();
+    state.insert(QStringLiteral("entry"), QStringLiteral("manual"));
+    state.insert(QStringLiteral("text"), QStringLiteral("Keep the newer authored draft."));
+    const auto authored = QString::fromUtf8(QJsonDocument(state).toJson(QJsonDocument::Compact));
+    if (!first.updateTextAuthoring(id, authored))
+        return false;
+    const auto previous_language = ui_preferences.languageMode();
+    bool passed = true;
+    for (const auto& language : {QStringLiteral("en"), QStringLiteral("zh_CN")}) {
+        ui_preferences.setLanguageMode(language);
+        const auto expected =
+            language == QStringLiteral("en")
+                ? QStringLiteral(
+                      "This draft changed in another session. Copy any unsaved text, then reopen "
+                      "the project."
+                  )
+                : QStringLiteral(
+                      "此草稿已在另一个会话中更改。请先复制尚未保存的文本，再重新打开项目。"
+                  );
+        passed =
+            !stale.updateTextAuthoring(id, authored) && stale.lastError() == expected && passed;
+        passed = !stale.discardOperatorDraft(id) && stale.lastError() == expected && passed;
+    }
+    ui_preferences.setLanguageMode(previous_language);
+    if (!stale.openProject(QUrl::fromLocalFile(first.bundlePath())))
+        return false;
+    const auto saved = QJsonDocument::fromJson(stale.operatorDrafts()
+                                                   .first()
+                                                   .toMap()
+                                                   .value(QStringLiteral("textAuthoringJson"))
+                                                   .toString()
+                                                   .toUtf8())
+                           .object();
+    passed = saved.value(QStringLiteral("text")).toString()
+                 == QStringLiteral("Keep the newer authored draft.")
+             && stale.discardOperatorDraft(id) && stale.artifactCount() == 0 && passed;
+    if (!passed)
+        std::cerr << "desktop smoke lost a concurrent draft or localized recovery message"
+                  << std::endl;
+    return passed;
+}
+
 bool verifyLocalization(QObject& root_object, UiPreferences& ui_preferences) {
     QObject* const workspace_surface =
         root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));

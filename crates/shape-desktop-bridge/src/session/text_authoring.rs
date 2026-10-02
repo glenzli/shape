@@ -70,7 +70,7 @@ impl DesktopSession {
                 },
             )?;
         }
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }
@@ -191,7 +191,7 @@ impl DesktopSession {
         let state = TextAuthoring::from_json(json)?;
         let previous = self.operator_drafts.clone();
         let (artifact, draft) = self.operator_drafts.configure_authoring(draft_id, &state)?;
-        if let Err(error) = self.persist_operator_drafts(artifact) {
+        if let Err(error) = self.persist_operator_drafts(artifact, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }

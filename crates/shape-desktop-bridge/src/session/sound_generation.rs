@@ -93,7 +93,7 @@ impl DesktopSession {
         let (artifact_id, draft) = self
             .operator_drafts
             .update_sound_configuration(draft_id, prompt, kind, seconds, seed)?;
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }

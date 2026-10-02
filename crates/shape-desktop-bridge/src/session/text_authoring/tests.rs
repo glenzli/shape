@@ -170,3 +170,139 @@ fn common_node_templates_pin_original_and_persist_distinct_output_tasks() {
     drop(session);
     std::fs::remove_dir_all(path).unwrap();
 }
+
+#[test]
+fn concurrent_draft_save_preserves_the_other_sessions_authored_text() {
+    let path = std::env::temp_dir().join(format!("shape-draft-conflict-{}", uuid::Uuid::now_v7()));
+    let mut first = create_desktop_project(path.to_str().unwrap(), "Concurrent writing").unwrap();
+    first
+        .session_create_text_authoring("Story", "plain")
+        .unwrap();
+    let mut second = open_desktop_session(path.to_str().unwrap()).unwrap();
+    let draft = &first.session_operator_drafts()[0];
+    let mut state = TextAuthoring::from_json(&draft.text_authoring_json).unwrap();
+    state.entry = WritingEntry::Manual;
+    state.text = "A human wrote this newer draft.".into();
+    first
+        .session_update_text_authoring(&draft.draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
+    let saved = state.clone();
+    state.text = "An AI session still holds the older draft.".into();
+    assert!(
+        second
+            .session_update_text_authoring(&draft.draft_id, &serde_json::to_string(&state).unwrap())
+            .is_err(),
+        "a stale session must not silently overwrite a newer draft at the same accepted head"
+    );
+    assert_eq!(
+        second.session_operator_drafts()[0].text_authoring_json,
+        draft.text_authoring_json,
+        "a rejected write must restore the session's local draft"
+    );
+    let mut reopened = open_desktop_session(path.to_str().unwrap()).unwrap();
+    assert_eq!(
+        TextAuthoring::from_json(&reopened.session_operator_drafts()[0].text_authoring_json)
+            .unwrap(),
+        saved
+    );
+    let candidate = reopened
+        .session_propose_authored_text(&draft.draft_id)
+        .unwrap();
+    let duplicate = reopened
+        .session_propose_authored_text(&draft.draft_id)
+        .unwrap();
+    assert_eq!(candidate.candidate_id, duplicate.candidate_id);
+    reopened
+        .session_accept_candidate(&candidate.candidate_id)
+        .unwrap();
+    assert!(
+        reopened
+            .session_accept_candidate(&candidate.candidate_id)
+            .is_err()
+    );
+    drop((first, second, reopened));
+    std::fs::remove_dir_all(path).unwrap();
+}
+
+#[test]
+fn concurrent_draft_discard_preserves_the_other_sessions_authored_text() {
+    let path =
+        std::env::temp_dir().join(format!("shape-discard-conflict-{}", uuid::Uuid::now_v7()));
+    let mut first = create_desktop_project(path.to_str().unwrap(), "Concurrent writing").unwrap();
+    first
+        .session_create_text_authoring("Story", "plain")
+        .unwrap();
+    let mut second = open_desktop_session(path.to_str().unwrap()).unwrap();
+    let draft = &first.session_operator_drafts()[0];
+    let mut state = TextAuthoring::from_json(&draft.text_authoring_json).unwrap();
+    state.entry = WritingEntry::Manual;
+    state.text = "This draft was edited after the other session opened.".into();
+    first
+        .session_update_text_authoring(&draft.draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
+    assert!(
+        second
+            .session_discard_operator_draft(&draft.draft_id)
+            .is_err(),
+        "a stale discard must not remove another session's draft and reserved output"
+    );
+    assert_eq!(second.session_operator_drafts().len(), 1);
+    let mut reopened = open_desktop_session(path.to_str().unwrap()).unwrap();
+    assert_eq!(
+        TextAuthoring::from_json(&reopened.session_operator_drafts()[0].text_authoring_json)
+            .unwrap(),
+        state
+    );
+    reopened
+        .session_discard_operator_draft(&draft.draft_id)
+        .unwrap();
+    assert!(reopened.session_snapshot().unwrap().artifacts.is_empty());
+    drop((first, second, reopened));
+    std::fs::remove_dir_all(path).unwrap();
+}
+
+#[test]
+fn accepting_literal_candidate_does_not_write_back_stale_authored_intent() {
+    let path = std::env::temp_dir().join(format!("shape-accept-conflict-{}", uuid::Uuid::now_v7()));
+    let mut first = create_desktop_project(path.to_str().unwrap(), "Concurrent writing").unwrap();
+    let created = first
+        .session_create_text_authoring("Story", "plain")
+        .unwrap();
+    let id = created.artifacts[0].id.clone();
+    let draft = &first.session_operator_drafts()[0];
+    let mut state = TextAuthoring::from_json(&draft.text_authoring_json).unwrap();
+    state.entry = WritingEntry::Manual;
+    state.text = "Initial accepted text.".into();
+    first
+        .session_update_text_authoring(&draft.draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
+    let initial = first
+        .session_propose_authored_text(&draft.draft_id)
+        .unwrap();
+    first
+        .session_accept_candidate(&initial.candidate_id)
+        .unwrap();
+    let candidate = first
+        .session_propose_text(&id, "New accepted text.")
+        .unwrap();
+    let mut second = open_desktop_session(path.to_str().unwrap()).unwrap();
+    state.text = "Keep this other editor's newer work in progress.".into();
+    second
+        .session_update_text_authoring(&draft.draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
+    first
+        .session_accept_candidate(&candidate.candidate_id)
+        .unwrap();
+    let reopened = open_desktop_session(path.to_str().unwrap()).unwrap();
+    assert_eq!(
+        reopened.session_text_authoring_content(&id, "").unwrap(),
+        "New accepted text."
+    );
+    assert_eq!(
+        TextAuthoring::from_json(&reopened.session_operator_drafts()[0].text_authoring_json)
+            .unwrap(),
+        state
+    );
+    drop((first, second, reopened));
+    std::fs::remove_dir_all(path).unwrap();
+}

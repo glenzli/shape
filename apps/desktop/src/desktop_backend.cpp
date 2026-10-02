@@ -34,6 +34,17 @@ std::string to_utf8(const QString& value) {
     return std::string(bytes.constData(), static_cast<std::size_t>(bytes.size()));
 }
 
+QString draft_write_error(const rust::Error& error, const QString& fallback) {
+    const QString code = QString::fromUtf8(error.what());
+    if (code == QStringLiteral("working_graph_conflict")
+        || code.endsWith(QStringLiteral(": working_graph_conflict"))) {
+        return DesktopBackend::tr(
+            "This draft changed in another session. Copy any unsaved text, then reopen the project."
+        );
+    }
+    return fallback;
+}
+
 bool is_text_file_suffix(const QString& suffix) {
     return suffix == QStringLiteral("txt") || suffix == QStringLiteral("md")
            || suffix == QStringLiteral("js") || suffix == QStringLiteral("mjs")
@@ -663,8 +674,8 @@ bool DesktopBackend::updateSoundDraft(
         setLastError({});
         emit operatorDraftsChanged();
         return true;
-    } catch (const rust::Error&) {
-        setLastError(tr("Could not save the sound description."));
+    } catch (const rust::Error& error) {
+        setLastError(draft_write_error(error, tr("Could not save the sound description.")));
         return false;
     }
 }
@@ -823,8 +834,8 @@ bool DesktopBackend::refreshTextInput(const QString& draftId) {
         emit operatorDraftsChanged();
         emit candidateChanged();
         return true;
-    } catch (const rust::Error&) {
-        setLastError(tr("Could not update the original text input."));
+    } catch (const rust::Error& error) {
+        setLastError(draft_write_error(error, tr("Could not update the original text input.")));
         return false;
     }
 }
@@ -844,7 +855,10 @@ bool DesktopBackend::updateTextAuthoring(const QString& draftId, const QString& 
             code == QStringLiteral("writing_draft_too_large")
                 ? tr("This draft is too large to save. Keep the draft and reference text under 48 "
                      "KiB in total.")
-                : tr("Could not save the writing draft. Your text is still in the editor.")
+                : draft_write_error(
+                      error,
+                      tr("Could not save the writing draft. Your text is still in the editor.")
+                  )
         );
         return false;
     }
@@ -988,7 +1002,9 @@ DesktopBackend::beginOperatorDraft(const QString& artifactId, const QString& ope
         return from_rust(draft.draft_id);
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not begin Operator draft:" << error.what();
-        setLastError(tr("This Operator cannot use the selected Scene source."));
+        setLastError(
+            draft_write_error(error, tr("This Operator cannot use the selected Scene source."))
+        );
         return QString();
     }
 }
@@ -1039,7 +1055,7 @@ bool DesktopBackend::updateTextTransformDraft(
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not save text transform draft:" << error.what();
-        setLastError(tr("Could not save the Operator draft."));
+        setLastError(draft_write_error(error, tr("Could not save the Operator draft.")));
         return false;
     }
 }
@@ -1070,7 +1086,7 @@ bool DesktopBackend::updateAudioSpeechDraft(
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not save audio speech draft:" << error.what();
-        setLastError(tr("Could not save the Operator draft."));
+        setLastError(draft_write_error(error, tr("Could not save the Operator draft.")));
         return false;
     }
 }
@@ -1084,8 +1100,8 @@ bool DesktopBackend::updateSpeechScript(const QString& draftId, const QString& o
         setLastError(QString());
         emit operatorDraftsChanged();
         return true;
-    } catch (const rust::Error&) {
-        setLastError(tr("Could not save the narration script settings."));
+    } catch (const rust::Error& error) {
+        setLastError(draft_write_error(error, tr("Could not save the narration script settings.")));
         return false;
     }
 }
@@ -1185,7 +1201,7 @@ bool DesktopBackend::updateImageResizeDraft(
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not save image resize draft:" << error.what();
-        setLastError(tr("Could not save the Operator draft."));
+        setLastError(draft_write_error(error, tr("Could not save the Operator draft.")));
         return false;
     }
 }
@@ -1218,7 +1234,7 @@ bool DesktopBackend::updateAiImageDraft(
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not save AI image draft:" << error.what();
-        setLastError(tr("Could not save the AI image draft."));
+        setLastError(draft_write_error(error, tr("Could not save the AI image draft.")));
         return false;
     }
 }
@@ -1239,7 +1255,7 @@ bool DesktopBackend::discardOperatorDraft(const QString& draftId) {
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not discard Operator draft:" << error.what();
-        setLastError(tr("Could not remove the Operator draft."));
+        setLastError(draft_write_error(error, tr("Could not remove the Operator draft.")));
         return false;
     }
 }

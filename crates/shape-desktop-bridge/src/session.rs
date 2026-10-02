@@ -75,9 +75,14 @@ fn desktop_session(project: ShapeProject, path: &str) -> Result<Box<DesktopSessi
             .artifact_working_graphs()
             .map_err(|error| error.to_string())?,
     )?;
+    let previous = operator_drafts.clone();
     for graph in operator_drafts.initialize_audio_speech_defaults()? {
         project
-            .save_artifact_working_graph(&graph)
+            .replace_artifact_working_graph(
+                graph.context_artifact_id(),
+                previous.graph(graph.context_artifact_id()),
+                Some(&graph),
+            )
             .map_err(|error| error.to_string())?;
     }
     Ok(Box::new(DesktopSession {
@@ -233,7 +238,7 @@ impl DesktopSession {
                 }
             };
         }
-        if let Err(error) = self.persist_operator_drafts(artifact.id) {
+        if let Err(error) = self.persist_operator_drafts(artifact.id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }
@@ -305,7 +310,7 @@ impl DesktopSession {
             style_key,
             variant_count,
         )?;
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }
@@ -336,7 +341,7 @@ impl DesktopSession {
             style_key,
             variant_count,
         )?;
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }
@@ -367,7 +372,7 @@ impl DesktopSession {
             speed_milli,
             synthetic_disclosure_required,
         )?;
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }
@@ -392,7 +397,7 @@ impl DesktopSession {
             aspect_policy_key,
             resampling_key,
         )?;
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }
@@ -419,7 +424,7 @@ impl DesktopSession {
                 output_height,
                 candidate_count,
             )?;
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }
@@ -446,13 +451,7 @@ impl DesktopSession {
         }
         let previous = self.operator_drafts.clone();
         let artifact_id = self.operator_drafts.discard(draft_id)?;
-        let result = if self.operator_drafts.graph(artifact_id).is_none() {
-            self.project
-                .discard_output_working_graph(artifact_id)
-                .map_err(|e| e.to_string())
-        } else {
-            self.persist_operator_drafts(artifact_id)
-        };
+        let result = self.persist_operator_drafts(artifact_id, &previous);
         if let Err(error) = result {
             self.operator_drafts = previous;
             return Err(error);
@@ -832,21 +831,18 @@ impl DesktopSession {
         if preserves_text_intent {
             self.candidates.discard_audio_from_source(artifact_id);
         }
-        if preserves_node
-            && self
-                .operator_drafts
-                .rebase_artifact(artifact_id, accepted_revision.id)
-                .unwrap_or(false)
-        {
-            // Acceptance is already durable. Keep the reusable authored intent
-            // pointed at the newly locked text output whenever persistence is
-            // available; a later open still rejects any stale graph.
-            let _ = self.persist_operator_drafts(artifact_id);
-        } else if self.operator_drafts.clear_artifact(artifact_id) {
-            // Acceptance already crossed the immutable commit boundary. A cleanup
-            // failure must not report that accepted history failed; stale mutable
-            // graphs are also excluded when the project next opens.
-            let _ = self.project.delete_artifact_working_graph(artifact_id);
+        // Store acceptance already rebased the durable graph in its transaction.
+        // Never write the session's cached graph back over another editor's intent.
+        let _ = self
+            .operator_drafts
+            .rebase_artifact(artifact_id, accepted_revision.id);
+        if !preserves_node {
+            let previous = self.operator_drafts.clone();
+            if self.operator_drafts.clear_artifact(artifact_id) {
+                // Cleanup is conditional too: an edit after acceptance must survive.
+                // Acceptance remains successful if that cleanup loses the race.
+                let _ = self.persist_operator_drafts(artifact_id, &previous);
+            }
         }
         self.session_snapshot()
     }
@@ -1254,23 +1250,25 @@ impl DesktopSession {
         {
             return Ok(());
         }
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }
         Ok(())
     }
 
-    fn persist_operator_drafts(&self, artifact_id: ArtifactId) -> Result<(), String> {
-        if let Some(graph) = self.operator_drafts.graph(artifact_id) {
-            self.project
-                .save_artifact_working_graph(graph)
-                .map_err(|error| error.to_string())
-        } else {
-            self.project
-                .delete_artifact_working_graph(artifact_id)
-                .map_err(|error| error.to_string())
-        }
+    fn persist_operator_drafts(
+        &self,
+        artifact_id: ArtifactId,
+        previous: &OperatorDrafts,
+    ) -> Result<(), String> {
+        self.project
+            .replace_artifact_working_graph(
+                artifact_id,
+                previous.graph(artifact_id),
+                self.operator_drafts.graph(artifact_id),
+            )
+            .map_err(|error| error.to_string())
     }
 }
 

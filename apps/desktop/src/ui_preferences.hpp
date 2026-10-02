@@ -39,6 +39,11 @@ class UiPreferences final : public QObject {
     Q_ENUM(AppearanceMode)
 
     explicit UiPreferences(QGuiApplication& application, QObject* parent = nullptr);
+    UiPreferences(
+        QGuiApplication& application,
+        const QString& settings_path,
+        QObject* parent = nullptr
+    );
 
     int appearanceMode() const;
     void setAppearanceMode(int mode);

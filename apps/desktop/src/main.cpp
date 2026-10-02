@@ -1182,6 +1182,25 @@ int main(int argc, char* argv[]) {
     QGuiApplication application(argc, argv);
     application.setApplicationName(QStringLiteral("Shape"));
     application.setOrganizationName(QStringLiteral("Shape"));
+    const bool offline_smoke =
+        arguments->smoke_exit || arguments->smoke_text_cycle || arguments->smoke_raster_cycle;
+    const bool smoke_mode = offline_smoke || arguments->speech_live_directory.has_value()
+                            || arguments->speech_script_directory.has_value()
+                            || arguments->text_authoring_directory.has_value()
+                            || arguments->image_live_directory.has_value()
+                            || arguments->sound_live_directory.has_value();
+    std::optional<QTemporaryDir> smoke_profile;
+    if (smoke_mode) {
+        smoke_profile.emplace();
+        if (!smoke_profile->isValid()) {
+            std::cerr << "cannot create isolated smoke settings" << std::endl;
+            return 1;
+        }
+    }
+    const QString user_config_directory =
+        QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    const QString settings_path = QDir(smoke_mode ? smoke_profile->path() : user_config_directory)
+                                      .filePath(QStringLiteral("shape.conf"));
     std::unique_ptr<DesktopBackend> backend;
     try {
         if (arguments->project_path.has_value()) {
@@ -1198,7 +1217,7 @@ int main(int argc, char* argv[]) {
 
     InferRuntimeController infer_runtime(&application);
     const QString infer_credential_path =
-        QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation))
+        QDir(offline_smoke ? smoke_profile->path() : user_config_directory)
             .filePath(QStringLiteral("secrets/infer-runtime.token"));
     InferTextController infer_text(*backend, infer_credential_path, &application);
     InferSoundController infer_sound(*backend, infer_credential_path, &application);
@@ -1207,15 +1226,9 @@ int main(int argc, char* argv[]) {
     InferImageController infer_image(*backend, infer_credential_path, &application);
     AudioPreviewController audio_preview(*backend, &application);
     AudioExportController audio_export(*backend, &application);
-    UiPreferences ui_preferences(application);
-    RecentProjects recent_projects;
+    UiPreferences ui_preferences(application, settings_path);
+    RecentProjects recent_projects(settings_path);
     WebAnimationPreviewProfile web_animation_preview;
-    const bool smoke_mode = arguments->smoke_exit || arguments->smoke_text_cycle
-                            || arguments->smoke_raster_cycle
-                            || arguments->speech_live_directory.has_value()
-                            || arguments->speech_script_directory.has_value()
-                            || arguments->text_authoring_directory.has_value()
-                            || arguments->image_live_directory.has_value();
     if (!smoke_mode) {
         const auto record_project = [&recent_projects, project = backend.get()] {
             if (project->projectOpen()) {
@@ -1344,7 +1357,8 @@ int main(int argc, char* argv[]) {
     }
     if (arguments->smoke_exit) {
         const bool began_without_project = !backend->projectOpen();
-        if (!workspace_host_smoke::verifyRecentProjects()
+        if (!workspace_host_smoke::verifyDraftConflicts(ui_preferences)
+            || !workspace_host_smoke::verifyRecentProjects()
             || (began_without_project && !workspace_host_smoke::verifyProjectWelcome(*root_object))
             || !verify_infer_runtime_surface(*root_object)
             || !workspace_host_smoke::verifyLocalization(*root_object, ui_preferences)) {

@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QLocale>
 #include <QPalette>
 #include <QQmlEngine>
@@ -71,14 +72,21 @@ QString systemLanguage() {
 } // namespace
 
 UiPreferences::UiPreferences(QGuiApplication& application, QObject* parent)
+    : UiPreferences(
+          application,
+          QDir(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation))
+              .filePath(QStringLiteral("shape.conf")),
+          parent
+      ) {}
+
+UiPreferences::UiPreferences(
+    QGuiApplication& application,
+    const QString& settings_path,
+    QObject* parent
+)
     : QObject(parent), application_(application) {
-    const QString config_directory =
-        QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    QDir().mkpath(config_directory);
-    settings_ = std::make_unique<QSettings>(
-        config_directory + QStringLiteral("/shape.conf"),
-        QSettings::IniFormat
-    );
+    QDir().mkpath(QFileInfo(settings_path).absolutePath());
+    settings_ = std::make_unique<QSettings>(settings_path, QSettings::IniFormat);
     appearance_mode_ = normalizeAppearanceMode(
         settings_->value(QString::fromLatin1(kAppearanceSettingsKey), 0).toInt()
     );

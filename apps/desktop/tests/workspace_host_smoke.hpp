@@ -28,6 +28,8 @@ bool verifyProjectWelcome(QObject& root_object);
 
 bool verifyRecentProjects();
 
+bool verifyDraftConflicts(UiPreferences& ui_preferences);
+
 bool verifyOperatorDraftRoute(QObject& root_object, DesktopBackend& backend);
 
 bool verifyProjectedDraftRemoval(QObject& root_object, DesktopBackend& backend);

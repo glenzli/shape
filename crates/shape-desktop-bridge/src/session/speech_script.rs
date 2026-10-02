@@ -22,7 +22,7 @@ impl DesktopSession {
         let (artifact_id, draft) = self
             .operator_drafts
             .update_speech_script(draft_id, options)?;
-        if let Err(error) = self.persist_operator_drafts(artifact_id) {
+        if let Err(error) = self.persist_operator_drafts(artifact_id, &previous) {
             self.operator_drafts = previous;
             return Err(error);
         }

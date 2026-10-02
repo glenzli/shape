@@ -1582,3 +1582,108 @@ fn script_preview_reads_full_source_and_bindings_and_cue_bytes_survive_reopen() 
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+#[ignore = "bounded workload and timing require a coordinated quiet host window"]
+fn bounded_workspace_lifecycle_stress() {
+    use std::time::Instant;
+    for count in [8, 32, 128] {
+        let root = test_root();
+        let mut session = create_desktop_project(root.to_str().unwrap(), "Bounded stress").unwrap();
+        let begin = Instant::now();
+        let mut ids = Vec::new();
+        for index in 0..count {
+            let name = format!("Fixture {index}");
+            let snapshot = session
+                .session_create_text_document(
+                    &name,
+                    &format!("Original {index}: {}", "中A".repeat(256)),
+                )
+                .unwrap();
+            ids.push(
+                snapshot
+                    .artifacts
+                    .iter()
+                    .find(|a| a.name == name)
+                    .unwrap()
+                    .id
+                    .clone(),
+            );
+        }
+        let create_ms = begin.elapsed().as_millis();
+        let begin = Instant::now();
+        let mut chosen = Vec::new();
+        for (index, id) in ids.iter().enumerate() {
+            let text = format!("Chosen {index}: {}", "文B".repeat(256));
+            let candidate = session.session_propose_text(id, &text).unwrap();
+            assert!(session.session_propose_text(id, &text).is_err());
+            session
+                .session_propose_text(id, &format!("Alternative {index}"))
+                .unwrap();
+            chosen.push((candidate.candidate_id, text));
+        }
+        assert_eq!(session.session_candidates().len(), count * 2);
+        let propose_ms = begin.elapsed().as_millis();
+        let begin = Instant::now();
+        let mut snapshot_times = Vec::new();
+        for _ in 0..5 {
+            let one = Instant::now();
+            assert_eq!(session.session_snapshot().unwrap().artifacts.len(), count);
+            snapshot_times.push(one.elapsed().as_micros());
+        }
+        let snapshot_ms = begin.elapsed().as_millis();
+        let begin = Instant::now();
+        for (candidate, _) in &chosen {
+            session.session_accept_candidate(candidate).unwrap();
+            assert!(session.session_accept_candidate(candidate).is_err());
+        }
+        let accept_ms = begin.elapsed().as_millis();
+        assert!(session.session_candidates().is_empty());
+        // An external consumer advances one head while this session holds a candidate.
+        let stale = session
+            .session_propose_text(&ids[0], "Old AI proposal")
+            .unwrap();
+        let mut peer = open_desktop_session(root.to_str().unwrap()).unwrap();
+        let current = peer
+            .session_propose_text(&ids[0], "New human accepted revision")
+            .unwrap();
+        peer.session_accept_candidate(&current.candidate_id)
+            .unwrap();
+        assert!(
+            session
+                .session_accept_candidate(&stale.candidate_id)
+                .is_err()
+        );
+        session
+            .session_discard_candidate(&stale.candidate_id)
+            .unwrap();
+        // Transient, unaccepted work disappears on reopen without changing the head.
+        session
+            .session_propose_text(&ids[1], "Discard on close")
+            .unwrap();
+        drop((session, peer));
+        let begin = Instant::now();
+        let reopened = open_desktop_session(root.to_str().unwrap()).unwrap();
+        assert!(reopened.session_candidates().is_empty());
+        assert_eq!(reopened.session_snapshot().unwrap().artifacts.len(), count);
+        assert_eq!(
+            reopened
+                .session_text_authoring_content(&ids[0], "")
+                .unwrap(),
+            "New human accepted revision"
+        );
+        for (id, (_, expected)) in ids.iter().zip(&chosen).skip(1) {
+            assert_eq!(
+                &reopened.session_text_authoring_content(id, "").unwrap(),
+                expected
+            );
+        }
+        let reopen_ms = begin.elapsed().as_millis();
+        println!(
+            "stress: {}",
+            serde_json::json!({"artifacts":count, "peak_candidates":count*2, "create_ms":create_ms, "propose_ms":propose_ms, "five_snapshots_ms":snapshot_ms, "snapshot_us":snapshot_times, "accept_ms":accept_ms, "reopen_and_verify_ms":reopen_ms})
+        );
+        drop(reopened);
+        fs::remove_dir_all(root).unwrap();
+    }
+}

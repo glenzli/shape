@@ -1504,6 +1504,10 @@
 </context>
 <context>
     <name>DesktopBackend</name>
+    <message>
+        <source>This draft changed in another session. Copy any unsaved text, then reopen the project.</source>
+        <translation>此草稿已在另一个会话中更改。请先复制尚未保存的文本，再重新打开项目。</translation>
+    </message>
     <message><source>Could not create the sound Scene.</source><translation>无法创建声音场景。</translation></message>
     <message><source>Enter a description, a duration from 1 to 30 seconds, and a seed from 0 to 4294967295.</source><translation>请输入描述、1 到 30 秒的时长，以及 0 到 4294967295 的种子。</translation></message>
     <message><source>Could not save the sound description.</source><translation>无法保存声音描述。</translation></message>

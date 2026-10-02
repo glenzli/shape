@@ -46,6 +46,8 @@ pub enum StoreError {
         expected: Option<SceneRevisionId>,
         actual: Option<SceneRevisionId>,
     },
+    #[error("working_graph_conflict")]
+    WorkingGraphConflict,
     #[error("invalid accepted commit: {0}")]
     InvalidCommit(&'static str),
     #[error("content object {path} failed its BLAKE3 or length verification")]

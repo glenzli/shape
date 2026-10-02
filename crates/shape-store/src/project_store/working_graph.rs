@@ -133,6 +133,60 @@ impl ProjectStore {
         Ok(())
     }
 
+    /// Replaces or discards exactly the mutable graph a session last observed.
+    /// Removing the last draft also removes its still-unaccepted reserved output.
+    /// Accepted history is never deleted.
+    ///
+    /// # Errors
+    /// Rejects changed drafts or accepted heads, unknown Artifacts, invalid
+    /// replacement graphs, and storage failures. Comparison and mutation share
+    /// one write transaction, including when the accepted head is still empty.
+    pub fn replace_artifact_working_graph(
+        &self,
+        artifact_id: ArtifactId,
+        expected: Option<&ArtifactWorkingGraph>,
+        replacement: Option<&ArtifactWorkingGraph>,
+    ) -> Result<(), StoreError> {
+        for graph in expected.into_iter().chain(replacement) {
+            graph.validate()?;
+            if graph.context_artifact_id() != artifact_id || graph.is_empty() {
+                return Err(StoreError::InvalidCommit(
+                    "working graph must be non-empty and target the same Artifact",
+                ));
+            }
+        }
+        let transaction = rusqlite::Transaction::new_unchecked(
+            &self.connection,
+            rusqlite::TransactionBehavior::Immediate,
+        )?;
+        let actual = self.artifact_working_graph(artifact_id)?;
+        if actual.as_ref() != expected {
+            return Err(StoreError::WorkingGraphConflict);
+        }
+        let artifact = self
+            .artifact(artifact_id)?
+            .ok_or(StoreError::UnknownArtifact(artifact_id))?;
+        if let Some(graph) = replacement.or(expected)
+            && artifact.accepted_revision != graph.expected_revision_id()
+        {
+            return Err(StoreError::RevisionConflict {
+                expected: graph.expected_revision_id(),
+                actual: artifact.accepted_revision,
+            });
+        }
+        if let Some(graph) = replacement {
+            self.save_artifact_working_graph(graph)?;
+        } else {
+            self.delete_artifact_working_graph(artifact_id)?;
+            transaction.execute(
+                "DELETE FROM artifacts WHERE id = ?1 AND accepted_revision IS NULL",
+                [artifact_id.to_string()],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
     /// Atomically reserves an output Artifact and its producer graph.
     ///
     /// # Errors

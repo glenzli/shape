@@ -144,6 +144,22 @@ impl ShapeProject {
         Ok(self.store.save_artifact_working_graph(graph)?)
     }
 
+    /// Replaces the exact draft state last observed by an interactive consumer.
+    /// `None` discards the graph and its still-unaccepted reserved output.
+    ///
+    /// # Errors
+    /// Rejects changed drafts or heads, invalid graphs, and storage failures.
+    pub fn replace_artifact_working_graph(
+        &self,
+        artifact_id: ArtifactId,
+        expected: Option<&ArtifactWorkingGraph>,
+        replacement: Option<&ArtifactWorkingGraph>,
+    ) -> Result<(), CoreError> {
+        Ok(self
+            .store
+            .replace_artifact_working_graph(artifact_id, expected, replacement)?)
+    }
+
     /// Deletes mutable editor state without changing accepted history.
     ///
     /// # Errors

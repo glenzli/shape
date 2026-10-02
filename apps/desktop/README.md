@@ -125,8 +125,12 @@ Scene, named multi-output, or reusable GraphComponent persistence model already 
 [`shape-desktop-bridge`](../../crates/shape-desktop-bridge/src/lib.rs) owns the generated CXX ABI.
 Rust's bounded `DesktopSession` validates SQLite and content objects and owns the open project;
 `CandidateShelf` owns its in-memory, newest-first candidate collection and exact-ID mutations.
-`OperatorDrafts` mirrors the project-backed, typed Working Graph entries that precede execution;
-the Rust store validates their exact accepted-head anchor before saving.
+`OperatorDrafts` mirrors the project-backed, typed Working Graph entries that precede execution.
+The Rust store compares both the accepted head and the exact previously observed graph in one
+write transaction before saving or discarding. A stale parallel session cannot overwrite another
+editor's draft, even before the first acceptance. Reopen the project after a draft conflict to
+load the current authored state. Acceptance rebases the stored graph atomically; cached desktop
+state never writes over that graph as a follow-up cleanup.
 In-place acceptance and new-artifact branching still delegate to atomic project use cases. C++ maps
 explicit snapshots and commands into Qt presentation values; QML never reads or writes project
 files. Ordinary snapshots carry raster/audio metadata rather than encoded payloads; selected
@@ -409,3 +413,9 @@ drop waiting futures and prevent adoption; they do not claim to terminate an alr
 The opt-in `--smoke-sound-live ABS_OUTPUT_DIRECTORY` path checks real Chinese SFX, mixed Chinese
 instruments, English bypass, numeric field snapshots, failure/stop, reuse, candidate switching/deletion,
 playback, exact export, acceptance and reopen using the production controller and packaged workspace.
+
+
+Desktop smoke modes use a temporary settings file for appearance, language, model defaults and
+recent projects, including the opt-in live sound path. Ordinary offscreen smoke also uses an
+empty temporary credential location; opt-in live tests continue to read the configured credential.
+These checks never rewrite the user's preferences or add synthetic projects to their recent list.
