@@ -1,6 +1,12 @@
 //! Project bundle facade and routing to media-specific creative use cases.
 
 mod agent_file;
+mod material_edit;
+mod picture_book;
+pub use material_edit::{
+    MATERIAL_EDIT_TICKET_SCHEMA, MaterialEditCandidate, MaterialEditHandoff, MaterialEditTicket,
+};
+pub use picture_book::{PictureBookError, PictureBookExport, PictureBookPage, PictureBookRequest};
 mod audio;
 mod sound_generation;
 pub use sound_generation::SoundCandidate;

@@ -38,6 +38,7 @@ pub enum TransformationKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "operation", content = "parameters", rename_all = "snake_case")]
 pub enum TransformationOperation {
+    MaterialEdit(crate::MaterialEditOperation),
     RasterCrop(RasterCrop),
     RasterResize(RasterResize),
     RasterTransform(RasterTransform),
@@ -254,6 +255,12 @@ impl Transformation {
         }
         let operation_matches_kind = match &operation {
             None => true,
+            Some(TransformationOperation::MaterialEdit(operation)) => {
+                operation.validate()?;
+                kind == TransformationKind::ExternalRoundTrip
+                    && inputs == [operation.source.revision_id]
+                    && operation.source.artifact_id != target_artifact_id
+            }
             Some(
                 TransformationOperation::RasterCrop(_)
                 | TransformationOperation::RasterResize(_)

@@ -15,6 +15,8 @@ use infer_sound::{
     sound_control_cancel, sound_control_resume, sound_control_stage,
 };
 mod infer_text;
+mod material_edit;
+use material_edit::{PreparedMaterialReturn, export_material_copy, prepare_material_return};
 mod operator_catalog;
 mod operator_graph;
 mod session;
@@ -427,6 +429,33 @@ mod ffi {
         /// Creates one new empty `.shape` bundle and opens its desktop session.
         fn create_desktop_project(path: &str, name: &str) -> Result<Box<DesktopSession>>;
 
+        type PreparedMaterialReturn;
+        fn export_material_copy(
+            project_path: &str,
+            ticket_json: &str,
+            directory: &str,
+        ) -> Result<String>;
+        fn prepare_material_return(
+            project_path: &str,
+            ticket_json: &str,
+            handoff_path: &str,
+            returned_path: &str,
+            allow_pcm24_conversion: bool,
+        ) -> Result<Box<PreparedMaterialReturn>>;
+        fn session_material_edit_ticket(self: &DesktopSession, output_id: &str) -> Result<String>;
+        fn session_material_source_image(
+            self: &DesktopSession,
+            output_id: &str,
+        ) -> Result<ImagePreviewWire>;
+        fn session_restart_material_edit(
+            self: &mut DesktopSession,
+            ticket_json: &str,
+            refresh: bool,
+        ) -> Result<String>;
+        fn session_adopt_material_return(
+            self: &mut DesktopSession,
+            candidate: Box<PreparedMaterialReturn>,
+        ) -> Result<CandidateWire>;
         fn session_snapshot(self: &DesktopSession) -> Result<ProjectSnapshotWire>;
         fn session_rename_artifact(
             self: &DesktopSession,

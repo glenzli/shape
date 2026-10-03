@@ -1,18 +1,18 @@
 #include "desktop_backend.hpp"
 #include "image_preview_provider.hpp"
 
-#include <QByteArray>
 #include <QBuffer>
+#include <QByteArray>
 #include <QClipboard>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QSaveFile>
 #include <QFutureWatcher>
-#include <QImage>
 #include <QGuiApplication>
+#include <QImage>
 #include <QMimeData>
+#include <QSaveFile>
 #include <QVariantMap>
 #include <QtConcurrent/QtConcurrentRun>
 
@@ -115,6 +115,10 @@ QString operator_role_label(const QString& key) {
 }
 
 QString operator_type_label(const QString& key) {
+    if (key == QStringLiteral("image.external_edit"))
+        return DesktopBackend::tr("Edit image in Shadow");
+    if (key == QStringLiteral("audio.external_edit"))
+        return DesktopBackend::tr("Edit audio in Echo");
     if (key.startsWith(QStringLiteral("source."))) {
         return DesktopBackend::tr("Source input");
     }
@@ -823,6 +827,46 @@ QString DesktopBackend::textNodeInput(const QString& draftId) {
     }
 }
 
+QString DesktopBackend::materialSourceImage(const QString& outputId) {
+    if (!session_ || outputId.isEmpty())
+        return {};
+    try {
+        return cacheImagePreview(
+            session_->session->session_material_source_image(to_utf8(outputId))
+        );
+    } catch (const std::exception&) {
+        return {};
+    }
+}
+QString DesktopBackend::materialEditTicket(const QString& outputId) const {
+    if (!session_)
+        return {};
+    return from_rust(session_->session->session_material_edit_ticket(to_utf8(outputId)));
+}
+void DesktopBackend::restartMaterialEdit(const QString& ticketJson, bool refresh) {
+    if (!session_)
+        return;
+    const auto updated =
+        session_->session->session_restart_material_edit(to_utf8(ticketJson), refresh);
+    (void)updated;
+    applySnapshot(session_->session->session_snapshot());
+    applyOperatorDrafts(session_->session->session_operator_drafts());
+    applyCandidates(session_->session->session_candidates());
+    emit projectChanged();
+    emit operatorDraftsChanged();
+    emit candidateChanged();
+}
+QString
+DesktopBackend::adoptMaterialReturn(rust::Box<shape::desktop::PreparedMaterialReturn> candidate) {
+    if (!session_)
+        return {};
+    const auto adopted = session_->session->session_adopt_material_return(std::move(candidate));
+    const auto id = from_rust(adopted.candidate_id);
+    applyCandidates(session_->session->session_candidates(), id);
+    emit candidateChanged();
+    return id;
+}
+
 bool DesktopBackend::refreshTextInput(const QString& draftId) {
     if (!session_)
         return false;
@@ -883,7 +927,8 @@ DesktopBackend::textAuthoringContent(const QString& artifactId, const QString& c
 }
 
 QString DesktopBackend::sourceRevisionText(const QString& revisionId) {
-    if (!session_ || revisionId.isEmpty()) return {};
+    if (!session_ || revisionId.isEmpty())
+        return {};
     try {
         return from_rust(session_->session->session_source_text(to_utf8(revisionId)));
     } catch (const rust::Error&) {
@@ -1333,8 +1378,8 @@ bool DesktopBackend::importMaterial(const QUrl& sourceUrl) {
     const QString sourcePath = sourceUrl.toLocalFile();
     const QFileInfo file(sourcePath);
     const QString suffix = file.suffix().toLower();
-    const QString artifactName = is_text_file_suffix(suffix) ? file.fileName().trimmed()
-                                                            : file.completeBaseName().trimmed();
+    const QString artifactName =
+        is_text_file_suffix(suffix) ? file.fileName().trimmed() : file.completeBaseName().trimmed();
     if (artifactName.isEmpty()) {
         setLastError(tr("The material needs a usable file name."));
         return false;
@@ -1346,11 +1391,13 @@ bool DesktopBackend::importMaterial(const QUrl& sourceUrl) {
     try {
         if (suffix == QStringLiteral("wav")) {
             applySnapshot(session_->session->session_import_audio_wav(
-                to_utf8(sourcePath), to_utf8(artifactName)
+                to_utf8(sourcePath),
+                to_utf8(artifactName)
             ));
         } else if (is_text_file_suffix(suffix)) {
             applySnapshot(session_->session->session_import_text_file(
-                to_utf8(sourcePath), to_utf8(artifactName)
+                to_utf8(sourcePath),
+                to_utf8(artifactName)
             ));
         } else {
             setLastError(tr("Choose a PNG, JPEG, UTF-8 text/code, or PCM WAV file."));
@@ -1444,10 +1491,12 @@ bool DesktopBackend::exportAcceptedMaterial(const QString& artifactId, const QUr
         setLastError(tr("Choose a local file for the accepted result."));
         return false;
     }
-    const auto item = std::find_if(artifacts_.cbegin(), artifacts_.cend(), [&](const QVariant& entry) {
-        return entry.toMap().value(QStringLiteral("id")).toString() == artifactId;
-    });
-    if (item == artifacts_.cend() || !item->toMap().value(QStringLiteral("hasAcceptedRevision")).toBool()) {
+    const auto item =
+        std::find_if(artifacts_.cbegin(), artifacts_.cend(), [&](const QVariant& entry) {
+            return entry.toMap().value(QStringLiteral("id")).toString() == artifactId;
+        });
+    if (item == artifacts_.cend()
+        || !item->toMap().value(QStringLiteral("hasAcceptedRevision")).toBool()) {
         setLastError(tr("Accept a result before exporting it."));
         return false;
     }
@@ -1458,14 +1507,17 @@ bool DesktopBackend::exportAcceptedMaterial(const QString& artifactId, const QUr
     try {
         if (kind == QStringLiteral("text_document") && is_text_file_suffix(suffix)) {
             bytes = from_rust(session_->session->session_text_authoring_content(
-                to_utf8(artifactId), to_utf8(QString())
-            )).toUtf8();
+                                  to_utf8(artifactId),
+                                  to_utf8(QString())
+                              ))
+                        .toUtf8();
         } else if (kind == QStringLiteral("image_raster") && suffix == QStringLiteral("png")) {
-            const auto image = session_->session->session_image_preview(
-                to_utf8(artifactId), to_utf8(QString())
+            const auto image =
+                session_->session->session_image_preview(to_utf8(artifactId), to_utf8(QString()));
+            bytes = QByteArray(
+                reinterpret_cast<const char*>(image.png_bytes.data()),
+                static_cast<qsizetype>(image.png_bytes.size())
             );
-            bytes = QByteArray(reinterpret_cast<const char*>(image.png_bytes.data()),
-                               static_cast<qsizetype>(image.png_bytes.size()));
         } else {
             setLastError(tr("Export text or code as a supported UTF-8 file, or an image as PNG."));
             return false;
@@ -1853,7 +1905,8 @@ DesktopBackend::adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandi
 QString DesktopBackend::adoptInferAgentTextCandidate(
     rust::Box<shape::desktop::InferAgentTextCandidate> candidate
 ) {
-    if (session_ == nullptr) return {};
+    if (session_ == nullptr)
+        return {};
     const auto adopted = session_->session->session_adopt_infer_agent_text(std::move(candidate));
     const QString candidate_id = from_rust(adopted.candidate_id);
     applyCandidates(session_->session->session_candidates(), candidate_id);
@@ -1888,7 +1941,8 @@ DesktopBackend::adoptInferImageCandidate(rust::Box<shape::desktop::InferImageCan
     try {
         (void)cacheImagePreview(
             session_->session->session_image_preview(
-                to_utf8(from_rust(adopted.artifact_id)), to_utf8(candidate_id)
+                to_utf8(from_rust(adopted.artifact_id)),
+                to_utf8(candidate_id)
             ),
             true
         );
@@ -1924,7 +1978,8 @@ QStringList DesktopBackend::adoptInferImageBatch(rust::Box<shape::desktop::Infer
                     true
                 );
             } catch (const std::exception& error) {
-                qWarning().noquote() << "could not cache image candidate thumbnail:" << error.what();
+                qWarning().noquote()
+                    << "could not cache image candidate thumbnail:" << error.what();
             }
         }
         applyCandidates(session_->session->session_candidates(), ids.last());
@@ -1937,8 +1992,7 @@ QStringList DesktopBackend::adoptInferImageBatch(rust::Box<shape::desktop::Infer
     return ids;
 }
 
-std::optional<AudioPreviewData>
-DesktopBackend::audioPreview(
+std::optional<AudioPreviewData> DesktopBackend::audioPreview(
     const QString& artifactId,
     const QString& candidateId,
     const QString& revisionId
@@ -1949,8 +2003,11 @@ DesktopBackend::audioPreview(
     }
     try {
         auto preview = revisionId.isEmpty()
-            ? session_->session->session_audio_preview(to_utf8(artifactId), to_utf8(candidateId))
-            : session_->session->session_audio_revision_preview(to_utf8(revisionId));
+                           ? session_->session->session_audio_preview(
+                                 to_utf8(artifactId),
+                                 to_utf8(candidateId)
+                             )
+                           : session_->session->session_audio_revision_preview(to_utf8(revisionId));
         AudioPreviewData projected;
         projected.identity = from_rust(preview.identity);
         projected.wav_bytes = QByteArray(
@@ -2046,7 +2103,8 @@ void DesktopBackend::applyCandidates(
     clearCandidateSelection();
 }
 
-QString DesktopBackend::cacheImagePreview(shape::desktop::ImagePreviewWire preview, bool thumbnail) {
+QString
+DesktopBackend::cacheImagePreview(shape::desktop::ImagePreviewWire preview, bool thumbnail) {
     if (preview.png_bytes.empty()) {
         return QString();
     }
@@ -2068,8 +2126,8 @@ QString DesktopBackend::cacheImagePreview(shape::desktop::ImagePreviewWire previ
             Qt::SmoothTransformation
         );
     }
-    const QString identity = from_rust(preview.identity)
-                             + (thumbnail ? QStringLiteral("-thumbnail") : QString());
+    const QString identity =
+        from_rust(preview.identity) + (thumbnail ? QStringLiteral("-thumbnail") : QString());
     if (!image_preview_store_->put(identity, std::move(image))) {
         throw std::runtime_error("raster preview exceeds the resident cache budget");
     }
@@ -2082,7 +2140,8 @@ QString DesktopBackend::candidateThumbnailSource(const QString& candidateId) con
     }
     const QString identity = candidateId + QStringLiteral("-thumbnail");
     return image_preview_store_->image(identity).isNull()
-               ? QString() : QStringLiteral("image://shape-preview/") + identity;
+               ? QString()
+               : QStringLiteral("image://shape-preview/") + identity;
 }
 
 std::shared_ptr<ImagePreviewStore> DesktopBackend::imagePreviewStore() const {

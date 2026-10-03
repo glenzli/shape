@@ -10,25 +10,22 @@ function indexArtifacts(artifacts) {
 }
 
 function inputReference(artifact, byId) {
-    if (!artifact || (artifact.kindKey !== "text_document" && artifact.kindKey !== "audio_clip"))
-        return null
+    if (!artifact) return null
     const nodes = artifact.operatorNodes || []
     const edges = artifact.operatorEdges || []
-    const expected = artifact.kindKey === "audio_clip"
-                     ? "audio.speech_synthesize" : "text.edit"
     for (const node of nodes) {
-        if (node.roleKey !== "source" || !node.artifactId
-                || String(node.artifactId) === String(artifact.id)
-                || !byId[String(node.artifactId)]
-                || byId[String(node.artifactId)].kindKey !== "text_document") continue
+        const source = byId[String(node.artifactId)]
+        if (node.roleKey !== "source" || !source || String(source.id) === String(artifact.id)) continue
+        const allowed = source.kindKey === "text_document"
+            ? (artifact.kindKey === "audio_clip" ? ["audio.speech_synthesize"] : ["text.edit", "text.transform"])
+            : source.kindKey === artifact.kindKey
+              ? (source.kindKey === "image_raster" ? ["image.external_edit"] : ["audio.external_edit"])
+              : []
         if (edges.some(edge => edge.sourceNodeId === node.id
                        && nodes.some(target => target.id === edge.targetNodeId
                                      && target.roleKey === "operator"
-                                     && (target.operatorTypeKey === expected
-                                         || (artifact.kindKey === "text_document"
-                                             && target.operatorTypeKey === "text.transform"))))) {
-            return {parentId: String(node.artifactId), sourceNode: node}
-        }
+                                     && allowed.indexOf(target.operatorTypeKey) >= 0)))
+            return {parentId: String(source.id), sourceNode: node}
     }
     return null
 }

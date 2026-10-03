@@ -55,7 +55,23 @@ pub(crate) struct OperatorDescriptor {
     pub(crate) icon_key: &'static str,
 }
 
-const DESCRIPTORS: [OperatorDescriptor; 13] = [
+const DESCRIPTORS: [OperatorDescriptor; 15] = [
+    OperatorDescriptor {
+        type_key: "image.external_edit",
+        source_kind: ArtifactKind::ImageRaster,
+        input_data_type: IMAGE_RASTER_DATA,
+        output_data_type: IMAGE_RASTER_DATA,
+        category_key: "image",
+        icon_key: "crop",
+    },
+    OperatorDescriptor {
+        type_key: "audio.external_edit",
+        source_kind: ArtifactKind::AudioClip,
+        input_data_type: AUDIO_CLIP_DATA,
+        output_data_type: AUDIO_CLIP_DATA,
+        category_key: "audio",
+        icon_key: "waveform",
+    },
     OperatorDescriptor {
         type_key: "audio.generate",
         source_kind: ArtifactKind::AudioClip,
@@ -206,6 +222,11 @@ pub(crate) fn validate_draft_configuration(
     draft: &shape_domain::WorkingOperatorDraft,
 ) -> Result<(), String> {
     match (draft.operator_type().as_str(), draft.configuration()) {
+        ("image.external_edit" | "audio.external_edit", _) => {
+            shape_domain::MaterialEditConfiguration::from_draft(draft)
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        }
         ("audio.generate", configuration) => sound_generation::decode(configuration).map(|_| ()),
         (AUDIO_SPEECH_OPERATOR, configuration) => {
             validate_audio_speech_configuration(configuration)

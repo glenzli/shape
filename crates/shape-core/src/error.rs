@@ -6,6 +6,12 @@ use thiserror::Error;
 /// A failure in a Shape project use case.
 #[derive(Debug, Error)]
 pub enum CoreError {
+    #[error("material edit ticket, source or returned bytes do not match this stage")]
+    InvalidMaterialEdit,
+    #[error("material editing session changed; reopen the stage before returning edited material")]
+    StaleMaterialSession,
+    #[error("returned material is unchanged; no new version was created")]
+    UnchangedMaterialReturn,
     #[error("artifact {artifact_id} is not an unaccepted audio.clip generation target")]
     InvalidSoundGenerationTarget { artifact_id: ArtifactId },
     #[error("domain contract failed: {0}")]

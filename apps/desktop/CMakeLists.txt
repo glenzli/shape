@@ -9,10 +9,8 @@ qt_policy(SET QTP0004 NEW)
 find_program(SHAPE_CARGO_EXECUTABLE cargo REQUIRED)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(SHAPE_CARGO_PROFILE release)
-    set(SHAPE_CARGO_PROFILE_ARGUMENT --release)
 else()
     set(SHAPE_CARGO_PROFILE debug)
-    set(SHAPE_CARGO_PROFILE_ARGUMENT)
 endif()
 
 set(SHAPE_CARGO_TARGET_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cargo-target")
@@ -55,17 +53,14 @@ add_custom_command(
     BYPRODUCTS
         "${SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY}/shape-desktop-bridge/src/lib.rs.h"
     COMMAND
-        ${SHAPE_CARGO_ENV} "${SHAPE_CARGO_EXECUTABLE}" build
-        --package shape-desktop-bridge
-        ${SHAPE_CARGO_PROFILE_ARGUMENT}
-        --target-dir "${SHAPE_CARGO_TARGET_DIRECTORY}"
-    COMMAND
-        "${CMAKE_COMMAND}"
+        ${SHAPE_CARGO_ENV} "${CMAKE_COMMAND}"
+        "-DSHAPE_CARGO_EXECUTABLE=${SHAPE_CARGO_EXECUTABLE}"
+        "-DSHAPE_SOURCE_DIRECTORY=${PROJECT_SOURCE_DIR}"
         "-DSHAPE_CARGO_TARGET_DIRECTORY=${SHAPE_CARGO_TARGET_DIRECTORY}"
         "-DSHAPE_CARGO_PROFILE=${SHAPE_CARGO_PROFILE}"
         "-DSHAPE_CXXBRIDGE_INCLUDE_DIRECTORY=${SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sync_cxxbridge_headers.cmake"
-    DEPENDS ${SHAPE_RUST_BRIDGE_INPUTS}
+    DEPENDS ${SHAPE_RUST_BRIDGE_INPUTS} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sync_cxxbridge_headers.cmake"
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     COMMENT "Building the Rust desktop bridge"
     JOB_SERVER_AWARE TRUE
@@ -93,6 +88,8 @@ qt_add_executable(shape-desktop
     src/infer_agent_controller.hpp
     src/infer_speech_controller.cpp
     src/infer_speech_controller.hpp
+    src/material_edit_controller.cpp
+    src/material_edit_controller.hpp
     src/infer_image_controller.cpp
     src/infer_image_controller.hpp
     src/infer_controller_support.hpp
@@ -123,6 +120,8 @@ qt_add_executable(shape-desktop
     tests/text_authoring_smoke.hpp
     tests/speech_feedback_smoke.cpp
     tests/speech_feedback_smoke.hpp
+    tests/material_edit_smoke.cpp
+    tests/material_edit_smoke.hpp
     tests/audio_preview_smoke.cpp
     tests/audio_preview_smoke.hpp
     tests/sound_live_smoke.cpp
@@ -151,6 +150,7 @@ qt_add_qml_module(shape-desktop
         qml/components/SpeechScriptPanel.qml
         qml/components/AudioSpeechOperatorWorkspace.qml
         qml/components/SoundGenerationWorkspace.qml
+        qml/components/MaterialEditWorkspace.qml
         qml/components/AiImageOperatorWorkspace.qml
         qml/components/AiModelPicker.qml
         qml/components/CandidateFilmstrip.qml

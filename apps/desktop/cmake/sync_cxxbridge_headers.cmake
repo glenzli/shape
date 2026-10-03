@@ -1,34 +1,64 @@
-# Cargo publishes generated CXX headers below a hash-qualified OUT_DIR. Copy
-# the one Shape-owned include tree into a stable build-local include root.
-
-foreach(variable IN ITEMS
-    SHAPE_CARGO_TARGET_DIRECTORY
-    SHAPE_CARGO_PROFILE
-    SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY
-)
+# Build and select the exact CXX OUT_DIR reported by this Cargo invocation.
+# Historical dependency fingerprints may coexist; mtimes and stale symlinks are not authority.
+foreach(variable IN ITEMS SHAPE_CARGO_EXECUTABLE SHAPE_SOURCE_DIRECTORY
+        SHAPE_CARGO_TARGET_DIRECTORY SHAPE_CARGO_PROFILE SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY)
     if(NOT DEFINED ${variable} OR "${${variable}}" STREQUAL "")
         message(FATAL_ERROR "sync_cxxbridge_headers requires ${variable}")
     endif()
 endforeach()
-
-file(
-    GLOB candidate_directories
-    LIST_DIRECTORIES true
-    "${SHAPE_CARGO_TARGET_DIRECTORY}/${SHAPE_CARGO_PROFILE}/build/shape-desktop-bridge-*/out/cxxbridge/include"
+set(profile_argument)
+if(SHAPE_CARGO_PROFILE STREQUAL "release")
+    set(profile_argument --release)
+elseif(NOT SHAPE_CARGO_PROFILE STREQUAL "debug")
+    message(FATAL_ERROR "unsupported Cargo profile: ${SHAPE_CARGO_PROFILE}")
+endif()
+execute_process(
+    COMMAND "${SHAPE_CARGO_EXECUTABLE}" build --package shape-desktop-bridge
+        ${profile_argument} --target-dir "${SHAPE_CARGO_TARGET_DIRECTORY}"
+        --message-format=json-render-diagnostics
+    WORKING_DIRECTORY "${SHAPE_SOURCE_DIRECTORY}"
+    RESULT_VARIABLE cargo_status OUTPUT_VARIABLE cargo_messages ERROR_VARIABLE cargo_diagnostics
 )
-set(valid_directories)
-foreach(candidate_directory IN LISTS candidate_directories)
-    if(EXISTS "${candidate_directory}/shape-desktop-bridge/src/lib.rs.h")
-        list(APPEND valid_directories "${candidate_directory}")
+if(NOT "${cargo_diagnostics}" STREQUAL "")
+    message("${cargo_diagnostics}")
+endif()
+if(NOT cargo_status EQUAL 0)
+    message(FATAL_ERROR "Cargo failed; generated headers were not updated")
+endif()
+string(REPLACE ";" "\;" cargo_messages "${cargo_messages}")
+string(REPLACE "\n" ";" cargo_messages "${cargo_messages}")
+set(active_directories)
+foreach(record IN LISTS cargo_messages)
+    if("${record}" STREQUAL "")
+        continue()
+    endif()
+    string(JSON reason ERROR_VARIABLE parse_error GET "${record}" reason)
+    if(parse_error OR NOT reason STREQUAL "build-script-executed")
+        continue()
+    endif()
+    string(JSON package_id GET "${record}" package_id)
+    if(NOT package_id MATCHES "[/#]shape-desktop-bridge[#@]")
+        continue()
+    endif()
+    string(JSON active_out_dir GET "${record}" out_dir)
+    list(APPEND active_directories "${active_out_dir}/cxxbridge/include")
+endforeach()
+list(REMOVE_DUPLICATES active_directories)
+list(LENGTH active_directories count)
+if(NOT count EQUAL 1)
+    message(FATAL_ERROR "expected one active Shape CXX output from Cargo, found ${count}")
+endif()
+list(GET active_directories 0 generated_include_directory)
+foreach(header IN ITEMS shape-desktop-bridge/src/lib.rs.h rust/cxx.h)
+    if(NOT EXISTS "${generated_include_directory}/${header}")
+        message(FATAL_ERROR "active CXX header missing: ${header}")
     endif()
 endforeach()
-list(LENGTH valid_directories valid_directory_count)
-if(NOT valid_directory_count EQUAL 1)
-    message(FATAL_ERROR
-        "expected one generated shape-desktop-bridge include directory, found ${valid_directory_count}"
-    )
-endif()
-
-list(GET valid_directories 0 generated_include_directory)
-file(MAKE_DIRECTORY "${SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY}")
-file(COPY "${generated_include_directory}/" DESTINATION "${SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY}")
+foreach(header IN ITEMS shape-desktop-bridge/src/lib.rs.h rust/cxx.h)
+    get_filename_component(parent "${SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY}/${header}" DIRECTORY)
+    file(MAKE_DIRECTORY "${parent}")
+    # Replace only the two owned projections, including stale CXX-created symlinks.
+    file(REMOVE "${SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY}/${header}")
+    file(COPY_FILE "${generated_include_directory}/${header}"
+        "${SHAPE_CXXBRIDGE_INCLUDE_DIRECTORY}/${header}")
+endforeach()

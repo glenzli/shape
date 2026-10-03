@@ -286,6 +286,22 @@ impl OperatorDrafts {
         Ok(draft)
     }
 
+    pub(crate) fn adopt_material_graph(
+        &mut self,
+        graph: ArtifactWorkingGraph,
+    ) -> Result<(), String> {
+        graph.validate().map_err(|e| e.to_string())?;
+        if graph.operators().len() != 1 {
+            return Err("invalid_material_stage".into());
+        }
+        shape_domain::MaterialEditConfiguration::from_draft(&graph.operators()[0])
+            .map_err(|e| e.to_string())?;
+        self.graphs
+            .retain(|g| g.context_artifact_id() != graph.context_artifact_id());
+        self.graphs.push(graph);
+        Ok(())
+    }
+
     pub(crate) fn entries(&self) -> impl Iterator<Item = (ArtifactId, &WorkingOperatorDraft)> {
         self.graphs.iter().flat_map(|graph| {
             graph

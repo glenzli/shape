@@ -17,6 +17,7 @@ ApplicationWindow {
     required property InferSoundController inferSound
     required property InferAgentController inferAgent
     required property InferSpeechController inferSpeech
+    required property MaterialEditController materialEdit
     required property InferImageController inferImage
     required property AudioPreviewController audioPreview
     required property AudioExportController audioExport
@@ -504,6 +505,7 @@ ApplicationWindow {
                     inferImage: window.inferImage
                     backend: window.backend
                     inferSpeech: window.inferSpeech
+                    materialEdit: window.materialEdit
                     inferAgent: window.inferAgent
                     inferSound: window.inferSound
                     audioPreview: window.audioPreview
@@ -811,6 +813,14 @@ ApplicationWindow {
 
         function onOperatorDraftsChanged() : void {
             Qt.callLater(workspaceSurface.synchronizeNodeSelection)
+        }
+    }
+
+    Connections {
+        target: window.materialEdit
+        function onCandidateCreated(candidateId, artifactId): void {
+            if (window.hasSelectedArtifact && window.selectedArtifact.id === artifactId)
+                window.activateCandidate(candidateId)
         }
     }
 

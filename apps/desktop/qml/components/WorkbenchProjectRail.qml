@@ -380,6 +380,7 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true
                                 text: itemDelegate.groupedWork
+                                      && itemDelegate.modelData.kindKey === "text_document"
                                       && itemDelegate.modelData.outputs.some(a => a.kindKey === "audio_clip")
                                       ? qsTr("Text and audio")
                                       : itemDelegate.pendingCount > 0
@@ -407,8 +408,11 @@ Rectangle {
                             readonly property string viewLabel: modelData.kindKey === "text_document"
                                                                 ? index === 0 ? qsTr("Text")
                                                                               : rail.itemName(modelData)
-                                                                : itemDelegate.modelData.outputs.length === 1
-                                                                  ? qsTr("Audio") : qsTr("Audio %1").arg(index)
+                                                                : itemDelegate.modelData.kindKey === "text_document"
+                                                                  && modelData.kindKey === "audio_clip"
+                                                                  ? itemDelegate.modelData.outputs.length === 1
+                                                                    ? qsTr("Audio") : qsTr("Audio %1").arg(index)
+                                                                  : rail.itemName(modelData)
 
                             objectName: "workView-" + artifactId
                             Layout.fillWidth: true
@@ -431,6 +435,8 @@ Rectangle {
 
                                 Text {
                                     Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    elide: Text.ElideRight
                                     text: workView.viewLabel
                                     color: workView.highlighted ? Theme.accent : Theme.textSoft
                                     font.pixelSize: Theme.fontMeta

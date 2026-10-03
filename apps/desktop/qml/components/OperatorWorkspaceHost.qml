@@ -121,6 +121,8 @@ Rectangle {
             return qsTr("Starting material");
         if (hasRegisteredOperatorWorkspace) {
             switch (openedOperatorTypeKey) {
+            case "image.external_edit": return qsTr("Edit image in Shadow");
+            case "audio.external_edit": return qsTr("Edit audio in Echo");
             case "text.create":
                 return qsTr("Text creation");
             case "text.edit":

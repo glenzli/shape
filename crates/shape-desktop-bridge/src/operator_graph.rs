@@ -39,7 +39,7 @@ pub(crate) fn project_operator_graph(
         .artifact_working_graphs()
         .map_err(|e| e.to_string())?
         .into_iter()
-        .find(|g| g.context_artifact_id() == artifact.id && authored::is_authored_text_output(g))
+        .find(|g| g.context_artifact_id() == artifact.id && authored::is_authored_output(g))
     {
         return authored::project_authored(project, artifact, project_artifacts, &graph);
     }
@@ -408,6 +408,9 @@ fn operator_type(
         (Some(TransformationOperation::AudioSpeechSynthesis(_)), _, _) => "audio.speech_synthesize",
         (Some(TransformationOperation::AiImageGenerate(_)), _, _) => "image.generate",
         (Some(TransformationOperation::AudioGenerate(_)), _, _) => "audio.generate",
+        (Some(TransformationOperation::MaterialEdit(operation)), _, _) => {
+            operation.editor.operator_type()
+        }
         (_, TransformationKind::TextRewrite, _) => TEXT_EDIT_OPERATOR_TYPE,
         (_, TransformationKind::GenerativeEdit, ArtifactKind::TextDocument) => {
             TEXT_TRANSFORM_OPERATOR_TYPE

@@ -55,6 +55,7 @@ fn unsupported_families_and_unknown_types_fail_closed() {
             .map(|d| d.type_key)
             .collect::<Vec<_>>(),
         [
+            "audio.external_edit",
             "audio.generate",
             TEXT_CREATE_OPERATOR,
             IMAGE_GENERATE_OPERATOR

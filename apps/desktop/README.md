@@ -142,10 +142,9 @@ files. Ordinary snapshots carry raster/audio metadata rather than encoded payloa
 accepted and candidate PNG/WAV bytes are fetched separately. Images enter a byte-bounded,
 display-scaled native preview cache, while only one selected WAV enters the playback owner. Pinned
 or durable explorations, image composites and layers, model-backed image editing, waveform editing,
-recording, Shadow/Echo interop, and third-party editor process control remain behind future
-capability adapters. The first planned external-edit route is Shadow-backed creative color grading:
-the desktop will open a pinned Shape revision under an explicit representation/color contract and
-will treat returned bytes plus receipt as a Candidate, never as an in-place database mutation.
+recording and third-party editor process control remain behind future capability adapters.
+The bounded Shadow/Echo file handoff below pins the input revision and validates returned bytes
+as a Candidate. It does not attach to a provider GUI or mutate the original material.
 
 `InferRuntimeController` runs the bounded official-SDK contract probe away from the UI thread and
 projects only checking, reachable, compatible, contract-version, endpoint-source,
@@ -469,3 +468,33 @@ or nonzero generated-segment progress. They verify cross-work status presentatio
 through the packaged QML controls without controlling the visible desktop.
 The output-name editor stays bound to the selected output when the same QML workspace is reused;
 the two-work fixture checks both the displayed name and the editing-finished save target.
+
+
+### External material stages
+
+Accepted images/audio can create a separate Shadow/Echo editing stage from the
+operator palette. `MaterialEditWorkspace` presents the pinned original, working-copy
+handoff, return review and explicit cancellation/refresh. `MaterialEditController`
+performs file export/normalization off the GUI thread, scopes completion to the
+originating project/output/session, and leaves adoption to the existing candidate
+shelf. The PCM24 precision-conversion checkbox is off by default and resets when
+the stage/input changes. See [material-edit contracts](../../docs/MATERIAL_EDIT.md).
+
+`material_edit_smoke` runs inside the packaged `--smoke-text-cycle` path using
+synthetic pixels/WAV and isolated settings. Build fresh before running it. It checks
+first-source preview, return review, invalid replacement, A/B request ownership,
+late completion, cancel/retry, adoption and reopen. The audio workspace test uses its real review
+button to reject PCM24 by default, enable conversion, decode both auditions and adopt the return.
+The work rail preserves image/audio material names and reserves “Text and audio” for actual mixed
+works. It does not operate a visible
+Shadow/Echo GUI or make a performance claim.
+
+The CXX header synchronizer uses this Cargo invocation's `build-script-executed` output directory.
+Historical dependency fingerprints are valid cache entries and are never used to select headers.
+Missing or ambiguous current output fails before replacing the stable include files. Run
+`python3 apps/desktop/cmake/tests/test_sync_cxxbridge_headers.py` for its stale-cache regression.
+
+`ShapeIcon` keeps the accelerated effect path and uses a small `Canvas.Image` tint only
+when `GraphicsInfo` reports the software backend. This avoids invisible action icons
+in offscreen/fallback rendering while preserving theme colors; no provider or media
+rendering contract changes. See [Qt Canvas backends](https://doc.qt.io/qt-6/qml-qtquick-canvas.html).

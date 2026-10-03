@@ -135,13 +135,15 @@ fn edge(source: &str, target: &str, data_type: &str) -> ffi::OperatorGraphEdgeWi
     }
 }
 
-pub(super) fn is_authored_text_output(graph: &ArtifactWorkingGraph) -> bool {
+pub(super) fn is_authored_output(graph: &ArtifactWorkingGraph) -> bool {
     graph.operators().len() == 1
         && graph.operators().iter().any(|d| {
-            d.operator_type().as_str() == "audio.speech_synthesize"
-                || (matches!(d.operator_type().as_str(), "text.create" | "text.edit")
-                    && d.configuration().is_some_and(|c| {
-                        c.schema().as_str() == crate::operator_catalog::text_authoring::SCHEMA
-                    }))
+            matches!(
+                d.operator_type().as_str(),
+                "audio.speech_synthesize" | "image.external_edit" | "audio.external_edit"
+            ) || (matches!(d.operator_type().as_str(), "text.create" | "text.edit")
+                && d.configuration().is_some_and(|c| {
+                    c.schema().as_str() == crate::operator_catalog::text_authoring::SCHEMA
+                }))
         })
 }

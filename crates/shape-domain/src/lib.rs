@@ -25,6 +25,11 @@
 
 mod ai_image;
 mod artifact;
+mod material_edit;
+pub use material_edit::{
+    MATERIAL_EDIT_SCHEMA, MaterialEditConfiguration, MaterialEditOperation, MaterialEditor,
+    MaterialReturnNormalization,
+};
 mod audio;
 mod sound_generation;
 pub use sound_generation::{

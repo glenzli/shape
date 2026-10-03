@@ -27,6 +27,7 @@ Item {
     required property InferImageController inferImage
     required property DesktopBackend backend
     required property InferSpeechController inferSpeech
+    required property MaterialEditController materialEdit
     required property InferAgentController inferAgent
     required property InferSoundController inferSound
     required property AudioPreviewController audioPreview
@@ -499,6 +500,29 @@ Item {
     }
 
     Component {
+        id: materialEditWorkspace
+        MaterialEditWorkspace {
+            backend: surface.backend
+            controller: surface.materialEdit
+            audioPreview: surface.audioPreview
+            projectPath: surface.projectPath
+            outputArtifactId: operatorWorkspaceHost.openedArtifactId
+            operatorDraftId: operatorWorkspaceHost.openedNodeId
+            property var draft: surface.draftForId(operatorDraftId)
+            imageMode: operatorWorkspaceHost.openedOperatorTypeKey === "image.external_edit"
+            inputArtifactId: draft !== null ? draft.inputArtifactId : ""
+            inputRevisionId: draft !== null ? draft.inputRevisionId : ""
+            property var input: surface.artifactForId(inputArtifactId)
+            inputCurrent: input !== null && input.acceptedRevisionId === inputRevisionId
+            sourceName: input !== null ? input.name : ""
+            candidate: surface.selectedCandidate
+            acceptedImageSource: imageMode && inputRevisionId.length > 0
+                ? surface.backend.materialSourceImage(outputArtifactId) : ""
+            candidateImageSource: surface.candidateImageSource
+        }
+    }
+
+    Component {
         id: aiImageOperatorWorkspace
 
         AiImageOperatorWorkspace {
@@ -705,6 +729,8 @@ Item {
                     "text.create": textAuthoringWorkspace,
                     "text.edit": textAuthoringWorkspace,
                     "text.transform": textAuthoringWorkspace,
+                    "image.external_edit": materialEditWorkspace,
+                    "audio.external_edit": materialEditWorkspace,
                     "image.edit": imageEditorWorkspace,
                     "image.crop": imageEditorWorkspace,
                     "image.resize": imageEditorWorkspace,

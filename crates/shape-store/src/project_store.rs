@@ -2,6 +2,7 @@
 
 mod audio;
 mod inspection;
+mod material_edit;
 pub use inspection::ProjectInspection;
 mod working_graph;
 
@@ -650,6 +651,7 @@ impl ProjectStore {
         expected_node: Option<&shape_domain::WorkingOperatorDraft>,
     ) -> Result<ArtifactRevision, StoreError> {
         validate_commit(&commit)?;
+        self.validate_material_edit_commit(&commit, expected_input_heads, expected_node)?;
         let artifact = self
             .artifact(commit.artifact_id)?
             .ok_or(StoreError::UnknownArtifact(commit.artifact_id))?;
@@ -674,31 +676,23 @@ impl ProjectStore {
         )?;
 
         let transaction = self.connection.transaction()?;
-        validate_expected_input_heads(&transaction, artifact.kind, expected_input_heads)?;
+        validate_expected_input_heads(
+            &transaction,
+            artifact.kind,
+            expected_input_heads,
+            matches!(
+                commit.transformation.operation,
+                Some(shape_domain::TransformationOperation::MaterialEdit(_))
+            ),
+        )?;
         let mut graph = working_graph::acceptance_graph(
             &transaction,
             commit.artifact_id,
             commit.expected_head,
             expected_node,
         )?;
-        let actual_head: Option<String> = transaction
-            .query_row(
-                "SELECT accepted_revision FROM artifacts WHERE id = ?1",
-                [commit.artifact_id.to_string()],
-                |row| row.get(0),
-            )
-            .optional()?
-            .ok_or(StoreError::UnknownArtifact(commit.artifact_id))?;
-        let actual_head = actual_head
-            .map(|value| value.parse())
-            .transpose()
-            .map_err(|_| StoreError::InvalidCommit("stored revision id is invalid"))?;
-        if actual_head != commit.expected_head {
-            return Err(StoreError::RevisionConflict {
-                expected: commit.expected_head,
-                actual: actual_head,
-            });
-        }
+        let actual_head =
+            validate_accepted_head(&transaction, commit.artifact_id, commit.expected_head)?;
 
         transaction.execute(
             "INSERT INTO transformations (id, artifact_id, transformation_json) VALUES (?1, ?2, ?3)",
@@ -795,6 +789,7 @@ impl ProjectStore {
             &transaction,
             commit.artifact.kind,
             &commit.expected_input_heads,
+            false,
         )?;
         validate_transformation_inputs(&transaction, &commit.transformation)?;
         let inserted = transaction.execute(
@@ -845,10 +840,37 @@ impl ProjectStore {
     }
 }
 
+fn validate_accepted_head(
+    transaction: &rusqlite::Transaction<'_>,
+    artifact_id: ArtifactId,
+    expected_head: Option<RevisionId>,
+) -> Result<Option<RevisionId>, StoreError> {
+    let actual_head: Option<String> = transaction
+        .query_row(
+            "SELECT accepted_revision FROM artifacts WHERE id = ?1",
+            [artifact_id.to_string()],
+            |row| row.get(0),
+        )
+        .optional()?
+        .ok_or(StoreError::UnknownArtifact(artifact_id))?;
+    let actual_head = actual_head
+        .map(|value| value.parse())
+        .transpose()
+        .map_err(|_| StoreError::InvalidCommit("stored revision id is invalid"))?;
+    if actual_head != expected_head {
+        return Err(StoreError::RevisionConflict {
+            expected: expected_head,
+            actual: actual_head,
+        });
+    }
+    Ok(actual_head)
+}
+
 fn validate_expected_input_heads(
     transaction: &rusqlite::Transaction<'_>,
     output_kind: ArtifactKind,
     expected_input_heads: &[(ArtifactId, RevisionId)],
+    material_edit: bool,
 ) -> Result<(), StoreError> {
     for (artifact_id, expected_head) in expected_input_heads {
         let (kind_json, actual_head): (String, Option<String>) = transaction
@@ -879,7 +901,10 @@ fn validate_expected_input_heads(
             .optional()?
             .ok_or(StoreError::UnknownRevision(*expected_head))?;
         if revision_owner != artifact_id.to_string()
-            || (output_kind == ArtifactKind::AudioClip && input_kind != ArtifactKind::TextDocument)
+            || (material_edit && input_kind != output_kind)
+            || (!material_edit
+                && output_kind == ArtifactKind::AudioClip
+                && input_kind != ArtifactKind::TextDocument)
         {
             return Err(StoreError::InvalidCommit(
                 "expected input head does not belong to the required source artifact",
@@ -957,7 +982,11 @@ fn validate_commit(commit: &AcceptedCommit) -> Result<(), StoreError> {
     if matches!(
         commit.transformation.operation,
         Some(shape_domain::TransformationOperation::AudioGenerate(_))
-    ) || matches!(&commit.content_contract, Some(ArtifactContentContract::AudioClip(c)) if c.origin == shape_domain::AudioOriginDisclosure::SyntheticSound)
+    ) || (matches!(&commit.content_contract, Some(ArtifactContentContract::AudioClip(c)) if c.origin == shape_domain::AudioOriginDisclosure::SyntheticSound)
+        && !matches!(
+            commit.transformation.operation,
+            Some(shape_domain::TransformationOperation::MaterialEdit(_))
+        ))
     {
         audio::validate_sound_generation_commit(commit)?;
     }

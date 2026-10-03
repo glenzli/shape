@@ -84,7 +84,13 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE bool openProject(const QUrl& bundleUrl);
     Q_INVOKABLE bool createTextScene(const QString& sceneName, const QString& initialText);
     Q_INVOKABLE bool createSoundScene(const QString& name);
-    Q_INVOKABLE bool updateSoundDraft(const QString& draftId, const QString& prompt, const QString& kind, int seconds, const QString& seed);
+    Q_INVOKABLE bool updateSoundDraft(
+        const QString& draftId,
+        const QString& prompt,
+        const QString& kind,
+        int seconds,
+        const QString& seed
+    );
     Q_INVOKABLE QString soundDetails(const QString& artifactId, const QString& candidateId);
     QString adoptInferSoundCandidate(rust::Box<shape::desktop::InferSoundCandidate> candidate);
     Q_INVOKABLE bool createAiImageScene(
@@ -104,6 +110,10 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE QString textAuthoringPreview(const QString& profile, const QString& text);
     Q_INVOKABLE QString textNodeInput(const QString& draftId);
     Q_INVOKABLE bool refreshTextInput(const QString& draftId);
+    Q_INVOKABLE QString materialSourceImage(const QString& outputId);
+    QString materialEditTicket(const QString& outputId) const;
+    void restartMaterialEdit(const QString& ticketJson, bool refresh);
+    QString adoptMaterialReturn(rust::Box<shape::desktop::PreparedMaterialReturn> candidate);
     Q_INVOKABLE bool renameArtifact(const QString& artifactId, const QString& name);
     Q_INVOKABLE bool proposeAuthoredText(const QString& draftId);
     Q_INVOKABLE QString beginAuthoringSpeech(const QString& artifactId);
@@ -195,8 +205,7 @@ class DesktopBackend : public QObject {
     adoptInferImageBatch(rust::Box<shape::desktop::InferImageBatch> batch);
 
     /// Fetches exact WAV bytes only for the preview selected by the audio controller.
-    [[nodiscard]] std::optional<AudioPreviewData>
-    audioPreview(
+    [[nodiscard]] std::optional<AudioPreviewData> audioPreview(
         const QString& artifactId,
         const QString& candidateId = QString(),
         const QString& revisionId = QString()
@@ -234,7 +243,8 @@ class DesktopBackend : public QObject {
     void clearCandidateSelection();
     void setLastError(const QString& message);
     void finishSpeechDraftOperation(const QString& draftId, const QString& error);
-    [[nodiscard]] QString cacheImagePreview(shape::desktop::ImagePreviewWire preview, bool thumbnail = false);
+    [[nodiscard]] QString
+    cacheImagePreview(shape::desktop::ImagePreviewWire preview, bool thumbnail = false);
 
     std::unique_ptr<SessionState> session_;
     bool speech_cue_importing_ = false;

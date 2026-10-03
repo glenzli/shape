@@ -21,6 +21,8 @@ Popup {
 
     function labelFor(typeKey) : string {
         switch (typeKey) {
+        case "image.external_edit": return qsTr("Edit image in Shadow")
+        case "audio.external_edit": return qsTr("Edit audio in Echo")
         case "text.create": return qsTr("Text creation")
         case "text.translate": return qsTr("Translate")
         case "text.summarize": return qsTr("Summarize")

@@ -10,6 +10,8 @@
 #include "infer_sound_controller.hpp"
 #include "infer_speech_controller.hpp"
 #include "infer_text_controller.hpp"
+#include "material_edit_controller.hpp"
+#include "material_edit_smoke.hpp"
 #include "recent_projects.hpp"
 #include "sound_live_smoke.hpp"
 #include "speech_feedback_smoke.hpp"
@@ -157,8 +159,12 @@ bool run_smoke_raster_cycle(
         root_object.findChild<QObject*>(QStringLiteral("operatorPalette"));
     QObject* const workspace_surface =
         root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
-    if (image_palette == nullptr || workspace_surface == nullptr
-        || image_palette->property("compatibleOperatorCount").toInt() != 4) {
+    const bool has_image_actions = image_palette
+        && QQmlExpression(QQmlEngine::contextForObject(image_palette), image_palette,
+            QStringLiteral("['text.create', 'image.generate', 'audio.generate', 'image.edit', "
+                           "'image.external_edit'].every(key => filterOperators('').some(item => item.typeKey === key))"))
+               .evaluate().toBool();
+    if (image_palette == nullptr || workspace_surface == nullptr || !has_image_actions) {
         std::cerr << "desktop raster smoke did not expose source creation beside the "
                      "unified image editor"
                   << std::endl;
@@ -1225,6 +1231,7 @@ int main(int argc, char* argv[]) {
     InferSoundController infer_sound(*backend, infer_credential_path, &application);
     InferAgentController infer_agent(*backend, infer_credential_path, &application);
     InferSpeechController infer_speech(*backend, infer_credential_path, &application);
+    MaterialEditController material_edit(*backend, &application);
     InferImageController infer_image(*backend, infer_credential_path, &application);
     AudioPreviewController audio_preview(*backend, &application);
     AudioExportController audio_export(*backend, &application);
@@ -1271,6 +1278,7 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("inferSound"), QVariant::fromValue(&infer_sound)},
         {QStringLiteral("inferAgent"), QVariant::fromValue(&infer_agent)},
         {QStringLiteral("inferSpeech"), QVariant::fromValue(&infer_speech)},
+        {QStringLiteral("materialEdit"), QVariant::fromValue(&material_edit)},
         {QStringLiteral("inferImage"), QVariant::fromValue(&infer_image)},
         {QStringLiteral("audioPreview"), QVariant::fromValue(&audio_preview)},
         {QStringLiteral("audioExport"), QVariant::fromValue(&audio_export)},
@@ -1388,7 +1396,8 @@ int main(int argc, char* argv[]) {
         }
         if (arguments->smoke_text_cycle
             && (!text_authoring_smoke::verify(*backend, *root_object)
-                || !speech_feedback_smoke::verify(*backend, infer_speech, *root_object))) {
+                || !speech_feedback_smoke::verify(*backend, infer_speech, *root_object)
+                || !material_edit_smoke::verify(*backend, material_edit, *root_object))) {
             return 4;
         }
         QTimer::singleShot(0, &application, &QCoreApplication::quit);

@@ -1,6 +1,7 @@
 //! Mutable desktop lifecycle over one project and its transient Candidate Shelf.
 
 mod candidate_shelf;
+mod material_edit;
 mod operator_drafts;
 mod sound_generation;
 mod speech_script;
@@ -178,6 +179,12 @@ impl DesktopSession {
         artifact_id: &str,
         operator_type: &str,
     ) -> Result<ffi::OperatorDraftWire, String> {
+        if operator_type == "image.external_edit" {
+            return self.begin_material_edit(artifact_id, shape_domain::MaterialEditor::Shadow);
+        }
+        if operator_type == "audio.external_edit" {
+            return self.begin_material_edit(artifact_id, shape_domain::MaterialEditor::Echo);
+        }
         if operator_type == AUDIO_SPEECH_OPERATOR {
             return self.session_begin_authoring_speech(artifact_id);
         }
@@ -791,9 +798,14 @@ impl DesktopSession {
             }
         }
         let preserves_text_intent = matches!(&candidate, Candidate::Text(_));
-        let preserves_node = preserves_text_intent
+        let preserves_node = matches!(&candidate, Candidate::Material(_))
+            || preserves_text_intent
             || matches!(&candidate, Candidate::Audio(a) if a.request_node().is_some());
         let accepted_revision = match candidate {
+            Candidate::Material(candidate) => self
+                .project
+                .accept_material_return(candidate)
+                .map_err(|e| e.to_string())?,
             Candidate::Text(candidate) => self
                 .project
                 .accept_text(candidate)
@@ -879,6 +891,21 @@ impl DesktopSession {
         let artifact_id = parse_artifact_id(artifact_id)?;
         if !candidate_id.is_empty() {
             return match self.candidates.candidate(candidate_id)? {
+                Candidate::Material(candidate) => {
+                    if candidate.artifact_id() != artifact_id {
+                        return Err("candidate belongs to another stage".into());
+                    }
+                    let ArtifactContentContract::ImageRaster(contract) = candidate.contract()
+                    else {
+                        return Err("candidate is not an image".into());
+                    };
+                    Ok(ffi::ImagePreviewWire {
+                        identity: candidate_id.into(),
+                        width: contract.width,
+                        height: contract.height,
+                        png_bytes: candidate.bytes().to_vec(),
+                    })
+                }
                 Candidate::Image(candidate) if candidate.artifact_id() == artifact_id => {
                     Ok(ffi::ImagePreviewWire {
                         identity: candidate_id.to_owned(),
@@ -950,6 +977,21 @@ impl DesktopSession {
     ) -> Result<ffi::AudioPreviewWire, String> {
         let artifact_id = parse_artifact_id(artifact_id)?;
         if !candidate_id.is_empty() {
+            if let Candidate::Material(candidate) = self.candidates.candidate(candidate_id)? {
+                if candidate.artifact_id() != artifact_id {
+                    return Err("candidate belongs to another stage".into());
+                }
+                let ArtifactContentContract::AudioClip(contract) = candidate.contract() else {
+                    return Err("candidate is not audio".into());
+                };
+                return Ok(ffi::AudioPreviewWire {
+                    identity: candidate_id.into(),
+                    duration_millis: contract.duration_millis(),
+                    sample_rate_hz: contract.sample_rate_hz,
+                    channels: contract.channels,
+                    wav_bytes: candidate.bytes().to_vec(),
+                });
+            }
             if let Candidate::Sound(candidate) = self.candidates.candidate(candidate_id)? {
                 if candidate.artifact_id() != artifact_id {
                     return Err("candidate does not belong to the selected review context".into());
@@ -1394,6 +1436,7 @@ fn parse_artifact_id(value: &str) -> Result<ArtifactId, String> {
 
 fn candidate_wire(candidate: &Candidate) -> ffi::CandidateWire {
     match candidate {
+        Candidate::Material(candidate) => material_edit::material_candidate_wire(candidate),
         Candidate::Text(candidate) => text_candidate_wire(candidate),
         Candidate::AgentText(candidate) => agent_text_candidate_wire(candidate),
         Candidate::Image(candidate) => image_candidate_wire(candidate),

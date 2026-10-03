@@ -2,46 +2,110 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
-    <name>AiModelPicker</name>
-    <message><source>Effort for this run</source><translation>本次推理投入</translation></message>
-    <message><source>Runtime default</source><translation>运行时默认</translation></message>
-    <message><source>Low</source><translation>低</translation></message>
-    <message><source>Medium</source><translation>中</translation></message>
-    <message><source>High</source><translation>高</translation></message>
-    <message><source>Extra high</source><translation>很高</translation></message>
-    <message><source>Max</source><translation>最高</translation></message>
-    <message><source>Ultra</source><translation>极高</translation></message>
+    <name>AgentFileTaskWorkspace</name>
     <message>
-        <source>Local Qwen 3.5</source>
-        <translation>本地 Qwen 3.5</translation>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AgentFileTaskWorkspace.qml" line="+36"/>
+        <location line="+59"/>
+        <source>Configure Infer access in Settings before running this task.</source>
+        <translation>运行此任务前，请先在设置中配置 Infer 访问。</translation>
     </message>
     <message>
-        <source>Model for this run</source>
-        <translation>本次使用模型</translation>
+        <location line="-57"/>
+        <source>Agent file tasks are not enabled for Shape in Infer.</source>
+        <translation>Infer 尚未为 Shape 启用 Agent 文件任务。</translation>
     </message>
     <message>
-        <source>Default · %1</source>
-        <translation>默认 · %1</translation>
+        <location line="+2"/>
+        <source>The Agent provider is unavailable. Try again later.</source>
+        <translation>Agent 提供方当前不可用，请稍后重试。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The source changed while the task was running. Review the current source and run again.</source>
+        <translation>任务运行期间源内容发生变化。请检查当前源内容后重新运行。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The Agent result failed validation and was not added as a candidate.</source>
+        <translation>Agent 结果未通过校验，未加入候选。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Infer is unavailable. Check its status and try again.</source>
+        <translation>Infer 当前不可用，请检查其状态后重试。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Infer did not confirm the task outcome. Check its Jobs before starting another task.</source>
+        <translation>Infer 未能确认任务结果。开始新任务前，请先检查 Infer 中的任务记录。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Describe the change you want the Agent to make.</source>
+        <translation>请描述希望 Agent 完成的修改。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The Agent task failed. No project content was changed.</source>
+        <translation>Agent 任务失败，项目内容未发生变化。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Infer sends a copy of this accepted source to the authorized cloud Agent. Review its result before adding it to the project.</source>
+        <translation>Infer 会将这份已接受源内容的副本发送给已授权的云端 Agent。加入项目前请先审阅结果。</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Describe the file change, for example: make this animation loop smoothly without changing its colors.</source>
+        <translation>描述文件修改，例如：让这个动画平滑循环，同时保持颜色不变。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Running…</source>
+        <translation>运行中…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Run Agent</source>
+        <translation>运行 Agent</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>The Agent is working on a private copy. The accepted source stays available.</source>
+        <translation>Agent 正在处理独立副本；已接受的源内容仍可使用。</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Accepted source · %1</source>
+        <translation>已接受的源内容 · %1</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Candidate · %1</source>
+        <translation>候选 · %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Agent result</source>
+        <translation>Agent 结果</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Run the task to create a reviewable candidate.</source>
+        <translation>运行任务后会生成可审阅的候选。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Use the candidate controls below to accept or discard this result. Accept creates a separate work and keeps the source unchanged.</source>
+        <translation>使用下方候选操作接受或丢弃结果。接受后会创建独立作品，源内容保持不变。</translation>
     </message>
 </context>
 <context>
     <name>AiImageOperatorWorkspace</name>
     <message>
-        <location filename="../qml/components/AiImageOperatorWorkspace.qml" line="+47"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AiImageOperatorWorkspace.qml" line="+47"/>
         <source>AI IMAGE · STARTING POINT</source>
         <translation>AI 图片 · 起点</translation>
-    </message>
-    <message>
-        <source>Square · 1024</source>
-        <translation type="vanished">方形 · 1024</translation>
-    </message>
-    <message>
-        <source>Landscape · 1536 × 1024</source>
-        <translation type="vanished">横向 · 1536 × 1024</translation>
-    </message>
-    <message>
-        <source>Portrait · 1024 × 1536</source>
-        <translation type="vanished">纵向 · 1024 × 1536</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -83,230 +147,70 @@
         <source>Choose a preferred composition. The generated image keeps its original resolution.</source>
         <translation>选择期望画幅；生成图片会保留原始尺寸。</translation>
     </message>
-    <message>
-        <source>A new version is ready. Your current result has not changed.</source>
-        <translation type="vanished">新版本已经就绪，当前结果尚未改变。</translation>
-    </message>
-    <message>
-        <source>Your description is saved before AI generation begins.</source>
-        <translation type="vanished">开始 AI 生成前会先保存你的描述。</translation>
-    </message>
 </context>
 <context>
-    <name>AiTextEditingWorkspace</name>
+    <name>AiModelPicker</name>
     <message>
-        <source>Expand</source>
-        <translation type="vanished">扩写</translation>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AiModelPicker.qml" line="+87"/>
+        <source>Effort for this run</source>
+        <translation>本次推理投入</translation>
     </message>
     <message>
-        <source>Polish</source>
-        <translation type="vanished">润色</translation>
+        <location line="-35"/>
+        <source>Runtime default</source>
+        <translation>运行时默认</translation>
     </message>
     <message>
-        <source>Shorten</source>
-        <translation type="vanished">精简</translation>
+        <location line="-6"/>
+        <source>Low</source>
+        <translation>低</translation>
     </message>
     <message>
-        <source>Summarize</source>
-        <translation type="vanished">总结</translation>
+        <location line="+1"/>
+        <source>Medium</source>
+        <translation>中</translation>
     </message>
     <message>
-        <source>Rewrite</source>
-        <translation type="vanished">改写</translation>
+        <location line="+1"/>
+        <source>High</source>
+        <translation>高</translation>
     </message>
     <message>
-        <source>Concise</source>
-        <translation type="vanished">简洁</translation>
+        <location line="+1"/>
+        <source>Extra high</source>
+        <translation>很高</translation>
     </message>
     <message>
-        <source>Professional</source>
-        <translation type="vanished">专业</translation>
+        <location line="+1"/>
+        <source>Max</source>
+        <translation>最高</translation>
     </message>
     <message>
-        <source>Literary</source>
-        <translation type="vanished">文学</translation>
+        <location line="+1"/>
+        <source>Ultra</source>
+        <translation>极高</translation>
     </message>
     <message>
-        <source>Casual</source>
-        <translation type="vanished">随性</translation>
+        <location line="-15"/>
+        <source>Local Qwen 3.5</source>
+        <translation>本地 Qwen 3.5</translation>
     </message>
     <message>
-        <source>Natural</source>
-        <translation type="vanished">自然</translation>
+        <location line="+31"/>
+        <source>Model for this run</source>
+        <translation>本次使用模型</translation>
     </message>
     <message>
-        <source>Edit again</source>
-        <translation type="vanished">再次编辑</translation>
-    </message>
-    <message>
-        <source>AI runtime unavailable</source>
-        <translation type="vanished">AI 运行时不可用</translation>
-    </message>
-    <message>
-        <source>Set up AI access</source>
-        <translation type="vanished">设置 AI 访问</translation>
-    </message>
-    <message>
-        <source>Generate</source>
-        <translation type="vanished">生成</translation>
-    </message>
-    <message>
-        <source>Generate %1 versions</source>
-        <translation type="vanished">生成 %1 个版本</translation>
-    </message>
-    <message>
-        <source>Revise only this selected passage while preserving the surrounding text: “%1”</source>
-        <translation type="vanished">仅修订这段选中文字，同时保留周围文本：“%1”</translation>
-    </message>
-    <message>
-        <source>Add the Shape credential in Settings.</source>
-        <translation type="vanished">请在设置中添加 Shape 凭据。</translation>
-    </message>
-    <message>
-        <source>Infer rejected the Shape credential.</source>
-        <translation type="vanished">Infer 拒绝了 Shape 凭据。</translation>
-    </message>
-    <message>
-        <source>Shape is not allowed to use text generation.</source>
-        <translation type="vanished">Shape 尚未获准使用文本生成。</translation>
-    </message>
-    <message>
-        <source>No available model can execute this intent.</source>
-        <translation type="vanished">当前没有可执行此意图的模型。</translation>
-    </message>
-    <message>
-        <source>The AI runtime is currently unavailable.</source>
-        <translation type="vanished">AI 运行时目前不可用。</translation>
-    </message>
-    <message>
-        <source>The locked input changed. Reopen this node and try again.</source>
-        <translation type="vanished">已锁定的输入发生了变化。请重新打开此节点后再试。</translation>
-    </message>
-    <message>
-        <source>AI could not generate a text candidate.</source>
-        <translation type="vanished">AI 未能生成文本候选。</translation>
-    </message>
-    <message>
-        <source>QUICK ACTION</source>
-        <translation type="vanished">快捷操作</translation>
-    </message>
-    <message>
-        <source>Source text</source>
-        <translation type="vanished">源文本</translation>
-    </message>
-    <message>
-        <source>Locked source</source>
-        <translation type="vanished">已锁定来源</translation>
-    </message>
-    <message>
-        <source>Source missing</source>
-        <translation type="vanished">缺少来源</translation>
-    </message>
-    <message>
-        <source>Connect a text source to start editing.</source>
-        <translation type="vanished">连接一段文本后即可开始编辑。</translation>
-    </message>
-    <message>
-        <source>New version</source>
-        <translation type="vanished">新版本</translation>
-    </message>
-    <message>
-        <source>Review, refine, then use it as this node&apos;s output.</source>
-        <translation type="vanished">审阅并继续修改，满意后设为这个节点的输出。</translation>
-    </message>
-    <message>
-        <source>Your source stays untouched until you choose a version.</source>
-        <translation type="vanished">选择一个版本之前，源文本不会被修改。</translation>
-    </message>
-    <message>
-        <source>%1 versions</source>
-        <translation type="vanished">%1 个版本</translation>
-    </message>
-    <message>
-        <source>Ready for a new version</source>
-        <translation type="vanished">可以生成新版本了</translation>
-    </message>
-    <message>
-        <source>Connect a source first</source>
-        <translation type="vanished">请先连接来源</translation>
-    </message>
-    <message>
-        <source>Choose an edit direction and generate one or more alternatives.</source>
-        <translation type="vanished">选择编辑方向，然后生成一个或多个备选版本。</translation>
-    </message>
-    <message>
-        <source>This node keeps your editing intent while it waits for material.</source>
-        <translation type="vanished">这个节点会保留编辑意图，等待素材接入。</translation>
-    </message>
-    <message>
-        <source>Selected text can be revised again</source>
-        <translation type="vanished">可以继续修改选中的文字</translation>
-    </message>
-    <message>
-        <source>Select a passage to refine it again</source>
-        <translation type="vanished">选中一段文字即可继续修改</translation>
-    </message>
-    <message>
-        <source>Use version</source>
-        <translation type="vanished">采用这个版本</translation>
-    </message>
-    <message>
-        <source>Edit direction</source>
-        <translation type="vanished">编辑方向</translation>
-    </message>
-    <message>
-        <source>Describe the change; Shape keeps the source outside this node.</source>
-        <translation type="vanished">描述想要的改动；Shape 会把源素材保留在节点之外。</translation>
-    </message>
-    <message>
-        <source>STYLE</source>
-        <translation type="vanished">风格</translation>
-    </message>
-    <message>
-        <source>PROMPT · OPTIONAL</source>
-        <translation type="vanished">提示词 · 可选</translation>
-    </message>
-    <message>
-        <source>Add specific instructions, facts to preserve, or a direction for this edit…</source>
-        <translation type="vanished">添加具体要求、需要保留的事实，或这次编辑的方向…</translation>
-    </message>
-    <message>
-        <source>Connect a text, image, audio, or file material before generating.</source>
-        <translation type="vanished">生成前请连接文本、图片、音频或文件素材。</translation>
-    </message>
-    <message>
-        <source>Start a new draft to edit this saved result again.</source>
-        <translation type="vanished">新建一个草稿，即可继续编辑这份已保存的结果。</translation>
-    </message>
-    <message>
-        <source>The source remains unchanged until you choose a generated version.</source>
-        <translation type="vanished">采用生成版本之前，源素材会保持不变。</translation>
-    </message>
-    <message>
-        <source>Versions</source>
-        <translation type="vanished">生成数量</translation>
-    </message>
-    <message>
-        <source>Refine selected text</source>
-        <translation type="vanished">继续润色选中文字</translation>
-    </message>
-    <message>
-        <source>Generating %1…</source>
-        <translation type="vanished">正在生成 %1…</translation>
-    </message>
-    <message>
-        <source>AI runtime is not ready.</source>
-        <translation type="vanished">AI 运行时尚未就绪。</translation>
-    </message>
-    <message>
-        <source>Add an Infer credential in Settings.</source>
-        <translation type="vanished">请在设置中添加 Infer 凭据。</translation>
+        <location line="+8"/>
+        <location line="+20"/>
+        <source>Default · %1</source>
+        <translation>默认 · %1</translation>
     </message>
 </context>
 <context>
     <name>ArtifactDetailsPanel</name>
     <message>
-        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="+21"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ArtifactDetailsPanel.qml" line="+21"/>
         <source>No materialized content</source>
         <translation>没有已生成内容</translation>
     </message>
@@ -374,7 +278,7 @@
 <context>
     <name>ArtifactLineagePanel</name>
     <message>
-        <location filename="../qml/components/ArtifactLineagePanel.qml" line="+31"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ArtifactLineagePanel.qml" line="+31"/>
         <source>LINEAGE</source>
         <translation>沿袭</translation>
     </message>
@@ -452,13 +356,13 @@
 <context>
     <name>AudioExportDialog</name>
     <message>
-        <location filename="../qml/components/AudioExportDialog.qml" line="+22"/>
-        <location line="+9"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AudioExportDialog.qml" line="+22"/>
+        <location line="+10"/>
         <source>Export audio</source>
         <translation>导出音频</translation>
     </message>
     <message>
-        <location line="-7"/>
+        <location line="-8"/>
         <source>WAV audio (*.wav)</source>
         <translation>WAV 音频 (*.wav)</translation>
     </message>
@@ -491,11 +395,12 @@
 <context>
     <name>AudioSpeechOperatorWorkspace</name>
     <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AudioSpeechOperatorWorkspace.qml" line="+339"/>
         <source>The original changed. Refresh to review its latest version. Older candidates will be cleared; accepted recordings stay.</source>
         <translation>原稿已更新。刷新后可审阅最新版本。旧候选将被清除；已采用的录音会保留。</translation>
     </message>
     <message>
-        <location filename="../qml/components/AudioSpeechOperatorWorkspace.qml" line="+87"/>
+        <location line="-245"/>
         <source>Automatic · mixed languages</source>
         <translation>自动识别 · 支持混合语言</translation>
     </message>
@@ -595,7 +500,7 @@
         <translation>Sohee · 温暖韩语女声</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+52"/>
         <source>Synthetic speech · disclosed</source>
         <translation>合成语音 · 已披露</translation>
     </message>
@@ -604,7 +509,11 @@
         <source>Recorded source</source>
         <translation>录制来源</translation>
     </message>
-    <message><source>Imported audio · origin unverified</source><translation>导入音频 · 来源未核实</translation></message>
+    <message>
+        <location line="+1"/>
+        <source>Imported audio · origin unverified</source>
+        <translation>导入音频 · 来源未核实</translation>
+    </message>
     <message>
         <location line="+1"/>
         <source>Synthetic sound · disclosed</source>
@@ -716,7 +625,7 @@
         <translation>音频播放不可用。</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+248"/>
         <source>%1 narration</source>
         <translation>%1 旁白</translation>
     </message>
@@ -726,7 +635,7 @@
         <translation>旁白</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="-165"/>
         <source>Candidate ready</source>
         <translation>候选已就绪</translation>
     </message>
@@ -741,7 +650,7 @@
         <translation>已接受文本源</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+18"/>
         <source>The text has changed since this audio was made. Return to writing to create a new recording. This recording is still available.</source>
         <translation>这段音频生成后，稿件已有修改。返回写稿可制作新录音，当前录音仍可使用。</translation>
     </message>
@@ -766,7 +675,7 @@
         <translation>声音预设</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
         <source>Script rules and AI writing prompt</source>
         <translation>脚本规则与 AI 写稿模板</translation>
     </message>
@@ -781,20 +690,12 @@
         <translation>输入 · 普通文本</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+18"/>
         <source>Use latest original</source>
         <translation>使用最新原稿</translation>
     </message>
     <message>
-        <source>Plain text</source>
-        <translation type="vanished">纯文本</translation>
-    </message>
-    <message>
-        <source>Narration script</source>
-        <translation type="vanished">配音脚本</translation>
-    </message>
-    <message>
-        <location line="+9"/>
+        <location line="+12"/>
         <source>Audio artifact name</source>
         <translation>音频对象名称</translation>
     </message>
@@ -809,27 +710,27 @@
         <translation>语言</translation>
     </message>
     <message>
-        <location line="+167"/>
+        <location line="+176"/>
         <source>Long text is split at sentence boundaries and assembled into one WAV. Review the audio before accepting it. Use Export to save the selected audio.</source>
         <translation>长文本会按句子分段，合成为一个 WAV 文件。请先试听再采纳，使用“导出”保存所选音频。</translation>
     </message>
     <message>
-        <location line="-159"/>
+        <location line="-168"/>
         <source>Pace</source>
         <translation>语速</translation>
     </message>
     <message>
-        <location line="-209"/>
+        <location line="-230"/>
         <source>Write</source>
         <translation>写稿</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+7"/>
         <source>Voices and audition</source>
         <translation>配音与试听</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+5"/>
         <source>Export audio</source>
         <translation>导出音频</translation>
     </message>
@@ -839,16 +740,12 @@
         <translation>为稿件选择声音</translation>
     </message>
     <message>
-        <location line="+81"/>
+        <location line="+90"/>
         <source>Your adopted text is used for speech. You can return to writing at any time.</source>
         <translation>配音使用你已采用的文字，随时可以返回写稿。</translation>
     </message>
     <message>
-        <source>Synthesizing locally…</source>
-        <translation type="vanished">正在本地合成…</translation>
-    </message>
-    <message>
-        <location line="+155"/>
+        <location line="+168"/>
         <source>Create speech candidate</source>
         <translation>创建语音候选</translation>
     </message>
@@ -858,7 +755,7 @@
         <translation>请在设置中配置 Infer 访问。</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+30"/>
         <source>Stopping after the current segment…</source>
         <translation>将在当前分段完成后停止…</translation>
     </message>
@@ -868,7 +765,7 @@
         <translation>已完成 %1 / %2 个分段</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Stop after this segment</source>
         <translation>本段完成后停止</translation>
     </message>
@@ -888,6 +785,7 @@
         <translation>%1 Hz · %2 声道 · %3</translation>
     </message>
     <message>
+        <location line="-71"/>
         <source>Another narration is running. Return to that work to view its progress or stop it.</source>
         <translation>另一作品正在配音，请返回该作品查看进度或停止。</translation>
     </message>
@@ -895,7 +793,7 @@
 <context>
     <name>BranchArtifactDialog</name>
     <message>
-        <location filename="../qml/BranchArtifactDialog.qml" line="+28"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/BranchArtifactDialog.qml" line="+28"/>
         <source>%1 — Branch</source>
         <translation>%1 — 分支</translation>
     </message>
@@ -939,7 +837,7 @@
 <context>
     <name>CandidateFilmstrip</name>
     <message>
-        <location filename="../qml/components/CandidateFilmstrip.qml" line="+57"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CandidateFilmstrip.qml" line="+58"/>
         <source>Image · %1 × %2</source>
         <translation>图像 · %1 × %2</translation>
     </message>
@@ -989,7 +887,7 @@
         <translation>从此版本创建独立作品</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>Use this version</source>
         <translation>采用此版本</translation>
     </message>
@@ -999,7 +897,7 @@
         <translation>选择版本 %1</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+95"/>
         <source>No new versions yet</source>
         <translation>还没有新版本</translation>
     </message>
@@ -1012,17 +910,17 @@
 <context>
     <name>ContextInspector</name>
     <message>
-        <location filename="../qml/components/ContextInspector.qml" line="+43"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ContextInspector.qml" line="+44"/>
         <source>Explore</source>
         <translation>探索</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Details</source>
         <translation>详情</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Lineage</source>
         <translation>沿袭</translation>
     </message>
@@ -1030,19 +928,7 @@
 <context>
     <name>CreateAiImageSceneDialog</name>
     <message>
-        <source>Square · 1024 × 1024</source>
-        <translation type="vanished">方形 · 1024 × 1024</translation>
-    </message>
-    <message>
-        <source>Landscape · 1536 × 1024</source>
-        <translation type="vanished">横向 · 1536 × 1024</translation>
-    </message>
-    <message>
-        <source>Portrait · 1024 × 1536</source>
-        <translation type="vanished">纵向 · 1024 × 1536</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/CreateAiImageSceneDialog.qml" line="+22"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreateAiImageSceneDialog.qml" line="+22"/>
         <source>Untitled image</source>
         <translation>未命名图片</translation>
     </message>
@@ -1067,12 +953,12 @@
         <translation>提示词会随作品保存。生成的版本在你选择采用前都只是备选。</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+32"/>
         <source>Open image studio</source>
         <translation>打开图片工作室</translation>
     </message>
     <message>
-        <location line="-39"/>
+        <location line="-47"/>
         <source>Describe the image you want to create…</source>
         <translation>描述你想创作的图像…</translation>
     </message>
@@ -1092,7 +978,7 @@
         <translation>纵向 · 2:3</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+84"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -1100,7 +986,7 @@
 <context>
     <name>CreateProjectDialog</name>
     <message>
-        <location filename="../qml/components/CreateProjectDialog.qml" line="+20"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreateProjectDialog.qml" line="+20"/>
         <source>Untitled Project</source>
         <translation>未命名项目</translation>
     </message>
@@ -1140,7 +1026,7 @@
         <translation>选择…</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+25"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -1152,9 +1038,13 @@
 </context>
 <context>
     <name>CreateSceneTypeDialog</name>
-    <message><source>Create sound effects or music</source><translation>创作音效或音乐</translation></message>
     <message>
-        <location filename="../qml/components/CreateSceneTypeDialog.qml" line="+19"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreateSceneTypeDialog.qml" line="+75"/>
+        <source>Create sound effects or music</source>
+        <translation>创作音效或音乐</translation>
+    </message>
+    <message>
+        <location line="-54"/>
         <source>What do you want to make?</source>
         <translation>你想创作什么？</translation>
     </message>
@@ -1194,13 +1084,9 @@
         <translation>在稿中编写台词，并安排角色、停顿、提示音与重复。</translation>
     </message>
     <message>
+        <location line="+2"/>
         <source>Start a script</source>
         <translation>开始写脚本</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Narration</source>
-        <translation>通用口播</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -1217,13 +1103,21 @@
         <source>Import material…</source>
         <translation>导入素材…</translation>
     </message>
-    <message><source>Paste material</source><translation>粘贴素材</translation></message>
-    <message><source>Self-contained HTML can be previewed offline and exported. Other code files remain text sources.</source><translation>自包含 HTML 可离线预览和导出；其他代码文件仍作为文本素材保存。</translation></message>
+    <message>
+        <location line="+1"/>
+        <source>Paste material</source>
+        <translation>粘贴素材</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Self-contained HTML can be previewed offline and exported. Other code files remain text sources.</source>
+        <translation>自包含 HTML 可离线预览和导出；其他代码文件仍作为文本素材保存。</translation>
+    </message>
 </context>
 <context>
     <name>CreateTextSceneDialog</name>
     <message>
-        <location filename="../qml/components/CreateTextSceneDialog.qml" line="+18"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreateTextSceneDialog.qml" line="+18"/>
         <source>Untitled text</source>
         <translation>未命名文本</translation>
     </message>
@@ -1248,7 +1142,7 @@
         <translation>Shape 会将其保存为起始版本并打开写作区。之后可以继续添加 AI 改写或语音。</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+26"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -1261,7 +1155,7 @@
 <context>
     <name>CreativeCandidateNodeCard</name>
     <message>
-        <location filename="../qml/components/CreativeCandidateNodeCard.qml" line="+20"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreativeCandidateNodeCard.qml" line="+20"/>
         <source>Image · %1 × %2</source>
         <translation>图像 · %1 × %2</translation>
     </message>
@@ -1289,7 +1183,7 @@
 <context>
     <name>CreativeDraftNodeCard</name>
     <message>
-        <location filename="../qml/components/CreativeDraftNodeCard.qml" line="+23"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreativeDraftNodeCard.qml" line="+23"/>
         <source>Text</source>
         <translation>文本</translation>
     </message>
@@ -1346,25 +1240,41 @@
 </context>
 <context>
     <name>CreativeGraphNodeCard</name>
-<message><source>Sound generation</source><translation>声音生成</translation></message>
-    <message><source>View</source><translation>查看</translation></message>
-    <message><source>Continue</source><translation>继续</translation></message>
     <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreativeGraphNodeCard.qml" line="+105"/>
+        <source>Sound generation</source>
+        <translation>声音生成</translation>
+    </message>
+    <message>
+        <location line="+289"/>
+        <source>View</source>
+        <translation>查看</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Continue</source>
+        <translation>继续</translation>
+    </message>
+    <message>
+        <location line="-335"/>
         <source>EARLIER SOURCE VERSION</source>
         <translation>较早的源版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/CreativeGraphNodeCard.qml" line="57"/>
+        <location line="+4"/>
+        <location line="+304"/>
         <source>OUTPUT</source>
         <translation>输出</translation>
     </message>
     <message>
-        <location filename="../qml/components/CreativeGraphNodeCard.qml" line="118"/>
+        <location line="-236"/>
+        <location line="+195"/>
+        <location line="+51"/>
         <source>No accepted version yet</source>
         <translation>尚无已采用版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/CreativeGraphNodeCard.qml" line="+44"/>
+        <location line="-328"/>
         <source>Text</source>
         <translation>文本</translation>
     </message>
@@ -1384,7 +1294,7 @@
         <translation>创作内容</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>SOURCE MATERIAL</source>
         <translation>源素材</translation>
     </message>
@@ -1404,7 +1314,7 @@
         <translation>编辑步骤</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Text material</source>
         <translation>文本素材</translation>
     </message>
@@ -1424,7 +1334,7 @@
         <translation>起始素材</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Text result</source>
         <translation>文本结果</translation>
     </message>
@@ -1454,7 +1364,7 @@
         <translation>AI 文本编辑器</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>AI image creation</source>
         <translation>AI 图像创作</translation>
     </message>
@@ -1469,71 +1379,153 @@
         <translation>撰写 · 扩写 · 润色</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Prompt · Canvas · Candidates</source>
         <translation>提示 · 画布 · 候选</translation>
     </message>
     <message>
-        <location line="+177"/>
+        <location line="+183"/>
         <location line="+9"/>
         <source>Open to inspect</source>
         <translation>打开查看</translation>
     </message>
     <message>
-        <location line="-124"/>
+        <location line="-125"/>
         <source>Add a node from this output</source>
         <translation>从此输出添加节点</translation>
     </message>
     <message>
+        <location line="-1"/>
         <source>Open next step</source>
         <translation>打开下一步</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+66"/>
         <source>STEP %1</source>
         <translation>步骤 %1</translation>
     </message>
     <message>
-        <location line="-117"/>
+        <location line="-121"/>
         <source>Empty text</source>
         <translation>空文本</translation>
     </message>
     <message>
-        <location line="+168"/>
+        <location line="+172"/>
         <source>%1 s · %2 Hz</source>
         <translation>%1 秒 · %2 Hz</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+95"/>
         <source>%1 × %2 px</source>
         <translation>%1 × %2 像素</translation>
     </message>
-    <message><source>Description · Duration · Seed</source><translation>描述 · 时长 · 种子</translation></message>
+    <message>
+        <location line="-280"/>
+        <source>Description · Duration · Seed</source>
+        <translation>描述 · 时长 · 种子</translation>
+    </message>
 </context>
 <context>
     <name>DesktopBackend</name>
     <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/src/desktop_backend.cpp" line="+119"/>
+        <source>Edit image in Shadow</source>
+        <translation>在 Shadow 中编辑图片</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Edit audio in Echo</source>
+        <translation>在 Echo 中编辑音频</translation>
+    </message>
+    <message>
+        <location line="-80"/>
         <source>This draft changed in another session. Copy any unsaved text, then reopen the project.</source>
         <translation>此草稿已在另一个会话中更改。请先复制尚未保存的文本，再重新打开项目。</translation>
     </message>
-    <message><source>Could not create the sound Scene.</source><translation>无法创建声音场景。</translation></message>
-    <message><source>Enter a description, a duration from 1 to 30 seconds, and a seed from 0 to 4294967295.</source><translation>请输入描述、1 到 30 秒的时长，以及 0 到 4294967295 的种子。</translation></message>
-    <message><source>Could not save the sound description.</source><translation>无法保存声音描述。</translation></message>
-    <message><source>Open a Shape project before pasting material.</source><translation>请先打开 Shape 项目，再粘贴素材。</translation></message>
-    <message><source>Copy text or an image, then try again.</source><translation>请先复制文字或图片，再重试。</translation></message>
-    <message><source>The clipboard image is invalid or too large.</source><translation>剪贴板图片无效或过大。</translation></message>
-    <message><source>Could not encode the clipboard image within the size limit.</source><translation>无法在大小限制内编码剪贴板图片。</translation></message>
-    <message><source>Pasted image</source><translation>粘贴的图片</translation></message>
-    <message><source>Paste non-empty UTF-8 text up to 1 MiB.</source><translation>请粘贴不超过 1 MiB 的非空 UTF-8 文字。</translation></message>
-    <message><source>Pasted text</source><translation>粘贴的文字</translation></message>
-    <message><source>Could not paste this material into Shape.</source><translation>无法将该素材粘贴到 Shape。</translation></message>
-    <message><source>Choose a local file for the accepted result.</source><translation>请选择本地文件来保存已采用的结果。</translation></message>
-    <message><source>Accept a result before exporting it.</source><translation>先采用一个结果，再导出文件。</translation></message>
-    <message><source>Export text or code as a supported UTF-8 file, or an image as PNG.</source><translation>请将文本或代码导出为支持的 UTF-8 文件，图像导出为 PNG。</translation></message>
-    <message><source>Could not read the accepted result.</source><translation>无法读取已采用的结果。</translation></message>
-    <message><source>Could not save the final file.</source><translation>无法保存最终文件。</translation></message>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="+34"/>
+        <location line="+609"/>
+        <source>Could not create the sound Scene.</source>
+        <translation>无法创建声音场景。</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Enter a description, a duration from 1 to 30 seconds, and a seed from 0 to 4294967295.</source>
+        <translation>请输入描述、1 到 30 秒的时长，以及 0 到 4294967295 的种子。</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Could not save the sound description.</source>
+        <translation>无法保存声音描述。</translation>
+    </message>
+    <message>
+        <location line="+738"/>
+        <source>Open a Shape project before pasting material.</source>
+        <translation>请先打开 Shape 项目，再粘贴素材。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+49"/>
+        <source>Copy text or an image, then try again.</source>
+        <translation>请先复制文字或图片，再重试。</translation>
+    </message>
+    <message>
+        <location line="-32"/>
+        <location line="+10"/>
+        <source>The clipboard image is invalid or too large.</source>
+        <translation>剪贴板图片无效或过大。</translation>
+    </message>
+    <message>
+        <location line="-5"/>
+        <source>Could not encode the clipboard image within the size limit.</source>
+        <translation>无法在大小限制内编码剪贴板图片。</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Pasted image</source>
+        <translation>粘贴的图片</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Paste non-empty UTF-8 text up to 1 MiB.</source>
+        <translation>请粘贴不超过 1 MiB 的非空 UTF-8 文字。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Pasted text</source>
+        <translation>粘贴的文字</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Could not paste this material into Shape.</source>
+        <translation>无法将该素材粘贴到 Shape。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Choose a local file for the accepted result.</source>
+        <translation>请选择本地文件来保存已采用的结果。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Accept a result before exporting it.</source>
+        <translation>先采用一个结果，再导出文件。</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Export text or code as a supported UTF-8 file, or an image as PNG.</source>
+        <translation>请将文本或代码导出为支持的 UTF-8 文件，图像导出为 PNG。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Could not read the accepted result.</source>
+        <translation>无法读取已采用的结果。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Could not save the final file.</source>
+        <translation>无法保存最终文件。</translation>
+    </message>
+    <message>
+        <location line="-1476"/>
         <source>Text document</source>
         <translation>文本文档</translation>
     </message>
@@ -1574,30 +1566,30 @@
     </message>
     <message>
         <location line="+3"/>
-        <location line="+64"/>
+        <location line="+71"/>
         <source>Deterministic edit</source>
         <translation>确定性编辑</translation>
     </message>
     <message>
-        <location line="-61"/>
-        <location line="+58"/>
+        <location line="-68"/>
+        <location line="+65"/>
         <source>Generative edit</source>
         <translation>生成式编辑</translation>
     </message>
     <message>
-        <location line="-55"/>
-        <location line="+61"/>
+        <location line="-62"/>
+        <location line="+68"/>
         <source>Composite</source>
         <translation>合成</translation>
     </message>
     <message>
-        <location line="-58"/>
-        <location line="+61"/>
+        <location line="-65"/>
+        <location line="+68"/>
         <source>External round trip</source>
         <translation>外部往返编辑</translation>
     </message>
     <message>
-        <location line="-59"/>
+        <location line="-66"/>
         <source>Unknown transformation</source>
         <translation>未知变换</translation>
     </message>
@@ -1622,22 +1614,22 @@
         <translation>未知节点</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+9"/>
         <source>Source input</source>
         <translation>输入源</translation>
     </message>
     <message>
-        <location line="-20"/>
+        <location line="-24"/>
         <source>Deterministic text calibration</source>
         <translation>确定性文本校准</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+45"/>
         <source>Speech synthesis</source>
         <translation>语音合成</translation>
     </message>
     <message>
-        <location line="-15"/>
+        <location line="-18"/>
         <location line="+3"/>
         <source>Image editing</source>
         <translation>图像编辑</translation>
@@ -1658,7 +1650,7 @@
         <translation>AI 文本编辑器</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+9"/>
         <source>AI image creation</source>
         <translation>AI 图像创作</translation>
     </message>
@@ -1673,7 +1665,7 @@
         <translation>未知操作</translation>
     </message>
     <message>
-        <location line="+396"/>
+        <location line="+398"/>
         <source>Choose a local folder and enter a project name.</source>
         <translation>请选择本地文件夹并输入项目名称。</translation>
     </message>
@@ -1718,7 +1710,7 @@
         <translation>无法创建文本场景。</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+88"/>
         <source>Enter a Scene name, an image description, and valid dimensions.</source>
         <translation>请输入场景名称、图像描述和有效尺寸。</translation>
     </message>
@@ -1758,22 +1750,23 @@
         <translation>无法读取原稿。</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+59"/>
         <source>Could not update the original text input.</source>
         <translation>无法更新原稿输入。</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>This draft is too large to save. Keep the draft and reference text under 48 KiB in total.</source>
         <translation>草稿过大，暂时无法保存。草稿与参考文字合计须小于 48 KiB。</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>Could not save the writing draft. Your text is still in the editor.</source>
         <translation>无法保存写作草稿，文字仍保留在编辑器中。</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
+        <location line="+11"/>
         <source>Could not read the complete text.</source>
         <translation>无法读取完整文字。</translation>
     </message>
@@ -1834,39 +1827,42 @@
         <translation>%1 · 编辑稿</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>This Operator cannot use the selected Scene source.</source>
         <translation>此操作节点无法使用所选场景源。</translation>
     </message>
     <message>
-        <location line="+51"/>
-        <location line="+31"/>
-        <location line="+115"/>
+        <location line="+52"/>
+        <location line="+14"/>
+        <location line="+20"/>
+        <location line="+145"/>
         <source>Could not save the Operator draft.</source>
         <translation>无法保存操作节点草稿。</translation>
     </message>
     <message>
-        <location line="-100"/>
+        <location line="-123"/>
         <source>Could not save the narration script settings.</source>
         <translation>无法保存配音脚本设置。</translation>
     </message>
     <message>
-        <location line="+55"/>
+        <location line="+28"/>
+        <location line="+44"/>
+        <location line="+5"/>
         <source>Choose a 24 kHz mono PCM16 WAV file up to 8 MiB.</source>
         <translation>请选择不超过 8 MiB 的 24 kHz 单声道 PCM16 WAV 文件。</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+29"/>
         <source>Choose valid resize dimensions and policies.</source>
         <translation>请选择有效的目标尺寸和调整策略。</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>Enter an image description and valid dimensions.</source>
         <translation>请输入图像描述和有效尺寸。</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Could not save the AI image draft.</source>
         <translation>无法保存 AI 图像草稿。</translation>
     </message>
@@ -1890,12 +1886,28 @@
         <source>Could not import this image. Use an 8-bit PNG or JPEG within the local size limit.</source>
         <translation>无法导入此图像。请使用本地大小限制内的 8 位 PNG 或 JPEG 图像。</translation>
     </message>
-    <message><source>Choose a local image, UTF-8 text, or PCM WAV file.</source><translation>请选择本地图像、UTF-8 文本或 PCM WAV 文件。</translation></message>
-    <message><source>The material needs a usable file name.</source><translation>素材需要一个可用的文件名。</translation></message>
-    <message><source>Choose a PNG, JPEG, UTF-8 text/code, or PCM WAV file.</source><translation>请选择 PNG、JPEG、UTF-8 文本或代码文件，或 PCM WAV 文件。</translation></message>
-    <message><source>Could not import this file. Check its encoding, format, and size.</source><translation>无法导入此文件。请检查编码、格式和大小。</translation></message>
     <message>
-        <location line="+14"/>
+        <location line="+8"/>
+        <source>Choose a local image, UTF-8 text, or PCM WAV file.</source>
+        <translation>请选择本地图像、UTF-8 文本或 PCM WAV 文件。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The material needs a usable file name.</source>
+        <translation>素材需要一个可用的文件名。</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Choose a PNG, JPEG, UTF-8 text/code, or PCM WAV file.</source>
+        <translation>请选择 PNG、JPEG、UTF-8 文本或代码文件，或 PCM WAV 文件。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Could not import this file. Check its encoding, format, and size.</source>
+        <translation>无法导入此文件。请检查编码、格式和大小。</translation>
+    </message>
+    <message>
+        <location line="+135"/>
         <source>Choose a valid crop area.</source>
         <translation>请选择有效的裁剪区域。</translation>
     </message>
@@ -1970,7 +1982,7 @@
         <translation>无法创建候选。</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+50"/>
         <source>Could not accept candidate.</source>
         <translation>无法接受候选。</translation>
     </message>
@@ -1985,17 +1997,17 @@
         <translation>无法派生候选。</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>Could not discard candidate.</source>
         <translation>无法丢弃候选方案。</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+116"/>
         <source>Open a project before previewing audio.</source>
         <translation>预览音频前请先打开项目。</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+23"/>
         <source>Could not load the verified audio preview.</source>
         <translation>无法加载已验证的音频预览。</translation>
     </message>
@@ -2005,16 +2017,23 @@
         <translation>无法刷新项目。</translation>
     </message>
     <message>
-        <location line="-140"/>
+        <location line="-228"/>
         <source>There is no candidate to accept.</source>
         <translation>没有可以接受的候选。</translation>
     </message>
-    <message><source>Sound generation</source><translation>声音生成</translation></message>
     <message>
+        <location line="-1670"/>
+        <source>Sound generation</source>
+        <translation>声音生成</translation>
+    </message>
+    <message>
+        <location line="+1009"/>
+        <location line="+36"/>
         <source>Wait for the audio cue import to finish.</source>
         <translation>请等待音效导入完成。</translation>
     </message>
     <message>
+        <location line="+27"/>
         <source>The narration changed while the cue was loading. Choose the file again.</source>
         <translation>音效加载期间配音已发生变化，请重新选择文件。</translation>
     </message>
@@ -2022,7 +2041,7 @@
 <context>
     <name>GraphSelectionInspector</name>
     <message>
-        <location filename="../qml/components/GraphSelectionInspector.qml" line="+82"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/GraphSelectionInspector.qml" line="+82"/>
         <source>Select a step to understand what it does</source>
         <translation>选择一个步骤，了解它的作用</translation>
     </message>
@@ -2037,7 +2056,7 @@
         <translation>移除此未完成步骤</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+11"/>
         <source>Review selected version</source>
         <translation>查看所选版本</translation>
     </message>
@@ -2050,7 +2069,7 @@
 <context>
     <name>ImageCompareWorkspace</name>
     <message>
-        <location filename="../qml/components/ImageCompareWorkspace.qml" line="+20"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ImageCompareWorkspace.qml" line="+20"/>
         <source>ACCEPTED</source>
         <translation>已接受</translation>
     </message>
@@ -2063,7 +2082,7 @@
 <context>
     <name>ImageEditorWorkspace</name>
     <message>
-        <location filename="../qml/components/ImageEditorWorkspace.qml" line="+78"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ImageEditorWorkspace.qml" line="+78"/>
         <source>Image editing</source>
         <translation>图像编辑</translation>
     </message>
@@ -2100,23 +2119,59 @@
 </context>
 <context>
     <name>Main</name>
-    <message><source>Untitled sound</source><translation>未命名声音</translation></message>
-    <message><source>Export accepted result</source><translation>导出已采用的结果</translation></message>
-    <message><source>PNG image (*.png)</source><translation>PNG 图像 (*.png)</translation></message>
-    <message><source>UTF-8 text and code (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</source><translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation></message>
-    <message><source>Finishing the current image, then stopping. %1 of %2 ready.</source><translation>当前图片完成后停止，已完成 %1/%2 个。</translation></message>
-    <message><source>%1 of %2 image versions are ready.</source><translation>已完成 %1/%2 个图片候选。</translation></message>
-    <message><source>Stopped. %1 of %2 image versions are ready.</source><translation>已停止，完成了 %1/%2 个图片候选。</translation></message>
-    <message><source>AI is creating %1 image versions…</source><translation>AI 正在创建 %1 个图片候选…</translation></message>
-    <message><source>%1 of %2 versions are ready. Review them before retrying.</source><translation>已完成 %1/%2 个图片候选。请先查看，再决定是否重试。</translation></message>
-    <message><source>Generate %1 versions</source><translation>生成 %1 个候选</translation></message>
     <message>
-        <location filename="../qml/Main.qml" line="+186"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/Main.qml" line="+212"/>
+        <source>Untitled sound</source>
+        <translation>未命名声音</translation>
+    </message>
+    <message>
+        <location line="+182"/>
+        <source>Export accepted result</source>
+        <translation>导出已采用的结果</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>PNG image (*.png)</source>
+        <translation>PNG 图像 (*.png)</translation>
+    </message>
+    <message>
+        <location line="-20"/>
+        <location line="+21"/>
+        <source>UTF-8 text and code (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</source>
+        <translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation>
+    </message>
+    <message>
+        <location line="-173"/>
+        <source>Finishing the current image, then stopping. %1 of %2 ready.</source>
+        <translation>当前图片完成后停止，已完成 %1/%2 个。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 of %2 image versions are ready.</source>
+        <translation>已完成 %1/%2 个图片候选。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Stopped. %1 of %2 image versions are ready.</source>
+        <translation>已停止，完成了 %1/%2 个图片候选。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 of %2 versions are ready. Review them before retrying.</source>
+        <translation>已完成 %1/%2 个图片候选。请先查看，再决定是否重试。</translation>
+    </message>
+    <message>
+        <location line="+471"/>
+        <source>Generate %1 versions</source>
+        <translation>生成 %1 个候选</translation>
+    </message>
+    <message>
+        <location line="-478"/>
         <source>AI is creating a new image version…</source>
         <translation>AI 正在创建新的图片版本…</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+11"/>
         <source>Add the Shape Infer credential in Settings before generating.</source>
         <translation>生成前，请先在设置中添加 Shape 的 Infer 凭据。</translation>
     </message>
@@ -2146,17 +2201,17 @@
         <translation>每次运行都会创建可查看的版本。只有选择采用后，当前结果才会改变。</translation>
     </message>
     <message>
-        <location line="+122"/>
+        <location line="+117"/>
         <source>Import material into this project</source>
         <translation>将素材导入此项目</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+33"/>
         <source>Reusable components are coming next. This section is reserved so larger projects can organize repeated creative work without changing today&apos;s project structure.</source>
         <translation>可复用组件将是下一步能力。这里先为大型项目预留位置，让重复的创作工作可以被整理起来，同时不改变当前的项目结构。</translation>
     </message>
     <message>
-        <location line="+266"/>
+        <location line="+283"/>
         <source>Create an image</source>
         <translation>创建图片</translation>
     </message>
@@ -2186,54 +2241,57 @@
         <translation>这个起点不需要现有图片</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+7"/>
         <source>Generate a version</source>
         <translation>生成一个版本</translation>
     </message>
     <message>
-        <location line="-397"/>
+        <location line="-429"/>
         <source>Shape — %1</source>
         <translation>Shape — %1</translation>
     </message>
     <message>
-        <location line="-159"/>
+        <location line="-207"/>
         <source>Untitled text</source>
         <translation>未命名文本</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+0"/>
         <source>Untitled production script</source>
         <translation>未命名配音脚本</translation>
     </message>
     <message>
-        <source>Untitled AI text</source>
-        <translation type="vanished">未命名 AI 文本</translation>
-    </message>
-    <message>
-        <location line="+159"/>
+        <location line="+208"/>
         <source>Shape — No Project</source>
         <translation>Shape — 无项目</translation>
     </message>
     <message>
-        <location line="+83"/>
+        <location line="+85"/>
         <source>Open Shape project folder</source>
         <translation>打开 Shape 项目文件夹</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+9"/>
         <source>Images (*.png *.jpg *.jpeg)</source>
         <translation>图像 (*.png *.jpg *.jpeg)</translation>
     </message>
-    <message><source>Supported material (*.png *.jpg *.jpeg *.txt *.md *.js *.mjs *.html *.css *.json *.svg *.wav)</source><translation>支持的素材 (*.png *.jpg *.jpeg *.txt *.md *.js *.mjs *.html *.css *.json *.svg *.wav)</translation></message>
-    <message><source>UTF-8 text and code (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</source><translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation></message>
-    <message><source>PCM WAV audio (*.wav)</source><translation>PCM WAV 音频 (*.wav)</translation></message>
     <message>
-        <location line="+13"/>
+        <location line="-1"/>
+        <source>Supported material (*.png *.jpg *.jpeg *.txt *.md *.js *.mjs *.html *.css *.json *.svg *.wav)</source>
+        <translation>支持的素材 (*.png *.jpg *.jpeg *.txt *.md *.js *.mjs *.html *.css *.json *.svg *.wav)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>PCM WAV audio (*.wav)</source>
+        <translation>PCM WAV 音频 (*.wav)</translation>
+    </message>
+    <message>
+        <location line="+27"/>
         <source>Components</source>
         <translation>组件</translation>
     </message>
     <message>
-        <location line="+271"/>
+        <location line="+288"/>
         <source>Describe the image, composition, light, and mood…</source>
         <translation>描述图像、构图、光线与氛围…</translation>
     </message>
@@ -2241,7 +2299,7 @@
 <context>
     <name>MainTitleBar</name>
     <message>
-        <location filename="../qml/MainTitleBar.qml" line="+26"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/MainTitleBar.qml" line="+26"/>
         <source>Shape toolbar</source>
         <translation>Shape 工具栏</translation>
     </message>
@@ -2277,18 +2335,202 @@
     </message>
 </context>
 <context>
-    <name>OperatorIntentSidebar</name>
-    <message><source>Stopping after this image…</source><translation>将在当前图片完成后停止…</translation></message>
-    <message><source>Stop after this image</source><translation>当前图片完成后停止</translation></message>
-    <message><source>Versions this run</source><translation>本次生成数量</translation></message>
-    <message><source>Number of image versions</source><translation>图片候选数量</translation></message>
+    <name>MaterialEditWorkspace</name>
     <message>
-        <location filename="../qml/components/OperatorIntentSidebar.qml" line="+19"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/MaterialEditWorkspace.qml" line="+101"/>
+        <source>Convert Echo PCM24 returns to PCM16 for Shape</source>
+        <translation>将 Echo 的 PCM24 返回音频转换为 Shape 所需的 PCM16</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This reduces sample precision. The original export is kept, and conversion is recorded with the adopted version.</source>
+        <translation>此操作会降低采样精度。原导出文件会保留，转换信息会记录在采用的版本中。</translation>
+    </message>
+    <message>
+        <location line="-69"/>
+        <source>Preparing edited material…</source>
+        <translation>正在准备编辑后的素材…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This stage changed. Reopen it and export a fresh working copy.</source>
+        <translation>此阶段已更改。请重新打开并导出新的工作副本。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The returned material is unchanged. No new version was created.</source>
+        <translation>返回的素材没有变化，未创建新版本。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file or folder is unavailable. Choose a new writable folder or a valid file.</source>
+        <translation>文件或文件夹不可用。请选择新的可写文件夹或有效文件。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choose a valid PNG and the handoff from this editing session.</source>
+        <translation>请选择有效的 PNG 和本次编辑会话的交接文件。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Previous returns were cancelled. Export a fresh copy to continue.</source>
+        <translation>先前的返回结果已取消。请导出新副本以继续。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Review the returned material, then adopt it below to continue downstream.</source>
+        <translation>请审阅返回的素材，然后在下方采用，再继续后续创作。</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Choose a folder for the working copy</source>
+        <translation>选择工作副本的存放文件夹</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Choose the editing handoff</source>
+        <translation>选择编辑交接文件</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shape handoff (handoff.json)</source>
+        <translation>Shape 交接文件 (handoff.json)</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Choose the edited material</source>
+        <translation>选择编辑后的素材</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Image editing in Shadow</source>
+        <translation>在 Shadow 中编辑图片</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Audio editing in Echo</source>
+        <translation>在 Echo 中编辑音频</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Original: %1 · Kept unchanged</source>
+        <translation>原素材：%1 · 保持不变</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Export a working copy, edit source.png in Shadow, then export a new PNG. Bring it back here for review.</source>
+        <translation>导出工作副本，在 Shadow 中编辑 source.png 并导出新的 PNG，然后回到此处审阅。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The original has a newer version. Refresh the input explicitly before continuing.</source>
+        <translation>原素材已有新版本。请明确刷新输入后再继续。</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Export working copy</source>
+        <translation>导出工作副本</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Choose handoff</source>
+        <translation>选择交接文件</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Choose edited file</source>
+        <translation>选择编辑后文件</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Review returned material</source>
+        <translation>审阅返回的素材</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Handoff: %1</source>
+        <translation>交接文件：%1</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A saved handoff lets you return to this stage after reopening Shape.</source>
+        <translation>保存交接文件后，重新打开 Shape 仍可返回此阶段。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Returned file: %1</source>
+        <translation>返回文件：%1</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Listen to original</source>
+        <translation>试听原素材</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Listen to returned audio</source>
+        <translation>试听返回音频</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Cancel editing session</source>
+        <translation>取消编辑会话</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Refresh input</source>
+        <translation>刷新输入</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Exported copies stay on disk after cancellation.</source>
+        <translation>取消后，已导出的副本仍保留在磁盘上。</translation>
+    </message>
+    <message>
+        <location line="-138"/>
+        <source>Choose a valid WAV and this session’s handoff. Enable conversion for Echo PCM24 exports.</source>
+        <translation>请选择有效的 WAV 和本次会话的交接文件。对于 Echo 导出的 PCM24，请启用转换。</translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>Export a working copy, edit source.wav in Echo, then export a new WAV. Enable PCM24 conversion below to review Echo’s export.</source>
+        <translation>导出工作副本，在 Echo 中编辑 source.wav，再导出新的 WAV。启用下方的 PCM24 转换即可审阅 Echo 的导出结果。</translation>
+    </message>
+    <message>
+        <location line="-21"/>
+        <source>Shadow result or PNG (*.json *.png)</source>
+        <translation>Shadow 返回结果或 PNG (*.json *.png)</translation>
+    </message>
+</context>
+<context>
+    <name>OperatorIntentSidebar</name>
+    <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/OperatorIntentSidebar.qml" line="+340"/>
+        <source>Stopping after this image…</source>
+        <translation>将在当前图片完成后停止…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop after this image</source>
+        <translation>当前图片完成后停止</translation>
+    </message>
+    <message>
+        <location line="-35"/>
+        <source>Versions this run</source>
+        <translation>本次生成数量</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Number of image versions</source>
+        <translation>图片候选数量</translation>
+    </message>
+    <message>
+        <location line="-298"/>
         <source>Describe the result you want…</source>
         <translation>描述你想要的结果…</translation>
     </message>
     <message>
-        <location line="+124"/>
+        <location line="+145"/>
         <source>CHANGE</source>
         <translation>修改</translation>
     </message>
@@ -2318,17 +2560,17 @@
         <translation>添加参考素材</translation>
     </message>
     <message>
-        <location line="-155"/>
+        <location line="-175"/>
         <source>No reference materials</source>
         <translation>暂无参考素材</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Create a version</source>
         <translation>创建一个版本</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+62"/>
         <location line="+40"/>
         <source>Creative direction</source>
         <translation>创作方向</translation>
@@ -2339,30 +2581,40 @@
         <translation>你想要的结果</translation>
     </message>
     <message>
-        <location line="+179"/>
+        <location line="+218"/>
         <source>Working…</source>
         <translation>处理中…</translation>
     </message>
 </context>
 <context>
     <name>OperatorPalette</name>
-<message><source>Create sound effects or music</source><translation>创作音效或音乐</translation></message>
-<message><source>Generate local sound effects or short music from a description.</source><translation>根据描述在本机生成音效或短音乐。</translation></message>
     <message>
-        <source>AI text editor</source>
-        <translation type="vanished">AI 文本编辑器</translation>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/OperatorPalette.qml" line="+24"/>
+        <source>Edit image in Shadow</source>
+        <translation>在 Shadow 中编辑图片</translation>
     </message>
     <message>
-        <location filename="../qml/components/OperatorPalette.qml" line="+34"/>
+        <location line="+1"/>
+        <source>Edit audio in Echo</source>
+        <translation>在 Echo 中编辑音频</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Create sound effects or music</source>
+        <translation>创作音效或音乐</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Generate local sound effects or short music from a description.</source>
+        <translation>根据描述在本机生成音效或短音乐。</translation>
+    </message>
+    <message>
+        <location line="-39"/>
         <source>Turn text into speech</source>
         <translation>将文字转成语音</translation>
     </message>
     <message>
-        <source>Combine graph materials with a reusable prompt, tone, style, and candidate workflow.</source>
-        <translation type="vanished">将节点图素材与可复用的提示词、语气、风格和候选流程组合起来。</translation>
-    </message>
-    <message>
-        <location line="+45"/>
+        <location line="+46"/>
         <source>Create a spoken version from the current text.</source>
         <translation>根据当前文字创建语音版本。</translation>
     </message>
@@ -2393,12 +2645,12 @@
         <translation>搜索节点库…</translation>
     </message>
     <message>
-        <location line="-244"/>
+        <location line="-245"/>
         <source>Edit the image</source>
         <translation>编辑图像</translation>
     </message>
     <message>
-        <location line="-13"/>
+        <location line="-14"/>
         <source>Text creation</source>
         <translation>文本创作</translation>
     </message>
@@ -2433,7 +2685,7 @@
         <translation>改编为脚本</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Generate an image</source>
         <translation>生成图片</translation>
     </message>
@@ -2493,7 +2745,7 @@
         <translation>将原文改编为包含角色、停顿和节奏的口播脚本。</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Create an image from a description with Codex Luna through Infer.</source>
         <translation>通过 Infer 调用 Codex Luna，根据描述生成图片。</translation>
     </message>
@@ -2540,10 +2792,28 @@
 </context>
 <context>
     <name>OperatorWorkspaceHost</name>
-    <message><source>Create sound effects or music</source><translation>创作音效或音乐</translation></message>
-    <message><source>Text creation</source><translation>文本创作</translation></message>
     <message>
-        <location filename="../qml/components/OperatorWorkspaceHost.qml" line="+108"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/OperatorWorkspaceHost.qml" line="+124"/>
+        <source>Edit image in Shadow</source>
+        <translation>在 Shadow 中编辑图片</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Edit audio in Echo</source>
+        <translation>在 Echo 中编辑音频</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Create sound effects or music</source>
+        <translation>创作音效或音乐</translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>Text creation</source>
+        <translation>文本创作</translation>
+    </message>
+    <message>
+        <location line="-16"/>
         <source>Text</source>
         <translation>文本</translation>
     </message>
@@ -2568,12 +2838,7 @@
         <translation>起始素材</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Current result</source>
-        <translation>当前结果</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+9"/>
         <source>AI text editor</source>
         <translation>AI 文本编辑器</translation>
     </message>
@@ -2588,7 +2853,7 @@
         <translation>图像编辑</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>Turn text into speech</source>
         <translation>将文字转成语音</translation>
     </message>
@@ -2608,7 +2873,7 @@
         <translation>不支持的算子</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+47"/>
         <source>WORKSPACE UNAVAILABLE</source>
         <translation>工作台不可用</translation>
     </message>
@@ -2638,23 +2903,22 @@
         <translation>审阅中</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+1"/>
         <source>Draft</source>
         <translation>草稿</translation>
     </message>
     <message>
-        <location line="-39"/>
-        <location line="+12"/>
+        <location line="-41"/>
         <source>Return to workflow</source>
         <translation>返回创作流程</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+21"/>
         <source>Reviewing a new version</source>
         <translation>正在查看新版本</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+2"/>
         <source>Working on this creative step</source>
         <translation>正在处理这个创作步骤</translation>
     </message>
@@ -2663,23 +2927,31 @@
         <source>Transformation: %1</source>
         <translation>变换：%1</translation>
     </message>
-    <message><source>Viewing the accepted version</source><translation>正在查看已采用的版本</translation></message>
-    <message><source>Accepted</source><translation>已采用</translation></message>
+    <message>
+        <location line="+51"/>
+        <source>Viewing the accepted version</source>
+        <translation>正在查看已采用的版本</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Accepted</source>
+        <translation>已采用</translation>
+    </message>
 </context>
 <context>
     <name>ProjectNavigator</name>
     <message>
-        <location filename="../qml/components/ProjectNavigator.qml" line="+61"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ProjectNavigator.qml" line="+61"/>
         <source>PROJECT</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location line="+119"/>
+        <location line="+116"/>
         <source>Import material…</source>
         <translation>导入素材…</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-55"/>
         <source>SCENE GRAPH</source>
         <translation>场景图</translation>
     </message>
@@ -2689,12 +2961,12 @@
         <translation>新建</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>Open…</source>
         <translation>打开…</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>CURRENT</source>
         <translation>当前</translation>
     </message>
@@ -2709,7 +2981,7 @@
         <translation>打开当前场景图</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>+ Text Scene</source>
         <translation>+ 文本场景</translation>
     </message>
@@ -2754,7 +3026,7 @@
         <translation>尚未载入项目</translation>
     </message>
     <message>
-        <location line="-177"/>
+        <location line="-176"/>
         <source>%1 accepted</source>
         <translation>已接受 %1 个</translation>
     </message>
@@ -2762,7 +3034,7 @@
 <context>
     <name>ProjectWelcome</name>
     <message>
-        <location filename="../qml/components/ProjectWelcome.qml" line="+51"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ProjectWelcome.qml" line="+54"/>
         <source>Your projects</source>
         <translation>你的项目</translation>
     </message>
@@ -2782,10 +3054,12 @@
         <translation>继续现有项目…</translation>
     </message>
     <message>
+        <location line="+15"/>
         <source>Recent projects</source>
         <translation>最近打开</translation>
     </message>
     <message>
+        <location line="+25"/>
         <source>Unavailable</source>
         <translation>不可用</translation>
     </message>
@@ -2793,7 +3067,7 @@
 <context>
     <name>RasterCropOperatorWorkspace</name>
     <message>
-        <location filename="../qml/components/RasterCropOperatorWorkspace.qml" line="+176"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/RasterCropOperatorWorkspace.qml" line="+176"/>
         <source>Crop %1 × %2 at %3, %4</source>
         <translation>裁剪 %1 × %2，起点 %3, %4</translation>
     </message>
@@ -2816,7 +3090,7 @@
 <context>
     <name>RasterEffectsWorkspace</name>
     <message>
-        <location filename="../qml/components/RasterEffectsWorkspace.qml" line="+67"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/RasterEffectsWorkspace.qml" line="+67"/>
         <source>Accepted image</source>
         <translation>已接受图像</translation>
     </message>
@@ -2862,7 +3136,7 @@
     </message>
     <message>
         <location line="+10"/>
-        <location line="+37"/>
+        <location line="+36"/>
         <source>Radius</source>
         <translation>半径</translation>
     </message>
@@ -2887,7 +3161,7 @@
         <translation>阈值</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+14"/>
         <source>Create sharpen Candidate</source>
         <translation>创建锐化候选</translation>
     </message>
@@ -2922,7 +3196,7 @@
         <translation>首版桌面控件使用黑色投影；底层操作已经精确保留 RGBA 着色参数。</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
         <source>Create shadow Candidate</source>
         <translation>创建投影候选</translation>
     </message>
@@ -2930,7 +3204,7 @@
 <context>
     <name>RasterResizeOperatorWorkspace</name>
     <message>
-        <location filename="../qml/components/RasterResizeOperatorWorkspace.qml" line="+142"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/RasterResizeOperatorWorkspace.qml" line="+142"/>
         <source>%1 × %2 px</source>
         <translation>%1 × %2 像素</translation>
     </message>
@@ -3017,100 +3291,9 @@
     </message>
 </context>
 <context>
-    <name>ReadOnlyNodeWorkspace</name>
-    <message>
-        <location filename="../qml/components/ReadOnlyNodeWorkspace.qml" line="+47"/>
-        <source>READ-ONLY SOURCE</source>
-        <translation>只读源节点</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>READ-ONLY OUTPUT</source>
-        <translation>只读输出节点</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>Immutable scene input</source>
-        <translation>不可变场景输入</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Accepted scene result</source>
-        <translation>已接受的场景结果</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>Source nodes expose an immutable input revision. Open an Operator to make a change.</source>
-        <translation>源节点只公开不可变的输入修订。若要进行更改，请打开算子节点。</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Output nodes expose an accepted Scene result. Editing happens in an upstream Operator.</source>
-        <translation>输出节点只公开已接受的场景结果。编辑应在上游算子节点中进行。</translation>
-    </message>
-    <message>
-        <location line="+28"/>
-        <source>Artifact</source>
-        <translation>创作对象</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>Revision</source>
-        <translation>修订</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>Node</source>
-        <translation>节点</translation>
-    </message>
-</context>
-<context>
-    <name>SceneGraphContextStrip</name>
-    <message>
-        <location filename="../qml/components/SceneGraphContextStrip.qml" line="+48"/>
-        <source>Ready to work on</source>
-        <translation>可以开始处理</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>Starting point</source>
-        <translation>起点</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Current result</source>
-        <translation>当前结果</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Creative step</source>
-        <translation>创作步骤</translation>
-    </message>
-    <message>
-        <location line="+48"/>
-        <source>Workflow</source>
-        <translation>创作流程</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>%1 step(s) · %2 new version(s)</source>
-        <translation>%1 个步骤 · %2 个新版本</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>See workflow</source>
-        <translation>查看流程</translation>
-    </message>
-    <message>
-        <location line="+107"/>
-        <source>No graph context available</source>
-        <translation>暂无图谱上下文</translation>
-    </message>
-</context>
-<context>
     <name>SceneGraphToolbar</name>
     <message>
-        <location filename="../qml/components/SceneGraphToolbar.qml" line="+60"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SceneGraphToolbar.qml" line="+60"/>
         <source>Project</source>
         <translation>项目</translation>
     </message>
@@ -3157,40 +3340,58 @@
 </context>
 <context>
     <name>SceneOperatorGraphWorkspace</name>
-    <message><source>Final file · %1</source><translation>最终文件 · %1</translation></message>
-    <message><source>Save the accepted result as a file outside this project.</source><translation>将已采用的结果保存为项目外的文件。</translation></message>
-    <message><source>Accept a version before exporting a final file.</source><translation>先采用一个版本，再导出最终文件。</translation></message>
-    <message><source>Export %1…</source><translation>导出 %1…</translation></message>
     <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SceneOperatorGraphWorkspace.qml" line="+841"/>
+        <source>Final file · %1</source>
+        <translation>最终文件 · %1</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Save the accepted result as a file outside this project.</source>
+        <translation>将已采用的结果保存为项目外的文件。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Accept a version before exporting a final file.</source>
+        <translation>先采用一个版本，再导出最终文件。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Export %1…</source>
+        <translation>导出 %1…</translation>
+    </message>
+    <message>
+        <location line="-379"/>
         <source>Earlier version</source>
         <translation>较早版本</translation>
     </message>
     <message>
+        <location line="-134"/>
         <source>EARLIER SOURCE VERSION</source>
         <translation>较早的源版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="278"/>
+        <location line="+5"/>
         <source>OUTPUT</source>
         <translation>输出</translation>
     </message>
     <message>
-        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="258"/>
+        <location line="-23"/>
         <source>Output</source>
         <translation>输出</translation>
     </message>
     <message>
-        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="341"/>
+        <location line="+91"/>
         <source>No accepted version yet</source>
         <translation>尚无已采用版本</translation>
     </message>
     <message>
-        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="+251"/>
+        <location line="-95"/>
         <source>Starting material</source>
         <translation>起始素材</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>%1 / Current</source>
         <translation>%1 / 当前</translation>
     </message>
@@ -3200,7 +3401,8 @@
         <translation>当前结果</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-269"/>
+        <location line="+276"/>
         <source>Text</source>
         <translation>文本</translation>
     </message>
@@ -3216,7 +3418,7 @@
     </message>
     <message>
         <location line="+1"/>
-        <location line="+28"/>
+        <location line="+30"/>
         <source>Creative content</source>
         <translation>创作内容</translation>
     </message>
@@ -3267,7 +3469,7 @@
         <translation>这个作品所使用的原始素材 · %1</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>The version currently used by this work · %1</source>
         <translation>这个作品当前采用的版本 · %1</translation>
     </message>
@@ -3287,7 +3489,7 @@
         <translation>音频结果已可供审阅</translation>
     </message>
     <message>
-        <location line="+313"/>
+        <location line="+350"/>
         <source>Review version %1</source>
         <translation>查看版本 %1</translation>
     </message>
@@ -3302,12 +3504,12 @@
         <translation>创建或导入内容，Shape 会自动搭好第一步。</translation>
     </message>
     <message>
-        <location line="-83"/>
+        <location line="-102"/>
         <source>Open %1</source>
         <translation>打开 %1</translation>
     </message>
     <message>
-        <location line="-256"/>
+        <location line="-274"/>
         <source>Image result · %1 × %2</source>
         <translation>图像结果 · %1 × %2</translation>
     </message>
@@ -3315,13 +3517,14 @@
 <context>
     <name>ScriptPresentation</name>
     <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ScriptPresentation.js" line="+47"/>
         <source>Production note · not spoken
 %1</source>
         <translation>制作备注 · 不朗读
 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/ScriptPresentation.js" line="+4"/>
+        <location line="-43"/>
         <source>Clear and even</source>
         <translation>清晰平稳</translation>
     </message>
@@ -3491,178 +3694,122 @@
         <translation>每条完整的 [指令：值] 须独占一行，详见“规则与示例”。</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Silence · %1 seconds</source>
         <translation>静音 · %1 秒</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+4"/>
         <source>Sound cue · %1</source>
         <translation>提示音 · %1</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-3"/>
         <source>Scene · %1</source>
         <translation>片段 · %1</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Play %1 times · identical audio · %2 s between plays</source>
         <translation>播放 %1 遍 · 复用同一录音 · 遍间留白 %2 秒</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>End repeat · continue once</source>
         <translation>重复结束 · 后续播放一次</translation>
     </message>
 </context>
 <context>
-    <name>ScriptProductionSettings</name>
+    <name>ShapeMessageDialog</name>
     <message>
-        <location filename="../qml/components/ScriptProductionSettings.qml" line="+26"/>
-        <source>Production settings</source>
-        <translation>制作设置</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>AI writes these requirements into the script. Shape checks the controls before adoption.</source>
-        <translation>AI 会把这些要求写入脚本；采用前，Shape 会检查播放控制是否符合设置。</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Overall delivery</source>
-        <translation>整体朗读语气</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Natural and steady</source>
-        <translation>自然平稳</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Clear and even</source>
-        <translation>清晰平稳</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Warm and friendly</source>
-        <translation>温暖亲切</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Light and lively</source>
-        <translation>轻快活泼</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Stable role names</source>
-        <translation>固定角色名称</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Narrator, Reader — separate names with commas</source>
-        <translation>播音员，朗读者（用逗号分隔）</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Listening delivery stays clear and even. Language changes keep the same character; choose each character&apos;s voice after adopting the script.</source>
-        <translation>听力保持清晰平稳。中英切换不会更换角色；采用脚本后，再为每个角色选择音色。</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Use one role for a monologue. Add roles for actual dialogue or interviews; each name keeps one voice throughout.</source>
-        <translation>独白通常只需一个角色。对话或访谈按实际说话者添加角色，同名角色全程保持一个音色。</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Play each question</source>
-        <translation>每题播放次数</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Once</source>
-        <translation>一遍</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Twice · identical audio</source>
-        <translation>两遍 · 同一录音</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Three times · identical audio</source>
-        <translation>三遍 · 同一录音</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Between plays</source>
-        <translation>遍间留白</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <location line="+12"/>
-        <source>%1 seconds</source>
-        <translation>%1 秒</translation>
-    </message>
-    <message>
-        <location line="-5"/>
-        <source>Time to answer</source>
-        <translation>答题时间</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>Answer cue · soft beep enabled</source>
-        <translation>答题提示 · 已启用轻柔短音</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Answer cue · no sound</source>
-        <translation>答题提示 · 无声音</translation>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ShapeMessageDialog.qml" line="+63"/>
+        <source>Close</source>
+        <translation>关闭</translation>
     </message>
 </context>
 <context>
     <name>ShapeSettingsDialog</name>
-    <message><source>Effort</source><translation>推理投入</translation></message>
-    <message><source>Runtime default</source><translation>运行时默认</translation></message>
-    <message><source>Low</source><translation>低</translation></message>
-    <message><source>Medium</source><translation>中</translation></message>
-    <message><source>High</source><translation>高</translation></message>
-    <message><source>Extra high</source><translation>很高</translation></message>
-    <message><source>Max</source><translation>最高</translation></message>
-    <message><source>Ultra</source><translation>极高</translation></message>
     <message>
-        <location filename="../qml/ShapeSettingsDialog.qml" line="+94"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/ShapeSettingsDialog.qml" line="+254"/>
+        <location line="+41"/>
+        <source>Effort</source>
+        <translation>推理投入</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Runtime default</source>
+        <translation>运行时默认</translation>
+    </message>
+    <message>
+        <location line="-40"/>
+        <location line="+40"/>
+        <source>Low</source>
+        <translation>低</translation>
+    </message>
+    <message>
+        <location line="-40"/>
+        <location line="+40"/>
+        <source>Medium</source>
+        <translation>中</translation>
+    </message>
+    <message>
+        <location line="-40"/>
+        <location line="+41"/>
+        <source>High</source>
+        <translation>高</translation>
+    </message>
+    <message>
+        <location line="-40"/>
+        <location line="+40"/>
+        <source>Extra high</source>
+        <translation>很高</translation>
+    </message>
+    <message>
+        <location line="-40"/>
+        <location line="+40"/>
+        <source>Max</source>
+        <translation>最高</translation>
+    </message>
+    <message>
+        <location line="-38"/>
+        <location line="+40"/>
+        <source>Ultra</source>
+        <translation>极高</translation>
+    </message>
+    <message>
+        <location line="-214"/>
         <source>Shape settings</source>
         <translation>Shape 设置</translation>
     </message>
     <message>
-        <location line="+218"/>
+        <location line="+330"/>
         <source>Done</source>
         <translation>完成</translation>
     </message>
     <message>
-        <location line="-190"/>
+        <location line="-295"/>
         <source>Appearance</source>
         <translation>外观</translation>
     </message>
     <message>
-        <location line="-21"/>
+        <location line="-28"/>
         <source>Appearance, language, and AI models</source>
         <translation>外观、语言与 AI 模型</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+35"/>
         <source>Follow the system by default, or keep Shape light or dark.</source>
         <translation>默认跟随系统，也可以让 Shape 始终使用亮色或暗色。</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <location line="+45"/>
+        <location line="+11"/>
+        <location line="+44"/>
         <source>System</source>
         <translation>跟随系统</translation>
     </message>
     <message>
-        <location line="-44"/>
+        <location line="-43"/>
         <source>Light</source>
         <translation>亮色</translation>
     </message>
@@ -3682,27 +3829,32 @@
         <translation>默认跟随系统语言。</translation>
     </message>
     <message>
+        <location line="+38"/>
         <source>AI models</source>
         <translation>AI 模型</translation>
     </message>
     <message>
+        <location line="+8"/>
         <source>Cloud choices send the prompt to the subscription provider. Availability depends on Infer Runtime access.</source>
         <translation>选择云端模型会将提示词发送给订阅服务。能否使用取决于 Infer Runtime 授权。</translation>
     </message>
     <message>
+        <location line="+12"/>
         <source>Default text</source>
         <translation>文本默认模型</translation>
     </message>
     <message>
+        <location line="+42"/>
         <source>Default image</source>
         <translation>图片默认模型</translation>
     </message>
     <message>
+        <location line="-35"/>
         <source>Local Qwen 3.5</source>
         <translation>本地 Qwen 3.5</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+84"/>
         <source>Infer Runtime access</source>
         <translation>Infer Runtime 访问</translation>
     </message>
@@ -3743,18 +3895,195 @@
     </message>
 </context>
 <context>
-    <name>SourceMaterialWorkspace</name>
-    <message><source>View source</source><translation>查看源内容</translation></message>
-    <message><source>Edit with Agent</source><translation>用 Agent 编辑</translation></message>
-    <message><source>View HTML source</source><translation>查看 HTML 源码</translation></message>
-    <message><source>Preview HTML animation</source><translation>预览 HTML 动画</translation></message>
-    <message><source>Preview runs this self-contained HTML in an offline browser. Export preserves the accepted file exactly.</source><translation>预览会在离线浏览器中运行这份自包含 HTML；导出会原样保存已采纳的文件。</translation></message>
+    <name>SoundGenerationWorkspace</name>
     <message>
-        <location filename="../qml/components/SourceMaterialWorkspace.qml" line="+27"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SoundGenerationWorkspace.qml" line="+58"/>
+        <source>Preparing your description locally…</source>
+        <translation>正在本机准备声音描述…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Generating audio locally…</source>
+        <translation>正在本机生成音频…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stopped. Your description is ready to try again.</source>
+        <translation>已停止，可使用当前描述重试。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Generation could not finish. Check Infer access and try again. (%1)</source>
+        <translation>生成未能完成，请检查 Infer 访问配置后重试。（%1）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Chinese descriptions are translated locally. Listen to a version, then choose Use this version to keep it.</source>
+        <translation>中文描述会在本机转换。请先试听，再选择“采用此版本”保留结果。</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Sound effects and short music</source>
+        <translation>音效与短音乐</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Describe the sounds, instruments, rhythm and atmosphere you want.</source>
+        <translation>描述你想要的声音、乐器、节奏和氛围。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Rain on a window, distant thunder, no speech or music…</source>
+        <translation>雨滴敲打窗户，远处传来雷声，没有人声和音乐…</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Model</source>
+        <translation>模型</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Stable Audio 3 Small · Sound effects</source>
+        <translation>Stable Audio 3 Small · 音效</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Stable Audio 3 Small · Music</source>
+        <translation>Stable Audio 3 Small · 音乐</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Seconds · 1–30</source>
+        <translation>时长 · 1–30 秒</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Seed</source>
+        <translation>种子</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Try again</source>
+        <translation>重试</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Generate a version</source>
+        <translation>生成一个版本</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>44.1 kHz · Stereo · WAV</source>
+        <translation>44.1 kHz · 立体声 · WAV</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Pause</source>
+        <translation>暂停</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Play</source>
+        <translation>播放</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Export WAV</source>
+        <translation>导出 WAV</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Audio playback is unavailable.</source>
+        <translation>音频暂时无法播放。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hide generation details</source>
+        <translation>收起生成详情</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Generation details</source>
+        <translation>生成详情</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Original description</source>
+        <translation>原始描述</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Description sent to the audio model</source>
+        <translation>提交给音频模型的描述</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Preparation: %1 · %2 ms</source>
+        <translation>描述转换：%1 · %2 毫秒</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Text task: %1 · %2</source>
+        <translation>文本任务：%1 · %2</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>English description used unchanged</source>
+        <translation>英文描述按原文使用</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sound task: %1 · Seed %2 · %3 s</source>
+        <translation>声音任务：%1 · 种子 %2 · %3 秒</translation>
+    </message>
+    <message>
+        <location line="-99"/>
+        <source>This version is accepted. You can listen, export WAV, or inspect its generation details.</source>
+        <translation>此版本已采用。你可以试听、导出 WAV 或查看生成详情。</translation>
+    </message>
+</context>
+<context>
+    <name>SourceMaterialWorkspace</name>
+    <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SourceMaterialWorkspace.qml" line="+137"/>
+        <source>View source</source>
+        <translation>查看源内容</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Edit with Agent</source>
+        <translation>用 Agent 编辑</translation>
+    </message>
+    <message>
+        <location line="-11"/>
+        <source>View HTML source</source>
+        <translation>查看 HTML 源码</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Preview HTML animation</source>
+        <translation>预览 HTML 动画</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Preview runs this self-contained HTML in an offline browser. Export preserves the accepted file exactly.</source>
+        <translation>预览会在离线浏览器中运行这份自包含 HTML；导出会原样保存已采纳的文件。</translation>
+    </message>
+    <message>
+        <location line="-102"/>
         <source>Original text</source>
         <translation>原始文本</translation>
     </message>
-    <message><source>Original code</source><translation>原始代码</translation></message>
+    <message>
+        <location line="+0"/>
+        <source>Original code</source>
+        <translation>原始代码</translation>
+    </message>
     <message>
         <location line="+1"/>
         <source>Original image</source>
@@ -3776,27 +4105,27 @@
         <translation>源素材</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+48"/>
         <source>LOCKED INPUT</source>
         <translation>已锁定输入</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+11"/>
         <source>The accepted source stays unchanged while you review an Agent result.</source>
         <translation>审阅 Agent 结果期间，已接受的源内容保持不变。</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>This is the exact material connected to the workflow. Add an editing node after it to create a new version.</source>
         <translation>这是连接到工作流的确切素材。在它后面添加编辑节点即可创建新版本。</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+17"/>
         <source>Empty text</source>
         <translation>空文本</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+67"/>
         <source>Image material</source>
         <translation>图像素材</translation>
     </message>
@@ -3811,54 +4140,35 @@
         <translation>创作素材</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>This material is preserved exactly as the node input.</source>
         <translation>此素材会作为节点输入原样保留。</translation>
     </message>
-    <message><source>Imported audio is preserved as selected. Its recording or generation origin has not been verified.</source><translation>导入音频按所选内容保存；录制或生成来源尚未核实。</translation></message>
-    <message><source>Pause preview</source><translation>暂停试听</translation></message>
-    <message><source>Play preview</source><translation>播放试听</translation></message>
     <message>
-        <location line="+12"/>
+        <location line="-1"/>
+        <source>Imported audio is preserved as selected. Its recording or generation origin has not been verified.</source>
+        <translation>导入音频按所选内容保存；录制或生成来源尚未核实。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Pause preview</source>
+        <translation>暂停试听</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Play preview</source>
+        <translation>播放试听</translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Preview shortened · the complete source remains preserved</source>
         <translation>预览已缩短 · 完整源内容仍会保留</translation>
     </message>
 </context>
 <context>
-    <name>AgentFileTaskWorkspace</name>
-    <message><source>Configure Infer access in Settings before running this task.</source><translation>运行此任务前，请先在设置中配置 Infer 访问。</translation></message>
-    <message><source>Agent file tasks are not enabled for Shape in Infer.</source><translation>Infer 尚未为 Shape 启用 Agent 文件任务。</translation></message>
-    <message><source>The Agent provider is unavailable. Try again later.</source><translation>Agent 提供方当前不可用，请稍后重试。</translation></message>
-    <message><source>The source changed while the task was running. Review the current source and run again.</source><translation>任务运行期间源内容发生变化。请检查当前源内容后重新运行。</translation></message>
-    <message><source>The Agent result failed validation and was not added as a candidate.</source><translation>Agent 结果未通过校验，未加入候选。</translation></message>
-    <message><source>Infer is unavailable. Check its status and try again.</source><translation>Infer 当前不可用，请检查其状态后重试。</translation></message>
-    <message><source>Infer did not confirm the task outcome. Check its Jobs before starting another task.</source><translation>Infer 未能确认任务结果。开始新任务前，请先检查 Infer 中的任务记录。</translation></message>
-    <message><source>Describe the change you want the Agent to make.</source><translation>请描述希望 Agent 完成的修改。</translation></message>
-    <message><source>The Agent task failed. No project content was changed.</source><translation>Agent 任务失败，项目内容未发生变化。</translation></message>
-    <message><source>Infer sends a copy of this accepted source to the authorized cloud Agent. Review its result before adding it to the project.</source><translation>Infer 会将这份已接受源内容的副本发送给已授权的云端 Agent。加入项目前请先审阅结果。</translation></message>
-    <message><source>Describe the file change, for example: make this animation loop smoothly without changing its colors.</source><translation>描述文件修改，例如：让这个动画平滑循环，同时保持颜色不变。</translation></message>
-    <message><source>Running…</source><translation>运行中…</translation></message>
-    <message><source>Run Agent</source><translation>运行 Agent</translation></message>
-    <message><source>The Agent is working on a private copy. The accepted source stays available.</source><translation>Agent 正在处理独立副本；已接受的源内容仍可使用。</translation></message>
-    <message><source>Accepted source · %1</source><translation>已接受的源内容 · %1</translation></message>
-    <message><source>Candidate · %1</source><translation>候选 · %1</translation></message>
-    <message><source>Agent result</source><translation>Agent 结果</translation></message>
-    <message><source>Run the task to create a reviewable candidate.</source><translation>运行任务后会生成可审阅的候选。</translation></message>
-    <message><source>Use the candidate controls below to accept or discard this result. Accept creates a separate work and keeps the source unchanged.</source><translation>使用下方候选操作接受或丢弃结果。接受后会创建独立作品，源内容保持不变。</translation></message>
-</context>
-<context>
-    <name>WebAnimationPreview</name>
-    <message><source>This HTML could not be previewed.</source><translation>无法预览这份 HTML。</translation></message>
-    <message><source>This HTML is too large for the in-app preview. You can still inspect and export the original file.</source><translation>这份 HTML 超出应用内预览大小限制；仍可查看并导出原文件。</translation></message>
-</context>
-<context>
     <name>SpeechScriptHelpDialog</name>
     <message>
-        <source>Narration script guide</source>
-        <translation type="vanished">配音脚本指南</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/SpeechScriptHelpDialog.qml" line="+23"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SpeechScriptHelpDialog.qml" line="+23"/>
         <source>Production script guide</source>
         <translation>制作脚本指南</translation>
     </message>
@@ -3953,43 +4263,7 @@
         <translation>普通段落会朗读，标题和备注不朗读。需要执行的要求须使用控制指令，仅写备注不会改变声音。</translation>
     </message>
     <message>
-        <source>Spoken text and headings</source>
-        <translation type="vanished">正文与标题</translation>
-    </message>
-    <message>
-        <source>Ordinary paragraphs are spoken. Headings organize the document and are silent.</source>
-        <translation type="vanished">普通段落会被朗读；标题用于组织文稿，不会被朗读。</translation>
-    </message>
-    <message>
-        <source>Roles and mixed languages</source>
-        <translation type="vanished">角色与中英混读</translation>
-    </message>
-    <message>
-        <source>Role names stay consistent in the script. Choose each role&apos;s voice later. Automatic language supports mixed Chinese and English.</source>
-        <translation type="vanished">同一角色使用固定名称，音色在配音时选择。自动语言模式支持中英混读。</translation>
-    </message>
-    <message>
-        <source>Exact pauses and repetition</source>
-        <translation type="vanished">精确停顿与重复朗读</translation>
-    </message>
-    <message>
-        <source>A pause inserts silence for the specified duration. Repeat spoken lines explicitly when they should be read again.</source>
-        <translation type="vanished">停顿指令插入指定时长的静音。需要读两遍时，请在稿中完整重复正文。</translation>
-    </message>
-    <message>
-        <source>Sound cues and silent notes</source>
-        <translation type="vanished">音效与制作备注</translation>
-    </message>
-    <message>
-        <source>Resolve each sound cue in the speech node by choosing a sound or explicitly skipping it. Notes are never spoken.</source>
-        <translation type="vanished">在配音节点中为每个音效选择声音或明确跳过。制作备注不会被朗读。</translation>
-    </message>
-    <message>
-        <source>The bundled script documentation could not be loaded.</source>
-        <translation type="vanished">无法加载内置脚本文档。</translation>
-    </message>
-    <message>
-        <location line="+47"/>
+        <location line="+54"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
@@ -4004,7 +4278,7 @@
         <translation>复制脚本规则</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -4012,107 +4286,40 @@
 <context>
     <name>SpeechScriptPanel</name>
     <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SpeechScriptPanel.qml" line="+76"/>
         <source>Return to writing and add spoken text.</source>
         <translation>返回写稿并添加需要朗读的文字。</translation>
     </message>
     <message>
+        <location line="+1"/>
         <source>Return to writing and fix the marked script lines.</source>
         <translation>返回写稿，修正已标出的脚本行。</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <location line="+7"/>
         <source>Review the saved voice and cue settings.</source>
         <translation>请检查已保存的音色与提示音设置。</translation>
     </message>
     <message>
+        <location line="-5"/>
         <source>Choose a voice for %1 (line %2).</source>
         <translation>请为 %1 选择音色（第 %2 行）。</translation>
     </message>
     <message>
+        <location line="+2"/>
         <source>Choose an action for cue %1 (line %2).</source>
         <translation>请为提示音 %1 选择处理方式（第 %2 行）。</translation>
     </message>
     <message>
+        <location line="+2"/>
         <source>Script and choices checked. Listen to the generated audio before accepting.</source>
         <translation>脚本与选项已检查。生成后请先试听，再采用音频。</translation>
     </message>
     <message>
-        <source>Line %1 · %2 · %3
-%4</source>
-        <translation type="vanished">第 %1 行 · %2 · %3
-%4</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/SpeechScriptPanel.qml" line="+65"/>
+        <location line="-13"/>
         <source>Default voice</source>
         <translation>默认音色</translation>
-    </message>
-    <message>
-        <source>Workspace language</source>
-        <translation type="vanished">工作区语言</translation>
-    </message>
-    <message>
-        <source>Line %1 · Pause %2 s</source>
-        <translation type="vanished">第 %1 行 · 停顿 %2 秒</translation>
-    </message>
-    <message>
-        <source>Line %1 · Audio cue: %2</source>
-        <translation type="vanished">第 %1 行 · 音效：%2</translation>
-    </message>
-    <message>
-        <source>Line %1 · Heading (not spoken): %2</source>
-        <translation type="vanished">第 %1 行 · 标题（不朗读）：%2</translation>
-    </message>
-    <message>
-        <source>Line %1 · Instruction (not spoken): %2</source>
-        <translation type="vanished">第 %1 行 · 指令（不朗读）：%2</translation>
-    </message>
-    <message>
-        <source>Pause · %1 s</source>
-        <translation type="vanished">停顿 · %1 秒</translation>
-    </message>
-    <message>
-        <source>Sound cue · %1</source>
-        <translation type="vanished">音效 · %1</translation>
-    </message>
-    <message>
-        <source>Use a pause longer than 0 and at most 120 seconds, with up to three decimal places.</source>
-        <translation type="vanished">停顿须大于 0 秒、至多 120 秒，最多三位小数。</translation>
-    </message>
-    <message>
-        <source>Use a supported language or auto.</source>
-        <translation type="vanished">请使用支持的语言或“自动”。</translation>
-    </message>
-    <message>
-        <source>Unknown instruction. Use speaker, language, pause, audio or note.</source>
-        <translation type="vanished">未知指令。请使用角色、语言、停顿、音效或备注。</translation>
-    </message>
-    <message>
-        <source>Use a nonempty role or cue name.</source>
-        <translation type="vanished">请填写角色或音效名称。</translation>
-    </message>
-    <message>
-        <source>Put each complete [instruction: value] on its own line.</source>
-        <translation type="vanished">请将每条完整的 [指令：内容] 单独写在一行。</translation>
-    </message>
-    <message>
-        <source>Add at least one spoken line.</source>
-        <translation type="vanished">请至少添加一行口播正文。</translation>
-    </message>
-    <message>
-        <source>Close the instruction with ].</source>
-        <translation type="vanished">请用 ] 结束指令。</translation>
-    </message>
-    <message>
-        <source>Remove code blocks, tables, images and HTML.</source>
-        <translation type="vanished">请移除代码块、表格、图片和 HTML。</translation>
-    </message>
-    <message>
-        <source>Keep the script within 64 KiB and 2048 events.</source>
-        <translation type="vanished">脚本须在 64 KiB 和 2048 个事件以内。</translation>
-    </message>
-    <message>
-        <source>Close the comment before the next spoken line.</source>
-        <translation type="vanished">请在下一行口播正文之前结束注释。</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -4120,11 +4327,7 @@
         <translation>第 %1 行：%2</translation>
     </message>
     <message>
-        <source>Invalid script instruction.</source>
-        <translation type="vanished">脚本指令无效。</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+17"/>
         <source>Choose a script audio cue</source>
         <translation>选择脚本音效</translation>
     </message>
@@ -4144,24 +4347,12 @@
         <translation>停顿：%1 秒 · 音效：%2 个</translation>
     </message>
     <message>
-        <source>Write one instruction per line: [speaker: Narrator], [language: auto], [pause: 3s], [audio: Intro], [note: Direction]. Headings beginning with # are not spoken. Repeat the actual spoken text when needed.</source>
-        <translation type="vanished">每条指令单独占一行：[角色：播音员]、[语言：自动]、[停顿：3秒]、[音效：片头]、[备注：制作说明]。# 开头的标题不朗读。需要重复时，请再次写出完整正文。</translation>
-    </message>
-    <message>
-        <source>Total explicit pauses: %1 s. Resolve every audio cue below. Imported cues must be 24 kHz mono PCM16 WAV, up to 8 MiB.</source>
-        <translation type="vanished">显式停顿共 %1 秒。请处理下方所有音效。导入音效须为 24 kHz 单声道 PCM16 WAV，至多 8 MiB。</translation>
-    </message>
-    <message>
-        <source>Use workspace voice</source>
-        <translation type="vanished">沿用工作区音色</translation>
-    </message>
-    <message>
         <location line="+7"/>
         <source>Delivery · %1</source>
         <translation>朗读语气 · %1</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+15"/>
         <source>Some characters share a voice. For dialogue, choose distinguishable voices if they represent different people.</source>
         <translation>部分角色使用同一音色。若对话中代表不同人物，建议选择容易区分的声音。</translation>
     </message>
@@ -4176,7 +4367,7 @@
         <translation>请选择音色…</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+20"/>
         <source>Audio cue: %1</source>
         <translation>音效：%1</translation>
     </message>
@@ -4216,25 +4407,12 @@
         <translation>WAV 已保存在项目中</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <source>Ready to synthesize</source>
-        <translation>可以开始合成</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Choose a voice for every role and resolve all external cues.</source>
-        <translation>请为每个角色选择音色，并处理所有外部提示音。</translation>
-    </message>
-    <message>
-        <source>A spoken line and resolved instructions are required.</source>
-        <translation type="vanished">需要至少一行正文，并处理全部指令。</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+17"/>
         <source>PLAYBACK ORDER</source>
         <translation>播放顺序</translation>
     </message>
     <message>
+        <location line="-39"/>
         <source>Audio cues use 24 kHz mono PCM16 WAV files up to 8 MiB.</source>
         <translation>音效文件须为 24 kHz、单声道、PCM16 格式的 WAV，大小不超过 8 MiB。</translation>
     </message>
@@ -4242,35 +4420,7 @@
 <context>
     <name>SpeechScriptReadingView</name>
     <message>
-        <source>Use a pause longer than 0 and at most 120 seconds.</source>
-        <translation type="vanished">停顿须大于 0 秒且不超过 120 秒。</translation>
-    </message>
-    <message>
-        <source>Use a supported role, language, pause, audio or note instruction.</source>
-        <translation type="vanished">请使用支持的角色、语言、停顿、音效或备注指令。</translation>
-    </message>
-    <message>
-        <source>Use a supported language or auto.</source>
-        <translation type="vanished">请使用支持的语言或“自动”。</translation>
-    </message>
-    <message>
-        <source>Remove code fences, tables, images and HTML.</source>
-        <translation type="vanished">请移除代码围栏、表格、图片和 HTML。</translation>
-    </message>
-    <message>
-        <source>Add at least one spoken line.</source>
-        <translation type="vanished">请至少添加一行口播正文。</translation>
-    </message>
-    <message>
-        <source>Keep the script within 64 KiB and 2048 events.</source>
-        <translation type="vanished">脚本须在 64 KiB 和 2048 个事件以内。</translation>
-    </message>
-    <message>
-        <source>Put a complete [instruction: value] on its own line. See Format and examples.</source>
-        <translation type="vanished">请将完整的 [指令：值] 单独成行，具体写法可查看“格式与示例”。</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/SpeechScriptReadingView.qml" line="+16"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SpeechScriptReadingView.qml" line="+16"/>
         <source>Delivery · %1</source>
         <translation>朗读语气 · %1</translation>
     </message>
@@ -4284,63 +4434,51 @@
         <source>Line %1: %2</source>
         <translation>第 %1 行：%2</translation>
     </message>
-    <message>
-        <source>Pause · %1 seconds</source>
-        <translation type="vanished">停顿 · %1 秒</translation>
-    </message>
-    <message>
-        <source>Audio cue · %1</source>
-        <translation type="vanished">音效 · %1</translation>
-    </message>
 </context>
 <context>
     <name>TextAuthoringWorkspace</name>
     <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/TextAuthoringWorkspace.qml" line="+288"/>
         <source>Older candidates will be cleared. Draft text and accepted outputs stay.</source>
         <translation>基于旧原稿的候选将被清除；草稿文字与已采用作品会保留。</translation>
     </message>
     <message>
+        <location line="-203"/>
         <source>Create a listening exercise.</source>
         <translation>写一份听力练习。</translation>
     </message>
     <message>
+        <location line="+0"/>
         <source>Write a dialogue.</source>
         <translation>写一段对话。</translation>
     </message>
     <message>
+        <location line="+3"/>
         <source>Use these roles: %1.</source>
         <translation>使用这些角色：%1。</translation>
     </message>
     <message>
+        <location line="+1"/>
         <source>Use overall delivery: %1.</source>
         <translation>整体朗读语气使用 %1。</translation>
     </message>
     <message>
+        <location line="+2"/>
         <source>For each question, repeat %1 times with %2 seconds between plays; pause %3 seconds afterwards.</source>
         <translation>每题重复 %1 次，遍间停顿 %2 秒，随后停顿 %3 秒。</translation>
     </message>
     <message>
+        <location line="+3"/>
         <source>Declare a beep cue and play it before that pause.</source>
         <translation>声明一个短提示音，并在该停顿前播放。</translation>
     </message>
     <message>
+        <location line="+5"/>
         <source>Imported requirements from this older draft:</source>
         <translation>从旧草稿转入的制作要求：</translation>
     </message>
     <message>
-        <source>Repair only the script format. Preserve all spoken content, roles and intended pauses; use only the supported Shape instructions.</source>
-        <translation type="vanished">只修复脚本格式。保留全部口播正文、角色和原定停顿，仅使用 Shape 支持的指令。</translation>
-    </message>
-    <message>
-        <source>Narration script</source>
-        <translation type="vanished">配音脚本</translation>
-    </message>
-    <message>
-        <source>Free writing</source>
-        <translation type="vanished">自由文字</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/TextAuthoringWorkspace.qml" line="+193"/>
+        <location line="+137"/>
         <source>Format and examples</source>
         <translation>格式与示例</translation>
     </message>
@@ -4350,7 +4488,7 @@
         <translation>写稿</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Voices and audition</source>
         <translation>配音与试听</translation>
     </message>
@@ -4370,20 +4508,12 @@
         <translation>草稿已保存</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+75"/>
         <source>Let AI write</source>
         <translation>让 AI 起稿</translation>
     </message>
     <message>
-        <source>Adapt existing text</source>
-        <translation type="vanished">整理现有文本</translation>
-    </message>
-    <message>
-        <source>Repair the script using the selected production settings. Preserve the spoken content. Resolve these validation errors:</source>
-        <translation type="vanished">请按当前制作设置修复脚本，保留朗读正文，解决以下校验错误：</translation>
-    </message>
-    <message>
-        <location line="-101"/>
+        <location line="-96"/>
         <source>Text editing</source>
         <translation>文本编辑</translation>
     </message>
@@ -4393,7 +4523,7 @@
         <translation>文本创作</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+36"/>
         <source>The script controls playback. Declare roles and cues before spoken text; place pauses, delivery changes and repeat blocks where they belong.</source>
         <translation>脚本控制播放。先声明角色和提示音，再在稿中安排停顿、语气变化和重复块。</translation>
     </message>
@@ -4414,16 +4544,17 @@
     </message>
     <message>
         <location line="+0"/>
+        <location line="+217"/>
         <source>The original changed. Update the input before generating or adopting a result.</source>
         <translation>原稿已更新，请先更新输入，再生成或采用结果。</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-204"/>
         <source>Use latest original</source>
         <translation>使用最新原稿</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+4"/>
         <source>Hide original</source>
         <translation>收起原稿</translation>
     </message>
@@ -4488,7 +4619,7 @@
         <translation>整理粘贴的文本</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+35"/>
         <source>Your draft</source>
         <translation>你的草稿</translation>
     </message>
@@ -4503,7 +4634,7 @@
         <translation>告诉 AI 你想写什么</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+11"/>
         <source>Describe the subject, audience, length and what you want to say…</source>
         <translation>描述主题、听众、篇幅，以及你想表达的内容…</translation>
     </message>
@@ -4523,7 +4654,7 @@
         <translation>添加参考文本</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+7"/>
         <source>Reference text</source>
         <translation>参考文本</translation>
     </message>
@@ -4531,46 +4662,6 @@
         <location line="+8"/>
         <source>Paste ordinary text, vocabulary or existing questions. AI will apply the script format.</source>
         <translation>粘贴普通文字、词汇或已有试题，AI 会自动整理为脚本格式。</translation>
-    </message>
-    <message>
-        <source>Read each question</source>
-        <translation type="vanished">每题朗读</translation>
-    </message>
-    <message>
-        <source>Once</source>
-        <translation type="vanished">一遍</translation>
-    </message>
-    <message>
-        <source>Twice</source>
-        <translation type="vanished">两遍</translation>
-    </message>
-    <message>
-        <source>Three times</source>
-        <translation type="vanished">三遍</translation>
-    </message>
-    <message>
-        <source>Pause between questions</source>
-        <translation type="vanished">题间停顿</translation>
-    </message>
-    <message>
-        <source>3 seconds</source>
-        <translation type="vanished">3 秒</translation>
-    </message>
-    <message>
-        <source>5 seconds</source>
-        <translation type="vanished">5 秒</translation>
-    </message>
-    <message>
-        <source>10 seconds</source>
-        <translation type="vanished">10 秒</translation>
-    </message>
-    <message>
-        <source>15 seconds</source>
-        <translation type="vanished">15 秒</translation>
-    </message>
-    <message>
-        <source>30 seconds</source>
-        <translation type="vanished">30 秒</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -4603,7 +4694,7 @@
         <translation>脚本源码</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+27"/>
         <source>Adjust writing request</source>
         <translation>调整写作要求</translation>
     </message>
@@ -4638,7 +4729,7 @@
         <translation>AI 未能完成稿件。要求已保存，可以重试或手动写作。</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+15"/>
         <source>AI is writing. This may take a moment…</source>
         <translation>AI 正在写稿，请稍候…</translation>
     </message>
@@ -4691,7 +4782,7 @@
 <context>
     <name>TextCompareWorkspace</name>
     <message>
-        <location filename="../qml/components/TextCompareWorkspace.qml" line="+31"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/TextCompareWorkspace.qml" line="+31"/>
         <source>ACCEPTED</source>
         <translation>已接受</translation>
     </message>
@@ -4704,7 +4795,7 @@
 <context>
     <name>TextExpressionPalette</name>
     <message>
-        <location filename="../qml/components/TextExpressionPalette.qml" line="+37"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/TextExpressionPalette.qml" line="+37"/>
         <location line="+279"/>
         <source>Calm</source>
         <translation>平静</translation>
@@ -5023,7 +5114,7 @@
         <translation>视觉标记</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+37"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -5036,7 +5127,7 @@
 <context>
     <name>TextFormatPanel</name>
     <message>
-        <location filename="../qml/components/TextFormatPanel.qml" line="+23"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/TextFormatPanel.qml" line="+23"/>
         <source>Output format</source>
         <translation>输出格式</translation>
     </message>
@@ -5056,7 +5147,7 @@
         <translation>配音脚本</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+5"/>
         <source>A regular document for reading, translation, or other text work.</source>
         <translation>普通文稿，可用于阅读、翻译或其他文本处理。</translation>
     </message>
@@ -5069,7 +5160,7 @@
 <context>
     <name>VariantsPanel</name>
     <message>
-        <location filename="../qml/components/VariantsPanel.qml" line="+121"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/VariantsPanel.qml" line="+121"/>
         <source>CURRENT ACCEPTED</source>
         <translation>当前已接受</translation>
     </message>
@@ -5189,47 +5280,68 @@
         <translation>编辑文稿以创建候选方案</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+13"/>
         <source>Branch selected option</source>
         <translation>将所选方案创建为新对象</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+16"/>
         <source>Accept selected</source>
         <translation>接受所选方案</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-5"/>
         <source>Discard</source>
         <translation>丢弃</translation>
     </message>
 </context>
 <context>
-    <name>WorkbenchProjectRail</name>
-    <message><source>New</source><translation>新建</translation></message>
-    <message><source>Open</source><translation>打开</translation></message>
+    <name>WebAnimationPreview</name>
     <message>
-        <location filename="../qml/components/WorkbenchProjectRail.qml" line="376"/>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/WebAnimationPreview.qml" line="+67"/>
+        <source>This HTML could not be previewed.</source>
+        <translation>无法预览这份 HTML。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This HTML is too large for the in-app preview. You can still inspect and export the original file.</source>
+        <translation>这份 HTML 超出应用内预览大小限制；仍可查看并导出原文件。</translation>
+    </message>
+</context>
+<context>
+    <name>WorkbenchProjectRail</name>
+    <message>
+        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/WorkbenchProjectRail.qml" line="+215"/>
+        <source>New</source>
+        <translation>新建</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Open</source>
+        <translation>打开</translation>
+    </message>
+    <message>
+        <location line="+161"/>
         <source>Text and audio</source>
         <translation>文本与配音</translation>
     </message>
     <message>
-        <location filename="../qml/components/WorkbenchProjectRail.qml" line="398"/>
+        <location line="+24"/>
         <source>Text</source>
         <translation>文本</translation>
     </message>
     <message>
-        <location filename="../qml/components/WorkbenchProjectRail.qml" line="400"/>
+        <location line="+3"/>
         <source>Audio</source>
         <translation>音频</translation>
     </message>
     <message>
-        <location filename="../qml/components/WorkbenchProjectRail.qml" line="400"/>
+        <location line="+0"/>
         <source>Audio %1</source>
         <translation>音频 %1</translation>
     </message>
     <message>
-        <location filename="../qml/components/WorkbenchProjectRail.qml" line="+110"/>
+        <location line="-269"/>
         <source>Components</source>
         <translation>组件</translation>
     </message>
@@ -5274,12 +5386,13 @@
         <translation>你的项目</translation>
     </message>
     <message>
-        <location line="+164"/>
+        <location line="+188"/>
+        <location line="+56"/>
         <source>%1 new version(s)</source>
         <translation>%1 个新版本</translation>
     </message>
     <message>
-        <location line="-207"/>
+        <location line="-287"/>
         <source>New Component</source>
         <translation>新建组件</translation>
     </message>
@@ -5288,10 +5401,18 @@
         <source>Import…</source>
         <translation>导入…</translation>
     </message>
-    <message><source>Paste</source><translation>粘贴</translation></message>
-    <message><source>Paste clipboard material</source><translation>粘贴剪贴板素材</translation></message>
     <message>
-        <location line="+34"/>
+        <location line="+327"/>
+        <source>Paste</source>
+        <translation>粘贴</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Paste clipboard material</source>
+        <translation>粘贴剪贴板素材</translation>
+    </message>
+    <message>
+        <location line="-294"/>
         <source>Shape Project</source>
         <translation>Shape 项目</translation>
     </message>
@@ -5301,7 +5422,7 @@
         <translation>未打开项目</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+17"/>
         <source>New project</source>
         <translation>新建项目</translation>
     </message>
@@ -5310,42 +5431,5 @@
         <source>Open project</source>
         <translation>打开项目</translation>
     </message>
-</context>
-<context>
-    <name>SoundGenerationWorkspace</name>
-    <message><source>Preparing your description locally…</source><translation>正在本机准备声音描述…</translation></message>
-    <message><source>Generating audio locally…</source><translation>正在本机生成音频…</translation></message>
-    <message><source>Stopped. Your description is ready to try again.</source><translation>已停止，可使用当前描述重试。</translation></message>
-    <message><source>Generation could not finish. Check Infer access and try again. (%1)</source><translation>生成未能完成，请检查 Infer 访问配置后重试。（%1）</translation></message>
-    <message><source>Chinese descriptions are translated locally. Listen to a version, then choose Use this version to keep it.</source><translation>中文描述会在本机转换。请先试听，再选择“采用此版本”保留结果。</translation></message>
-    <message><source>Sound effects and short music</source><translation>音效与短音乐</translation></message>
-    <message><source>Describe the sounds, instruments, rhythm and atmosphere you want.</source><translation>描述你想要的声音、乐器、节奏和氛围。</translation></message>
-    <message><source>Rain on a window, distant thunder, no speech or music…</source><translation>雨滴敲打窗户，远处传来雷声，没有人声和音乐…</translation></message>
-    <message><source>Model</source><translation>模型</translation></message>
-    <message><source>Stable Audio 3 Small · Sound effects</source><translation>Stable Audio 3 Small · 音效</translation></message>
-    <message><source>Stable Audio 3 Small · Music</source><translation>Stable Audio 3 Small · 音乐</translation></message>
-    <message><source>Seconds · 1–30</source><translation>时长 · 1–30 秒</translation></message>
-    <message><source>Seed</source><translation>种子</translation></message>
-    <message><source>Try again</source><translation>重试</translation></message>
-    <message><source>Generate a version</source><translation>生成一个版本</translation></message>
-    <message><source>Stop</source><translation>停止</translation></message>
-    <message><source>44.1 kHz · Stereo · WAV</source><translation>44.1 kHz · 立体声 · WAV</translation></message>
-    <message><source>Pause</source><translation>暂停</translation></message>
-    <message><source>Play</source><translation>播放</translation></message>
-    <message><source>Export WAV</source><translation>导出 WAV</translation></message>
-    <message><source>Audio playback is unavailable.</source><translation>音频暂时无法播放。</translation></message>
-    <message><source>Hide generation details</source><translation>收起生成详情</translation></message>
-    <message><source>Generation details</source><translation>生成详情</translation></message>
-    <message><source>Original description</source><translation>原始描述</translation></message>
-    <message><source>Description sent to the audio model</source><translation>提交给音频模型的描述</translation></message>
-    <message><source>Preparation: %1 · %2 ms</source><translation>描述转换：%1 · %2 毫秒</translation></message>
-    <message><source>Text task: %1 · %2</source><translation>文本任务：%1 · %2</translation></message>
-    <message><source>English description used unchanged</source><translation>英文描述按原文使用</translation></message>
-    <message><source>Sound task: %1 · Seed %2 · %3 s</source><translation>声音任务：%1 · 种子 %2 · %3 秒</translation></message>
-    <message><source>This version is accepted. You can listen, export WAV, or inspect its generation details.</source><translation>此版本已采用。你可以试听、导出 WAV 或查看生成详情。</translation></message>
-</context>
-<context>
-    <name>ShapeMessageDialog</name>
-    <message><source>Close</source><translation>关闭</translation></message>
 </context>
 </TS>

@@ -14,6 +14,11 @@ mod executor;
 mod ids;
 mod infer_runtime;
 mod job;
+mod material_return;
+pub use material_return::{
+    MATERIAL_RETURN_EXECUTOR, MATERIAL_RETURN_REVISION, MaterialReturnExecutor,
+    is_pcm24_material_return, normalize_material_return,
+};
 mod provenance;
 mod raster;
 pub mod sound_prompt;

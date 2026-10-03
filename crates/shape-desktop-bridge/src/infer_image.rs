@@ -351,6 +351,9 @@ fn core_error_code(error: CoreError) -> String {
         | CoreError::RasterDropShadowUnsupportedColorProfile
         | CoreError::RasterDropShadowOutputTooLarge { .. }
         | CoreError::InvalidSoundGenerationTarget { .. }
+        | CoreError::InvalidMaterialEdit
+        | CoreError::StaleMaterialSession
+        | CoreError::UnchangedMaterialReturn
         | CoreError::Execution(_) => "execution_invalid".to_owned(),
     }
 }

@@ -316,3 +316,23 @@ prompt, duration and seed; execution owns explicit local prompt preparation and 
 store repeats the immutable acceptance invariant; core owns Candidate proposal/acceptance; desktop
 owns draft controls, cancellation and selected-only playback. Original/effective descriptions and
 bounded text/sound provenance survive acceptance, without provider types entering the domain.
+
+
+Material editing now has concrete `image.external_edit` and `audio.external_edit`
+consumers. `shape-domain::material_edit` owns portable intent/configuration;
+`shape-execution::material_return` validates returns and explicit PCM24 conversion;
+`shape-core::project::material_edit` owns stage/ticket/proposal/accept orchestration
+and its `files` child the external working-copy boundary. Store independently
+validates lineage/media and atomically checks source, producer and output heads.
+The desktop bridge owns transient adoption; `MaterialEditController` owns bounded
+background file work and scoped completion; `MaterialEditWorkspace` owns review.
+Provider protocols and databases remain external. This implements a bounded
+material round trip, not the deferred automatic provider/asset-resolution adapter.
+
+`shape-core::project::picture_book` is the first real consumer of native Storybook
+composition export. It freezes accepted inputs and writes a no-clobber `.scproj`;
+its `script` child preserves Storybook's multilingual page roles while rejecting
+ambiguous input. The `picture-book` CLI is a terminal JSON adapter. Storybook keeps
+ownership of page editing, typography, print/PDF and publication. Book Artifact
+persistence and return acceptance remain an explicit architecture decision; see
+`docs/PICTURE_BOOK.md`.
