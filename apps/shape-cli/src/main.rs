@@ -1,5 +1,6 @@
 //! Public command routing; use cases and script diagnostics retain their own owners.
 
+mod project_status;
 mod script_check;
 
 use std::{
@@ -35,6 +36,7 @@ fn run() -> Result<u8, Box<dyn Error>> {
         Some("demo") => demo(&path).map(|()| 0),
         Some("inspect") => inspect(&path).map(|()| 0),
         Some("script-check") => script_check::run(&path),
+        Some("project-status") => project_status::run(&path),
         _ => Err(usage_error().into()),
     }
 }
@@ -100,6 +102,6 @@ fn inspect(path: &Path) -> Result<(), Box<dyn Error>> {
 fn usage_error() -> io::Error {
     io::Error::new(
         io::ErrorKind::InvalidInput,
-        "usage: shape-cli <demo|inspect> <project.shape> | script-check <script.txt>",
+        "usage: shape-cli <demo|inspect|project-status> <project.shape> | script-check <script.txt>",
     )
 }

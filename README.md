@@ -18,7 +18,7 @@ provenance and selected-only local audition before acceptance.
 | Project persistence | [`shape-store`](crates/shape-store/src/lib.rs) | `.shape` bundle, SQLite ownership, durable BLAKE3 object store, and atomic Artifact/Scene accepted-head commits |
 | Use cases | [`shape-core`](crates/shape-core/src/lib.rs) | Project and Scene creation, graph draft/accept, text/raster/speech Candidates, cross-artifact branching, and inspection |
 | Desktop bridge | [`shape-desktop-bridge`](crates/shape-desktop-bridge/src/lib.rs) | Bounded CXX session for validated project snapshots, graph edges, on-demand raster/audio previews, and a cross-media Candidate Shelf |
-| Foundation CLI | [`shape-cli`](apps/shape-cli/README.md) | Public project smoke/inspection and read-only JSON script diagnostics |
+| Foundation CLI | [`shape-cli`](apps/shape-cli/README.md) | Public project smoke/inspection and read-only JSON script/project diagnostics |
 | Desktop shell | [`apps/desktop`](apps/desktop/README.md) | Cross-platform Qt/QML assembly that creates, opens, and edits real `.shape` projects |
 | Repository checks | [`xtask`](xtask/src/main.rs) | Formatting, lint, tests, CMake configuration, and prerequisite checks |
 
@@ -33,6 +33,7 @@ cargo xtask check
 cargo run --package shape-cli -- demo /tmp/shape-foundation.shape
 cargo run --package shape-cli -- inspect /tmp/shape-foundation.shape
 cargo run --quiet --package shape-cli -- script-check /path/to/script.txt
+cargo run --quiet --package shape-cli -- project-status /tmp/shape-foundation.shape
 
 cmake --preset native-dev
 cmake --build --preset native-dev

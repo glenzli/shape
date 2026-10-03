@@ -1,6 +1,8 @@
 //! Project bundle lifecycle and atomic Artifact/Scene accepted-head transactions.
 
 mod audio;
+mod inspection;
+pub use inspection::ProjectInspection;
 mod working_graph;
 
 use std::{

@@ -25,7 +25,7 @@ use shape_domain::{
     Transformation, TransformationId,
 };
 use shape_execution::{AttemptId, ExecutionReceipt};
-use shape_store::{ProjectSnapshot, ProjectStore};
+use shape_store::{ProjectInspection, ProjectSnapshot, ProjectStore};
 
 use crate::CoreError;
 
@@ -43,6 +43,15 @@ pub struct AcceptedArtifactContent {
 }
 
 impl ShapeProject {
+    /// Reads persisted project heads and drafts in one bounded read-only snapshot.
+    /// Does not migrate a project or observe another desktop session's transient candidates.
+    ///
+    /// # Errors
+    /// Rejects incompatible schemas, malformed, busy or oversized project metadata.
+    pub fn inspect(root: impl AsRef<Path>) -> Result<ProjectInspection, CoreError> {
+        Ok(ProjectStore::inspect(root)?)
+    }
+
     /// Renames a stable creative object; accepted content remains immutable.
     /// # Errors
     /// Rejects invalid names, missing objects and persistence failures.

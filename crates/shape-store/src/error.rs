@@ -9,6 +9,13 @@ use thiserror::Error;
 /// A failure to create, validate, read, or atomically update a Shape project.
 #[derive(Debug, Error)]
 pub enum StoreError {
+    #[error("project inspection exceeds the {resource} limit of {maximum}")]
+    InspectionLimit {
+        resource: &'static str,
+        maximum: u64,
+    },
+    #[error("project inspection is invalid: {0}")]
+    InvalidInspection(&'static str),
     #[error("project bundle already exists at {0}")]
     BundleExists(PathBuf),
     #[error("project bundle does not exist at {0}")]
