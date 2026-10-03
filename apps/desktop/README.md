@@ -435,3 +435,19 @@ review. The stale-source card explains that old candidates are cleared while dra
 accepted outputs stay. A refresh during generation is disabled. Repeating the same-source refresh
 at the bridge boundary preserves the current candidate instead of treating a duplicate action as
 discard; a real source version change still invalidates its obsolete candidates.
+
+
+Speech audition projects the canonical `SpeechScriptPlan::readiness` diagnostics used by the CLI
+binding check. The first missing role voice or unresolved cue is named with its first used line;
+syntax repair remains in writing. Used repeat-between cues are included, unused declarations do
+not block, and explicit skip/built-in choices resolve without pretending audio has been generated.
+Portable prerequisites are separate from Runtime access, actual voice availability, listening and
+explicit acceptance. The guide remains a general production-script format, not segment rerecording.
+
+
+A narration whose source advanced offers explicit input refresh even before its first recording.
+Source review reads the exact pinned revision, and a changed input revision reloads the script plan
+even when voice/cue settings are identical. When the source remains a script, refresh preserves
+those authored choices, invalidates old candidates, and shows any newly required role or cue.
+Changing to plain text clears script-only options. Pending pace edits settle before refresh;
+generation and cue-import activity disable it. Accepted recordings remain immutable and available.

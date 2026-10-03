@@ -559,10 +559,13 @@ Item {
             outputArtifactId: operatorWorkspaceHost.openedArtifactId
             outputName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
             sourceName: sourceArtifact !== null ? sourceArtifact.name : ""
-            sourceText: sourceArtifact !== null && sourceArtifact.hasTextPreview
-                        ? sourceArtifact.textPreview : ""
-            canGenerate: sourceArtifact !== null
-                         && speechDraft !== null && speechDraft.inputRevisionId === sourceArtifact.acceptedRevisionId
+            inputRevisionId: speechDraft !== null ? speechDraft.inputRevisionId
+                : selectedIsAcceptedAudio && surface.selectedArtifact.transformationInputRevisionIds.length > 0
+                  ? surface.selectedArtifact.transformationInputRevisionIds[0] : ""
+            sourceText: inputRevisionId.length > 0 ? surface.backend.sourceRevisionText(inputRevisionId) : ""
+            inputCurrent: sourceArtifact !== null && inputRevisionId.length > 0
+                          && inputRevisionId === sourceArtifact.acceptedRevisionId
+            canGenerate: inputCurrent && speechDraft !== null
                          && sourceArtifact.kindKey === "text_document"
                          && operatorDraftId.length > 0
             credentialConfigured: surface.inferCredentialConfigured

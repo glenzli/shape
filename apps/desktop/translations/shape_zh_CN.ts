@@ -491,6 +491,10 @@
 <context>
     <name>AudioSpeechOperatorWorkspace</name>
     <message>
+        <source>The original changed. Refresh to review its latest version. Older candidates will be cleared; accepted recordings stay.</source>
+        <translation>原稿已更新。刷新后可审阅最新版本。旧候选将被清除；已采用的录音会保留。</translation>
+    </message>
+    <message>
         <location filename="../qml/components/AudioSpeechOperatorWorkspace.qml" line="+87"/>
         <source>Automatic · mixed languages</source>
         <translation>自动识别 · 支持混合语言</translation>
@@ -3995,6 +3999,30 @@
 </context>
 <context>
     <name>SpeechScriptPanel</name>
+    <message>
+        <source>Return to writing and add spoken text.</source>
+        <translation>返回写稿并添加需要朗读的文字。</translation>
+    </message>
+    <message>
+        <source>Return to writing and fix the marked script lines.</source>
+        <translation>返回写稿，修正已标出的脚本行。</translation>
+    </message>
+    <message>
+        <source>Review the saved voice and cue settings.</source>
+        <translation>请检查已保存的音色与提示音设置。</translation>
+    </message>
+    <message>
+        <source>Choose a voice for %1 (line %2).</source>
+        <translation>请为 %1 选择音色（第 %2 行）。</translation>
+    </message>
+    <message>
+        <source>Choose an action for cue %1 (line %2).</source>
+        <translation>请为提示音 %1 选择处理方式（第 %2 行）。</translation>
+    </message>
+    <message>
+        <source>Script and choices checked. Listen to the generated audio before accepting.</source>
+        <translation>脚本与选项已检查。生成后请先试听，再采用音频。</translation>
+    </message>
     <message>
         <source>Line %1 · %2 · %3
 %4</source>

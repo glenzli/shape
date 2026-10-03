@@ -161,6 +161,24 @@ fn usage_rejects_missing_and_extra_arguments() {
             fixture.path().into_os_string(),
             "extra".into(),
         ],
+        vec![
+            "script-check".into(),
+            fixture.path().into_os_string(),
+            "--bindings".into(),
+        ],
+        vec![
+            "script-check".into(),
+            fixture.path().into_os_string(),
+            "--bindings".into(),
+            fixture.path().into_os_string(),
+            "extra".into(),
+        ],
+        vec![
+            "project-status".into(),
+            fixture.path().into_os_string(),
+            "--bindings".into(),
+            fixture.path().into_os_string(),
+        ],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_shape-cli"))
             .args(arguments)
@@ -173,4 +191,100 @@ fn usage_rejects_missing_and_extra_arguments() {
                 .contains("script-check")
         );
     }
+}
+
+fn with_bindings(fixture: &Fixture, bytes: &[u8]) -> Output {
+    let path = fixture.0.join("bindings.json");
+    fs::write(&path, bytes).unwrap();
+    Command::new(env!("CARGO_BIN_EXE_shape-cli"))
+        .arg("script-check")
+        .arg(fixture.path())
+        .arg("--bindings")
+        .arg(path)
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn bindings_check_guides_a_dialogue_from_missing_inputs_to_review() {
+    let source = "[role: Host]\n[role: Guest]\n[cue: turn]\n[speaker: Host]\nHello.\n[repeat: 2; gap: 1s; cue: turn]\n[speaker: Guest]\n你好。\n[end-repeat]\n";
+    let fixture = Fixture::new(source.as_bytes());
+    let mut options = shape_domain::speech_script::SpeechScriptOptions::default();
+    let missing = report(
+        &with_bindings(&fixture, &serde_json::to_vec(&options).unwrap()),
+        2,
+    );
+    assert_eq!(missing["valid"], true, "syntax alone is valid");
+    assert_eq!(missing["bindings_checked"], true);
+    assert_eq!(missing["prerequisites"]["ready"], false);
+    assert_eq!(
+        missing["prerequisites"]["missing_roles"],
+        json!([
+            {"name":"Guest","line":8}, {"name":"Host","line":5}
+        ])
+    );
+    assert_eq!(
+        missing["prerequisites"]["unresolved_cues"],
+        json!([{"name":"turn","line":6}])
+    );
+    for (role, alias) in [
+        ("Host", "speech.voice.zh.bright_female.v1"),
+        ("Guest", "speech.voice.en.warm_male.v1"),
+    ] {
+        options.roles.insert(
+            role.into(),
+            shape_domain::PresetVoiceSelection::new(
+                shape_domain::PresetVoiceAlias::new(alias).unwrap(),
+                "20260922.1",
+            )
+            .unwrap(),
+        );
+    }
+    let voices = report(
+        &with_bindings(&fixture, &serde_json::to_vec(&options).unwrap()),
+        2,
+    );
+    assert_eq!(voices["prerequisites"]["missing_roles"], json!([]));
+    options.cues.insert(
+        "turn".into(),
+        shape_domain::speech_script::SpeechCueAction::Skip,
+    );
+    let bytes = serde_json::to_vec(&options).unwrap();
+    let ready = report(&with_bindings(&fixture, &bytes), 0);
+    assert_eq!(ready["prerequisites"]["ready"], true);
+    assert_eq!(
+        ready["bindings_digest"],
+        ContentDigest::from_bytes(&bytes).to_string()
+    );
+    assert_ne!(ready["bindings_digest"], missing["bindings_digest"]);
+    assert_eq!(ready["source_digest"], missing["source_digest"]);
+    assert_eq!(fs::read(fixture.path()).unwrap(), source.as_bytes());
+    assert_eq!(fs::read(fixture.0.join("bindings.json")).unwrap(), bytes);
+    assert_eq!(report(&fixture.run(), 0)["bindings_checked"], false);
+}
+
+#[test]
+fn binding_format_and_size_failures_do_not_claim_readiness() {
+    let fixture = Fixture::new(b"Hello.");
+    for bytes in [b"{invalid".to_vec(), vec![0xff], vec![b' '; 65_537]] {
+        let output = with_bindings(&fixture, &bytes);
+        assert_eq!(output.status.code(), Some(1));
+        assert!(output.stdout.is_empty());
+        assert!(!output.stderr.is_empty());
+        assert_eq!(fs::read(fixture.0.join("bindings.json")).unwrap(), bytes);
+    }
+    let mut boundary =
+        serde_json::to_vec(&shape_domain::speech_script::SpeechScriptOptions::default()).unwrap();
+    boundary.resize(65_536, b' ');
+    assert_eq!(
+        report(&with_bindings(&fixture, &boundary), 0)["prerequisites"]["ready"],
+        true
+    );
+    let options = json!({"revision":"unsupported","roles":{},"cues":{}});
+    let invalid = report(
+        &with_bindings(&fixture, &serde_json::to_vec(&options).unwrap()),
+        2,
+    );
+    assert_eq!(invalid["prerequisites"]["options_valid"], false);
+    assert_eq!(invalid["prerequisites"]["ready"], false);
 }

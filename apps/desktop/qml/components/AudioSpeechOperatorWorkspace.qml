@@ -22,6 +22,8 @@ Item {
     property string sourceArtifactId: ""
     property string sourceName: ""
     property string sourceText: ""
+    property string inputRevisionId: ""
+    property bool inputCurrent: false
     property bool canGenerate: false
     property bool credentialConfigured: false
     property string acceptedAudioArtifactId: ""
@@ -42,6 +44,7 @@ Item {
     }
     onScriptJsonChanged: Qt.callLater(workspace.refreshScriptPreview)
     onSourceTextChanged: Qt.callLater(workspace.refreshScriptPreview)
+    onInputRevisionIdChanged: Qt.callLater(workspace.refreshScriptPreview)
     property string language: ""
     property int speedMilli: 0
     property bool syntheticDisclosureRequired: false
@@ -143,6 +146,16 @@ Item {
                             artifactNameField.text.trim(), presetAlias,
                             presetCatalogRevision, language,
                             pendingSpeedMilli, syntheticDisclosureRequired)
+    }
+
+    function refreshInput() : void {
+        if (inferSpeech.running || backend.speechCueImporting) return
+        speedSaveTimer.stop()
+        persistDraftConfiguration()
+        // UI projection is deferred; read the saved node after the synchronous save signal.
+        const saved = backend.operatorDrafts.find(draft => draft.id === operatorDraftId)
+        if (!saved || saved.audioSpeechSpeedMilli !== pendingSpeedMilli) return
+        backend.refreshTextInput(operatorDraftId)
     }
 
     function formatDuration(milliseconds) : string {
@@ -311,8 +324,17 @@ Item {
                         font.letterSpacing: 0.6
                     }
                     Label {
+                        objectName: "speechStaleInputNotice"
                         Layout.fillWidth: true
-                        visible: workspace.sourceChanged
+                        visible: !workspace.inputCurrent && workspace.operatorDraftId.length > 0
+                        text: qsTr("The original changed. Refresh to review its latest version. Older candidates will be cleared; accepted recordings stay.")
+                        color: Theme.accent
+                        wrapMode: Text.Wrap
+                        font.pixelSize: 12
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: workspace.sourceChanged && workspace.inputCurrent
                         text: qsTr("The text has changed since this audio was made. Return to writing to create a new recording. This recording is still available.")
                         color: Theme.accent
                         wrapMode: Text.Wrap
@@ -404,9 +426,11 @@ Item {
                         font.pixelSize: 12
                     }
                     ShapeButton {
-                        visible: workspace.sourceChanged && !workspace.canGenerate && workspace.operatorDraftId.length > 0
+                        objectName: "speechRefreshInputButton"
+                        visible: !workspace.inputCurrent && workspace.operatorDraftId.length > 0
+                        enabled: !workspace.inferSpeech.running && !workspace.backend.speechCueImporting
                         text: qsTr("Use latest original")
-                        onClicked: workspace.backend.refreshTextInput(workspace.operatorDraftId)
+                        onClicked: workspace.refreshInput()
                     }
                     ShapeTextField {
                         id: artifactNameField

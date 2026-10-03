@@ -71,6 +71,19 @@ ListView {
         return (event.kind === "speech" ? (event.role || qsTr("Default voice")) + "\n" : "") + ScriptPresentation.eventText(event)
     }
     function issueText(issue) : string { return qsTr("Line %1: %2").arg(issue.line).arg(ScriptPresentation.issue(issue.code)) }
+    function readinessText() : string {
+        const status = preview.prerequisites || ({})
+        if (status.spoken_passages === 0) return qsTr("Return to writing and add spoken text.")
+        if (status.syntax_valid === false) return qsTr("Return to writing and fix the marked script lines.")
+        if (status.options_valid === false) return qsTr("Review the saved voice and cue settings.")
+        const role = (status.missing_roles || [])[0]
+        if (role) return qsTr("Choose a voice for %1 (line %2).").arg(role.name).arg(role.line)
+        const cue = (status.unresolved_cues || [])[0]
+        if (cue) return qsTr("Choose an action for cue %1 (line %2).").arg(cue.name).arg(cue.line)
+        return preview.ready
+            ? qsTr("Script and choices checked. Listen to the generated audio before accepting.")
+            : qsTr("Review the saved voice and cue settings.")
+    }
 
     FileDialog {
         id: cueFile
@@ -101,6 +114,15 @@ ListView {
             Layout.fillWidth: true
             text: qsTr("Delivery · %1").arg(ScriptPresentation.delivery(panel.preview.plan?.delivery))
             color: Theme.accent; font.pixelSize: 12; wrapMode: Text.WordWrap
+        }
+        Label {
+            objectName: "scriptReadinessStatus"
+            Layout.fillWidth: true
+            text: panel.readinessText()
+            textFormat: Text.PlainText
+            color: panel.preview.ready ? Theme.accent : Theme.danger
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
         }
         Label {
             visible: (panel.preview.shared_voices || []).length > 0
@@ -163,12 +185,6 @@ ListView {
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
             }
-        }
-        Label {
-            Layout.fillWidth: true
-            text: panel.preview.ready ? qsTr("Ready to synthesize") : qsTr("Choose a voice for every role and resolve all external cues.")
-            color: panel.preview.ready ? Theme.accent : Theme.danger
-            wrapMode: Text.WordWrap
         }
         Label { text: qsTr("PLAYBACK ORDER"); color: Theme.muted; font.pixelSize: 10 }
     }

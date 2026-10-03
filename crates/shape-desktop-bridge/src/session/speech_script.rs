@@ -63,7 +63,8 @@ impl DesktopSession {
                 _ => {}
             }
         }
-        serde_json::to_string(&serde_json::json!({"ready": plan.ready(&options), "roles": roles, "cues": cues, "pause_ms": plan.pause_millis(), "shared_voices": plan.shared_voices(&options), "plan": plan, "note_lines": note_lines})).map_err(|e| e.to_string())
+        let prerequisites = plan.readiness(&options);
+        serde_json::to_string(&serde_json::json!({"ready": prerequisites.ready, "prerequisites": prerequisites, "roles": roles, "cues": cues, "pause_ms": plan.pause_millis(), "shared_voices": plan.shared_voices(&options), "plan": plan, "note_lines": note_lines})).map_err(|e| e.to_string())
     }
 
     pub fn session_import_speech_cue(
@@ -103,3 +104,6 @@ impl DesktopSession {
         )
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -1,9 +1,11 @@
 //! Portable, versioned narration scripts and their authored voice/cue bindings.
 mod parser;
 mod production;
+mod readiness;
 use crate::{ContentDigest, ContentRef, PresetVoiceSelection};
 pub use parser::{parse_speech_script, parse_speech_script_for_review};
 pub use production::{CueLevel, SpeechDelivery, SpeechProduction, SpeechRole};
+pub use readiness::{SpeechScriptReadiness, SpeechScriptRequirement};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -158,23 +160,7 @@ impl SpeechScriptPlan {
     }
     #[must_use]
     pub fn ready(&self, options: &SpeechScriptOptions) -> bool {
-        self.issues.is_empty()
-            && options.is_valid()
-            && self
-                .events
-                .iter()
-                .any(|e| matches!(e.kind, SpeechScriptEventKind::Speech { .. }))
-            && self.events.iter().all(|e| match &e.kind {
-                SpeechScriptEventKind::Cue { label }
-                | SpeechScriptEventKind::RepeatStart {
-                    between_cue: Some(label),
-                    ..
-                } => self.cue(label, options).is_some(),
-                SpeechScriptEventKind::Speech { role, .. } if !role.is_empty() => {
-                    options.roles.contains_key(role)
-                }
-                _ => true,
-            })
+        self.readiness(options).ready
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

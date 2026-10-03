@@ -250,7 +250,7 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
     auto* adopt = writer->findChild<QObject*>(QStringLiteral("writingAdoptButton"));
     if (!check(adopt && !adopt->property("enabled").toBool(), "invalid format blocks adoption"))
         return false;
-    const QString script =
+    QString script =
         QStringLiteral(
             "[role: Narrator]\n# Listening exercise\n[note: 确认 Shape "
             "的读音；此备注不朗读]\n[角色：Narrator]\nHello, 世界.\n[停顿：2秒]"
@@ -395,6 +395,181 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
             "explicit role binding enables synthesis"
         ))
         return false;
+
+    // A different author edits the accepted script while an unrecorded narration stays open.
+    const QString speechDraftId = current()->property("operatorDraftId").toString();
+    QString writingDraftId;
+    QJsonObject writingSettings;
+    for (const auto& value : backend.operatorDrafts()) {
+        const auto draft = value.toMap();
+        if (draft.value("contextArtifactId").toString() == artifactId
+            && draft.value("operatorTypeKey").toString() == QStringLiteral("text.create")) {
+            writingDraftId = draft.value("id").toString();
+            writingSettings =
+                QJsonDocument::fromJson(draft.value("textAuthoringJson").toString().toUtf8())
+                    .object();
+        }
+    }
+    const QString previousScript = script;
+    const QString oldPlan = backend.speechScriptPreview(speechDraftId);
+    auto* pace = current()->findChild<QObject*>(QStringLiteral("speechSpeedSlider"));
+    if (!check(
+            pace && pace->setProperty("value", 1150)
+                && QMetaObject::invokeMethod(pace, "moved", Qt::DirectConnection),
+            "pace edit enters the normal deferred save path"
+        ))
+        return false;
+    script = QStringLiteral("[role: Guest]\n[cue: Turn]\n") + script
+             + QStringLiteral("\n[speaker: Guest]\nNew guest words.\n[audio: Turn]");
+    writingSettings.insert("text", script);
+    if (!check(
+            !writingDraftId.isEmpty()
+                && backend.updateTextAuthoring(
+                    writingDraftId,
+                    QString::fromUtf8(QJsonDocument(writingSettings).toJson(QJsonDocument::Compact))
+                )
+                && backend.proposeAuthoredText(writingDraftId)
+                && backend.acceptCandidate(backend.candidateId()),
+            "another author accepts a changed script without recording audio"
+        ))
+        return false;
+    if (!check(
+            waitUntil([&] { return !current()->property("canGenerate").toBool(); })
+                && !current()->property("hasAcceptedAudio").toBool(),
+            "unrecorded narration detects stale input"
+        ))
+        return false;
+    auto* refreshSpeech =
+        current()->findChild<QObject*>(QStringLiteral("speechRefreshInputButton"));
+    if (!check(
+            refreshSpeech && refreshSpeech->property("visible").toBool()
+                && refreshSpeech->property("enabled").toBool(),
+            "stale narration offers recovery before its first recording"
+        ))
+        return false;
+    if (!check(
+            current()->property("sourceText").toString() == previousScript,
+            "review continues to show the exact pinned script before refresh"
+        ))
+        return false;
+    if (!check(
+            QMetaObject::invokeMethod(refreshSpeech, "clicked", Qt::DirectConnection),
+            "refresh narration using its actual control"
+        ))
+        return false;
+    if (!check(
+            waitUntil([&] {
+                return current()->property("canGenerate").toBool()
+                       && evaluate(
+                              *rolePanel,
+                              QStringLiteral(
+                                  "preview.roles.indexOf('Guest') >= 0 && "
+                                  "preview.cues.indexOf('Turn') >= 0 && !preview.ready"
+                              )
+                       )
+                              .toBool();
+            }),
+            "source refresh updates the playback plan and new prerequisites"
+        ))
+        return false;
+    if (!check(
+            backend.speechScriptPreview(speechDraftId) != oldPlan
+                && current()->property("speedMilli").toInt() == 1150
+                && current()->property("sourceText").toString() == script
+                && evaluate(*rolePanel, QStringLiteral("options.roles.Narrator !== undefined"))
+                       .toBool(),
+            "new input preserves authored voice bindings and original words"
+        ))
+        return false;
+    auto* readiness = rolePanel->findChild<QObject*>(QStringLiteral("scriptReadinessStatus"));
+    if (!readiness)
+        readiness = visualChild(
+            qobject_cast<QQuickItem*>(rolePanel),
+            QStringLiteral("scriptReadinessStatus")
+        );
+    if (!check(
+            readiness && readiness->property("text").toString().contains(QStringLiteral("Guest")),
+            "preflight identifies the missing new role"
+        ))
+        return false;
+    evaluate(*rolePanel, QStringLiteral("setRole('Guest', 2)"));
+    if (!check(
+            waitUntil([&] {
+                return readiness->property("text").toString().contains(QStringLiteral("Turn"));
+            }),
+            "preflight moves to the unresolved cue"
+        ))
+        return false;
+    if (const QString screenshots = qEnvironmentVariable("SHAPE_LAYOUT_SMOKE_DIR");
+        !screenshots.isEmpty()) {
+        evaluate(*rolePanel, QStringLiteral("positionViewAtBeginning()"));
+        QCoreApplication::processEvents();
+        if (auto* window = qobject_cast<QQuickWindow*>(&root))
+            if (!check(
+                    window->grabWindow().save(
+                        QDir(screenshots).filePath(QStringLiteral("speech-prerequisites.png"))
+                    ),
+                    "save prerequisite screenshot in the requested evidence directory"
+                ))
+                return false;
+    }
+    evaluate(root, QStringLiteral("uiPreferences.languageMode = 'en'"));
+    if (!check(
+            waitUntil([&] {
+                return readiness->property("text").toString().startsWith(
+                    QStringLiteral("Choose an action for cue Turn")
+                );
+            }),
+            "new prerequisite guidance retranslates in the same workspace"
+        ))
+        return false;
+    if (const QString screenshots = qEnvironmentVariable("SHAPE_LAYOUT_SMOKE_DIR");
+        !screenshots.isEmpty()) {
+        QCoreApplication::processEvents();
+        if (auto* window = qobject_cast<QQuickWindow*>(&root))
+            if (!check(
+                    window->grabWindow().save(
+                        QDir(screenshots).filePath(QStringLiteral("speech-prerequisites-en.png"))
+                    ),
+                    "save English prerequisite screenshot"
+                ))
+                return false;
+    }
+    evaluate(root, QStringLiteral("uiPreferences.languageMode = '%1'").arg(previousLanguage));
+    QCoreApplication::processEvents();
+    evaluate(*rolePanel, QStringLiteral("setCue('Turn', 2)"));
+    if (!check(
+            waitUntil([&] {
+                return evaluate(*rolePanel, QStringLiteral("preview.ready")).toBool();
+            }),
+            "explicit cue skip completes preflight without making audio"
+        ))
+        return false;
+
+    if (const QString evidence = qEnvironmentVariable("SHAPE_LAYOUT_SMOKE_DIR");
+        !evidence.isEmpty()) {
+        QString bindings;
+        for (const auto& value : backend.operatorDrafts()) {
+            const auto draft = value.toMap();
+            if (draft.value("id").toString() == speechDraftId)
+                bindings = draft.value("audioSpeechScriptJson").toString();
+        }
+        const QList<QPair<QString, QByteArray>> files = {
+            {QStringLiteral("pinned-script.txt"), backend.textNodeInput(speechDraftId).toUtf8()},
+            {QStringLiteral("speech-bindings.json"), bindings.toUtf8()},
+            {QStringLiteral("speech-preview.json"),
+             backend.speechScriptPreview(speechDraftId).toUtf8()},
+        };
+        for (const auto& [name, bytes] : files) {
+            QFile file(QDir(evidence).filePath(name));
+            if (!check(
+                    !bytes.isEmpty() && file.open(QIODevice::WriteOnly)
+                        && file.write(bytes) == bytes.size(),
+                    "save the exact reviewed synthetic source and choices for external checking"
+                ))
+                return false;
+        }
+    }
     if (!click(*current(), "speechReturnToWritingButton"))
         return false;
     if (!check(

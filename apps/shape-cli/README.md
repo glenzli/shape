@@ -85,3 +85,31 @@ remain on stderr with exit **1**. An old project must first be upgraded delibera
 branch creation, source revision changes, rejected stale adoption, explicit refresh, and successful
 adoption that preserves the newer original. Store-owned tests verify read-only SQL, unchanged
 manifest/database/WAL bytes, coherent concurrent snapshots and metadata size/row limits.
+
+### Check the choices for a production script
+
+```sh
+shape-cli script-check dialogue.txt --bindings bindings.json
+```
+
+The optional binding file is a regular UTF-8 JSON file, bounded to 64 KiB, containing the portable
+`SpeechScriptOptions` shape: `revision`, `roles` (name to `alias`/`catalog_revision`) and `cues`
+(name to a `SpeechCueAction`). Use the current grammar revision reported by `script-check`.
+Bindings are supplied explicitly; this command does not read or alter a desktop session.
+
+Every report now includes `prerequisites` from the same domain owner used by desktop audition:
+`ready`, `syntax_valid`, `options_valid`, `spoken_passages`, `missing_roles` and `unresolved_cues`.
+Each missing choice has a `name` and one-based `line` for its first playback use, sorted by name.
+Unused declarations do not block; built-in cues and explicitly skipped cues are resolved.
+`spoken_passages` counts authored speech events before repeat playback or Runtime segmentation.
+`bindings_checked` records whether a file was supplied, and `bindings_digest` is the exact-byte
+BLAKE3 identity of that file (null when omitted). Without a file, prerequisites describe the empty
+binding set and the existing syntax-only exit behavior is unchanged. With `--bindings`, exit **2**
+also means incomplete or invalid portable choices; `valid` continues to describe syntax only.
+Malformed JSON, invalid UTF-8, non-files and oversized inputs return exit **1** without a report.
+
+The AI workflow is: check syntax, provide explicit voices/cue choices, repair each reported missing
+choice, check again, then hand the script and choices to human review. A changed source or binding
+digest requires another check. Portable readiness never establishes that a voice exists in the
+Runtime, an imported WAV can be loaded, access is granted, speech sounds right, or a candidate may
+be accepted. `synthesis_checked` remains false. Project version checks remain in `project-status`.
