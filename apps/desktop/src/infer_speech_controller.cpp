@@ -73,6 +73,16 @@ int InferSpeechController::totalSegments() const {
 bool InferSpeechController::cancelling() const {
     return cancelling_;
 }
+QString InferSpeechController::requestProjectPath() const {
+    return request_project_path_;
+}
+QString InferSpeechController::requestDraftId() const {
+    return request_draft_id_;
+}
+void InferSpeechController::cancelFor(const QString& projectPath, const QString& draftId) {
+    if (projectPath == request_project_path_ && draftId == request_draft_id_)
+        cancel();
+}
 void InferSpeechController::cancel() {
     if (!running_)
         return;
@@ -96,9 +106,13 @@ void InferSpeechController::generate(
     const QString& artifactName
 ) {
     if (running_) {
-        setErrorCode(QStringLiteral("generation_busy"));
+        // An unrelated rejected request must not replace the active narration's status.
+        if (projectPath == request_project_path_ && draftId == request_draft_id_)
+            setErrorCode(QStringLiteral("generation_busy"));
         return;
     }
+    request_project_path_ = projectPath;
+    request_draft_id_ = draftId;
     if (projectPath.isEmpty() || sourceArtifactId.isEmpty() || draftId.isEmpty()
         || artifactName.trimmed().isEmpty()) {
         setErrorCode(QStringLiteral("invalid_speech_request"));

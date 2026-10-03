@@ -152,6 +152,15 @@ ListView {
                 }
             }
         }
+        Label {
+            objectName: "scriptCueFormatHint"
+            Layout.fillWidth: true
+            visible: (panel.preview.cues || []).length > 0
+            text: qsTr("Audio cues use 24 kHz mono PCM16 WAV files up to 8 MiB.")
+            color: Theme.muted
+            font.pixelSize: 11
+            wrapMode: Text.WordWrap
+        }
         Repeater {
             model: panel.preview.cues || []
             delegate: ColumnLayout {

@@ -209,6 +209,11 @@ class DesktopBackend : public QObject {
 
   signals:
     void speechCueImportingChanged();
+    void speechDraftOperationFinished(
+        const QString& projectPath,
+        const QString& draftId,
+        const QString& error
+    );
     void projectChanged();
     void candidateChanged();
     void operatorDraftsChanged();
@@ -228,6 +233,7 @@ class DesktopBackend : public QObject {
     void replaceSession(rust::Box<shape::desktop::DesktopSession> session);
     void clearCandidateSelection();
     void setLastError(const QString& message);
+    void finishSpeechDraftOperation(const QString& draftId, const QString& error);
     [[nodiscard]] QString cacheImagePreview(shape::desktop::ImagePreviewWire preview, bool thumbnail = false);
 
     std::unique_ptr<SessionState> session_;

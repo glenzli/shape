@@ -4,19 +4,20 @@
 #include "desktop_backend.hpp"
 #include "image_live_smoke.hpp"
 #include "image_preview_provider.hpp"
-#include "recent_projects.hpp"
+#include "infer_agent_controller.hpp"
 #include "infer_image_controller.hpp"
 #include "infer_runtime_controller.hpp"
+#include "infer_sound_controller.hpp"
 #include "infer_speech_controller.hpp"
 #include "infer_text_controller.hpp"
-#include "infer_agent_controller.hpp"
-#include "infer_sound_controller.hpp"
-#include "speech_live_smoke.hpp"
+#include "recent_projects.hpp"
 #include "sound_live_smoke.hpp"
+#include "speech_feedback_smoke.hpp"
+#include "speech_live_smoke.hpp"
 #include "text_authoring_smoke.hpp"
 #include "ui_preferences.hpp"
-#include "workspace_host_smoke.hpp"
 #include "web_animation_preview.hpp"
+#include "workspace_host_smoke.hpp"
 
 #if defined(Q_OS_MACOS)
 #include "mac_titlebar.hpp"
@@ -1385,7 +1386,9 @@ int main(int argc, char* argv[]) {
                 || !run_smoke_raster_cycle(*backend, *root_object, *arguments->project_path))) {
             return 5;
         }
-        if (arguments->smoke_text_cycle && !text_authoring_smoke::verify(*backend, *root_object)) {
+        if (arguments->smoke_text_cycle
+            && (!text_authoring_smoke::verify(*backend, *root_object)
+                || !speech_feedback_smoke::verify(*backend, infer_speech, *root_object))) {
             return 4;
         }
         QTimer::singleShot(0, &application, &QCoreApplication::quit);

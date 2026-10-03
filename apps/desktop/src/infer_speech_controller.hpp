@@ -27,6 +27,8 @@ class InferSpeechController : public QObject {
     Q_PROPERTY(bool cancelling READ cancelling NOTIFY statusChanged)
     Q_PROPERTY(bool running READ running NOTIFY statusChanged)
     Q_PROPERTY(QString errorCode READ errorCode NOTIFY statusChanged)
+    Q_PROPERTY(QString requestProjectPath READ requestProjectPath NOTIFY statusChanged)
+    Q_PROPERTY(QString requestDraftId READ requestDraftId NOTIFY statusChanged)
 
   public:
     InferSpeechController(
@@ -41,6 +43,9 @@ class InferSpeechController : public QObject {
     [[nodiscard]] int totalSegments() const;
     [[nodiscard]] bool cancelling() const;
     Q_INVOKABLE void cancel();
+    Q_INVOKABLE void cancelFor(const QString& projectPath, const QString& draftId);
+    [[nodiscard]] QString requestProjectPath() const;
+    [[nodiscard]] QString requestDraftId() const;
     [[nodiscard]] bool running() const;
     [[nodiscard]] QString errorCode() const;
 
@@ -73,4 +78,6 @@ class InferSpeechController : public QObject {
     quint64 generation_ = 0;
     bool running_ = false;
     QString error_code_;
+    QString request_project_path_;
+    QString request_draft_id_;
 };

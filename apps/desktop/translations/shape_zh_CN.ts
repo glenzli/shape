@@ -887,6 +887,10 @@
         <source>%1 Hz · %2 channel(s) · %3</source>
         <translation>%1 Hz · %2 声道 · %3</translation>
     </message>
+    <message>
+        <source>Another narration is running. Return to that work to view its progress or stop it.</source>
+        <translation>另一作品正在配音，请返回该作品查看进度或停止。</translation>
+    </message>
 </context>
 <context>
     <name>BranchArtifactDialog</name>
@@ -2006,6 +2010,14 @@
         <translation>没有可以接受的候选。</translation>
     </message>
     <message><source>Sound generation</source><translation>声音生成</translation></message>
+    <message>
+        <source>Wait for the audio cue import to finish.</source>
+        <translation>请等待音效导入完成。</translation>
+    </message>
+    <message>
+        <source>The narration changed while the cue was loading. Choose the file again.</source>
+        <translation>音效加载期间配音已发生变化，请重新选择文件。</translation>
+    </message>
 </context>
 <context>
     <name>GraphSelectionInspector</name>
@@ -4221,6 +4233,10 @@
         <location line="+4"/>
         <source>PLAYBACK ORDER</source>
         <translation>播放顺序</translation>
+    </message>
+    <message>
+        <source>Audio cues use 24 kHz mono PCM16 WAV files up to 8 MiB.</source>
+        <translation>音效文件须为 24 kHz、单声道、PCM16 格式的 WAV，大小不超过 8 MiB。</translation>
     </message>
 </context>
 <context>

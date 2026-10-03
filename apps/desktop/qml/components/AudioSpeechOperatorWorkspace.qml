@@ -35,6 +35,10 @@ Item {
     property var candidate: null
     property string presetAlias: ""
     property string presetCatalogRevision: ""
+    property string operationError: ""
+    readonly property bool ownsSpeechRequest: operatorDraftId.length > 0
+        && inferSpeech.requestProjectPath === projectPath
+        && inferSpeech.requestDraftId === operatorDraftId
     property string scriptJson: ""
     property var scriptPreview: ({})
     readonly property bool scriptMode: scriptJson.length > 0
@@ -217,7 +221,9 @@ Item {
 
     onPreviewArtifactIdChanged: Qt.callLater(workspace.refreshPreview)
     onPreviewCandidateIdChanged: Qt.callLater(workspace.refreshPreview)
+    onProjectPathChanged: operationError = ""
     onOperatorDraftIdChanged: {
+        operationError = ""
         Qt.callLater(workspace.synchronizeDraftConfiguration)
         Qt.callLater(workspace.refreshScriptPreview)
     }
@@ -231,17 +237,20 @@ Item {
         }
     }
     Component.onCompleted: {
-        if (artifactNameField.text.length === 0) {
-            artifactNameField.text = outputName.length > 0 ? outputName : sourceName.length > 0
-                                     ? qsTr("%1 narration").arg(sourceName)
-                                     : qsTr("Narration")
-        }
         synchronizeDraftConfiguration()
         Qt.callLater(workspace.refreshPreview)
     }
     Component.onDestruction: {
         if (speedSaveTimer.running) persistDraftConfiguration()
         workspace.audioPreview.clear()
+    }
+
+    Connections {
+        target: workspace.backend
+        function onSpeechDraftOperationFinished(project, draft, error) : void {
+            if (project === workspace.projectPath && draft === workspace.operatorDraftId)
+                workspace.operationError = error
+        }
     }
 
     SpeechScriptHelpDialog { id: scriptHelp }
@@ -425,6 +434,16 @@ Item {
                         color: Theme.muted
                         font.pixelSize: 12
                     }
+                    Label {
+                        objectName: "speechOperationError"
+                        Layout.fillWidth: true
+                        visible: workspace.operationError.length > 0
+                        text: workspace.operationError
+                        textFormat: Text.PlainText
+                        color: Theme.danger
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: 12
+                    }
                     ShapeButton {
                         objectName: "speechRefreshInputButton"
                         visible: !workspace.inputCurrent && workspace.operatorDraftId.length > 0
@@ -435,6 +454,9 @@ Item {
                     ShapeTextField {
                         id: artifactNameField
                         objectName: "speechArtifactNameField"
+                        text: workspace.outputName.length > 0 ? workspace.outputName
+                              : workspace.sourceName.length > 0 ? qsTr("%1 narration").arg(workspace.sourceName)
+                              : qsTr("Narration")
                         onEditingFinished: workspace.backend.renameArtifact(workspace.outputArtifactId, text)
                         Layout.fillWidth: true
                         visible: workspace.canGenerate
@@ -517,7 +539,7 @@ Item {
                         objectName: "speechGenerateButton"
                         visible: workspace.canGenerate
                         primary: true
-                        busy: workspace.inferSpeech.running
+                        busy: workspace.ownsSpeechRequest && workspace.inferSpeech.running
                         enabled: !workspace.inferSpeech.running
                                  && (!workspace.scriptMode || workspace.scriptPreview.ready === true)
                                  && !workspace.backend.speechCueImporting
@@ -543,9 +565,17 @@ Item {
 
                     Item { Layout.fillHeight: true }
 
+                    Label {
+                        objectName: "speechOtherWorkRunning"
+                        Layout.fillWidth: true
+                        visible: workspace.inferSpeech.running && !workspace.ownsSpeechRequest
+                        text: qsTr("Another narration is running. Return to that work to view its progress or stop it.")
+                        color: Theme.muted
+                        wrapMode: Text.WordWrap
+                    }
                     ColumnLayout {
                         Layout.fillWidth: true
-                        visible: workspace.inferSpeech.running || (workspace.inferSpeech.errorCode.length > 0 && workspace.inferSpeech.completedSegments > 0)
+                        visible: workspace.ownsSpeechRequest && (workspace.inferSpeech.running || (workspace.inferSpeech.errorCode.length > 0 && workspace.inferSpeech.completedSegments > 0))
                         spacing: 6
                         ProgressBar {
                             Layout.fillWidth: true
@@ -564,10 +594,11 @@ Item {
                             wrapMode: Text.WordWrap
                         }
                         ShapeButton {
+                            objectName: "speechStopButton"
                             text: qsTr("Stop after this segment")
-                            visible: workspace.inferSpeech.running
+                            visible: workspace.ownsSpeechRequest && workspace.inferSpeech.running
                             enabled: !workspace.inferSpeech.cancelling
-                            onClicked: workspace.inferSpeech.cancel()
+                            onClicked: workspace.inferSpeech.cancelFor(workspace.projectPath, workspace.operatorDraftId)
                         }
                     }
 
@@ -621,10 +652,11 @@ Item {
                     }
 
                     Text {
+                        objectName: "speechGenerationError"
                         Layout.fillWidth: true
-                        visible: workspace.inferSpeech.errorCode.length > 0
+                        visible: (workspace.ownsSpeechRequest && workspace.inferSpeech.errorCode.length > 0)
                                  || workspace.audioPreview.errorCode.length > 0
-                        text: workspace.inferSpeech.errorCode.length > 0
+                        text: workspace.ownsSpeechRequest && workspace.inferSpeech.errorCode.length > 0
                               ? workspace.generationError(workspace.inferSpeech.errorCode)
                               : workspace.playbackError(workspace.audioPreview.errorCode)
                         color: Theme.danger

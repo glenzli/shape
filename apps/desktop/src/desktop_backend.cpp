@@ -830,12 +830,15 @@ bool DesktopBackend::refreshTextInput(const QString& draftId) {
         session_->session->session_refresh_text_input(to_utf8(draftId));
         applyOperatorDrafts(session_->session->session_operator_drafts());
         applyCandidates(session_->session->session_candidates());
-        setLastError({});
+        finishSpeechDraftOperation(draftId, {});
         emit operatorDraftsChanged();
         emit candidateChanged();
         return true;
     } catch (const rust::Error& error) {
-        setLastError(draft_write_error(error, tr("Could not update the original text input.")));
+        finishSpeechDraftOperation(
+            draftId,
+            draft_write_error(error, tr("Could not update the original text input."))
+        );
         return false;
     }
 }
@@ -1069,6 +1072,7 @@ bool DesktopBackend::updateAudioSpeechDraft(
     bool syntheticDisclosureRequired
 ) {
     if (session_ == nullptr || draftId.isEmpty() || speedMilli < 0 || speedMilli > 65'535) {
+        finishSpeechDraftOperation(draftId, tr("Could not save the Operator draft."));
         return false;
     }
     try {
@@ -1081,27 +1085,37 @@ bool DesktopBackend::updateAudioSpeechDraft(
             syntheticDisclosureRequired
         );
         applyOperatorDrafts(session_->session->session_operator_drafts());
-        setLastError(QString());
+        finishSpeechDraftOperation(draftId, {});
         emit operatorDraftsChanged();
         return true;
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not save audio speech draft:" << error.what();
-        setLastError(draft_write_error(error, tr("Could not save the Operator draft.")));
+        finishSpeechDraftOperation(
+            draftId,
+            draft_write_error(error, tr("Could not save the Operator draft."))
+        );
         return false;
     }
 }
 
 bool DesktopBackend::updateSpeechScript(const QString& draftId, const QString& optionsJson) {
-    if (!session_ || speech_cue_importing_)
+    if (!session_)
         return false;
+    if (speech_cue_importing_) {
+        finishSpeechDraftOperation(draftId, tr("Wait for the audio cue import to finish."));
+        return false;
+    }
     try {
         session_->session->session_update_speech_script(to_utf8(draftId), to_utf8(optionsJson));
         applyOperatorDrafts(session_->session->session_operator_drafts());
-        setLastError(QString());
+        finishSpeechDraftOperation(draftId, {});
         emit operatorDraftsChanged();
         return true;
     } catch (const rust::Error& error) {
-        setLastError(draft_write_error(error, tr("Could not save the narration script settings.")));
+        finishSpeechDraftOperation(
+            draftId,
+            draft_write_error(error, tr("Could not save the narration script settings."))
+        );
         return false;
     }
 }
@@ -1121,8 +1135,16 @@ void DesktopBackend::importSpeechCue(
     const QString& label,
     const QUrl& source
 ) {
-    if (!session_ || speech_cue_importing_ || !source.isLocalFile())
+    if (!session_)
         return;
+    if (speech_cue_importing_) {
+        finishSpeechDraftOperation(draftId, tr("Wait for the audio cue import to finish."));
+        return;
+    }
+    if (!source.isLocalFile()) {
+        finishSpeechDraftOperation(draftId, tr("Choose a 24 kHz mono PCM16 WAV file up to 8 MiB."));
+        return;
+    }
     const QString project = project_id_;
     const QString bundle = bundle_path_;
     const QString preview = speechScriptPreview(draftId);
@@ -1138,9 +1160,15 @@ void DesktopBackend::importSpeechCue(
             watcher->deleteLater();
             speech_cue_importing_ = false;
             emit speechCueImportingChanged();
-            if (!session_ || project_id_ != project || bundle_path_ != bundle
-                || speechScriptPreview(draftId) != preview)
+            if (!session_ || project_id_ != project || bundle_path_ != bundle)
                 return;
+            if (speechScriptPreview(draftId) != preview) {
+                finishSpeechDraftOperation(
+                    draftId,
+                    tr("The narration changed while the cue was loading. Choose the file again.")
+                );
+                return;
+            }
             try {
                 if (bytes.isEmpty())
                     throw std::runtime_error("invalid cue file");
@@ -1153,10 +1181,18 @@ void DesktopBackend::importSpeechCue(
                     )
                 );
                 applyOperatorDrafts(session_->session->session_operator_drafts());
-                setLastError(QString());
+                finishSpeechDraftOperation(draftId, {});
                 emit operatorDraftsChanged();
+            } catch (const rust::Error& error) {
+                finishSpeechDraftOperation(
+                    draftId,
+                    draft_write_error(error, tr("Choose a 24 kHz mono PCM16 WAV file up to 8 MiB."))
+                );
             } catch (const std::exception&) {
-                setLastError(tr("Choose a 24 kHz mono PCM16 WAV file up to 8 MiB."));
+                finishSpeechDraftOperation(
+                    draftId,
+                    tr("Choose a 24 kHz mono PCM16 WAV file up to 8 MiB.")
+                );
             }
         }
     );
@@ -2079,6 +2115,11 @@ void DesktopBackend::clearCandidateSelection() {
     candidate_artifact_id_.clear();
     candidate_text_.clear();
     candidate_text_truncated_ = false;
+}
+
+void DesktopBackend::finishSpeechDraftOperation(const QString& draftId, const QString& error) {
+    setLastError(error);
+    emit speechDraftOperationFinished(bundle_path_, draftId, error);
 }
 
 void DesktopBackend::setLastError(const QString& message) {

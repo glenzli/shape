@@ -451,3 +451,21 @@ even when voice/cue settings are identical. When the source remains a script, re
 those authored choices, invalidates old candidates, and shows any newly required role or cue.
 Changing to plain text clears script-only options. Pending pace edits settle before refresh;
 generation and cue-import activity disable it. Accepted recordings remain immutable and available.
+
+Narration operation feedback is returned by `DesktopBackend::speechDraftOperationFinished` with
+its project path and draft identity. The audition workspace displays only its own operation result;
+unrelated successes cannot erase a failed cue import or draft save. Recovery uses the existing
+Working Graph conflict checks, and cue constraints are visible before file selection.
+`InferSpeechController` retains the admitted project/draft identity through terminal status. QML
+scopes progress and errors to that identity, explains a busy executor in other works, and uses
+`cancelFor` so a stale control from another narration cannot stop the owner. This preserves the
+single active executor and the existing transient retry state; no durable task model is added.
+
+`tests/speech_feedback_smoke.cpp` runs within `--smoke-text-cycle`. It uses two synthetic works,
+a real invalid/valid WAV import, a second desktop session for conflicting save/refresh operations,
+and the real speech admission signal before its worker starts. The offline credential remains
+absent, so the worker terminates before any Infer request; these checks do not claim live synthesis
+or nonzero generated-segment progress. They verify cross-work status presentation and stop authority
+through the packaged QML controls without controlling the visible desktop.
+The output-name editor stays bound to the selected output when the same QML workspace is reused;
+the two-work fixture checks both the displayed name and the editing-finished save target.
