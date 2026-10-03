@@ -467,6 +467,8 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
             "valid branch can initially be adopted"
         ))
         return false;
+    if (!click(*writer, "writingPreviewButton"))
+        return false;
     const QString updatedOriginal =
         script + QStringLiteral("\nAnother contributor updated this original.");
     if (!check(
@@ -500,7 +502,28 @@ bool text_authoring_smoke::verify(DesktopBackend& backend, QObject& root) {
             "stale branch has no accepted output"
         ))
         return false;
+    auto* refreshImpact = writer->findChild<QObject*>(QStringLiteral("writingRefreshImpact"));
+    if (!check(
+            refreshImpact && refreshImpact->property("visible").toBool()
+                && !refreshImpact->property("text").toString().isEmpty(),
+            "stale-input refresh explains candidate invalidation before the action"
+        ))
+        return false;
+    if (const QString screenshots = qEnvironmentVariable("SHAPE_LAYOUT_SMOKE_DIR");
+        !screenshots.isEmpty()) {
+        auto* staleScroll = writer->findChild<QObject*>(QStringLiteral("writingScroll"));
+        if (staleScroll)
+            evaluate(*staleScroll, QStringLiteral("contentItem.contentY = 0"));
+        QCoreApplication::processEvents();
+        if (auto* window = qobject_cast<QQuickWindow*>(&root))
+            window->grabWindow().save(screenshots + QStringLiteral("/stale-input-recovery.png"));
+    }
     if (!click(*writer, "writingRefreshInputButton"))
+        return false;
+    if (!check(
+            !writer->property("reviewing").toBool(),
+            "refresh returns to the authored request instead of an obsolete review"
+        ))
         return false;
     if (!check(
             waitUntil([&] {

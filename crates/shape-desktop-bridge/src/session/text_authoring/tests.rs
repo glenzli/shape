@@ -306,3 +306,79 @@ fn accepting_literal_candidate_does_not_write_back_stale_authored_intent() {
     drop((first, second, reopened));
     std::fs::remove_dir_all(path).unwrap();
 }
+
+#[test]
+fn repeated_current_input_refresh_preserves_candidate_and_stale_refresh_invalidates_it() {
+    let path = std::env::temp_dir().join(format!("shape-refresh-review-{}", uuid::Uuid::now_v7()));
+    let mut session = create_desktop_project(path.to_str().unwrap(), "Source refresh").unwrap();
+    let source = session
+        .session_create_text_document("Original", "Keep these facts.")
+        .unwrap()
+        .artifacts[0]
+        .id
+        .clone();
+    let draft = session
+        .session_begin_text_authoring(&source, "plain")
+        .unwrap();
+    let mut state = TextAuthoring::from_json(&draft.text_authoring_json).unwrap();
+    state.entry = WritingEntry::Manual;
+    state.text = "Reviewed candidate, waiting for a human.".into();
+    session
+        .session_update_text_authoring(&draft.draft_id, &serde_json::to_string(&state).unwrap())
+        .unwrap();
+    let candidate = session
+        .session_propose_authored_text(&draft.draft_id)
+        .unwrap();
+    for _ in 0..3 {
+        session.session_refresh_text_input(&draft.draft_id).unwrap();
+        let candidates = session.session_candidates();
+        assert_eq!(
+            candidates.len(),
+            1,
+            "a repeated refresh at the same source must preserve the reviewed candidate"
+        );
+        assert_eq!(candidates[0].candidate_id, candidate.candidate_id);
+    }
+    // Another session advances the actual accepted source; refreshing now must retire stale results.
+    let mut peer = open_desktop_session(path.to_str().unwrap()).unwrap();
+    let updated = peer
+        .session_propose_text(&source, "A human updated the facts.")
+        .unwrap();
+    peer.session_accept_candidate(&updated.candidate_id)
+        .unwrap();
+    assert!(
+        session
+            .session_accept_candidate(&candidate.candidate_id)
+            .is_err()
+    );
+    session.session_refresh_text_input(&draft.draft_id).unwrap();
+    assert!(session.session_candidates().is_empty());
+    let refreshed = session.session_operator_drafts();
+    let retained = refreshed
+        .iter()
+        .find(|d| d.draft_id == draft.draft_id)
+        .unwrap();
+    assert_eq!(
+        TextAuthoring::from_json(&retained.text_authoring_json).unwrap(),
+        state
+    );
+    let current = session
+        .session_propose_authored_text(&draft.draft_id)
+        .unwrap();
+    session.session_refresh_text_input(&draft.draft_id).unwrap();
+    session
+        .session_accept_candidate(&current.candidate_id)
+        .unwrap();
+    assert_eq!(
+        session
+            .session_text_authoring_content(&draft.context_artifact_id, "")
+            .unwrap(),
+        state.text
+    );
+    assert_eq!(
+        session.session_text_authoring_content(&source, "").unwrap(),
+        "A human updated the facts."
+    );
+    drop((peer, session));
+    std::fs::remove_dir_all(path).unwrap();
+}

@@ -429,3 +429,9 @@ Text authoring keeps the adoption action disabled when its pinned original becom
 action footer explains the required input refresh; choosing the latest original preserves the
 authored branch text. Native smoke covers a real intervening accepted revision, explicit refresh,
 and separate-output adoption without overwriting that newer original.
+
+Input refresh checkpoints local authored changes first and returns to the writing request for
+review. The stale-source card explains that old candidates are cleared while draft text and
+accepted outputs stay. A refresh during generation is disabled. Repeating the same-source refresh
+at the bridge boundary preserves the current candidate instead of treating a duplicate action as
+discard; a real source version change still invalidates its obsolete candidates.

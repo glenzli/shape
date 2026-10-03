@@ -4252,6 +4252,10 @@
 <context>
     <name>TextAuthoringWorkspace</name>
     <message>
+        <source>Older candidates will be cleared. Draft text and accepted outputs stay.</source>
+        <translation>基于旧原稿的候选将被清除；草稿文字与已采用作品会保留。</translation>
+    </message>
+    <message>
         <source>Create a listening exercise.</source>
         <translation>写一份听力练习。</translation>
     </message>

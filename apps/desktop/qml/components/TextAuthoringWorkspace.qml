@@ -151,6 +151,12 @@ Item {
         const effortKey = selectedEffortKey
         if (canGenerate && checkpoint()) generationRequested(artifactId, draftId, modelKey, effortKey)
     }
+    function refreshInput() : void {
+        if (generationRunning || !checkpoint()) return
+        if (!backend.refreshTextInput(draftId)) return
+        reviewing = false
+        updatePreview()
+    }
     function editOutput() : void {
         const textToEdit = reviewText
         manualEditor.text = textToEdit
@@ -275,7 +281,22 @@ Item {
                         spacing: 8
                         Label { text: qsTr("Original") + " · " + (workspace.inputArtifact ? workspace.inputArtifact.name : qsTr("Missing source")); color: Theme.text; font.weight: Font.DemiBold }
                         Label { Layout.fillWidth: true; text: workspace.inputCurrent ? qsTr("This node produces a separate document. The original stays available for other branches.") : qsTr("The original changed. Update the input before generating or adopting a result."); color: Theme.muted; wrapMode: Text.WordWrap }
-                        ShapeButton { objectName: "writingRefreshInputButton"; visible: !workspace.inputCurrent && workspace.inputArtifact !== null; text: qsTr("Use latest original"); onClicked: workspace.backend.refreshTextInput(workspace.draftId) }
+                        Label {
+                            objectName: "writingRefreshImpact"
+                            visible: !workspace.inputCurrent
+                            Layout.fillWidth: true
+                            text: qsTr("Older candidates will be cleared. Draft text and accepted outputs stay.")
+                            color: Theme.muted
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                        }
+                        ShapeButton {
+                            objectName: "writingRefreshInputButton"
+                            visible: !workspace.inputCurrent && workspace.inputArtifact !== null
+                            text: qsTr("Use latest original")
+                            enabled: !workspace.generationRunning
+                            onClicked: workspace.refreshInput()
+                        }
                         ShapeButton { text: workspace.showSource ? qsTr("Hide original") : qsTr("View original"); quiet: true; onClicked: workspace.showSource = !workspace.showSource }
                         ShapeTextEditor {
                             visible: workspace.showSource

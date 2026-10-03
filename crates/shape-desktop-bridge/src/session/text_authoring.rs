@@ -48,9 +48,14 @@ impl DesktopSession {
             .read_accepted(input.artifact_id)
             .map_err(|e| e.to_string())?
             .ok_or("missing_accepted_revision")?;
+        let input_unchanged = input.revision_id == accepted.revision.id;
         input.revision_id = accepted.revision.id;
         let previous = self.operator_drafts.clone();
         let artifact_id = self.operator_drafts.refresh_text_input(draft_id, input)?;
+        if input_unchanged {
+            // Repeated refresh is not a request to discard a reviewed candidate.
+            return Ok(());
+        }
         if speech {
             let script = matches!(
                 accepted.revision.content_contract,
