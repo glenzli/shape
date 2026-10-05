@@ -16,6 +16,8 @@ const MAX_REVISION_PARENTS: usize = 8;
 pub enum ArtifactKind {
     /// Structured text blocks and spans.
     TextDocument,
+    /// Ordered multilingual book composition over pinned accepted materials.
+    PictureBook,
     /// One immutable raster with an explicit image contract.
     ImageRaster,
     /// A structured layer/mask composition.

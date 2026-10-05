@@ -53,6 +53,8 @@ bool is_text_file_suffix(const QString& suffix) {
 }
 
 QString artifact_kind_label(const QString& key) {
+    if (key == QStringLiteral("picture_book"))
+        return DesktopBackend::tr("Picture book");
     if (key == QStringLiteral("text_document")) {
         return DesktopBackend::tr("Text document");
     }
@@ -2187,4 +2189,49 @@ void DesktopBackend::setLastError(const QString& message) {
     }
     last_error_ = message;
     emit lastErrorChanged();
+}
+
+QString DesktopBackend::bookPreview(const QString& composition) const {
+    if (!session_)
+        throw std::runtime_error("no project");
+    return from_rust(session_->session->session_book_preview(to_utf8(composition)));
+}
+QString DesktopBackend::bookRead(const QString& source) const {
+    if (!session_)
+        throw std::runtime_error("no project");
+    return from_rust(session_->session->session_book_read(to_utf8(source)));
+}
+QString DesktopBackend::bookExport(const QString& source, const QString& path) const {
+    if (!session_)
+        throw std::runtime_error("no project");
+    return from_rust(session_->session->session_book_export(to_utf8(source), to_utf8(path)));
+}
+QByteArray DesktopBackend::bookMaterial(const QString& source, const QString& kind) const {
+    if (!session_)
+        throw std::runtime_error("no project");
+    const auto bytes = session_->session->session_book_material(to_utf8(source), to_utf8(kind));
+    return QByteArray(
+        reinterpret_cast<const char*>(bytes.data()),
+        static_cast<qsizetype>(bytes.size())
+    );
+}
+QString DesktopBackend::bookPropose(const QString& source, const QString& composition) {
+    if (!session_)
+        throw std::runtime_error("no project");
+    const auto id =
+        from_rust(session_->session->session_book_propose(to_utf8(source), to_utf8(composition)));
+    applyCandidates(session_->session->session_candidates(), id);
+    emit candidateChanged();
+    return id;
+}
+QString
+DesktopBackend::bookScript(const QString& name, const QString& source, const QString& text) {
+    if (!session_)
+        throw std::runtime_error("no project");
+    const auto result = from_rust(
+        session_->session->session_book_script(to_utf8(name), to_utf8(source), to_utf8(text))
+    );
+    applySnapshot(session_->session->session_snapshot());
+    emit projectChanged();
+    return result;
 }

@@ -17,6 +17,7 @@ ApplicationWindow {
     required property InferSoundController inferSound
     required property InferAgentController inferAgent
     required property InferSpeechController inferSpeech
+    required property PictureBookController pictureBook
     required property MaterialEditController materialEdit
     required property InferImageController inferImage
     required property AudioPreviewController audioPreview
@@ -324,8 +325,21 @@ ApplicationWindow {
         onTextAuthoringRequested: profile => window.startTextAuthoring(profile)
         onSoundSceneRequested: window.startSoundScene()
         onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
+        onPictureBookRequested: bookWorkspace.openWorkspace()
         onImportMaterialRequested: materialImportDialog.open()
         onPasteMaterialRequested: window.pasteMaterialIntoProject()
+    }
+
+    PictureBookWorkspace {
+        id: bookWorkspace
+        backend: window.backend
+        controller: window.pictureBook
+        onMaterialRequested: materialImportDialog.open()
+        onEditMaterialRequested: artifactId => {
+            bookWorkspace.close()
+            const index = window.artifactIndex(artifactId)
+            if (index >= 0) workspaceSurface.activateScene(index)
+        }
     }
 
     CreateTextSceneDialog {
@@ -462,6 +476,7 @@ ApplicationWindow {
                 const targetIndex = window.artifactIndex(assetId)
                 if (targetIndex >= 0) workspaceSurface.activateScene(targetIndex)
             }
+            onPictureBooksRequested: bookWorkspace.openWorkspace()
             onNewProjectRequested: createProjectDialog.openForCreation()
             onOpenProjectRequested: projectOpenDialog.open()
             onCreateSceneRequested: createSceneTypeDialog.openForCreation()

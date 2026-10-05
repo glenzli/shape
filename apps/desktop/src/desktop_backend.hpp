@@ -211,6 +211,14 @@ class DesktopBackend : public QObject {
         const QString& revisionId = QString()
     );
 
+    // Picture-book controller consumes bounded session values; QML never handles CAS bytes.
+    QString bookPreview(const QString& composition) const;
+    QString bookPropose(const QString& source, const QString& composition);
+    QString bookRead(const QString& source) const;
+    QString bookExport(const QString& source, const QString& path) const;
+    QString bookScript(const QString& name, const QString& source, const QString& text);
+    QByteArray bookMaterial(const QString& source, const QString& kind) const;
+
     /// Rebuilds translated presentation values after a runtime locale change.
     void retranslate();
 

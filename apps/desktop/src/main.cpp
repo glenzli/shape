@@ -12,6 +12,8 @@
 #include "infer_text_controller.hpp"
 #include "material_edit_controller.hpp"
 #include "material_edit_smoke.hpp"
+#include "picture_book_controller.hpp"
+#include "picture_book_smoke.hpp"
 #include "recent_projects.hpp"
 #include "sound_live_smoke.hpp"
 #include "speech_feedback_smoke.hpp"
@@ -57,6 +59,7 @@ namespace {
 struct Arguments {
     std::optional<std::string> project_path;
     bool smoke_exit = false;
+    std::optional<QString> picture_book_directory;
     bool smoke_text_cycle = false;
     bool smoke_raster_cycle = false;
     std::optional<QString> sound_live_directory;
@@ -75,6 +78,8 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
                 return std::nullopt;
             }
             arguments.project_path = std::string(argv[++index]);
+        } else if (argument == "--smoke-picture-book" && index + 1 < argc) {
+            arguments.picture_book_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-exit") {
             arguments.smoke_exit = true;
         } else if (argument == "--smoke-text-cycle") {
@@ -1190,8 +1195,9 @@ int main(int argc, char* argv[]) {
     QGuiApplication application(argc, argv);
     application.setApplicationName(QStringLiteral("Shape"));
     application.setOrganizationName(QStringLiteral("Shape"));
-    const bool offline_smoke =
-        arguments->smoke_exit || arguments->smoke_text_cycle || arguments->smoke_raster_cycle;
+    const bool offline_smoke = arguments->smoke_exit || arguments->smoke_text_cycle
+                               || arguments->smoke_raster_cycle
+                               || arguments->picture_book_directory.has_value();
     const bool smoke_mode = offline_smoke || arguments->speech_live_directory.has_value()
                             || arguments->speech_script_directory.has_value()
                             || arguments->text_authoring_directory.has_value()
@@ -1232,6 +1238,7 @@ int main(int argc, char* argv[]) {
     InferAgentController infer_agent(*backend, infer_credential_path, &application);
     InferSpeechController infer_speech(*backend, infer_credential_path, &application);
     MaterialEditController material_edit(*backend, &application);
+    PictureBookController picture_book(*backend, &application);
     InferImageController infer_image(*backend, infer_credential_path, &application);
     AudioPreviewController audio_preview(*backend, &application);
     AudioExportController audio_export(*backend, &application);
@@ -1272,6 +1279,7 @@ int main(int argc, char* argv[]) {
     );
     ui_preferences.attachEngine(engine);
     engine.setInitialProperties({
+        {QStringLiteral("pictureBook"), QVariant::fromValue(&picture_book)},
         {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
         {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
         {QStringLiteral("inferText"), QVariant::fromValue(&infer_text)},
@@ -1294,6 +1302,17 @@ int main(int argc, char* argv[]) {
     }
 
     QObject* const root_object = engine.rootObjects().first();
+    if (arguments->picture_book_directory) {
+        QTimer::singleShot(400, &application, [&] {
+            const bool passed = picture_book_smoke::verify(
+                *backend,
+                picture_book,
+                *root_object,
+                *arguments->picture_book_directory
+            );
+            application.exit(passed ? 0 : 1);
+        });
+    }
 
 #if defined(Q_OS_MACOS)
     QObject* const title_toolbar = root_object->findChild<QObject*>(QStringLiteral("titleToolBar"));

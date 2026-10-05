@@ -48,6 +48,7 @@ impl Fixture {
             ],
             canvas_width: 1024,
             canvas_height: 768,
+            font_size: 26,
         };
         Self {
             root,
@@ -87,13 +88,18 @@ fn native_archive_preserves_page_roles_languages_source_bytes_and_independent_re
     assert_eq!(project["schema_version"], "20260907.01");
     assert_eq!(project["visible_images"].as_array().unwrap().len(), 4);
     assert_ne!(project["visible_images"][0], project["visible_images"][2]);
-    assert_eq!(
-        project["page_settings"]["blank://shape-3"]["print_only"],
-        true
-    );
+    assert_eq!(project["page_settings"]["3"]["print_only"], true);
     assert_eq!(origin["parsed_scripts"]["en"]["page_text"]["2"], "Hello");
     assert_eq!(origin["parsed_scripts"]["zh-CN"]["page_text"]["2"], "你好");
     assert_eq!(origin["parsed_scripts"]["en"]["author"], "Ada");
+    // Native page settings are indexed, not keyed by the visible asset path.
+    assert!(project["page_settings"].get("blank://shape-3").is_none());
+    assert!(
+        project["languages"]["en"]["cover_text_settings"]["offset_y"]
+            .as_i64()
+            .unwrap()
+            < -40
+    );
     for index in [0, 2] {
         let mut bytes = Vec::new();
         archive
@@ -202,4 +208,266 @@ fn bounds_internal_writes_and_existing_files_are_rejected_without_clobber() {
         .resize(65, PictureBookPage::Blank { print_only: false });
     assert!(f.project.export_picture_book(&f.request, &path).is_err());
     assert!(!path.exists());
+}
+
+#[test]
+fn book_candidate_is_transient_and_acceptance_survives_reopen_with_exact_materials() {
+    let mut f = Fixture::new();
+    let before = f.project.snapshot().unwrap();
+    let candidate = f
+        .project
+        .propose_picture_book(None, f.request.clone())
+        .unwrap();
+    assert_eq!(f.project.snapshot().unwrap(), before);
+    let book = f.project.accept_picture_book(candidate).unwrap();
+    assert_eq!(
+        book.content.media_type,
+        shape_domain::PICTURE_BOOK_MEDIA_TYPE
+    );
+    let project = ShapeProject::open(f.root.join("input.shape")).unwrap();
+    assert_eq!(
+        project
+            .read_picture_book(WorkingInput {
+                artifact_id: book.artifact_id,
+                revision_id: book.id
+            })
+            .unwrap(),
+        f.request
+    );
+    let preview = project.preview_picture_book(&f.request).unwrap();
+    assert_eq!(preview["parsed_scripts"]["zh-CN"]["page_text"]["2"], "你好");
+    assert!(preview["stale_inputs"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn stale_book_or_source_rejects_acceptance_but_old_composition_stays_readable() {
+    let mut f = Fixture::new();
+    let initial = f
+        .project
+        .propose_picture_book(None, f.request.clone())
+        .unwrap();
+    let book = f.project.accept_picture_book(initial).unwrap();
+    let pin = WorkingInput {
+        artifact_id: book.artifact_id,
+        revision_id: book.id,
+    };
+    let pending = f
+        .project
+        .propose_picture_book(Some(pin), f.request.clone())
+        .unwrap();
+    let other = f
+        .project
+        .propose_picture_book(Some(pin), f.request.clone())
+        .unwrap();
+    let next = f.project.accept_picture_book(other).unwrap();
+    assert!(f.project.accept_picture_book(pending).is_err());
+    let pending = f
+        .project
+        .propose_picture_book(
+            Some(WorkingInput {
+                revision_id: next.id,
+                ..pin
+            }),
+            f.request.clone(),
+        )
+        .unwrap();
+    let source = f.request.languages["en"];
+    let update = f
+        .project
+        .propose_text(
+            source.artifact_id,
+            Some(source.revision_id),
+            "[Cover] Changed\n[Title] Night\n[1] Hello",
+            IntentSpec::new("Source update").unwrap(),
+            vec![],
+        )
+        .unwrap();
+    let newer = f.project.accept_text(update).unwrap();
+    assert!(f.project.accept_picture_book(pending).is_err());
+    let saved = f.project.read_picture_book(pin).unwrap();
+    let preview = f.project.preview_picture_book(&saved).unwrap();
+    assert_eq!(preview["stale_inputs"].as_array().unwrap().len(), 1);
+    assert_eq!(preview["parsed_scripts"]["en"]["page_text"]["0"], "Moon");
+    f.project
+        .export_accepted_picture_book(pin, &f.root.join("old.scproj"))
+        .unwrap();
+    f.request.languages.insert(
+        "en".into(),
+        WorkingInput {
+            artifact_id: newer.artifact_id,
+            revision_id: newer.id,
+        },
+    );
+    let candidate = f
+        .project
+        .propose_picture_book(
+            Some(WorkingInput {
+                revision_id: next.id,
+                ..pin
+            }),
+            f.request.clone(),
+        )
+        .unwrap();
+    let newest = f.project.accept_picture_book(candidate).unwrap();
+    assert_eq!(newest.parents, vec![next.id]);
+}
+
+#[test]
+fn editing_script_branches_original_and_missing_translation_never_borrows_text() {
+    let mut f = Fixture::new();
+    let original = f.request.languages["zh-CN"];
+    let edited = f
+        .project
+        .adopt_picture_book_script(
+            "中文修订",
+            Some(original),
+            "[封面] 月亮\n[扉页] 夜晚\n[作者] 艾达",
+        )
+        .unwrap();
+    assert_ne!(edited.artifact_id, original.artifact_id);
+    assert_eq!(
+        f.project
+            .read_accepted(original.artifact_id)
+            .unwrap()
+            .unwrap()
+            .revision
+            .id,
+        original.revision_id
+    );
+    f.request.languages.insert(
+        "zh-CN".into(),
+        WorkingInput {
+            artifact_id: edited.artifact_id,
+            revision_id: edited.id,
+        },
+    );
+    let preview = f.project.preview_picture_book(&f.request).unwrap();
+    assert_eq!(
+        preview["missing_text"],
+        json!([{"language":"zh-CN","page":2}])
+    );
+    assert!(
+        preview["parsed_scripts"]["zh-CN"]["page_text"]
+            .get("2")
+            .is_none()
+    );
+    let snapshot = f.project.snapshot().unwrap();
+    assert!(
+        f.project
+            .adopt_picture_book_script("Bad", None, "[Cover] A\n[Cover] B")
+            .is_err()
+    );
+    assert_eq!(f.project.snapshot().unwrap(), snapshot);
+}
+
+#[test]
+fn review_identity_binds_composition_target_and_source_revisions() {
+    let mut f = Fixture::new();
+    let first = f
+        .project
+        .propose_picture_book(None, f.request.clone())
+        .unwrap();
+    let again = f
+        .project
+        .propose_picture_book(None, f.request.clone())
+        .unwrap();
+    assert_eq!(first.review_digest(), again.review_digest());
+    f.request.font_size = 30;
+    let changed = f
+        .project
+        .propose_picture_book(None, f.request.clone())
+        .unwrap();
+    assert_ne!(first.review_digest(), changed.review_digest());
+    let accepted = f.project.accept_picture_book(first).unwrap();
+    let update = f
+        .project
+        .propose_picture_book(
+            Some(WorkingInput {
+                artifact_id: accepted.artifact_id,
+                revision_id: accepted.id,
+            }),
+            f.request.clone(),
+        )
+        .unwrap();
+    assert_ne!(changed.review_digest(), update.review_digest());
+}
+
+#[test]
+fn returned_artwork_is_explicitly_bound_then_frozen_in_each_book_version() {
+    use shape_domain::{ContentDigest, MaterialEditor};
+    let mut f = Fixture::new();
+    let source = f.request.pages[0].source().unwrap();
+    let candidate = f
+        .project
+        .propose_picture_book(None, f.request.clone())
+        .unwrap();
+    let old = f.project.accept_picture_book(candidate).unwrap();
+    let old_pin = WorkingInput {
+        artifact_id: old.artifact_id,
+        revision_id: old.id,
+    };
+    let ticket = f
+        .project
+        .create_material_edit(source, "Shadow derived art", MaterialEditor::Shadow)
+        .unwrap();
+    let mut bytes = Vec::new();
+    PngEncoder::new(&mut bytes)
+        .write_image(
+            &[220, 130, 20, 255].repeat(8),
+            4,
+            2,
+            ColorType::Rgba8.into(),
+        )
+        .unwrap();
+    let digest = ContentDigest::from_bytes(&bytes);
+    let returned = f
+        .project
+        .propose_material_return(&ticket, bytes.clone(), digest)
+        .unwrap();
+    assert_eq!(f.project.read_picture_book(old_pin).unwrap(), f.request);
+    let edited = f.project.accept_material_return(returned).unwrap();
+    assert_eq!(
+        f.project
+            .read_accepted(source.artifact_id)
+            .unwrap()
+            .unwrap()
+            .revision
+            .id,
+        source.revision_id
+    );
+    f.request.pages[2] = PictureBookPage::Image {
+        source: WorkingInput {
+            artifact_id: edited.artifact_id,
+            revision_id: edited.id,
+        },
+        print_only: false,
+    };
+    let reviewed = f
+        .project
+        .propose_picture_book(Some(old_pin), f.request.clone())
+        .unwrap();
+    let new = f.project.accept_picture_book(reviewed).unwrap();
+    let reopened = ShapeProject::open(f.root.join("input.shape")).unwrap();
+    assert_eq!(
+        reopened.read_picture_book(old_pin).unwrap().pages[2].source(),
+        Some(source)
+    );
+    let new_pin = WorkingInput {
+        artifact_id: new.artifact_id,
+        revision_id: new.id,
+    };
+    assert_eq!(reopened.read_picture_book(new_pin).unwrap(), f.request);
+    let path = f.root.join("returned-art.scproj");
+    reopened
+        .export_accepted_picture_book(new_pin, &path)
+        .unwrap();
+    let mut archive = zip::ZipArchive::new(File::open(path).unwrap()).unwrap();
+    let state: Value = serde_json::from_reader(archive.by_name("project.json").unwrap()).unwrap();
+    let mut exported = Vec::new();
+    archive
+        .by_name(state["visible_images"][2].as_str().unwrap())
+        .unwrap()
+        .read_to_end(&mut exported)
+        .unwrap();
+    assert_eq!(exported, bytes);
 }

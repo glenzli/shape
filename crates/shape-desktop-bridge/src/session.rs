@@ -3,6 +3,7 @@
 mod candidate_shelf;
 mod material_edit;
 mod operator_drafts;
+mod picture_book;
 mod sound_generation;
 mod speech_script;
 mod text_authoring;
@@ -802,6 +803,10 @@ impl DesktopSession {
             || preserves_text_intent
             || matches!(&candidate, Candidate::Audio(a) if a.request_node().is_some());
         let accepted_revision = match candidate {
+            Candidate::Book(candidate) => self
+                .project
+                .accept_picture_book(candidate)
+                .map_err(|e| e.to_string())?,
             Candidate::Material(candidate) => self
                 .project
                 .accept_material_return(candidate)
@@ -944,7 +949,8 @@ impl DesktopSession {
                 | Candidate::AiImage(_) => {
                     Err("candidate does not belong to the selected artifact".to_owned())
                 }
-                Candidate::Text(_)
+                Candidate::Book(_)
+                | Candidate::Text(_)
                 | Candidate::AgentText(_)
                 | Candidate::Audio(_)
                 | Candidate::Sound(_) => Err("candidate is not an image preview".to_owned()),
@@ -1436,6 +1442,7 @@ fn parse_artifact_id(value: &str) -> Result<ArtifactId, String> {
 
 fn candidate_wire(candidate: &Candidate) -> ffi::CandidateWire {
     match candidate {
+        Candidate::Book(candidate) => picture_book::candidate_wire(candidate),
         Candidate::Material(candidate) => material_edit::material_candidate_wire(candidate),
         Candidate::Text(candidate) => text_candidate_wire(candidate),
         Candidate::AgentText(candidate) => agent_text_candidate_wire(candidate),

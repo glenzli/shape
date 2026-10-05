@@ -5,6 +5,8 @@ use shape_domain::{ProjectMetadata, SHAPE_PROJECT_SCHEMA_REVISION};
 
 use crate::StoreError;
 
+pub(super) const MATERIAL_SCHEMA_REVISION: &str = "20260811.5";
+
 pub(super) const INITIAL_SCHEMA_REVISION: &str = "20260810.1";
 pub(super) const SCENE_SCHEMA_REVISION: &str = "20260811.1";
 pub(super) const AUDIO_SCHEMA_REVISION: &str = "20260811.2";
@@ -97,6 +99,7 @@ pub(super) fn supports_migration(revision: &str) -> bool {
             | AUDIO_SCHEMA_REVISION
             | WORKING_GRAPH_SCHEMA_REVISION
             | CONFIGURED_WORKING_GRAPH_SCHEMA_REVISION
+            | MATERIAL_SCHEMA_REVISION
             | SHAPE_PROJECT_SCHEMA_REVISION
     )
 }

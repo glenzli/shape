@@ -78,6 +78,10 @@ qt_add_executable(shape-desktop
     src/main.cpp
     src/desktop_backend.cpp
     src/desktop_backend.hpp
+    src/picture_book_controller.cpp
+    src/picture_book_controller.hpp
+    src/picture_book_renderer.cpp
+    src/picture_book_renderer.hpp
     src/infer_runtime_controller.cpp
     src/infer_runtime_controller.hpp
     src/infer_text_controller.cpp
@@ -120,6 +124,8 @@ qt_add_executable(shape-desktop
     tests/text_authoring_smoke.hpp
     tests/speech_feedback_smoke.cpp
     tests/speech_feedback_smoke.hpp
+    tests/picture_book_smoke.cpp
+    tests/picture_book_smoke.hpp
     tests/material_edit_smoke.cpp
     tests/material_edit_smoke.hpp
     tests/audio_preview_smoke.cpp
@@ -151,6 +157,7 @@ qt_add_qml_module(shape-desktop
         qml/components/AudioSpeechOperatorWorkspace.qml
         qml/components/SoundGenerationWorkspace.qml
         qml/components/MaterialEditWorkspace.qml
+        qml/components/PictureBookWorkspace.qml
         qml/components/AiImageOperatorWorkspace.qml
         qml/components/AiModelPicker.qml
         qml/components/CandidateFilmstrip.qml
@@ -291,6 +298,17 @@ if(BUILD_TESTING)
             "-DSHAPE_CARGO_EXECUTABLE=${SHAPE_CARGO_EXECUTABLE}"
             "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/project_smoke.cmake"
+    )
+    add_test(
+        NAME shape-desktop-picture-book-smoke
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/picture_book_smoke.cmake"
+    )
+    set_tests_properties(shape-desktop-picture-book-smoke PROPERTIES
+        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
+        TIMEOUT 60
     )
     set_tests_properties(shape-desktop-project-smoke PROPERTIES
         FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"

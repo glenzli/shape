@@ -134,7 +134,7 @@ logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attach
   composite/layer image structure, waveform editing, recording, Voice Reference execution,
   `audio.transform`, live editor attachment/process management, whole-project imports/exports
   and material-conditioned image execution. The bounded Shadow/Echo file stages and Storybook
-  snapshot composition described below are implemented.
+  revisioned composition described below are implemented.
   The required Infer speech alias/ACL is locally
   proven but remains an externally unpublished dependency until Infer commits it.
 - License: Shape source is licensed under the [`MIT License`](LICENSE). Shadow's GPL components
@@ -153,7 +153,9 @@ returns as derived versions only after review. The desktop and strict JSON CLI
 share ticket/session/source/head validation; Echo PCM24 conversion is explicit.
 See [material editing](docs/MATERIAL_EDIT.md).
 
-`shape-cli picture-book` composes accepted multilingual text and ordered image
-materials into a native Storybook `.scproj` for its layout and publishing workflow.
-See [picture-book composition](docs/PICTURE_BOOK.md) for the implemented boundary,
-input format and remaining product decisions.
+Open **Picture books / 绘本** in the project rail to start or continue a book, edit
+language scripts, bind accepted artwork, review and adopt a version, then export
+a reading PDF or editable Storybook `.scproj`. `shape-cli picture-book` exposes
+the same revisioned composition for AI callers. Original materials and older book
+versions remain intact. See [picture-book composition](docs/PICTURE_BOOK.md) for
+the workflow, JSON actions, interoperability and unimplemented publishing features.

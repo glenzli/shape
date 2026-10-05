@@ -10,6 +10,7 @@ ShapeDialog {
     signal textAuthoringRequested(string preset)
     signal aiImageSceneRequested()
     signal soundSceneRequested()
+    signal pictureBookRequested()
     signal importMaterialRequested()
     signal pasteMaterialRequested()
     function openForCreation() : void { open() }
@@ -72,6 +73,7 @@ ShapeDialog {
                 }
             }
         }
+        ShapeButton { objectName: "createPictureBookButton"; text: qsTr("Create or continue a picture book"); onClicked: { dialog.close(); dialog.pictureBookRequested() } }
         ShapeButton { objectName: "createSoundSceneTypeButton"; text: qsTr("Create sound effects or music"); onClicked: { dialog.close(); dialog.soundSceneRequested() } }
         Label { text: qsTr("Image and external material"); color: Theme.muted; font.pixelSize: 12 }
         RowLayout {

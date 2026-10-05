@@ -46,7 +46,12 @@ mod image_resize;
 mod image_transform;
 mod image_unsharp_mask;
 mod operator_graph;
+mod picture_book;
 mod project;
+pub use picture_book::{
+    PICTURE_BOOK_MEDIA_TYPE, PICTURE_BOOK_SCHEMA, PictureBookDocument, PictureBookPage,
+    PictureBookRequest,
+};
 mod scene;
 pub mod speech_script;
 mod text_document;

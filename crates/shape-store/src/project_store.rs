@@ -3,6 +3,7 @@
 mod audio;
 mod inspection;
 mod material_edit;
+mod picture_book;
 pub use inspection::ProjectInspection;
 mod working_graph;
 
@@ -655,6 +656,13 @@ impl ProjectStore {
         let artifact = self
             .artifact(commit.artifact_id)?
             .ok_or(StoreError::UnknownArtifact(commit.artifact_id))?;
+        picture_book::validate_commit(
+            self,
+            artifact.kind,
+            &commit.output_bytes,
+            (&commit.transformation, &commit.receipt),
+            expected_input_heads,
+        )?;
         validate_content_contract(
             artifact.kind,
             &commit.output_media_type,
@@ -762,6 +770,13 @@ impl ProjectStore {
     ) -> Result<ArtifactRevision, StoreError> {
         validate_new_artifact_commit(&commit)?;
         self.validate_script_commit(&commit)?;
+        picture_book::validate_commit(
+            self,
+            commit.artifact.kind,
+            &commit.output_bytes,
+            (&commit.transformation, &commit.receipt),
+            &commit.expected_input_heads,
+        )?;
         validate_content_contract(
             commit.artifact.kind,
             &commit.output_media_type,
@@ -1059,6 +1074,14 @@ fn validate_content_contract(
     output_bytes: &[u8],
 ) -> Result<(), StoreError> {
     match (artifact_kind, contract) {
+        (ArtifactKind::PictureBook, None)
+            if media_type == shape_domain::PICTURE_BOOK_MEDIA_TYPE =>
+        {
+            picture_book::document(output_bytes).map(|_| ())
+        }
+        (ArtifactKind::PictureBook, _) => Err(StoreError::InvalidCommit(
+            "picture books require their versioned composition document",
+        )),
         (ArtifactKind::TextDocument, Some(ArtifactContentContract::TextDocument(contract))) => {
             if media_type == "text/plain; charset=utf-8" && contract.accepts(output_bytes) {
                 Ok(())

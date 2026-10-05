@@ -9,6 +9,7 @@ use shape_domain::ArtifactId;
 /// One executed payload awaiting explicit user acceptance.
 #[derive(Debug, Clone)]
 pub(super) enum Candidate {
+    Book(shape_core::PictureBookCandidate),
     Material(shape_core::MaterialEditCandidate),
     Text(TextCandidate),
     AgentText(AgentTextCandidate),
@@ -23,6 +24,7 @@ pub(super) enum Candidate {
 impl Candidate {
     pub(super) fn id(&self) -> String {
         match self {
+            Self::Book(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Material(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::Text(candidate) => candidate.receipt().attempt_id.to_string(),
             Self::AgentText(candidate) => candidate.receipt().attempt_id.to_string(),
@@ -37,6 +39,7 @@ impl Candidate {
 
     pub(super) const fn artifact_id(&self) -> ArtifactId {
         match self {
+            Self::Book(candidate) => candidate.artifact_id(),
             Self::Material(candidate) => candidate.artifact_id(),
             Self::Text(candidate) => candidate.artifact_id(),
             Self::AgentText(candidate) => candidate.artifact_id(),

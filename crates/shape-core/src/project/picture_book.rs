@@ -1,6 +1,8 @@
-//! Freeze accepted Shape materials into an editable Storybook native project.
-//! Storybook remains the owner of typography, page composition and print/publication output.
+//! Compose revisioned picture books over accepted materials and export Storybook snapshots.
+//! Native reading layout lives in the desktop; Storybook retains its advanced publishing tools.
 mod script;
+mod version;
+pub use version::PictureBookCandidate;
 
 use super::ShapeProject;
 use crate::CoreError;
@@ -18,32 +20,7 @@ use zip::{ZipWriter, write::SimpleFileOptions};
 
 const MAX_INPUT_BYTES: usize = 128 * 1024 * 1024;
 
-/// Bounded native-project composition over explicitly pinned, accepted materials.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PictureBookRequest {
-    pub name: String,
-    pub default_language: String,
-    pub languages: BTreeMap<String, WorkingInput>,
-    pub pages: Vec<PictureBookPage>,
-    pub canvas_width: u32,
-    pub canvas_height: u32,
-}
-
-/// Ordered cover/title/body pages share geometry across languages, as in Storybook.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum PictureBookPage {
-    Image {
-        source: WorkingInput,
-        #[serde(default)]
-        print_only: bool,
-    },
-    Blank {
-        #[serde(default)]
-        print_only: bool,
-    },
-}
+pub use shape_domain::{PictureBookPage, PictureBookRequest};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PictureBookExport {
@@ -94,6 +71,15 @@ impl ShapeProject {
         request: &PictureBookRequest,
         destination: &Path,
     ) -> Result<PictureBookExport, PictureBookError> {
+        self.export_book_snapshot(request, destination, true)
+    }
+
+    fn export_book_snapshot(
+        &self,
+        request: &PictureBookRequest,
+        destination: &Path,
+        require_current: bool,
+    ) -> Result<PictureBookExport, PictureBookError> {
         validate_request(request)?;
         if destination.extension().and_then(|s| s.to_str()) != Some("scproj") {
             return Err(invalid("destination must end in .scproj"));
@@ -112,7 +98,7 @@ impl ShapeProject {
                 "destination must be a new file outside the Shape project",
             ));
         }
-        let composition = self.compose_picture_book(request)?;
+        let composition = self.compose_picture_book(request, require_current)?;
         let temporary =
             Temporary(parent.join(format!(".shape-book-{}.partial", uuid::Uuid::now_v7())));
         let mut options = OpenOptions::new();
@@ -139,8 +125,10 @@ impl ShapeProject {
         let file = archive.finish()?;
         file.sync_all()?;
         drop(file);
-        for input in &composition.inputs {
-            self.verify_book_head(input.source)?;
+        if require_current {
+            for input in &composition.inputs {
+                self.verify_book_head(input.source)?;
+            }
         }
         let (byte_length, output_blake3) = digest_file(&temporary.0)?;
         // Same-directory hard-link publication is atomic and refuses an existing target.
@@ -174,8 +162,11 @@ impl ShapeProject {
         kind: ArtifactKind,
         inputs: &mut Vec<PinnedSource>,
         remaining: &mut usize,
+        require_current: bool,
     ) -> Result<Vec<u8>, PictureBookError> {
-        self.verify_book_head(source)?;
+        if require_current {
+            self.verify_book_head(source)?;
+        }
         let artifact = self
             .store
             .artifact(source.artifact_id)
@@ -204,6 +195,7 @@ impl ShapeProject {
     fn compose_picture_book(
         &self,
         request: &PictureBookRequest,
+        require_current: bool,
     ) -> Result<Composition, PictureBookError> {
         let mut inputs = Vec::new();
         let mut remaining = MAX_INPUT_BYTES;
@@ -216,6 +208,7 @@ impl ShapeProject {
                 ArtifactKind::TextDocument,
                 &mut inputs,
                 &mut remaining,
+                require_current,
             )?;
             let text = String::from_utf8(bytes).map_err(|_| invalid("script must be UTF-8"))?;
             let parsed = script::parse(&text, request.pages.len())?;
@@ -230,9 +223,19 @@ impl ShapeProject {
             } else {
                 vec![json!({"role":"author", "name":parsed.author})]
             };
+            let mut cover = text_settings(u32::from(request.font_size) * 3 / 2);
+            if !parsed.author.is_empty() {
+                // Storybook anchors both layers at the bottom; separate the cover credit.
+                let lines = parsed.author.lines().count().max(1);
+                cover["offset_y"] = json!(
+                    -((i64::try_from(lines).map_err(|_| invalid("too many credit lines"))? * 24
+                        + 24)
+                        .max(64))
+                );
+            }
             languages.insert(language, json!({"script":text,
-                "cover_text_settings":text_settings(40), "title_text_settings":text_settings(32),
-                "inner_text_settings":text_settings(20), "author_text_settings":text_settings(16),
+                "cover_text_settings":cover, "title_text_settings":text_settings(u32::from(request.font_size) * 5 / 4),
+                "inner_text_settings":text_settings(u32::from(request.font_size)), "author_text_settings":text_settings(16),
                 "page_text_overrides":{}, "publication_metadata": {"version":1,
                     "language":language,"title":parsed.page_text.get(&0),"contributors":contributors}}));
             parsed_languages.insert(language, parsed);
@@ -248,6 +251,7 @@ impl ShapeProject {
                         ArtifactKind::ImageRaster,
                         &mut inputs,
                         &mut remaining,
+                        require_current,
                     )?;
                     let digest = shape_domain::ContentDigest::from_bytes(&bytes);
                     // Repeated artwork still receives distinct editable page identities.
@@ -260,7 +264,7 @@ impl ShapeProject {
                 }
             };
             if print_only {
-                page_settings.insert(path.clone(), json!({"print_only":true}));
+                page_settings.insert(index.to_string(), json!({"print_only":true}));
             }
             visible.push(path);
         }
@@ -285,37 +289,16 @@ impl ShapeProject {
 }
 
 fn text_settings(size: u32) -> Value {
-    json!({"font_family":"serif","font_size":size,"text_color":"#ffffff","has_shadow":true,
-        "has_backdrop":false,"offset_x":0,"offset_y":0,"paper_alignment":"left","auto_snap_content":true})
+    json!({"font_family":"sans-serif","font_size":size,"text_color":"#182a37","has_shadow":false,
+        "has_backdrop":true,"readability_mode":"panel","text_effects":{"outline":0,"halo":0,"backdrop":"panel","strength":1,"seed":1,"roughness":0,"feather":0,"color":"#ffffff"},"offset_x":0,"offset_y":0,"paper_alignment":"left","auto_snap_content":true})
 }
 fn invalid(message: &'static str) -> PictureBookError {
     PictureBookError::Invalid(message)
 }
 fn validate_request(r: &PictureBookRequest) -> Result<(), PictureBookError> {
-    if r.name.trim().is_empty()
-        || r.name.len() > 256
-        || r.name.chars().any(char::is_control)
-        || r.pages.is_empty()
-        || r.pages.len() > 64
-        || r.languages.is_empty()
-        || r.languages.len() > 8
-        || !r.languages.contains_key(&r.default_language)
-        || !(1..=8192).contains(&r.canvas_width)
-        || !(1..=8192).contains(&r.canvas_height)
-        || r.languages.keys().any(|s| {
-            s.is_empty()
-                || s.len() > 35
-                || s.starts_with('-')
-                || s.ends_with('-')
-                || !s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
-        })
-    {
-        return Err(invalid(
-            "invalid name, language, canvas or page count (maximum 64 pages / 8 languages)",
-        ));
-    }
-    Ok(())
+    r.validate().map_err(invalid)
 }
+
 fn digest_file(path: &Path) -> Result<(u64, String), std::io::Error> {
     let mut file = File::open(path)?;
     let len = file.metadata()?.len();

@@ -456,6 +456,29 @@ mod ffi {
             self: &mut DesktopSession,
             candidate: Box<PreparedMaterialReturn>,
         ) -> Result<CandidateWire>;
+        fn session_book_preview(self: &DesktopSession, composition: &str) -> Result<String>;
+        fn session_book_propose(
+            self: &mut DesktopSession,
+            source: &str,
+            composition: &str,
+        ) -> Result<String>;
+        fn session_book_read(self: &DesktopSession, source: &str) -> Result<String>;
+        fn session_book_export(
+            self: &DesktopSession,
+            source: &str,
+            destination: &str,
+        ) -> Result<String>;
+        fn session_book_script(
+            self: &mut DesktopSession,
+            name: &str,
+            source: &str,
+            text: &str,
+        ) -> Result<String>;
+        fn session_book_material(
+            self: &DesktopSession,
+            source: &str,
+            kind: &str,
+        ) -> Result<Vec<u8>>;
         fn session_snapshot(self: &DesktopSession) -> Result<ProjectSnapshotWire>;
         fn session_rename_artifact(
             self: &DesktopSession,
@@ -990,6 +1013,7 @@ const fn artifact_kind_key(kind: ArtifactKind) -> &'static str {
         ArtifactKind::ImageRaster => "image_raster",
         ArtifactKind::ImageComposite => "image_composite",
         ArtifactKind::ReferenceSet => "reference_set",
+        ArtifactKind::PictureBook => "picture_book",
         ArtifactKind::AudioClip => "audio_clip",
     }
 }

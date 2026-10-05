@@ -4,7 +4,7 @@
 <context>
     <name>AgentFileTaskWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AgentFileTaskWorkspace.qml" line="+36"/>
+        <location filename="../qml/components/AgentFileTaskWorkspace.qml" line="+36"/>
         <location line="+59"/>
         <source>Configure Infer access in Settings before running this task.</source>
         <translation>运行此任务前，请先在设置中配置 Infer 访问。</translation>
@@ -103,7 +103,7 @@
 <context>
     <name>AiImageOperatorWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AiImageOperatorWorkspace.qml" line="+47"/>
+        <location filename="../qml/components/AiImageOperatorWorkspace.qml" line="+47"/>
         <source>AI IMAGE · STARTING POINT</source>
         <translation>AI 图片 · 起点</translation>
     </message>
@@ -151,7 +151,7 @@
 <context>
     <name>AiModelPicker</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AiModelPicker.qml" line="+87"/>
+        <location filename="../qml/components/AiModelPicker.qml" line="+87"/>
         <source>Effort for this run</source>
         <translation>本次推理投入</translation>
     </message>
@@ -210,7 +210,7 @@
 <context>
     <name>ArtifactDetailsPanel</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ArtifactDetailsPanel.qml" line="+21"/>
+        <location filename="../qml/components/ArtifactDetailsPanel.qml" line="+21"/>
         <source>No materialized content</source>
         <translation>没有已生成内容</translation>
     </message>
@@ -278,7 +278,7 @@
 <context>
     <name>ArtifactLineagePanel</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ArtifactLineagePanel.qml" line="+31"/>
+        <location filename="../qml/components/ArtifactLineagePanel.qml" line="+31"/>
         <source>LINEAGE</source>
         <translation>沿袭</translation>
     </message>
@@ -356,7 +356,7 @@
 <context>
     <name>AudioExportDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AudioExportDialog.qml" line="+22"/>
+        <location filename="../qml/components/AudioExportDialog.qml" line="+22"/>
         <location line="+10"/>
         <source>Export audio</source>
         <translation>导出音频</translation>
@@ -395,7 +395,7 @@
 <context>
     <name>AudioSpeechOperatorWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/AudioSpeechOperatorWorkspace.qml" line="+339"/>
+        <location filename="../qml/components/AudioSpeechOperatorWorkspace.qml" line="+339"/>
         <source>The original changed. Refresh to review its latest version. Older candidates will be cleared; accepted recordings stay.</source>
         <translation>原稿已更新。刷新后可审阅最新版本。旧候选将被清除；已采用的录音会保留。</translation>
     </message>
@@ -793,7 +793,7 @@
 <context>
     <name>BranchArtifactDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/BranchArtifactDialog.qml" line="+28"/>
+        <location filename="../qml/BranchArtifactDialog.qml" line="+28"/>
         <source>%1 — Branch</source>
         <translation>%1 — 分支</translation>
     </message>
@@ -837,7 +837,7 @@
 <context>
     <name>CandidateFilmstrip</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CandidateFilmstrip.qml" line="+58"/>
+        <location filename="../qml/components/CandidateFilmstrip.qml" line="+58"/>
         <source>Image · %1 × %2</source>
         <translation>图像 · %1 × %2</translation>
     </message>
@@ -910,7 +910,7 @@
 <context>
     <name>ContextInspector</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ContextInspector.qml" line="+44"/>
+        <location filename="../qml/components/ContextInspector.qml" line="+44"/>
         <source>Explore</source>
         <translation>探索</translation>
     </message>
@@ -928,7 +928,7 @@
 <context>
     <name>CreateAiImageSceneDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreateAiImageSceneDialog.qml" line="+22"/>
+        <location filename="../qml/components/CreateAiImageSceneDialog.qml" line="+22"/>
         <source>Untitled image</source>
         <translation>未命名图片</translation>
     </message>
@@ -986,7 +986,7 @@
 <context>
     <name>CreateProjectDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreateProjectDialog.qml" line="+20"/>
+        <location filename="../qml/components/CreateProjectDialog.qml" line="+20"/>
         <source>Untitled Project</source>
         <translation>未命名项目</translation>
     </message>
@@ -1039,12 +1039,12 @@
 <context>
     <name>CreateSceneTypeDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreateSceneTypeDialog.qml" line="+75"/>
+        <location filename="../qml/components/CreateSceneTypeDialog.qml" line="+77"/>
         <source>Create sound effects or music</source>
         <translation>创作音效或音乐</translation>
     </message>
     <message>
-        <location line="-54"/>
+        <location line="-55"/>
         <source>What do you want to make?</source>
         <translation>你想创作什么？</translation>
     </message>
@@ -1089,7 +1089,12 @@
         <translation>开始写脚本</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+4"/>
+        <source>Create or continue a picture book</source>
+        <translation>创建或继续编辑绘本</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Image and external material</source>
         <translation>图像与外部素材</translation>
     </message>
@@ -1117,7 +1122,7 @@
 <context>
     <name>CreateTextSceneDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreateTextSceneDialog.qml" line="+18"/>
+        <location filename="../qml/components/CreateTextSceneDialog.qml" line="+18"/>
         <source>Untitled text</source>
         <translation>未命名文本</translation>
     </message>
@@ -1155,7 +1160,7 @@
 <context>
     <name>CreativeCandidateNodeCard</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreativeCandidateNodeCard.qml" line="+20"/>
+        <location filename="../qml/components/CreativeCandidateNodeCard.qml" line="+20"/>
         <source>Image · %1 × %2</source>
         <translation>图像 · %1 × %2</translation>
     </message>
@@ -1183,7 +1188,7 @@
 <context>
     <name>CreativeDraftNodeCard</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreativeDraftNodeCard.qml" line="+23"/>
+        <location filename="../qml/components/CreativeDraftNodeCard.qml" line="+23"/>
         <source>Text</source>
         <translation>文本</translation>
     </message>
@@ -1241,7 +1246,7 @@
 <context>
     <name>CreativeGraphNodeCard</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/CreativeGraphNodeCard.qml" line="+105"/>
+        <location filename="../qml/components/CreativeGraphNodeCard.qml" line="+105"/>
         <source>Sound generation</source>
         <translation>声音生成</translation>
     </message>
@@ -1428,7 +1433,7 @@
 <context>
     <name>DesktopBackend</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/src/desktop_backend.cpp" line="+119"/>
+        <location filename="../src/desktop_backend.cpp" line="+120"/>
         <source>Edit image in Shadow</source>
         <translation>在 Shadow 中编辑图片</translation>
     </message>
@@ -1438,12 +1443,12 @@
         <translation>在 Echo 中编辑音频</translation>
     </message>
     <message>
-        <location line="-80"/>
+        <location line="-81"/>
         <source>This draft changed in another session. Copy any unsaved text, then reopen the project.</source>
         <translation>此草稿已在另一个会话中更改。请先复制尚未保存的文本，再重新打开项目。</translation>
     </message>
     <message>
-        <location line="+609"/>
+        <location line="+610"/>
         <source>Could not create the sound Scene.</source>
         <translation>无法创建声音场景。</translation>
     </message>
@@ -1635,7 +1640,12 @@
         <translation>图像编辑</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-74"/>
+        <source>Picture book</source>
+        <translation>绘本</translation>
+    </message>
+    <message>
+        <location line="+77"/>
         <source>Text creation</source>
         <translation>文本创作</translation>
     </message>
@@ -2041,7 +2051,7 @@
 <context>
     <name>GraphSelectionInspector</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/GraphSelectionInspector.qml" line="+82"/>
+        <location filename="../qml/components/GraphSelectionInspector.qml" line="+82"/>
         <source>Select a step to understand what it does</source>
         <translation>选择一个步骤，了解它的作用</translation>
     </message>
@@ -2069,7 +2079,7 @@
 <context>
     <name>ImageCompareWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ImageCompareWorkspace.qml" line="+20"/>
+        <location filename="../qml/components/ImageCompareWorkspace.qml" line="+20"/>
         <source>ACCEPTED</source>
         <translation>已接受</translation>
     </message>
@@ -2082,7 +2092,7 @@
 <context>
     <name>ImageEditorWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ImageEditorWorkspace.qml" line="+78"/>
+        <location filename="../qml/components/ImageEditorWorkspace.qml" line="+78"/>
         <source>Image editing</source>
         <translation>图像编辑</translation>
     </message>
@@ -2120,12 +2130,12 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/Main.qml" line="+212"/>
+        <location filename="../qml/Main.qml" line="+213"/>
         <source>Untitled sound</source>
         <translation>未命名声音</translation>
     </message>
     <message>
-        <location line="+182"/>
+        <location line="+195"/>
         <source>Export accepted result</source>
         <translation>导出已采用的结果</translation>
     </message>
@@ -2141,7 +2151,7 @@
         <translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation>
     </message>
     <message>
-        <location line="-173"/>
+        <location line="-186"/>
         <source>Finishing the current image, then stopping. %1 of %2 ready.</source>
         <translation>当前图片完成后停止，已完成 %1/%2 个。</translation>
     </message>
@@ -2161,12 +2171,12 @@
         <translation>已完成 %1/%2 个图片候选。请先查看，再决定是否重试。</translation>
     </message>
     <message>
-        <location line="+471"/>
+        <location line="+485"/>
         <source>Generate %1 versions</source>
         <translation>生成 %1 个候选</translation>
     </message>
     <message>
-        <location line="-478"/>
+        <location line="-492"/>
         <source>AI is creating a new image version…</source>
         <translation>AI 正在创建新的图片版本…</translation>
     </message>
@@ -2201,7 +2211,7 @@
         <translation>每次运行都会创建可查看的版本。只有选择采用后，当前结果才会改变。</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+130"/>
         <source>Import material into this project</source>
         <translation>将素材导入此项目</translation>
     </message>
@@ -2211,7 +2221,7 @@
         <translation>可复用组件将是下一步能力。这里先为大型项目预留位置，让重复的创作工作可以被整理起来，同时不改变当前的项目结构。</translation>
     </message>
     <message>
-        <location line="+283"/>
+        <location line="+284"/>
         <source>Create an image</source>
         <translation>创建图片</translation>
     </message>
@@ -2246,7 +2256,7 @@
         <translation>生成一个版本</translation>
     </message>
     <message>
-        <location line="-429"/>
+        <location line="-443"/>
         <source>Shape — %1</source>
         <translation>Shape — %1</translation>
     </message>
@@ -2266,7 +2276,7 @@
         <translation>Shape — 无项目</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+98"/>
         <source>Open Shape project folder</source>
         <translation>打开 Shape 项目文件夹</translation>
     </message>
@@ -2291,7 +2301,7 @@
         <translation>组件</translation>
     </message>
     <message>
-        <location line="+288"/>
+        <location line="+289"/>
         <source>Describe the image, composition, light, and mood…</source>
         <translation>描述图像、构图、光线与氛围…</translation>
     </message>
@@ -2299,7 +2309,7 @@
 <context>
     <name>MainTitleBar</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/MainTitleBar.qml" line="+26"/>
+        <location filename="../qml/MainTitleBar.qml" line="+26"/>
         <source>Shape toolbar</source>
         <translation>Shape 工具栏</translation>
     </message>
@@ -2337,7 +2347,7 @@
 <context>
     <name>MaterialEditWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/MaterialEditWorkspace.qml" line="+101"/>
+        <location filename="../qml/components/MaterialEditWorkspace.qml" line="+101"/>
         <source>Convert Echo PCM24 returns to PCM16 for Shape</source>
         <translation>将 Echo 的 PCM24 返回音频转换为 Shape 所需的 PCM16</translation>
     </message>
@@ -2505,7 +2515,7 @@
 <context>
     <name>OperatorIntentSidebar</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/OperatorIntentSidebar.qml" line="+340"/>
+        <location filename="../qml/components/OperatorIntentSidebar.qml" line="+340"/>
         <source>Stopping after this image…</source>
         <translation>将在当前图片完成后停止…</translation>
     </message>
@@ -2589,7 +2599,7 @@
 <context>
     <name>OperatorPalette</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/OperatorPalette.qml" line="+24"/>
+        <location filename="../qml/components/OperatorPalette.qml" line="+24"/>
         <source>Edit image in Shadow</source>
         <translation>在 Shadow 中编辑图片</translation>
     </message>
@@ -2793,7 +2803,7 @@
 <context>
     <name>OperatorWorkspaceHost</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/OperatorWorkspaceHost.qml" line="+124"/>
+        <location filename="../qml/components/OperatorWorkspaceHost.qml" line="+124"/>
         <source>Edit image in Shadow</source>
         <translation>在 Shadow 中编辑图片</translation>
     </message>
@@ -2939,9 +2949,275 @@
     </message>
 </context>
 <context>
+    <name>PictureBookController</name>
+    <message>
+        <location filename="../src/picture_book_controller.cpp" line="+68"/>
+        <source>New picture book</source>
+        <translation>新绘本</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Could not open this book. Its saved version has not changed.</source>
+        <translation>无法打开此绘本，已保存的版本未改变。</translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>Could not prepare the book. Check language page tags, current materials, text length and font size.</source>
+        <translation>无法准备绘本。请检查各语言的页面标签、素材版本、文字长度和字号。</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>The book or a material changed. Refresh materials and review again before adopting.</source>
+        <translation>绘本或素材已经更改。请更新素材版本，重新审阅后再采用。</translation>
+    </message>
+    <message>
+        <location line="+61"/>
+        <source>Page %1 · %2 · %3</source>
+        <translation>第 %1 页 · %2 · %3</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> · Print only</source>
+        <translation> · 仅供印刷</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> · Saved materials have newer versions</source>
+        <translation> · 已保存的素材有新版本</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> · Some language pages have no text; review each language</source>
+        <translation> · 部分语言页面没有文字，请逐一检查</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>This page cannot be displayed. Check its materials and text layout.</source>
+        <translation>无法显示此页，请检查素材和文字排版。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Could not read this script material.</source>
+        <translation>无法读取这份脚本素材。</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Could not adopt this script. Check its page tags or reopen a changed source.</source>
+        <translation>无法采用此脚本。请检查页面标签，或重新打开已经更改的来源。</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Exported the adopted book as an editable Storybook project.</source>
+        <translation>已将采用的绘本版本导出为可编辑的 Storybook 工程。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Could not export. Choose a new .scproj file outside the Shape project.</source>
+        <translation>无法导出。请选择 Shape 工程之外尚不存在的 .scproj 文件。</translation>
+    </message>
+    <message>
+        <location line="+67"/>
+        <source>Exported %1 pages from the adopted book.</source>
+        <translation>已从采用的绘本版本导出 %1 页。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Could not export PDF. Use a new file outside the project and check every page for text overflow or missing fonts.</source>
+        <translation>无法导出 PDF。请使用工程之外的新文件，并逐页检查文字是否溢出或缺少字体。</translation>
+    </message>
+</context>
+<context>
+    <name>PictureBookWorkspace</name>
+    <message>
+        <location filename="../qml/components/PictureBookWorkspace.qml" line="+21"/>
+        <source>Choose a text material…</source>
+        <translation>选择文本素材…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Blank page</source>
+        <translation>空白页</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Picture book</source>
+        <translation>绘本</translation>
+    </message>
+    <message>
+        <location line="+63"/>
+        <source>Export editable Storybook project</source>
+        <translation>导出可编辑的 Storybook 工程</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Storybook project (*.scproj)</source>
+        <translation>Storybook 工程 (*.scproj)</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Export adopted reading layout as PDF</source>
+        <translation>将采用的阅读版排版导出为 PDF</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>PDF document (*.pdf)</source>
+        <translation>PDF 文档 (*.pdf)</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Saved picture books</source>
+        <translation>已保存的绘本</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>New book</source>
+        <translation>新建绘本</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Book name</source>
+        <translation>绘本名称</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Import artwork…</source>
+        <translation>导入插图…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Canvas</source>
+        <translation>画布</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Text size</source>
+        <translation>字号</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use current material versions</source>
+        <translation>使用素材当前版本</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Shared page sequence</source>
+        <translation>各语言共享的页序</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Cover</source>
+        <translation>封面</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Page %1</source>
+        <translation>第 %1 页</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Title page</source>
+        <translation>扉页</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Print only</source>
+        <translation>仅供印刷</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Artwork</source>
+        <translation>插图</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Blank / text page</source>
+        <translation>空白页 / 文字页</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Print-only page</source>
+        <translation>仅供印刷的页面</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Edit artwork material</source>
+        <translation>编辑插图素材</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Page tags keep their positions when artwork is reordered. Bind an adopted edited material to continue.</source>
+        <translation>调整插图顺序时，脚本标签仍对应原来的页码。编辑素材并采用后，可在此选择新素材继续编排。</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Add a language script and page artwork, then review the book.</source>
+        <translation>添加语言脚本和页面插图，然后审阅绘本。</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Language script</source>
+        <translation>语言脚本</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Default reading language</source>
+        <translation>默认阅读语言</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Adopt script as new material</source>
+        <translation>采用脚本为新素材</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Book</source>
+        <translation>绘本</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>[Cover] / [封面], [Author] / [作者], optional [Title] / [扉页], then [1], [2]… All languages share title-page presence. Missing blocks stay textless.</source>
+        <translation>使用 [Cover] / [封面]、[Author] / [作者]，可选 [Title] / [扉页]，然后是 [1]、[2]… 各语言须同时有或没有扉页。缺少文字块的页面保持无文字。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Review book</source>
+        <translation>审阅绘本</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Adopt book version</source>
+        <translation>采用绘本版本</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Discard draft</source>
+        <translation>放弃草稿</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Include print-only pages</source>
+        <translation>包含仅供印刷的页面</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PDF…</source>
+        <translation>PDF…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Return to project</source>
+        <translation>返回工程</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Adopted versions reopen with the project. Drafts stay in this window until the app closes. PDF uses Shape’s reading layout; Storybook keeps its own editable typography and print tools.</source>
+        <translation>采用的版本会随工程保存并恢复。草稿仅在本次应用会话中保留。PDF 使用 Shape 的阅读版排版；Storybook 保留自身的文字排版和印刷工具。</translation>
+    </message>
+</context>
+<context>
     <name>ProjectNavigator</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ProjectNavigator.qml" line="+61"/>
+        <location filename="../qml/components/ProjectNavigator.qml" line="+61"/>
         <source>PROJECT</source>
         <translation>项目</translation>
     </message>
@@ -3034,7 +3310,7 @@
 <context>
     <name>ProjectWelcome</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ProjectWelcome.qml" line="+54"/>
+        <location filename="../qml/components/ProjectWelcome.qml" line="+54"/>
         <source>Your projects</source>
         <translation>你的项目</translation>
     </message>
@@ -3067,7 +3343,7 @@
 <context>
     <name>RasterCropOperatorWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/RasterCropOperatorWorkspace.qml" line="+176"/>
+        <location filename="../qml/components/RasterCropOperatorWorkspace.qml" line="+176"/>
         <source>Crop %1 × %2 at %3, %4</source>
         <translation>裁剪 %1 × %2，起点 %3, %4</translation>
     </message>
@@ -3090,7 +3366,7 @@
 <context>
     <name>RasterEffectsWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/RasterEffectsWorkspace.qml" line="+67"/>
+        <location filename="../qml/components/RasterEffectsWorkspace.qml" line="+67"/>
         <source>Accepted image</source>
         <translation>已接受图像</translation>
     </message>
@@ -3204,7 +3480,7 @@
 <context>
     <name>RasterResizeOperatorWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/RasterResizeOperatorWorkspace.qml" line="+142"/>
+        <location filename="../qml/components/RasterResizeOperatorWorkspace.qml" line="+142"/>
         <source>%1 × %2 px</source>
         <translation>%1 × %2 像素</translation>
     </message>
@@ -3293,7 +3569,7 @@
 <context>
     <name>SceneGraphToolbar</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SceneGraphToolbar.qml" line="+60"/>
+        <location filename="../qml/components/SceneGraphToolbar.qml" line="+60"/>
         <source>Project</source>
         <translation>项目</translation>
     </message>
@@ -3341,7 +3617,7 @@
 <context>
     <name>SceneOperatorGraphWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SceneOperatorGraphWorkspace.qml" line="+841"/>
+        <location filename="../qml/components/SceneOperatorGraphWorkspace.qml" line="+841"/>
         <source>Final file · %1</source>
         <translation>最终文件 · %1</translation>
     </message>
@@ -3517,7 +3793,7 @@
 <context>
     <name>ScriptPresentation</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ScriptPresentation.js" line="+47"/>
+        <location filename="../qml/components/ScriptPresentation.js" line="+47"/>
         <source>Production note · not spoken
 %1</source>
         <translation>制作备注 · 不朗读
@@ -3723,7 +3999,7 @@
 <context>
     <name>ShapeMessageDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/ShapeMessageDialog.qml" line="+63"/>
+        <location filename="../qml/components/ShapeMessageDialog.qml" line="+63"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -3731,7 +4007,7 @@
 <context>
     <name>ShapeSettingsDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/ShapeSettingsDialog.qml" line="+254"/>
+        <location filename="../qml/ShapeSettingsDialog.qml" line="+254"/>
         <location line="+41"/>
         <source>Effort</source>
         <translation>推理投入</translation>
@@ -3897,7 +4173,7 @@
 <context>
     <name>SoundGenerationWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SoundGenerationWorkspace.qml" line="+58"/>
+        <location filename="../qml/components/SoundGenerationWorkspace.qml" line="+58"/>
         <source>Preparing your description locally…</source>
         <translation>正在本机准备声音描述…</translation>
     </message>
@@ -4050,7 +4326,7 @@
 <context>
     <name>SourceMaterialWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SourceMaterialWorkspace.qml" line="+137"/>
+        <location filename="../qml/components/SourceMaterialWorkspace.qml" line="+137"/>
         <source>View source</source>
         <translation>查看源内容</translation>
     </message>
@@ -4168,7 +4444,7 @@
 <context>
     <name>SpeechScriptHelpDialog</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SpeechScriptHelpDialog.qml" line="+23"/>
+        <location filename="../qml/components/SpeechScriptHelpDialog.qml" line="+23"/>
         <source>Production script guide</source>
         <translation>制作脚本指南</translation>
     </message>
@@ -4286,7 +4562,7 @@
 <context>
     <name>SpeechScriptPanel</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SpeechScriptPanel.qml" line="+76"/>
+        <location filename="../qml/components/SpeechScriptPanel.qml" line="+76"/>
         <source>Return to writing and add spoken text.</source>
         <translation>返回写稿并添加需要朗读的文字。</translation>
     </message>
@@ -4420,7 +4696,7 @@
 <context>
     <name>SpeechScriptReadingView</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/SpeechScriptReadingView.qml" line="+16"/>
+        <location filename="../qml/components/SpeechScriptReadingView.qml" line="+16"/>
         <source>Delivery · %1</source>
         <translation>朗读语气 · %1</translation>
     </message>
@@ -4438,7 +4714,7 @@
 <context>
     <name>TextAuthoringWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/TextAuthoringWorkspace.qml" line="+288"/>
+        <location filename="../qml/components/TextAuthoringWorkspace.qml" line="+288"/>
         <source>Older candidates will be cleared. Draft text and accepted outputs stay.</source>
         <translation>基于旧原稿的候选将被清除；草稿文字与已采用作品会保留。</translation>
     </message>
@@ -4782,7 +5058,7 @@
 <context>
     <name>TextCompareWorkspace</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/TextCompareWorkspace.qml" line="+31"/>
+        <location filename="../qml/components/TextCompareWorkspace.qml" line="+31"/>
         <source>ACCEPTED</source>
         <translation>已接受</translation>
     </message>
@@ -4795,7 +5071,7 @@
 <context>
     <name>TextExpressionPalette</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/TextExpressionPalette.qml" line="+37"/>
+        <location filename="../qml/components/TextExpressionPalette.qml" line="+37"/>
         <location line="+279"/>
         <source>Calm</source>
         <translation>平静</translation>
@@ -5127,7 +5403,7 @@
 <context>
     <name>TextFormatPanel</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/TextFormatPanel.qml" line="+23"/>
+        <location filename="../qml/components/TextFormatPanel.qml" line="+23"/>
         <source>Output format</source>
         <translation>输出格式</translation>
     </message>
@@ -5160,7 +5436,7 @@
 <context>
     <name>VariantsPanel</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/VariantsPanel.qml" line="+121"/>
+        <location filename="../qml/components/VariantsPanel.qml" line="+121"/>
         <source>CURRENT ACCEPTED</source>
         <translation>当前已接受</translation>
     </message>
@@ -5298,7 +5574,7 @@
 <context>
     <name>WebAnimationPreview</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/WebAnimationPreview.qml" line="+67"/>
+        <location filename="../qml/components/WebAnimationPreview.qml" line="+67"/>
         <source>This HTML could not be previewed.</source>
         <translation>无法预览这份 HTML。</translation>
     </message>
@@ -5311,7 +5587,7 @@
 <context>
     <name>WorkbenchProjectRail</name>
     <message>
-        <location filename="../../../../../../lab/shape/apps/desktop/qml/components/WorkbenchProjectRail.qml" line="+215"/>
+        <location filename="../qml/components/WorkbenchProjectRail.qml" line="+216"/>
         <source>New</source>
         <translation>新建</translation>
     </message>
@@ -5321,7 +5597,7 @@
         <translation>打开</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+170"/>
         <source>Text and audio</source>
         <translation>文本与配音</translation>
     </message>
@@ -5331,7 +5607,7 @@
         <translation>文本</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Audio</source>
         <translation>音频</translation>
     </message>
@@ -5341,7 +5617,7 @@
         <translation>音频 %1</translation>
     </message>
     <message>
-        <location line="-269"/>
+        <location line="-280"/>
         <source>Components</source>
         <translation>组件</translation>
     </message>
@@ -5386,13 +5662,18 @@
         <translation>你的项目</translation>
     </message>
     <message>
-        <location line="+188"/>
-        <location line="+56"/>
+        <location line="+37"/>
+        <source>Picture books</source>
+        <translation>绘本</translation>
+    </message>
+    <message>
+        <location line="+160"/>
+        <location line="+61"/>
         <source>%1 new version(s)</source>
         <translation>%1 个新版本</translation>
     </message>
     <message>
-        <location line="-287"/>
+        <location line="-301"/>
         <source>New Component</source>
         <translation>新建组件</translation>
     </message>
@@ -5402,7 +5683,7 @@
         <translation>导入…</translation>
     </message>
     <message>
-        <location line="+327"/>
+        <location line="+341"/>
         <source>Paste</source>
         <translation>粘贴</translation>
     </message>
@@ -5412,7 +5693,7 @@
         <translation>粘贴剪贴板素材</translation>
     </message>
     <message>
-        <location line="-294"/>
+        <location line="-308"/>
         <source>Shape Project</source>
         <translation>Shape 项目</translation>
     </message>

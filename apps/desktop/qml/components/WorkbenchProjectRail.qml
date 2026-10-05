@@ -41,6 +41,7 @@ Rectangle {
     signal componentOpened(string componentId, int index)
     signal assetSelected(string assetId, int index)
     signal assetOpened(string assetId, int index)
+    signal pictureBooksRequested()
     signal newProjectRequested()
     signal openProjectRequested()
     signal createSceneRequested()
@@ -227,6 +228,14 @@ Rectangle {
             }
 
             Item { Layout.fillWidth: true }
+        }
+
+        ShapeButton {
+            objectName: "railPictureBooksButton"
+            Layout.fillWidth: true
+            text: qsTr("Picture books")
+            enabled: rail.projectOpen
+            onClicked: rail.pictureBooksRequested()
         }
 
         RowLayout {

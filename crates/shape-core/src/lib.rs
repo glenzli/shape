@@ -15,4 +15,6 @@ pub use project::{
     TEXT_DOCUMENT_DATA_TYPE, TEXT_EDIT_OPERATOR_TYPE, TEXT_TRANSFORM_OPERATOR_TYPE, TextCandidate,
     TextEditParameters, TextTransformMode, TextTransformParameters,
 };
-pub use project::{PictureBookError, PictureBookExport, PictureBookPage, PictureBookRequest};
+pub use project::{
+    PictureBookCandidate, PictureBookError, PictureBookExport, PictureBookPage, PictureBookRequest,
+};

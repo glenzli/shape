@@ -329,10 +329,13 @@ background file work and scoped completion; `MaterialEditWorkspace` owns review.
 Provider protocols and databases remain external. This implements a bounded
 material round trip, not the deferred automatic provider/asset-resolution adapter.
 
-`shape-core::project::picture_book` is the first real consumer of native Storybook
-composition export. It freezes accepted inputs and writes a no-clobber `.scproj`;
-its `script` child preserves Storybook's multilingual page roles while rejecting
-ambiguous input. The `picture-book` CLI is a terminal JSON adapter. Storybook keeps
-ownership of page editing, typography, print/PDF and publication. Book Artifact
-persistence and return acceptance remain an explicit architecture decision; see
-`docs/PICTURE_BOOK.md`.
+`shape-domain::picture_book` owns the portable revisioned book manifest. Store
+validation binds its declared material pins and types to normal CAS/provenance
+acceptance. `shape-core::project::picture_book` composes and exports native
+Storybook snapshots; `script` preserves multilingual page roles, while `version`
+implements review, acceptance and historical reads. The CLI and desktop bridge
+are terminal adapters; books use the existing candidate shelf. The desktop
+`PictureBookController` owns local draft/use-case state; `picture_book_renderer`
+shares layout between image preview and PDF. Storybook retains advanced typography,
+print imposition and publication; native archive intake is deferred. See
+`docs/PICTURE_BOOK.md` for exact bounds and the cross-application boundary.

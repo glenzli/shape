@@ -498,3 +498,14 @@ Missing or ambiguous current output fails before replacing the stable include fi
 when `GraphicsInfo` reports the software backend. This avoids invisible action icons
 in offscreen/fallback rendering while preserving theme colors; no provider or media
 rendering contract changes. See [Qt Canvas backends](https://doc.qt.io/qt-6/qml-qtquick-canvas.html).
+
+## Picture books
+
+The project rail's **Picture books / 绘本** opens a versioned composition workspace.
+`PictureBookController` connects the shared candidate shelf to page/script editing;
+`picture_book_renderer` draws both previews and reading PDFs. See
+[the workflow and boundaries](../../docs/PICTURE_BOOK.md). The packaged
+`shape-desktop-picture-book-smoke` drives this real controller/QML surface with
+synthetic bilingual material and records rendered pages, PDFs and a screenshot.
+Use `SHAPE_BUILD_JOBS=2 CARGO_BUILD_JOBS=2 scripts/build_and_promote_debug.sh --full`
+when sharing the machine under a two-job build budget.

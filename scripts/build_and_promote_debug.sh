@@ -25,6 +25,7 @@ Optional overrides:
   SHAPE_CANONICAL_DEBUG_BUILD_DIR         External CMake candidate directory.
   SHAPE_CANONICAL_DEBUG_CARGO_TARGET_DIR  External Cargo target directory.
   SHAPE_LOCAL_BUILD_ROOT                  Root containing releases and current-debug.
+  SHAPE_BUILD_JOBS                        Positive native build parallelism (default 6).
 EOF
 }
 
@@ -97,13 +98,17 @@ if [ "$validation_mode" = full ]; then
     )
 fi
 cmake --preset desktop-dev -B "$build_directory"
-cmake --build "$build_directory" --target shape-desktop --parallel 6
+build_jobs=${SHAPE_BUILD_JOBS:-6}
+case "$build_jobs" in
+    ''|*[!0-9]*|0) fail "SHAPE_BUILD_JOBS must be a positive integer" ;;
+esac
+cmake --build "$build_directory" --target shape-desktop --parallel "$build_jobs"
 
 if [ ! -x "$candidate_executable" ]; then
     fail "desktop build produced no executable candidate: $candidate_executable"
 fi
 ctest --test-dir "$build_directory" --output-on-failure \
-    -R '^shape-desktop-(smoke|project-smoke)$'
+    -R '^shape-desktop-(smoke|project-smoke|picture-book-smoke)$'
 
 "$repository_root/scripts/promote_debug_build.sh" "$candidate_app" "$validation_mode-$validation_label"
 "$repository_root/scripts/run_debug.sh" --check
