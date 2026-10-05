@@ -45,6 +45,7 @@ embedded in accepted history.
 
 | Action | Request fields beyond `action` | Result |
 | --- | --- | --- |
+| `read` | Exact `source: {artifact_id, revision_id}` | Verified accepted revision, media contract and material-return lineage; no writes |
 | `begin` | `source: {artifact_id, revision_id}`, `name`, `editor: "shadow" | "echo"` | Opaque `ticket` |
 | `status` | `output_artifact_id` | Current ticket after reopening |
 | `export` | `ticket`, `destination` (new external directory) | Source copy and `handoff` |
@@ -60,6 +61,40 @@ and hashes the file, so a modification after review cannot be accepted under the
 old digest. An AI must carry the reviewed conversion policy into `accept` as well.
 Candidate review is transient; reopening reconstructs a candidate from the saved
 handoff and selected return. Accepted revisions and stage identity survive reopening.
+
+### Resume from an accepted material version
+
+`project-status` supplies accepted Artifact/revision identities. To recover the content reference
+and media contract after reopening, pass that exact pin to `read`:
+
+```json
+{"action":"read","source":{"artifact_id":"<artifact UUID>","revision_id":"<revision UUID>"}}
+```
+
+The result includes `source`, `artifact`, full immutable `revision` (content BLAKE3, byte length,
+media type, contract, parents and transformation ID), and `material_edit`. The latter is null for
+an ordinary imported/generated material; an accepted external return includes its pinned source,
+input/returned digests, editor, stage/session and explicit normalization. These are stored Shape
+lineage, not proof that a named provider ran. `content_verified:true` means the durable object's
+exact bytes matched the stored length and BLAKE3 during this read. Payload bytes and external paths
+are not returned. ContentRef and lineage digests retain the Domain JSON representation (arrays of
+32 bytes); copy `revision.content` unchanged when supplying a cue binding. The separate
+`returned_blake3` review/accept field remains hexadecimal. `accepted:true` refers to that durable revision, which can be historical.
+
+A newer head never substitutes for the requested revision. `artifact.accepted_revision` is the
+head observed with the revision metadata in one SQLite read transaction; it is not a lease for
+later adoption. Wrong artifact/revision pairs, non-image/audio media and missing or corrupt bytes
+fail without partial output. This action uses the current-schema read-only Store opener, never
+schema migration or repair. Its limits are 64 KiB manifest, 4 MiB inspected metadata and 128 MiB
+content, plus a 250 ms SQLite busy timeout. SQLite may use its ordinary WAL locking sidecars.
+
+A book caller can read the old composition with `picture-book read`, explicitly replace a page's
+source with the recovered pin, then preview and accept the new composition. Repeated pages and
+old book versions keep their prior pins. An audio caller can use `revision.content` in an explicit
+`SpeechCueAction::Audio` binding passed to `script-check --bindings`; cue limits remain 8 MiB each
+and 32 MiB combined. That command checks portable script/choice readiness, not project cue
+persistence, WAV playback, Runtime availability or synthesis. It continues to report
+`synthesis_checked:false`. Neither consumer auto-follows a newer material head or auto-accepts it.
 
 ## Concurrency, cancellation and recovery
 
@@ -93,7 +128,12 @@ Shape ticket and never grant authority to mutate its project store.
 
 Rust tests cover source/output CAS, cancellation, stale downstream refresh,
 foreign tickets, invalid/repeated return, media/disclosure contracts, file bounds
-and CLI behavior. `material_edit_smoke` exercises the real packaged workspace and
+and CLI behavior. The resumed CLI consumer tests separately cover exact historical material
+reads, wrong identity/corrupt bytes, bilingual book repinning with preserved older compositions,
+and an explicitly converted PCM24 return reused as a portable speech cue. Store tests verify
+unchanged manifest/database/WAL bytes, refusal to migrate older schemas and bounded metadata
+before deserialization. These synthetic-return tests make no actual Echo/Shadow execution claim.
+`material_edit_smoke` exercises the real packaged workspace and
 asynchronous completion with synthetic pixels/WAV, actual audio review controls,
 explicit precision conversion, audition decoding and media-correct navigation labels. The opt-in public API test runs
 an actual separately built Echo binary in an isolated private session:

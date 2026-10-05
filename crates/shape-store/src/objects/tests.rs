@@ -37,3 +37,52 @@ fn corrupted_objects_are_rejected() {
     ));
     fs::remove_dir_all(&root).expect("test bundle removes");
 }
+
+#[test]
+fn bounded_verification_admits_exact_bytes_and_rejects_size_or_digest_mismatch() {
+    let root = test_root("bounded-verification");
+    let store = ObjectStore::create(&root).unwrap();
+    let content = store.publish(b"original", "image/png").unwrap();
+    store.verify_bounded(&content, 8).unwrap();
+    assert!(matches!(
+        store.verify_bounded(&content, 7),
+        Err(StoreError::InspectionLimit {
+            resource: "material content bytes",
+            maximum: 7
+        })
+    ));
+    let path = store.path_for(content.digest);
+    fs::write(&path, b"modified").unwrap();
+    assert!(matches!(
+        store.verify_bounded(&content, 8),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    fs::write(&path, b"original and oversized").unwrap();
+    assert!(matches!(
+        store.verify_bounded(&content, 8),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn bounded_verification_rejects_a_fifo_before_opening_it() {
+    let root = test_root("fifo-verification");
+    let store = ObjectStore::create(&root).unwrap();
+    let content = store.publish(b"original", "image/png").unwrap();
+    let path = store.path_for(content.digest);
+    fs::remove_file(&path).unwrap();
+    assert!(
+        std::process::Command::new("mkfifo")
+            .arg(&path)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(matches!(
+        store.verify_bounded(&content, 8),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    fs::remove_dir_all(root).unwrap();
+}

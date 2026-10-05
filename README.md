@@ -18,7 +18,7 @@ provenance and selected-only local audition before acceptance.
 | Project persistence | [`shape-store`](crates/shape-store/src/lib.rs) | `.shape` bundle, SQLite ownership, durable BLAKE3 object store, and atomic Artifact/Scene accepted-head commits |
 | Use cases | [`shape-core`](crates/shape-core/src/lib.rs) | Project and Scene creation, graph draft/accept, text/raster/speech Candidates, cross-artifact branching, and inspection |
 | Desktop bridge | [`shape-desktop-bridge`](crates/shape-desktop-bridge/src/lib.rs) | Bounded CXX session for validated project snapshots, graph edges, on-demand raster/audio previews, and a cross-media Candidate Shelf |
-| Foundation CLI | [`shape-cli`](apps/shape-cli/README.md) | Public project smoke/inspection and read-only JSON script/project diagnostics |
+| Foundation CLI | [`shape-cli`](apps/shape-cli/README.md) | Public project smoke/inspection, exact accepted material reads and JSON script/project diagnostics |
 | Desktop shell | [`apps/desktop`](apps/desktop/README.md) | Cross-platform Qt/QML assembly that creates, opens, and edits real `.shape` projects |
 | Repository checks | [`xtask`](xtask/src/main.rs) | Formatting, lint, tests, CMake configuration, and prerequisite checks |
 
@@ -58,6 +58,10 @@ copies the app into an immutable revision-stamped release and atomically advance
 logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attached output or
 `--check` to inspect resolved paths without launching. Pass a `.shape` bundle, or set
 `SHAPE_DEBUG_PROJECT_PATH`, to open a project directly.
+
+After reopening, the original CLI can recover an exact accepted image/audio revision and its
+verified content reference through `material-edit read`, then continue an explicitly reviewed
+book composition or portable speech cue choice. See [material editing](docs/MATERIAL_EDIT.md).
 
 文本与配音的节点职责、输入输出和界面入口见 [节点与文本工作流](docs/NODE_MODEL.md)。
 新建文本先选格式；编辑原稿会生成独立分支；配音自动读取已采用文稿的格式。

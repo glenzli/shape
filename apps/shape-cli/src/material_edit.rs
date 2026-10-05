@@ -14,6 +14,9 @@ use std::{
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 enum Request {
+    Read {
+        source: WorkingInput,
+    },
     Begin {
         source: WorkingInput,
         name: String,
@@ -89,8 +92,17 @@ fn execute(project: &Path, request: &Path) -> Result<Value, Box<dyn Error>> {
         return Err("request too large".into());
     }
     let request: Request = serde_json::from_slice(&bytes)?;
+    // This action intentionally uses the current-schema read-only store entrypoint.
+    if let Request::Read { source } = &request {
+        let material = ShapeProject::inspect_material(project, *source)?;
+        return Ok(
+            json!({"source":source,"artifact":material.artifact,"revision":material.revision,
+            "material_edit":material.material_edit,"content_verified":true,"accepted":true,"read_only":true}),
+        );
+    }
     let mut project = ShapeProject::open(project)?;
     Ok(match request {
+        Request::Read { .. } => unreachable!("read handled before mutable project open"),
         Request::Begin {
             source,
             name,

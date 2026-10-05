@@ -1,5 +1,5 @@
 use super::*;
-use crate::project_store::tests::test_root;
+use crate::project_store::tests::{successful_commit, test_root};
 use shape_domain::{Artifact, ArtifactKind, OperatorDataTypeId, OperatorTypeId};
 use std::fs;
 
@@ -153,6 +153,173 @@ fn inspection_keeps_heads_and_saved_graphs_in_one_read_snapshot() {
         assert_eq!(state.working_graphs.len(), 1);
     }
     writer.join().unwrap();
+    drop(store);
+    fs::remove_dir_all(root).unwrap();
+}
+
+fn accepted_image(store: &mut ProjectStore) -> WorkingInput {
+    let artifact = Artifact::new("Picture", ArtifactKind::ImageRaster).unwrap();
+    store.insert_artifact(&artifact).unwrap();
+    let mut commit = successful_commit(&artifact, None);
+    commit.output_media_type = "image/png".into();
+    commit.output_bytes = vec![
+        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
+        0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 80, 8, 168, 248, 15,
+        0, 3, 100, 1, 232, 53, 225, 87, 172, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+    ]
+    .into();
+    commit.content_contract = Some(ArtifactContentContract::ImageRaster(
+        shape_domain::ImageRasterContract::rgba8(1, 1, shape_domain::ImageColorProfile::Srgb)
+            .unwrap(),
+    ));
+    let revision = store.accept(commit).unwrap();
+    WorkingInput {
+        artifact_id: artifact.id,
+        revision_id: revision.id,
+    }
+}
+
+#[test]
+fn exact_material_read_preserves_live_files_and_refuses_old_schema_without_migrating() {
+    let root = test_root("readonly-material");
+    let mut store = ProjectStore::create(&root, "Material").unwrap();
+    let source = accepted_image(&mut store);
+    let paths = [
+        root.join(MANIFEST_FILE),
+        root.join(DATABASE_FILE),
+        root.join("project.sqlite-wal"),
+    ];
+    let before: Vec<_> = paths.iter().map(|p| fs::read(p).unwrap()).collect();
+    let material = ProjectStore::inspect_material(&root, source).unwrap();
+    assert_eq!(
+        material.revision,
+        store.revision(source.revision_id).unwrap()
+    );
+    assert_eq!(
+        material.artifact.accepted_revision,
+        Some(source.revision_id)
+    );
+    assert!(material.material_edit.is_none());
+    for (path, bytes) in paths.iter().zip(&before) {
+        assert_eq!(&fs::read(path).unwrap(), bytes);
+    }
+    let mut manifest: serde_json::Value = serde_json::from_slice(&before[0]).unwrap();
+    manifest["metadata"]["schema_revision"] = "20260811.1".into();
+    let old_manifest = serde_json::to_vec(&manifest).unwrap();
+    fs::write(&paths[0], &old_manifest).unwrap();
+    assert!(matches!(
+        ProjectStore::inspect_material(&root, source),
+        Err(StoreError::SchemaMismatch { .. })
+    ));
+    assert_eq!(fs::read(&paths[0]).unwrap(), old_manifest);
+    for (path, bytes) in paths[1..].iter().zip(&before[1..]) {
+        assert_eq!(&fs::read(path).unwrap(), bytes);
+    }
+    drop(store);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn exact_material_read_bounds_each_record_before_deserializing() {
+    let root = test_root("bounded-material");
+    let mut store = ProjectStore::create(&root, "Material limits").unwrap();
+    let source = accepted_image(&mut store);
+    let revision = store.revision(source.revision_id).unwrap();
+    for (table, column, id) in [
+        (
+            "artifacts",
+            "accepted_revision",
+            source.artifact_id.to_string(),
+        ),
+        (
+            "artifact_revisions",
+            "revision_json",
+            source.revision_id.to_string(),
+        ),
+        (
+            "transformations",
+            "transformation_json",
+            revision.transformation_id.to_string(),
+        ),
+    ] {
+        let select = format!("SELECT {column} FROM {table} WHERE id = ?1");
+        let original: String = store
+            .connection
+            .query_row(&select, [&id], |r| r.get(0))
+            .unwrap();
+        let update = format!("UPDATE {table} SET {column} = ?1 WHERE id = ?2");
+        store
+            .connection
+            .execute(
+                &update,
+                rusqlite::params![
+                    " ".repeat(usize::try_from(MAX_METADATA_BYTES + 1).unwrap()),
+                    id
+                ],
+            )
+            .unwrap();
+        assert!(
+            matches!(
+                ProjectStore::inspect_material(&root, source),
+                Err(StoreError::InspectionLimit {
+                    resource: "metadata bytes",
+                    ..
+                })
+            ),
+            "{table}.{column}"
+        );
+        store
+            .connection
+            .execute(&update, rusqlite::params![original, id])
+            .unwrap();
+    }
+    ProjectStore::inspect_material(&root, source).unwrap();
+    drop(store);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn exact_material_read_rejects_embedded_revision_and_transformation_identity_mismatch() {
+    let root = test_root("material-record-identity");
+    let mut store = ProjectStore::create(&root, "Material identity").unwrap();
+    let source = accepted_image(&mut store);
+    let revision = store.revision(source.revision_id).unwrap();
+    for (table, column, id) in [
+        (
+            "artifact_revisions",
+            "revision_json",
+            source.revision_id.to_string(),
+        ),
+        (
+            "transformations",
+            "transformation_json",
+            revision.transformation_id.to_string(),
+        ),
+    ] {
+        let select = format!("SELECT {column} FROM {table} WHERE id = ?1");
+        let original: String = store
+            .connection
+            .query_row(&select, [&id], |r| r.get(0))
+            .unwrap();
+        let mut changed: serde_json::Value = serde_json::from_str(&original).unwrap();
+        changed["id"] = shape_domain::RevisionId::new().to_string().into();
+        let update = format!("UPDATE {table} SET {column} = ?1 WHERE id = ?2");
+        store
+            .connection
+            .execute(&update, rusqlite::params![changed.to_string(), id])
+            .unwrap();
+        assert!(
+            matches!(
+                ProjectStore::inspect_material(&root, source),
+                Err(StoreError::InvalidInspection(_))
+            ),
+            "{table}"
+        );
+        store
+            .connection
+            .execute(&update, rusqlite::params![original, id])
+            .unwrap();
+    }
     drop(store);
     fs::remove_dir_all(root).unwrap();
 }

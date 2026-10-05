@@ -15,6 +15,6 @@ mod schema;
 
 pub use error::StoreError;
 pub use project_store::{
-    AcceptedCommit, AcceptedSceneRevisionCommit, NewArtifactCommit, ProjectInspection,
-    ProjectSnapshot, ProjectStore,
+    AcceptedCommit, AcceptedSceneRevisionCommit, MaterialInspection, NewArtifactCommit,
+    ProjectInspection, ProjectSnapshot, ProjectStore,
 };

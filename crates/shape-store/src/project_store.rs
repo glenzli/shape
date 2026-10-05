@@ -4,7 +4,7 @@ mod audio;
 mod inspection;
 mod material_edit;
 mod picture_book;
-pub use inspection::ProjectInspection;
+pub use inspection::{MaterialInspection, ProjectInspection};
 mod working_graph;
 
 use std::{

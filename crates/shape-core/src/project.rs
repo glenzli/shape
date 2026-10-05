@@ -60,6 +60,16 @@ impl ShapeProject {
         Ok(ProjectStore::inspect(root)?)
     }
 
+    /// Inspects one exact accepted image/audio material without migration or history changes.
+    /// # Errors
+    /// Rejects wrong pins, incompatible schemas, bounded metadata/content failures or corrupt CAS.
+    pub fn inspect_material(
+        root: impl AsRef<Path>,
+        source: shape_domain::WorkingInput,
+    ) -> Result<shape_store::MaterialInspection, CoreError> {
+        Ok(ProjectStore::inspect_material(root, source)?)
+    }
+
     /// Renames a stable creative object; accepted content remains immutable.
     /// # Errors
     /// Rejects invalid names, missing objects and persistence failures.

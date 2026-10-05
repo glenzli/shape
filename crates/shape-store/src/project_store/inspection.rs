@@ -3,8 +3,13 @@ use super::{
     BundleManifest, DATABASE_FILE, MANIFEST_FILE, MANIFEST_SCHEMA, ProjectSnapshot, ProjectStore,
 };
 use crate::{StoreError, objects::ObjectStore};
-use rusqlite::{Connection, OpenFlags};
-use shape_domain::{ArtifactWorkingGraph, ProjectMetadata, SHAPE_PROJECT_SCHEMA_REVISION};
+use rusqlite::{Connection, OpenFlags, OptionalExtension};
+use serde::Serialize;
+use shape_domain::{
+    Artifact, ArtifactContentContract, ArtifactKind, ArtifactRevision, ArtifactWorkingGraph,
+    MaterialEditOperation, ProjectMetadata, SHAPE_PROJECT_SCHEMA_REVISION, TransformationOperation,
+    WorkingInput,
+};
 use std::{fs::File, io::Read, path::Path, time::Duration};
 
 const MAX_MANIFEST_BYTES: u64 = 65_536;
@@ -19,7 +24,110 @@ pub struct ProjectInspection {
     pub working_graphs: Vec<ArtifactWorkingGraph>,
 }
 
+/// A verified exact accepted image/audio revision plus its local material-edit lineage.
+/// Artifact metadata and the historical revision come from one read transaction.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct MaterialInspection {
+    pub artifact: Artifact,
+    pub revision: ArtifactRevision,
+    pub material_edit: Option<MaterialEditOperation>,
+}
+
 impl ProjectStore {
+    /// Reads a precise accepted material pin without following a newer head or migrating a bundle.
+    /// Verifies the durable bytes but returns metadata only, including return normalization/lineage.
+    /// # Errors
+    /// Rejects wrong identities/media, old or inconsistent schemas, corrupt/missing objects,
+    /// busy databases, metadata above 4 MiB or material content above 128 MiB.
+    pub fn inspect_material(
+        root: impl AsRef<Path>,
+        source: WorkingInput,
+    ) -> Result<MaterialInspection, StoreError> {
+        let store = open_for_inspection(root.as_ref())?;
+        let transaction = store.connection.unchecked_transaction()?;
+        let mut budget = MAX_METADATA_BYTES;
+        check_budget(
+            &store.connection,
+            "SELECT COUNT(*), COALESCE(SUM(bytes),0) FROM (SELECT LENGTH(CAST(metadata_json AS BLOB)) AS bytes FROM project_singleton LIMIT ?1)",
+            &mut budget,
+        )?;
+        let metadata_json: String = store.connection.query_row(
+            "SELECT metadata_json FROM project_singleton WHERE singleton = 1",
+            [],
+            |row| row.get(0),
+        )?;
+        if serde_json::from_str::<ProjectMetadata>(&metadata_json)? != store.metadata {
+            return Err(StoreError::MetadataMismatch);
+        }
+        check_record_budget(
+            &store.connection,
+            "SELECT LENGTH(CAST(kind_json AS BLOB)) + LENGTH(CAST(name AS BLOB)) + COALESCE(LENGTH(CAST(accepted_revision AS BLOB)),0) FROM artifacts WHERE id = ?1",
+            &source.artifact_id.to_string(),
+            &mut budget,
+        )?;
+        let artifact = store
+            .artifact(source.artifact_id)?
+            .ok_or(StoreError::UnknownArtifact(source.artifact_id))?;
+        check_record_budget(
+            &store.connection,
+            "SELECT LENGTH(CAST(revision_json AS BLOB)) FROM artifact_revisions WHERE id = ?1",
+            &source.revision_id.to_string(),
+            &mut budget,
+        )?;
+        let revision = store.revision(source.revision_id)?;
+        let media_matches = matches!(
+            (
+                artifact.kind,
+                revision.content_contract.as_ref(),
+                revision.content.media_type.as_str()
+            ),
+            (
+                ArtifactKind::ImageRaster,
+                Some(ArtifactContentContract::ImageRaster(_)),
+                "image/png"
+            ) | (
+                ArtifactKind::AudioClip,
+                Some(ArtifactContentContract::AudioClip(_)),
+                "audio/wav"
+            )
+        );
+        if revision.id != source.revision_id
+            || revision.artifact_id != source.artifact_id
+            || !media_matches
+        {
+            return Err(StoreError::InvalidInspection(
+                "pin does not identify an accepted image/audio material",
+            ));
+        }
+        check_record_budget(
+            &store.connection,
+            "SELECT LENGTH(CAST(transformation_json AS BLOB)) FROM transformations WHERE id = ?1",
+            &revision.transformation_id.to_string(),
+            &mut budget,
+        )?;
+        let transformation = store.transformation(revision.transformation_id)?;
+        if transformation.id != revision.transformation_id
+            || transformation.target_artifact_id != source.artifact_id
+        {
+            return Err(StoreError::InvalidInspection(
+                "material transformation identity does not match the revision",
+            ));
+        }
+        store
+            .objects
+            .verify_bounded(&revision.content, 128 * 1024 * 1024)?;
+        let material_edit = match transformation.operation {
+            Some(TransformationOperation::MaterialEdit(operation)) => Some(operation),
+            _ => None,
+        };
+        transaction.rollback()?;
+        Ok(MaterialInspection {
+            artifact,
+            revision,
+            material_edit,
+        })
+    }
+
     /// Inspects a current-schema bundle without migration, payload reads or logical writes.
     /// `SQLite` may use its ordinary WAL locking sidecars while another process is editing.
     ///
@@ -152,6 +260,28 @@ fn check_budget(connection: &Connection, query: &str, budget: &mut u64) -> Resul
             resource: "metadata bytes",
             maximum: MAX_METADATA_BYTES,
         })?;
+    Ok(())
+}
+
+fn check_record_budget(
+    connection: &Connection,
+    query: &str,
+    id: &str,
+    budget: &mut u64,
+) -> Result<(), StoreError> {
+    let length: Option<i64> = connection
+        .query_row(query, [id], |row| row.get(0))
+        .optional()?;
+    if let Some(length) = length {
+        let length = u64::try_from(length)
+            .map_err(|_| StoreError::InvalidInspection("invalid metadata size"))?;
+        *budget = budget
+            .checked_sub(length)
+            .ok_or(StoreError::InspectionLimit {
+                resource: "metadata bytes",
+                maximum: MAX_METADATA_BYTES,
+            })?;
+    }
     Ok(())
 }
 

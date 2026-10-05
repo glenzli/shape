@@ -1,8 +1,8 @@
 //! Durable BLAKE3 content-addressed object storage.
 
 use std::{
-    fs::{self, OpenOptions},
-    io::Write,
+    fs::{self, File, OpenOptions},
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -87,6 +87,39 @@ impl ObjectStore {
             return Err(StoreError::CorruptObject { path });
         }
         Ok(bytes)
+    }
+
+    /// Verifies exact bytes with an admission limit before any payload allocation.
+    pub(super) fn verify_bounded(
+        &self,
+        content: &ContentRef,
+        maximum: u64,
+    ) -> Result<(), StoreError> {
+        if content.byte_length > maximum {
+            return Err(StoreError::InspectionLimit {
+                resource: "material content bytes",
+                maximum,
+            });
+        }
+        let path = self.path_for(content.digest);
+        // Admit regular objects before opening: a damaged CAS FIFO could block File::open.
+        if !fs::symlink_metadata(&path)?.file_type().is_file() {
+            return Err(StoreError::CorruptObject { path });
+        }
+        let file = File::open(&path)?;
+        let metadata = file.metadata()?;
+        if !metadata.is_file() || metadata.len() != content.byte_length {
+            return Err(StoreError::CorruptObject { path });
+        }
+        let mut bytes = Vec::new();
+        file.take(content.byte_length.saturating_add(1))
+            .read_to_end(&mut bytes)?;
+        if bytes.len() as u64 != content.byte_length
+            || ContentDigest::from_bytes(&bytes) != content.digest
+        {
+            return Err(StoreError::CorruptObject { path });
+        }
+        Ok(())
     }
 
     fn verify_path(

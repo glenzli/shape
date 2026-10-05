@@ -113,3 +113,26 @@ choice, check again, then hand the script and choices to human review. A changed
 digest requires another check. Portable readiness never establishes that a voice exists in the
 Runtime, an imported WAV can be loaded, access is granted, speech sounds right, or a candidate may
 be accepted. `synthesis_checked` remains false. Project version checks remain in `project-status`.
+
+
+## Read an exact accepted material after reopening
+
+```sh
+shape-cli material-edit /path/to/project.shape /path/to/read-material.json
+```
+
+`read-material.json` contains `{"action":"read","source":{"artifact_id":"<UUID>","revision_id":"<UUID>"}}`.
+The existing `shape.material-edit-result/1` envelope returns the verified exact image/audio
+revision, its content reference and media contract, the artifact's observed head, and any stored
+material-edit source/normalization lineage. Historical versions remain readable after their head
+advances. The requested pin is never silently replaced by the newest head.
+
+This action opens the current schema read-only, verifies bounded durable bytes and returns only
+metadata; it does not migrate, repair, produce a candidate or authorize acceptance. A book caller
+can repin a page using `picture-book read → preview → accept`; an audio caller can carry the content
+reference into an explicit cue in `script-check --bindings` for portable readiness. That check does
+not persist the cue in a speech draft or verify playback/synthesis. See the complete
+[material editing contract](../../docs/MATERIAL_EDIT.md) for request fields, limits and recovery.
+
+`tests/material_edit.rs` drives these public consumers in new processes, including old-version
+reads, repeated returns, bilingual book continuation and explicit PCM24 normalization provenance.
