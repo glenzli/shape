@@ -55,7 +55,7 @@ class PictureBookController : public QObject {
     Q_INVOKABLE QString scriptText(const QVariantMap& source);
     Q_INVOKABLE QVariantMap
     adoptScript(const QString& name, const QVariantMap& source, const QString& text);
-    Q_INVOKABLE QVariantMap refreshMaterials(const QVariantMap& composition);
+    Q_INVOKABLE QVariantMap refreshMaterials(const QVariantMap& composition) const;
     Q_INVOKABLE bool exportNative(const QUrl& destination);
     Q_INVOKABLE bool
     exportPdf(const QUrl& destination, const QString& language, bool includePrintOnly);

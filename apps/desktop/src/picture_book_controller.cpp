@@ -257,8 +257,9 @@ QVariantMap PictureBookController::adoptScript(
         return {};
     }
 }
-QVariantMap PictureBookController::refreshMaterials(const QVariantMap& value) {
-    QJsonObject composition = QJsonObject::fromVariantMap(value);
+QVariantMap PictureBookController::refreshMaterials(const QVariantMap& value) const {
+    const auto previous = QJsonObject::fromVariantMap(value);
+    auto composition = previous;
     const auto refresh = [this](const QJsonObject& source) {
         for (const auto& value : backend_.artifacts()) {
             const auto item = value.toMap();
@@ -280,8 +281,7 @@ QVariantMap PictureBookController::refreshMaterials(const QVariantMap& value) {
     }
     composition["languages"] = languages;
     composition["pages"] = pages;
-    invalidate();
-    return composition.toVariantMap();
+    return {{"composition", composition.toVariantMap()}, {"changed", composition != previous}};
 }
 bool PictureBookController::exportNative(const QUrl& destination) {
     try {

@@ -3213,6 +3213,11 @@
         <source>Adopted versions reopen with the project. Drafts stay in this window until the app closes. PDF uses Shape’s reading layout; Storybook keeps its own editable typography and print tools.</source>
         <translation>采用的版本会随工程保存并恢复。草稿仅在本次应用会话中保留。PDF 使用 Shape 的阅读版排版；Storybook 保留自身的文字排版和印刷工具。</translation>
     </message>
+    <message>
+        <location filename="../qml/components/PictureBookWorkspace.qml" line="293"/>
+        <source>Adopt this script or discard the draft before switching languages, choosing text, or refreshing materials.</source>
+        <translation>切换语言、选择文本或刷新素材前，请先采用当前脚本或放弃草稿。</translation>
+    </message>
 </context>
 <context>
     <name>ProjectNavigator</name>

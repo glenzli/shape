@@ -4,11 +4,14 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Output},
+    sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde_json::{Value, json};
 use shape_domain::ContentDigest;
+
+static NEXT_FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
 struct Fixture(PathBuf);
 
@@ -18,8 +21,12 @@ impl Fixture {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let directory =
-            std::env::temp_dir().join(format!("shape-script-check-{}-{stamp}", std::process::id()));
+        // Concurrent cases can receive the same wall-clock stamp on macOS.
+        let serial = NEXT_FIXTURE_ID.fetch_add(1, Ordering::Relaxed);
+        let directory = std::env::temp_dir().join(format!(
+            "shape-script-check-{}-{stamp}-{serial}",
+            std::process::id()
+        ));
         fs::create_dir(&directory).unwrap();
         fs::write(directory.join("script.txt"), bytes).unwrap();
         Self(directory)

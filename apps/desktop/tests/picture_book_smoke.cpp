@@ -1,6 +1,7 @@
 #include "picture_book_smoke.hpp"
 #include "desktop_backend.hpp"
 #include "picture_book_controller.hpp"
+#include "ui_preferences.hpp"
 #include <QCoreApplication>
 #include <QDir>
 #include <QEventLoop>
@@ -18,6 +19,7 @@
 #include <QTimer>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
 namespace picture_book_smoke {
 namespace {
@@ -41,6 +43,238 @@ void evaluate(QObject& object, const QString& script) {
         throw std::runtime_error(expression.error().toString().toStdString());
     QCoreApplication::processEvents();
 }
+QJsonObject artifactPin(DesktopBackend& backend, const QString& id) {
+    for (const auto& value : backend.artifacts())
+        if (value.toMap().value("id").toString() == id)
+            return pin(value.toMap());
+    throw std::runtime_error("material output missing");
+}
+QString artworkStage(DesktopBackend& backend, const QJsonObject& source) {
+    const auto draft =
+        backend.beginOperatorDraft(source["artifact_id"].toString(), "image.external_edit");
+    for (const auto& value : backend.operatorDrafts())
+        if (value.toMap().value("id").toString() == draft)
+            return value.toMap().value("contextArtifactId").toString();
+    throw std::runtime_error("artwork editing stage missing");
+}
+QJsonObject acceptArtworkReturn(
+    DesktopBackend& backend,
+    const QString& output,
+    const QImage& image,
+    const QString& directory
+) {
+    const auto project = backend.bundlePath().toStdString();
+    const auto ticket = backend.materialEditTicket(output).toStdString();
+    const auto handoff = directory + "/handoff.json";
+    const auto returned = directory + "/returned.png";
+    (void)shape::desktop::export_material_copy(project, ticket, directory.toStdString());
+    require(image.save(returned), "write synthetic artwork return");
+    auto prepared = shape::desktop::prepare_material_return(
+        project,
+        ticket,
+        handoff.toStdString(),
+        returned.toStdString(),
+        false
+    );
+    const auto candidate = backend.adoptMaterialReturn(std::move(prepared));
+    require(
+        !candidate.isEmpty() && backend.acceptCandidate(candidate),
+        "explicit artwork return adoption"
+    );
+    return artifactPin(backend, output);
+}
+void click(QObject& workspace, const QString& name) {
+    auto* button = workspace.findChild<QObject*>(name);
+    require(
+        button && QMetaObject::invokeMethod(button, "clicked"),
+        "packaged book action reachable"
+    );
+    QCoreApplication::processEvents();
+}
+void capture(QQuickWindow& window, const QString& path) {
+    window.requestUpdate();
+    QEventLoop loop;
+    QTimer::singleShot(450, &loop, &QEventLoop::quit);
+    loop.exec();
+    require(window.grabWindow().save(path), "actual workspace capture");
+}
+void continuation(
+    DesktopBackend& backend,
+    PictureBookController& book,
+    UiPreferences& preferences,
+    QQuickWindow& window,
+    QObject& workspace,
+    const QString& output,
+    const QImage& second,
+    const QString& directory,
+    QJsonObject& request
+) {
+    auto* editor = workspace.findChild<QObject*>("pictureBookScript");
+    require(editor, "packaged script editor");
+    evaluate(*editor, QStringLiteral("insert(length, '\\n继续写下去。')"));
+    const auto typed = workspace.property("script").toString();
+    require(
+        workspace.property("scriptDirty").toBool() && typed.contains("继续写下去。"),
+        "real script insertion marks unadopted text"
+    );
+    const auto authored = workspace.property("draft").toMap();
+    click(workspace, "refreshPictureBookMaterials");
+    require(
+        workspace.property("script").toString() == typed
+            && workspace.property("scriptDirty").toBool()
+            && workspace.property("draft").toMap() == authored,
+        "refresh cannot overwrite an unadopted script"
+    );
+    for (const auto& name :
+         {"refreshPictureBookMaterials",
+          "pictureBookLanguagePicker",
+          "pictureBookTextMaterial",
+          "addPictureBookLanguage"}) {
+        auto* item = workspace.findChild<QObject*>(QString::fromUtf8(name));
+        require(
+            item && !item->property("enabled").toBool(),
+            "script replacement action is disabled"
+        );
+    }
+    auto* hint = workspace.findChild<QObject*>("pictureBookPendingScriptHint");
+    require(hint && hint->property("visible").toBool(), "pending script guidance visible");
+    require(
+        hint->property("text").toString()
+            == QStringLiteral(
+                "Adopt this script or discard the draft before switching "
+                "languages, choosing text, or refreshing materials."
+            ),
+        "packaged English script guidance"
+    );
+    capture(window, directory + "-pending-script-en.png");
+    preferences.setLanguageMode(QStringLiteral("zh_CN"));
+    QCoreApplication::processEvents();
+    require(
+        hint->property("text").toString()
+                == QStringLiteral("切换语言、选择文本或刷新素材前，请先采用当前脚本或放弃草稿。")
+            && workspace.property("script").toString() == typed
+            && workspace.property("scriptDirty").toBool()
+            && workspace.property("draft").toMap() == authored,
+        "packaged Chinese guidance preserves typed script and composition"
+    );
+    capture(window, directory + "-pending-script-zh.png");
+    preferences.setLanguageMode(QStringLiteral("en"));
+    QCoreApplication::processEvents();
+    evaluate(workspace, QStringLiteral("chooseLanguage('en'); selectText(1)"));
+    auto* code = workspace.findChild<QObject*>("pictureBookLanguageCode");
+    require(code, "language code field");
+    code->setProperty("text", "fr");
+    click(workspace, "addPictureBookLanguage");
+    require(
+        workspace.property("activeLanguage").toString() == "zh-CN"
+            && workspace.property("script").toString() == typed
+            && workspace.property("draft").toMap() == authored,
+        "guarded handlers preserve script, language and material pin"
+    );
+    QEventLoop closed;
+    require(
+        bool(QObject::connect(&workspace, SIGNAL(closed()), &closed, SLOT(quit()))),
+        "book close signal reachable"
+    );
+    QTimer::singleShot(2000, &closed, &QEventLoop::quit);
+    evaluate(workspace, QStringLiteral("close()"));
+    if (workspace.property("visible").toBool())
+        closed.exec();
+    require(
+        !workspace.property("opened").toBool() && !workspace.property("visible").toBool(),
+        "book workspace fully closed before return"
+    );
+    evaluate(workspace, QStringLiteral("openWorkspace()"));
+    require(
+        workspace.property("script").toString() == typed
+            && workspace.property("scriptDirty").toBool(),
+        "returning from material work preserves typed script"
+    );
+    evaluate(*editor, QStringLiteral("insert(length, '\\n[Unknown]\\nKeep this failed draft.')"));
+    const auto failed_text = workspace.property("script").toString();
+    click(workspace, "adoptPictureBookScript");
+    require(
+        workspace.property("script").toString() == failed_text
+            && workspace.property("scriptDirty").toBool()
+            && workspace.property("draft").toMap() == authored && !book.error().isEmpty(),
+        "failed script adoption retains text and composition for retry"
+    );
+    evaluate(*editor, QStringLiteral("remove(%1, length)").arg(typed.size()));
+    click(workspace, "adoptPictureBookScript");
+    require(
+        !workspace.property("scriptDirty").toBool()
+            && workspace.property("script").toString() == typed,
+        "explicit script adoption preserves exact authored text"
+    );
+    click(workspace, "reviewPictureBook");
+    require(book.hasReview(), "review after script adoption");
+    click(workspace, "acceptPictureBook");
+    require(!workspace.property("dirty").toBool(), "book adoption restores clean draft");
+    click(workspace, "reviewPictureBook");
+    evaluate(workspace, QStringLiteral("choosePage(2)"));
+    const auto candidate = book.candidateId();
+    const auto preview = book.previewSource();
+    const auto source = book.source();
+    const auto reviewed = workspace.property("draft").toMap();
+    require(!candidate.isEmpty(), "review before unchanged refresh");
+    click(workspace, "refreshPictureBookMaterials");
+    require(
+        book.candidateId() == candidate && book.previewSource() == preview
+            && !workspace.property("dirty").toBool() && book.source() == source
+            && workspace.property("draft").toMap() == reviewed
+            && workspace.property("activeLanguage").toString() == "zh-CN"
+            && workspace.property("pageIndex").toInt() == 2,
+        "unchanged material refresh preserves review, preview and clean state"
+    );
+    const auto previous = QJsonObject::fromVariantMap(workspace.property("draft").toMap());
+    const auto image_pin = previous["pages"].toArray()[0].toObject()["source"].toObject();
+    const auto newer = acceptArtworkReturn(backend, output, second, directory);
+    require(newer != image_pin, "accepted editing-stage output advances");
+    click(workspace, "refreshPictureBookMaterials");
+    const auto refreshed = QJsonObject::fromVariantMap(workspace.property("draft").toMap());
+    const auto pages = refreshed["pages"].toArray();
+    require(
+        pages[0].toObject()["source"].toObject() == newer
+            && pages[2].toObject()["source"].toObject() == newer && !book.hasReview()
+            && book.previewSource().isEmpty() && workspace.property("dirty").toBool(),
+        "real material refresh updates repeated pages and requires review"
+    );
+    require(
+        workspace.property("script").toString() == typed
+            && !workspace.property("scriptDirty").toBool()
+            && refreshed["languages"] == previous["languages"]
+            && workspace.property("activeLanguage").toString() == "zh-CN"
+            && workspace.property("pageIndex").toInt() == 2,
+        "artwork refresh preserves adopted language scripts and selection"
+    );
+    const auto old = parsed(backend.bookRead(
+        QString::fromUtf8(
+            QJsonDocument(QJsonObject::fromVariantMap(source)).toJson(QJsonDocument::Compact)
+        )
+    ));
+    require(
+        old["pages"].toArray()[0].toObject()["source"].toObject() == image_pin,
+        "old accepted book keeps its material pin"
+    );
+    click(workspace, "reviewPictureBook");
+    require(book.hasReview(), "review continued material version");
+    click(workspace, "acceptPictureBook");
+    require(!workspace.property("dirty").toBool(), "continued book explicitly adopted");
+    const auto saved = workspace.property("draft").toMap();
+    const auto saved_source = book.source();
+    evaluate(*editor, QStringLiteral("insert(length, '\\nTemporary draft to discard.')"));
+    require(workspace.property("scriptDirty").toBool(), "explicit discard has typed changes");
+    evaluate(workspace, QStringLiteral("setField('name', 'Temporary book title')"));
+    require(workspace.property("draft").toMap() != saved, "explicit discard has book changes");
+    click(workspace, "discardPictureBookDraft");
+    require(
+        !workspace.property("scriptDirty").toBool() && !workspace.property("dirty").toBool()
+            && workspace.property("draft").toMap() == saved && book.source() == saved_source
+            && workspace.property("script").toString() == typed,
+        "explicit discard restores adopted book without changing its head"
+    );
+    request = QJsonObject::fromVariantMap(workspace.property("draft").toMap());
+}
 } // namespace
 bool verify(
     DesktopBackend& backend,
@@ -49,6 +283,10 @@ bool verify(
     const QString& directory
 ) {
     try {
+        auto* preferences = root.property("uiPreferences").value<UiPreferences*>();
+        require(preferences, "host UI preferences reachable");
+        // The --smoke-picture-book host supplies a temporary, isolated settings file.
+        preferences->setLanguageMode(QStringLiteral("en"));
         require(QDir().mkpath(directory), "fixture directory");
         require(
             backend.createProject(QUrl::fromLocalFile(directory), QStringLiteral("Lantern sample")),
@@ -100,6 +338,23 @@ bool verify(
         for (const auto& value : backend.artifacts())
             if (value.toMap().value("kindKey") == "image_raster")
                 image = pin(value.toMap());
+        const auto original_image = image;
+        const auto original_bytes = backend.bookMaterial(
+            QString::fromUtf8(QJsonDocument(image).toJson(QJsonDocument::Compact)),
+            "image"
+        );
+        const auto stage = artworkStage(backend, image);
+        auto first_artwork = artwork.copy();
+        {
+            QPainter p(&first_artwork);
+            p.fillRect(QRect(10, 570, 20, 20), QColor("#e8d789"));
+        }
+        image = acceptArtworkReturn(backend, stage, first_artwork, directory + "/artwork-first");
+        auto second_artwork = first_artwork.copy();
+        {
+            QPainter p(&second_artwork);
+            p.fillRect(QRect(40, 570, 20, 20), QColor("#ffe8ac"));
+        }
         const QString en = QStringLiteral(
             "[Cover]\nThe Lantern Path\n[Author]\nShape · Synthetic sample\n[Title]\nA small "
             "light, a long way home.\n[1]\nUnder the quiet moon, a little lantern follows the "
@@ -155,6 +410,36 @@ bool verify(
         require(book.review(request.toVariantMap()) && book.accept(), "adopt new book");
         const auto id = book.source().value("artifact_id").toString();
         require(!id.isEmpty(), "saved book identity");
+        auto* window = qobject_cast<QQuickWindow*>(&root);
+        require(window, "window exists");
+        continuation(
+            backend,
+            book,
+            *preferences,
+            *window,
+            *workspace,
+            stage,
+            second_artwork,
+            directory + "/artwork-second",
+            request
+        );
+        require(
+            artifactPin(backend, original_image["artifact_id"].toString()) == original_image
+                && backend.bookMaterial(
+                       QString::fromUtf8(
+                           QJsonDocument(original_image).toJson(QJsonDocument::Compact)
+                       ),
+                       "image"
+                   ) == original_bytes,
+            "editing-stage versions preserve original artwork bytes/head"
+        );
+        require(
+            backend.bookMaterial(
+                QString::fromUtf8(QJsonDocument(zh_pin).toJson(QJsonDocument::Compact)),
+                "text"
+            ) == zh.toUtf8(),
+            "script branch preserves original Chinese material"
+        );
         const auto original_source = book.source();
         for (const int size : {32, 30}) {
             request["font_size"] = size;
@@ -200,16 +485,7 @@ bool verify(
         workspace->setProperty("pageIndex", 2);
         evaluate(*workspace, QStringLiteral("loadScript()"));
         QCoreApplication::processEvents();
-        auto* window = qobject_cast<QQuickWindow*>(&root);
-        require(window, "window exists");
-        window->requestUpdate();
-        QEventLoop loop;
-        QTimer::singleShot(450, &loop, &QEventLoop::quit);
-        loop.exec();
-        require(
-            window->grabWindow().save(directory + "/shape-book-workspace.png"),
-            "actual workspace capture"
-        );
+        capture(*window, directory + "/shape-book-workspace.png");
         QJsonObject report{
             {"schema", "shape.picture-book-ui-evidence/1"},
             {"source", QJsonObject::fromVariantMap(book.source())},
@@ -222,6 +498,16 @@ bool verify(
             {"checks",
              QJsonArray{
                  "new book",
+                 "typed script protected from material/language replacement",
+                 "typed script survives return to book",
+                 "packaged English/Chinese guidance preserves typed script",
+                 "failed script adoption retains input for retry",
+                 "explicit script adoption preserves authored text",
+                 "explicit discard restores adopted book head",
+                 "no-op refresh preserves review and clean state",
+                 "repeated artwork pages refresh exact accepted stage output",
+                 "continued book re-reviewed and adopted",
+                 "original artwork and language material preserved",
                  "QML page reorder retains print-only marker",
                  "cancel proposal",
                  "explicit adoption",

@@ -17,7 +17,9 @@ not migrated or modified.
    the cover. Mark optional non-cover pages **Print only**.
 3. Select an accepted text material for each language, or type a script and choose
    **Adopt script as new material**. This creates a derived material; the source
-   remains unchanged. Adopt the current script before switching languages.
+   remains unchanged. Adopt the current script, or choose **Discard draft**, before
+   switching languages, choosing another text material or refreshing materials.
+   These replacement actions are disabled while script text is unadopted.
 4. Choose **Review book**, inspect pages and languages, then **Adopt book
    version**. Reviewing and closing/discarding a candidate does not save a book
    revision. Accepted versions survive closing and reopening the project.
@@ -45,7 +47,10 @@ adopt a Shadow return, reopen the book workspace, and explicitly select that
 derived accepted image in the artwork picker. A newer head on an already bound
 material can be selected with **Use current material versions**. Review and adopt
 the changed book afterward. Neither action changes old book revisions or the
-Original material.
+Original material. Refreshing unchanged pins preserves the draft, reviewed
+candidate and preview. An artwork-only refresh preserves the active script,
+language and page selection; a changed active script pin loads its newly adopted
+text. Changed pins require reviewing and adopting the book again.
 
 Echo remains available for audio material stages, including explicit PCM24
 conversion. This book slice has no audio/narration track. It does not add Shadow

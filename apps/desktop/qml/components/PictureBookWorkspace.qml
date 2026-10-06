@@ -46,6 +46,34 @@ ShapeDialog {
         script = source ? controller.scriptText(source) : "[Cover]\n\n[Author]\n\n[1]\n"
         scriptDirty = false
     }
+    function chooseLanguage(language) {
+        if (scriptDirty || !language.trim().length) return false
+        activeLanguage = language.trim()
+        loadScript()
+        if (controller.previewSource.length && (draft.languages || {})[activeLanguage])
+            controller.showPage(activeLanguage, pageIndex)
+        return true
+    }
+    function selectText(index) {
+        if (scriptDirty || index < 1 || index >= texts.length) return false
+        const next = copy(draft)
+        next.languages[activeLanguage] = pin(texts[index])
+        if (!next.languages[next.default_language]) next.default_language = activeLanguage
+        changed(next)
+        loadScript()
+        return true
+    }
+    function refreshMaterials() {
+        if (scriptDirty) return false
+        const previous = (draft.languages || {})[activeLanguage] || {}
+        const result = controller.refreshMaterials(draft)
+        if (!result.changed) return false
+        changed(result.composition)
+        const current = (draft.languages || {})[activeLanguage] || {}
+        if (previous.artifact_id !== current.artifact_id || previous.revision_id !== current.revision_id)
+            loadScript()
+        return true
+    }
     function synchronize() {
         draft = copy(controller.composition)
         activeLanguage = draft.default_language || "en"
@@ -137,7 +165,7 @@ ShapeDialog {
             Label { text: qsTr("Text size"); color: Theme.muted }
             SpinBox { from: 12; to: 96; value: root.draft.font_size || 26; onValueModified: root.setField("font_size",value) }
             Item { Layout.fillWidth: true }
-            ShapeButton { objectName: "refreshPictureBookMaterials"; text: qsTr("Use current material versions"); onClicked: { root.changed(root.controller.refreshMaterials(root.draft)); root.loadScript() } }
+            ShapeButton { objectName: "refreshPictureBookMaterials"; text: qsTr("Use current material versions"); enabled: !root.scriptDirty; onClicked: root.refreshMaterials() }
         }
         RowLayout {
             Layout.fillWidth: true
@@ -233,13 +261,15 @@ ShapeDialog {
                 Label { text: qsTr("Language script"); font.weight: Font.DemiBold; color: Theme.text }
                 RowLayout {
                     ShapeComboBox {
+                        objectName: "pictureBookLanguagePicker"
                         Layout.fillWidth: true
                         model: Object.keys(root.draft.languages || {})
                         currentIndex: model.indexOf(root.activeLanguage)
-                        onActivated: index => { root.activeLanguage = model[index]; root.loadScript(); if (root.controller.previewSource.length) root.controller.showPage(root.activeLanguage,root.pageIndex) }
+                        enabled: !root.scriptDirty
+                        onActivated: index => root.chooseLanguage(model[index])
                     }
-                    ShapeTextField { id: languageCode; Layout.preferredWidth: 88; text: root.activeLanguage; placeholderText: "zh-CN" }
-                    ShapeButton { text: "+"; onClicked: { root.activeLanguage=languageCode.text.trim(); root.loadScript() } }
+                    ShapeTextField { id: languageCode; objectName: "pictureBookLanguageCode"; Layout.preferredWidth: 88; text: root.activeLanguage; placeholderText: "zh-CN"; enabled: !root.scriptDirty }
+                    ShapeButton { objectName: "addPictureBookLanguage"; text: "+"; enabled: !root.scriptDirty; onClicked: root.chooseLanguage(languageCode.text) }
                 }
                 CheckBox {
                     text: qsTr("Default reading language")
@@ -248,14 +278,22 @@ ShapeDialog {
                     onClicked: root.setField("default_language",root.activeLanguage)
                 }
                 ShapeComboBox {
+                    objectName: "pictureBookTextMaterial"
                     Layout.fillWidth: true
                     model: root.texts
                     textRole: "name"
                     currentIndex: 0
-                    onActivated: index => {
-                        if (index < 1) return
-                        const next=root.copy(root.draft); next.languages[root.activeLanguage]=root.pin(root.texts[index]); if (!next.languages[next.default_language]) next.default_language=root.activeLanguage; root.changed(next); root.loadScript()
-                    }
+                    enabled: !root.scriptDirty
+                    onActivated: index => root.selectText(index)
+                }
+                Label {
+                    objectName: "pictureBookPendingScriptHint"
+                    Layout.fillWidth: true
+                    visible: root.scriptDirty
+                    text: qsTr("Adopt this script or discard the draft before switching languages, choosing text, or refreshing materials.")
+                    wrapMode: Text.WordWrap
+                    color: Theme.muted
+                    font.pixelSize: 11
                 }
                 ScrollView {
                     Layout.fillWidth: true

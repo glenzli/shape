@@ -503,7 +503,11 @@ rendering contract changes. See [Qt Canvas backends](https://doc.qt.io/qt-6/qml-
 
 The project rail's **Picture books / 绘本** opens a versioned composition workspace.
 `PictureBookController` connects the shared candidate shelf to page/script editing;
-`picture_book_renderer` draws both previews and reading PDFs. See
+`picture_book_renderer` draws both previews and reading PDFs. Pending script text
+blocks language/text-source replacement and material refresh until adoption or
+explicit draft discard. A refresh with unchanged material pins preserves the
+reviewed candidate and preview; an artwork-only update keeps the active script.
+See
 [the workflow and boundaries](../../docs/PICTURE_BOOK.md). The packaged
 `shape-desktop-picture-book-smoke` drives this real controller/QML surface with
 synthetic bilingual material and records rendered pages, PDFs and a screenshot.
