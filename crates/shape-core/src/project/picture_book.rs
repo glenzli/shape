@@ -1,6 +1,8 @@
 //! Compose revisioned picture books over accepted materials and export Storybook snapshots.
 //! Native reading layout lives in the desktop; Storybook retains its advanced publishing tools.
+mod draft;
 mod script;
+pub use draft::{PictureBookDraft, PictureBookDraftAction};
 mod version;
 pub use version::PictureBookCandidate;
 
@@ -290,7 +292,9 @@ impl ShapeProject {
 
 fn text_settings(size: u32) -> Value {
     json!({"font_family":"sans-serif","font_size":size,"text_color":"#182a37","has_shadow":false,
-        "has_backdrop":true,"readability_mode":"panel","text_effects":{"outline":0,"halo":0,"backdrop":"panel","strength":1,"seed":1,"roughness":0,"feather":0,"color":"#ffffff"},"offset_x":0,"offset_y":0,"paper_alignment":"left","auto_snap_content":true})
+        "has_backdrop":true,"readability_mode":"wash","readability_strength":55,"max_width_percent":90,
+        "text_effects":{"outline":0,"halo":0,"backdrop":"wash","strength":55,"seed":1,"roughness":35,"feather":80,"color":"#ffffff"},
+        "offset_x":0,"offset_y":0,"paper_alignment":"left","auto_snap_content":true})
 }
 fn invalid(message: &'static str) -> PictureBookError {
     PictureBookError::Invalid(message)

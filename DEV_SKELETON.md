@@ -325,7 +325,9 @@ consumers. `shape-domain::material_edit` owns portable intent/configuration;
 and its `files` child the external working-copy boundary. Store independently
 validates lineage/media and atomically checks source, producer and output heads.
 The desktop bridge owns transient adoption; `MaterialEditController` owns bounded
-background file work and scoped completion; `MaterialEditWorkspace` owns review.
+background file work, Shadow process observation and local session recovery;
+`MaterialEditWorkspace` owns review. `shape-execution::raster::shadow_input` owns
+the exact known-sRGB input materialization, which Store independently revalidates.
 Provider protocols and databases remain external. This implements a bounded
 material round trip, not the deferred automatic provider/asset-resolution adapter.
 
@@ -333,9 +335,21 @@ material round trip, not the deferred automatic provider/asset-resolution adapte
 validation binds its declared material pins and types to normal CAS/provenance
 acceptance. `shape-core::project::picture_book` composes and exports native
 Storybook snapshots; `script` preserves multilingual page roles, while `version`
-implements review, acceptance and historical reads. The CLI and desktop bridge
+implements review, acceptance and historical reads. `picture_book::draft` owns
+recoverable WorkingGraph state and CAS checkpoints for unadopted scripts, using
+the portable `shape-domain::picture_book_draft` contract. The CLI and desktop bridge
 are terminal adapters; books use the existing candidate shelf. The desktop
-`PictureBookController` owns local draft/use-case state; `picture_book_renderer`
+`PictureBookController` owns authoring commands and draft presentation; `picture_book_renderer`
 shares layout between image preview and PDF. Storybook retains advanced typography,
 print imposition and publication; native archive intake is deferred. See
 `docs/PICTURE_BOOK.md` for exact bounds and the cross-application boundary.
+
+`shape-domain::workflow` is a small catalog of concrete creation templates, not another execution
+engine. `shape-domain::card_kit` owns stable card identities, shared direction and accepted material
+pins. Core `project::card_kit` owns recoverable WorkingGraph drafts, explicit composition acceptance
+and inert SVG/HTML material exports; store repeats the composition provenance and head checks.
+Card print planning owns bounded quantities and physical page, trim and crop-mark geometry over
+one accepted version. Desktop preview and PDF consume that same plan without changing creative history.
+The desktop `CardKitController` and `CardKitWorkspace` own authoring, per-card return routing and
+visible recovery. The CLI and CXX adapter share the same core action contract. See
+`docs/CREATIVE_TEMPLATES.md` for product boundaries and `docs/CARD_KIT.md` for the concrete contract.

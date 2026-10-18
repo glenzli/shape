@@ -3,7 +3,9 @@
 
 use super::{CoreError, MaterialEditCandidate, MaterialEditTicket, ShapeProject};
 use serde::{Deserialize, Serialize};
-use shape_domain::{ArtifactContentContract, ContentDigest, MaterialEditConfiguration};
+use shape_domain::{
+    ArtifactContentContract, ContentDigest, MaterialEditConfiguration, MaterialReturnNormalization,
+};
 use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
@@ -19,6 +21,8 @@ pub struct MaterialEditHandoff {
     pub input_path: PathBuf,
     pub input_blake3: String,
     pub input_contract: ArtifactContentContract,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_materialization: Option<MaterialReturnNormalization>,
 }
 
 impl ShapeProject {
@@ -55,7 +59,7 @@ impl ShapeProject {
             },
         );
         write_new(&input_path, &source.bytes)?;
-        let handoff = MaterialEditHandoff {
+        let mut handoff = MaterialEditHandoff {
             schema: "shape.material-handoff/1".into(),
             ticket: ticket.clone(),
             input_path,
@@ -64,9 +68,20 @@ impl ShapeProject {
                 .revision
                 .content_contract
                 .ok_or(CoreError::InvalidMaterialEdit)?,
+            input_materialization: None,
         };
         self.material_edit_source(ticket)?;
         if configuration.editor == shape_domain::MaterialEditor::Shadow {
+            let (working, normalization) =
+                shape_execution::RasterExecutor::materialize_shadow_input(&source.bytes)
+                    .map_err(|_| CoreError::InvalidMaterialEdit)?;
+            if matches!(
+                normalization,
+                MaterialReturnNormalization::KnownSrgbIccInput { .. }
+            ) {
+                write_new(&destination.join("shadow-source.png"), &working)?;
+                handoff.input_materialization = Some(normalization);
+            }
             write_new(
                 &destination.join("shadow-request.json"),
                 &serde_json::to_vec_pretty(&self.shadow_material_request(&handoff)?)?,

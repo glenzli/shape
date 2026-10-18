@@ -7,6 +7,40 @@ ports expose a `+` insertion affordance, and focused work happens only after the
 The current artifact-as-Scene implementation remains a compatibility projection while a real
 Scene-owned mutable graph is added; it must not be mistaken for the final multi-source persistence
 model.
+The creation chooser also offers task templates for picture books, card materials and image
+refinement. Each template opens its concrete workspace; the graph and single-purpose tools remain
+available. `CardKitController` owns recoverable card drafting, exact review identity and accepted
+export through the Rust card-kit action contract. `CardKitWorkspace.qml` owns the shared brief and
+style, stable card selection, text fields, accepted-artwork choice and material return routing.
+Draft edits save in the project after a short pause and before closing or opening a material tool;
+a failed save keeps the current text in the workspace. Artwork generation and Shadow refinement
+produce reviewable versions, and explicit adoption updates the requested card by stable id even
+after reordering. Export writes an accepted card-material ZIP with SVG cards and exact source
+materials; it is an inspectable kit rather than a print-ready or gameplay-certified deck. See
+[`CARD_KIT.md`](../../docs/CARD_KIT.md) for persistence, review and export bounds.
+The local card controller records the project, kit, stable card id, original artwork pin and
+external-edit stage in the same isolated desktop settings as Shadow's handoff observer. Reopening
+validates the card source, current original head and persisted stage before resuming that observer;
+it reuses the working copy and still requires explicit adoption. The card preview can also open at
+its full canvas size for scrollable inspection.
+The card list intake previews spreadsheet rows before appending them. It accepts title, rules and
+artwork-description columns, optional recognized headings and quoted multiline cells. It preserves
+existing cards, keeps repeated titles as separate stable identities, rejects malformed/oversized
+lists and enforces the 64-card and composition-size bounds before mutation. Only the sole completely
+untouched starter card is replaced by incoming rows; authored or additional cards remain intact.
+Cancelling the intake
+does not change the card draft.
+`CardPrintController` owns the separate accepted-version print session and rejects delayed export
+callbacks after its project, source or layout changes. The Rust `print_plan` action owns all paper,
+card, quantity and crop-mark geometry in millimetres. `card_print_export` consumes that plan through
+one painter for both sheet previews and vector PDF output; each stable card's SVG is stored once,
+and only one decoded SVG renderer stays resident while consecutive copies reuse it. A4 and US
+Letter layouts support custom card size, margins, gaps and crop marks. PDF publication uses a
+temporary sibling file and an atomic no-clobber hard link; destinations inside any `.shape` bundle,
+including through directory symlinks, are rejected. Print PDFs at **100% / Actual size**, with Fit
+to page disabled. This single-sided layout does not submit a job to a physical printer.
+Card image-import dialogs also capture the kit, stable card, project id and bundle path before
+opening; a stale callback creates no material. ZIP dialogs retain the exact accepted kit pin.
 The text and speech workflow uses the [node contract](../../docs/NODE_MODEL.md).
 Production notes remain visible as non-spoken callouts during script review and voice audition,
 so pronunciation and timing reminders travel with the accepted script without entering speech.
@@ -142,7 +176,7 @@ files. Ordinary snapshots carry raster/audio metadata rather than encoded payloa
 accepted and candidate PNG/WAV bytes are fetched separately. Images enter a byte-bounded,
 display-scaled native preview cache, while only one selected WAV enters the playback owner. Pinned
 or durable explorations, image composites and layers, model-backed image editing, waveform editing,
-recording and third-party editor process control remain behind future capability adapters.
+recording and arbitrary third-party editor integrations remain behind future capability adapters.
 The bounded Shadow/Echo file handoff below pins the input revision and validates returned bytes
 as a Candidate. It does not attach to a provider GUI or mutate the original material.
 

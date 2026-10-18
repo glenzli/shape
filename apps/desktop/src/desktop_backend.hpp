@@ -99,6 +99,12 @@ class DesktopBackend : public QObject {
         int outputWidth,
         int outputHeight
     );
+    Q_INVOKABLE QVariantMap beginAiImageDraft(
+        const QString& name,
+        const QString& instruction,
+        int outputWidth,
+        int outputHeight
+    );
     Q_INVOKABLE bool createDetachedTextEditor(const QString& nodeName);
     Q_INVOKABLE bool createTextAuthoring(const QString& name, const QString& profile);
     Q_INVOKABLE QString beginTextAuthoring(const QString& artifactId, const QString& profile);
@@ -218,6 +224,11 @@ class DesktopBackend : public QObject {
     QString bookExport(const QString& source, const QString& path) const;
     QString bookScript(const QString& name, const QString& source, const QString& text);
     QByteArray bookMaterial(const QString& source, const QString& kind) const;
+    QString bookDraftAction(const QString& request);
+    QString bookDraftPropose(const QString& artifactId, const QString& draftDigest);
+    // Card authoring owns its recoverable draft and reviewed action contract in Rust.
+    QString cardKitAction(const QString& request);
+    QString workflowTemplates() const;
 
     /// Rebuilds translated presentation values after a runtime locale change.
     void retranslate();

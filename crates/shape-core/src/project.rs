@@ -1,13 +1,19 @@
 //! Project bundle facade and routing to media-specific creative use cases.
 
 mod agent_file;
+mod card_kit;
+pub use card_kit::{
+    CardKitAction, CardKitCandidate, CardKitDraft, CardKitError, CardKitExport, CardPrintOptions,
+    CardPrintPaper, CardPrintPlan,
+};
 mod material_edit;
 mod picture_book;
 pub use material_edit::{
     MATERIAL_EDIT_TICKET_SCHEMA, MaterialEditCandidate, MaterialEditHandoff, MaterialEditTicket,
 };
 pub use picture_book::{
-    PictureBookCandidate, PictureBookError, PictureBookExport, PictureBookPage, PictureBookRequest,
+    PictureBookCandidate, PictureBookDraft, PictureBookDraftAction, PictureBookError,
+    PictureBookExport, PictureBookPage, PictureBookRequest,
 };
 mod audio;
 mod sound_generation;

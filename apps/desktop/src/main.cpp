@@ -1,6 +1,9 @@
 #include "audio_export_controller.hpp"
 #include "audio_preview_controller.hpp"
 #include "audio_preview_smoke.hpp"
+#include "card_kit_controller.hpp"
+#include "card_print_controller.hpp"
+#include "card_print_smoke.hpp"
 #include "desktop_backend.hpp"
 #include "image_live_smoke.hpp"
 #include "image_preview_provider.hpp"
@@ -21,6 +24,7 @@
 #include "text_authoring_smoke.hpp"
 #include "ui_preferences.hpp"
 #include "web_animation_preview.hpp"
+#include "workflow_smoke.hpp"
 #include "workspace_host_smoke.hpp"
 
 #if defined(Q_OS_MACOS)
@@ -29,8 +33,8 @@
 
 #include "rust/cxx.h"
 
-#include <QColor>
 #include <QClipboard>
+#include <QColor>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -60,6 +64,10 @@ struct Arguments {
     std::optional<std::string> project_path;
     bool smoke_exit = false;
     std::optional<QString> picture_book_directory;
+    std::optional<QString> workflow_directory;
+    std::optional<QString> card_print_directory;
+    std::optional<QString> preview_card_id;
+    std::optional<QString> preview_capture_prefix;
     bool smoke_text_cycle = false;
     bool smoke_raster_cycle = false;
     std::optional<QString> sound_live_directory;
@@ -80,6 +88,14 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             arguments.project_path = std::string(argv[++index]);
         } else if (argument == "--smoke-picture-book" && index + 1 < argc) {
             arguments.picture_book_directory = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--smoke-workflow" && index + 1 < argc) {
+            arguments.workflow_directory = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--smoke-card-print" && index + 1 < argc) {
+            arguments.card_print_directory = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--preview-card-kit" && index + 1 < argc) {
+            arguments.preview_card_id = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--capture-preview-prefix" && index + 1 < argc) {
+            arguments.preview_capture_prefix = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-exit") {
             arguments.smoke_exit = true;
         } else if (argument == "--smoke-text-cycle") {
@@ -164,11 +180,19 @@ bool run_smoke_raster_cycle(
         root_object.findChild<QObject*>(QStringLiteral("operatorPalette"));
     QObject* const workspace_surface =
         root_object.findChild<QObject*>(QStringLiteral("workspaceSurface"));
-    const bool has_image_actions = image_palette
-        && QQmlExpression(QQmlEngine::contextForObject(image_palette), image_palette,
-            QStringLiteral("['text.create', 'image.generate', 'audio.generate', 'image.edit', "
-                           "'image.external_edit'].every(key => filterOperators('').some(item => item.typeKey === key))"))
-               .evaluate().toBool();
+    const bool has_image_actions =
+        image_palette
+        && QQmlExpression(
+               QQmlEngine::contextForObject(image_palette),
+               image_palette,
+               QStringLiteral(
+                   "['text.create', 'image.generate', 'audio.generate', 'image.edit', "
+                   "'image.external_edit'].every(key => filterOperators('').some(item => "
+                   "item.typeKey === key))"
+               )
+        )
+               .evaluate()
+               .toBool();
     if (image_palette == nullptr || workspace_surface == nullptr || !has_image_actions) {
         std::cerr << "desktop raster smoke did not expose source creation beside the "
                      "unified image editor"
@@ -787,7 +811,8 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         || root_object.findChild<QObject*>(QStringLiteral("createTextSceneTypeButton")) == nullptr
         || root_object.findChild<QObject*>(QStringLiteral("createAiImageSceneTypeButton"))
                == nullptr
-        || root_object.findChild<QObject*>(QStringLiteral("importMaterialStartButton")) == nullptr) {
+        || root_object.findChild<QObject*>(QStringLiteral("importMaterialStartButton"))
+               == nullptr) {
         std::cerr << "desktop authoring smoke found an incomplete creative start chooser"
                   << std::endl;
         return false;
@@ -897,43 +922,61 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         return false;
     }
     auto* image_intent = root_object.findChild<QObject*>(QStringLiteral("operatorIntentSidebar"));
-    auto* image_count_picker = image_intent
-                                   ? image_intent->findChild<QObject*>(
-                                         QStringLiteral("imageCandidateCountPicker")
-                                     )
-                                   : nullptr;
+    auto* image_count_picker =
+        image_intent
+            ? image_intent->findChild<QObject*>(QStringLiteral("imageCandidateCountPicker"))
+            : nullptr;
     if (!image_count_picker
         || !QMetaObject::invokeMethod(
-            image_count_picker, "activated", Qt::DirectConnection, Q_ARG(int, 2)
+            image_count_picker,
+            "activated",
+            Qt::DirectConnection,
+            Q_ARG(int, 2)
         )
         || image_intent->property("selectedCandidateCount").toInt() != 3
-        || backend.operatorDrafts().first().toMap().value(QStringLiteral("aiImageCandidateCount"))
-               .toInt() != 3) {
+        || backend.operatorDrafts()
+                   .first()
+                   .toMap()
+                   .value(QStringLiteral("aiImageCandidateCount"))
+                   .toInt()
+               != 3) {
         std::cerr << "desktop authoring smoke did not persist the image candidate count"
                   << std::endl;
         return false;
     }
-    auto* image_model_picker = image_intent->findChild<QObject*>(QStringLiteral("imageModelPicker"));
-    auto* image_model_choice = image_model_picker
-                                   ? image_model_picker->findChild<QObject*>(QStringLiteral("aiModelChoice"))
-                                   : nullptr;
-    auto* image_effort_choice = image_model_picker
-                                    ? image_model_picker->findChild<QObject*>(QStringLiteral("aiEffortChoice"))
-                                    : nullptr;
+    auto* image_model_picker =
+        image_intent->findChild<QObject*>(QStringLiteral("imageModelPicker"));
+    auto* image_model_choice =
+        image_model_picker
+            ? image_model_picker->findChild<QObject*>(QStringLiteral("aiModelChoice"))
+            : nullptr;
+    auto* image_effort_choice =
+        image_model_picker
+            ? image_model_picker->findChild<QObject*>(QStringLiteral("aiEffortChoice"))
+            : nullptr;
     if (!image_model_choice
         || image_intent->property("selectedModelKey").toString()
                != image_intent->property("defaultModelKey").toString()
         || !QMetaObject::invokeMethod(
-            image_model_choice, "activated", Qt::DirectConnection, Q_ARG(int, 3)
+            image_model_choice,
+            "activated",
+            Qt::DirectConnection,
+            Q_ARG(int, 3)
         )
         || image_intent->property("selectedModelKey").toString() != QStringLiteral("gpt_6_sol")
         || !image_effort_choice
         || !QMetaObject::invokeMethod(
-            image_effort_choice, "activated", Qt::DirectConnection, Q_ARG(int, 4)
+            image_effort_choice,
+            "activated",
+            Qt::DirectConnection,
+            Q_ARG(int, 4)
         )
         || image_intent->property("selectedEffortKey").toString() != QStringLiteral("high")
         || !QMetaObject::invokeMethod(
-            image_model_choice, "activated", Qt::DirectConnection, Q_ARG(int, 0)
+            image_model_choice,
+            "activated",
+            Qt::DirectConnection,
+            Q_ARG(int, 0)
         )
         || image_intent->property("selectedModelKey").toString()
                != image_intent->property("defaultModelKey").toString()
@@ -946,9 +989,12 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         || backend.operatorDrafts().size() != 1
         || backend.operatorDrafts().first().toMap().value(QStringLiteral("id")).toString()
                != image_draft_id
-        || backend.operatorDrafts().first().toMap()
+        || backend.operatorDrafts()
+                   .first()
+                   .toMap()
                    .value(QStringLiteral("aiImageCandidateCount"))
-                   .toInt() != 3) {
+                   .toInt()
+               != 3) {
         std::cerr << "desktop authoring smoke did not reopen the exact AI image source draft"
                   << std::endl;
         return false;
@@ -958,7 +1004,8 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         return false;
     }
     QTemporaryDir material_directory;
-    if (!material_directory.isValid()) return false;
+    if (!material_directory.isValid())
+        return false;
     const QString code_path = material_directory.filePath(QStringLiteral("animation.js"));
     const QString wav_path = material_directory.filePath(QStringLiteral("voice.wav"));
     const QByteArray code("export const frame = time => time * 2;\n");
@@ -988,11 +1035,9 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
     const QString text_id = imported_code.value(QStringLiteral("id")).toString();
     const QString exported_text = material_directory.filePath(QStringLiteral("accepted.js"));
     QFile exported_text_file(exported_text);
-    if (imported_code.value(QStringLiteral("name")).toString()
-            != QStringLiteral("animation.js")
+    if (imported_code.value(QStringLiteral("name")).toString() != QStringLiteral("animation.js")
         || !backend.exportAcceptedMaterial(text_id, QUrl::fromLocalFile(exported_text))
-        || !exported_text_file.open(QIODevice::ReadOnly)
-        || exported_text_file.readAll() != code) {
+        || !exported_text_file.open(QIODevice::ReadOnly) || exported_text_file.readAll() != code) {
         std::cerr << "desktop authoring smoke lost the code file identity or exact UTF-8 export"
                   << std::endl;
         return false;
@@ -1003,25 +1048,26 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         return false;
     }
     const QVariantList code_nodes = imported_code.value(QStringLiteral("operatorNodes")).toList();
-    const auto code_source = std::find_if(
-        code_nodes.cbegin(), code_nodes.cend(), [](const QVariant& value) {
+    const auto code_source =
+        std::find_if(code_nodes.cbegin(), code_nodes.cend(), [](const QVariant& value) {
             return value.toMap().value(QStringLiteral("roleKey")) == QStringLiteral("source");
-        }
-    );
-    if (code_source == code_nodes.cend()) return false;
+        });
+    if (code_source == code_nodes.cend())
+        return false;
     QQmlExpression open_code_source(
         QQmlEngine::contextForObject(workspace_surface),
         workspace_surface,
-        QStringLiteral("openNode('%1')").arg(code_source->toMap().value(QStringLiteral("id")).toString())
+        QStringLiteral("openNode('%1')")
+            .arg(code_source->toMap().value(QStringLiteral("id")).toString())
     );
-    if (!open_code_source.evaluate().toBool() || open_code_source.hasError()) return false;
+    if (!open_code_source.evaluate().toBool() || open_code_source.hasError())
+        return false;
     QCoreApplication::processEvents();
-    QObject* const code_workspace = workspace_surface->findChild<QObject*>(
-        QStringLiteral("sourceMaterialWorkspace")
-    );
-    QObject* const code_editor = code_workspace
-                                     ? code_workspace->findChild<QObject*>(QStringLiteral("sourceMaterialText"))
-                                     : nullptr;
+    QObject* const code_workspace =
+        workspace_surface->findChild<QObject*>(QStringLiteral("sourceMaterialWorkspace"));
+    QObject* const code_editor =
+        code_workspace ? code_workspace->findChild<QObject*>(QStringLiteral("sourceMaterialText"))
+                       : nullptr;
     if (!code_workspace || !code_workspace->property("isCode").toBool() || !code_editor
         || code_editor->property("text").toString().toUtf8() != code) {
         std::cerr << "desktop authoring smoke did not show the exact imported code as code"
@@ -1066,8 +1112,7 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
             imported_html.value(QStringLiteral("id")).toString(),
             QUrl::fromLocalFile(html_export)
         )
-        || !exported_html_file.open(QIODevice::ReadOnly)
-        || exported_html_file.readAll() != html) {
+        || !exported_html_file.open(QIODevice::ReadOnly) || exported_html_file.readAll() != html) {
         std::cerr << "desktop authoring smoke changed exact HTML export bytes" << std::endl;
         return false;
     }
@@ -1077,52 +1122,49 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         return false;
     }
     const QVariantList html_nodes = imported_html.value(QStringLiteral("operatorNodes")).toList();
-    const auto html_source = std::find_if(
-        html_nodes.cbegin(), html_nodes.cend(), [](const QVariant& value) {
+    const auto html_source =
+        std::find_if(html_nodes.cbegin(), html_nodes.cend(), [](const QVariant& value) {
             return value.toMap().value(QStringLiteral("roleKey")) == QStringLiteral("source");
-        }
-    );
-    if (html_source == html_nodes.cend()) return false;
+        });
+    if (html_source == html_nodes.cend())
+        return false;
     QQmlExpression open_html_source(
         QQmlEngine::contextForObject(workspace_surface),
         workspace_surface,
-        QStringLiteral("openNode('%1')").arg(html_source->toMap().value(QStringLiteral("id")).toString())
+        QStringLiteral("openNode('%1')")
+            .arg(html_source->toMap().value(QStringLiteral("id")).toString())
     );
-    if (!open_html_source.evaluate().toBool() || open_html_source.hasError()) return false;
+    if (!open_html_source.evaluate().toBool() || open_html_source.hasError())
+        return false;
     QCoreApplication::processEvents();
-    QObject* const html_host = workspace_surface->findChild<QObject*>(
-        QStringLiteral("operatorWorkspaceHost")
-    );
-    QObject* const html_workspace = html_host
-                                        ? html_host->property("loadedWorkspace").value<QObject*>()
-                                        : nullptr;
-    QObject* const preview_button = html_workspace
-                                        ? html_workspace->findChild<QObject*>(
-                                              QStringLiteral("htmlAnimationPreviewButton")
-                                          )
-                                        : nullptr;
-    if (!html_workspace || !html_workspace->property("isHtml").toBool()
-        || !preview_button || !preview_button->property("visible").toBool()
+    QObject* const html_host =
+        workspace_surface->findChild<QObject*>(QStringLiteral("operatorWorkspaceHost"));
+    QObject* const html_workspace =
+        html_host ? html_host->property("loadedWorkspace").value<QObject*>() : nullptr;
+    QObject* const preview_button =
+        html_workspace
+            ? html_workspace->findChild<QObject*>(QStringLiteral("htmlAnimationPreviewButton"))
+            : nullptr;
+    if (!html_workspace || !html_workspace->property("isHtml").toBool() || !preview_button
+        || !preview_button->property("visible").toBool()
         || !QMetaObject::invokeMethod(preview_button, "clicked", Qt::DirectConnection)) {
         std::cerr << "desktop authoring smoke did not offer HTML preview" << std::endl;
         return false;
     }
     QCoreApplication::processEvents();
-    QObject* const html_preview = html_workspace->findChild<QObject*>(
-        QStringLiteral("webAnimationPreview")
-    );
+    QObject* const html_preview =
+        html_workspace->findChild<QObject*>(QStringLiteral("webAnimationPreview"));
     if (!html_workspace->property("previewMode").toBool() || !html_preview
         || !html_preview->property("fitsWebEngine").toBool()) {
         std::cerr << "desktop authoring smoke did not open bounded HTML preview" << std::endl;
         return false;
     }
-    QObject* const html_browser = html_preview->findChild<QObject*>(
-        QStringLiteral("webAnimationPreviewBrowser")
-    );
+    QObject* const html_browser =
+        html_preview->findChild<QObject*>(QStringLiteral("webAnimationPreviewBrowser"));
     QElapsedTimer html_load_timeout;
     html_load_timeout.start();
-    while (html_browser && html_browser->property("title").toString()
-                               != QStringLiteral("Shape animation")
+    while (html_browser
+           && html_browser->property("title").toString() != QStringLiteral("Shape animation")
            && html_load_timeout.elapsed() < 5000) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
     }
@@ -1144,8 +1186,7 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         return false;
     }
     const QVariantMap pasted_text = backend.artifacts()[pasted_text_index].toMap();
-    if (pasted_text.value(QStringLiteral("kindKey")).toString()
-            != QStringLiteral("text_document")
+    if (pasted_text.value(QStringLiteral("kindKey")).toString() != QStringLiteral("text_document")
         || backend.sourceRevisionText(
                pasted_text.value(QStringLiteral("acceptedRevisionId")).toString()
            ) != QStringLiteral("Pasted words\n")) {
@@ -1164,12 +1205,12 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
     const QString pasted_image_id = pasted_image.value(QStringLiteral("id")).toString();
     const QString pasted_image_export = material_directory.filePath(QStringLiteral("pasted.png"));
     QFile pasted_image_file(pasted_image_export);
-    if (pasted_image.value(QStringLiteral("kindKey")).toString()
-            != QStringLiteral("image_raster")
+    if (pasted_image.value(QStringLiteral("kindKey")).toString() != QStringLiteral("image_raster")
         || pasted_image.value(QStringLiteral("imageWidth")).toInt() != 2
         || pasted_image.value(QStringLiteral("imageHeight")).toInt() != 3
         || !backend.openProject(QUrl::fromLocalFile(bundle_path))
-        || !backend.exportAcceptedMaterial(pasted_image_id, QUrl::fromLocalFile(pasted_image_export))
+        || !backend
+                .exportAcceptedMaterial(pasted_image_id, QUrl::fromLocalFile(pasted_image_export))
         || !pasted_image_file.open(QIODevice::ReadOnly)
         || !pasted_image_file.readAll().startsWith(QByteArray::fromHex("89504e470d0a1a0a"))) {
         std::cerr << "desktop authoring smoke lost the pasted image after reopening" << std::endl;
@@ -1195,9 +1236,11 @@ int main(int argc, char* argv[]) {
     QGuiApplication application(argc, argv);
     application.setApplicationName(QStringLiteral("Shape"));
     application.setOrganizationName(QStringLiteral("Shape"));
-    const bool offline_smoke = arguments->smoke_exit || arguments->smoke_text_cycle
-                               || arguments->smoke_raster_cycle
-                               || arguments->picture_book_directory.has_value();
+    const bool offline_smoke =
+        arguments->smoke_exit || arguments->smoke_text_cycle || arguments->smoke_raster_cycle
+        || arguments->picture_book_directory.has_value()
+        || arguments->workflow_directory.has_value() || arguments->card_print_directory.has_value()
+        || arguments->preview_card_id.has_value();
     const bool smoke_mode = offline_smoke || arguments->speech_live_directory.has_value()
                             || arguments->speech_script_directory.has_value()
                             || arguments->text_authoring_directory.has_value()
@@ -1237,8 +1280,10 @@ int main(int argc, char* argv[]) {
     InferSoundController infer_sound(*backend, infer_credential_path, &application);
     InferAgentController infer_agent(*backend, infer_credential_path, &application);
     InferSpeechController infer_speech(*backend, infer_credential_path, &application);
-    MaterialEditController material_edit(*backend, &application);
+    MaterialEditController material_edit(*backend, settings_path, &application);
     PictureBookController picture_book(*backend, &application);
+    CardKitController card_kit(*backend, settings_path, &application);
+    CardPrintController card_print(*backend, &application);
     InferImageController infer_image(*backend, infer_credential_path, &application);
     AudioPreviewController audio_preview(*backend, &application);
     AudioExportController audio_export(*backend, &application);
@@ -1251,8 +1296,12 @@ int main(int argc, char* argv[]) {
                 recent_projects.record(project->bundlePath(), project->projectName());
             }
         };
-        QObject::connect(backend.get(), &DesktopBackend::projectChanged, &recent_projects,
-                         record_project);
+        QObject::connect(
+            backend.get(),
+            &DesktopBackend::projectChanged,
+            &recent_projects,
+            record_project
+        );
         record_project();
     }
     QObject::connect(
@@ -1262,9 +1311,22 @@ int main(int argc, char* argv[]) {
         &DesktopBackend::retranslate
     );
     backend->retranslate();
+    QObject::connect(
+        &ui_preferences,
+        &UiPreferences::languageModeChanged,
+        &card_kit,
+        &CardKitController::retranslate
+    );
+    QObject::connect(
+        &ui_preferences,
+        &UiPreferences::languageModeChanged,
+        &card_print,
+        &CardPrintController::retranslate
+    );
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(
-        QStringLiteral("webAnimationPreviewProfile"), web_animation_preview.profile()
+        QStringLiteral("webAnimationPreviewProfile"),
+        web_animation_preview.profile()
     );
     engine.addImageProvider(
         QStringLiteral("shape-preview"),
@@ -1280,6 +1342,8 @@ int main(int argc, char* argv[]) {
     ui_preferences.attachEngine(engine);
     engine.setInitialProperties({
         {QStringLiteral("pictureBook"), QVariant::fromValue(&picture_book)},
+        {QStringLiteral("cardKit"), QVariant::fromValue(&card_kit)},
+        {QStringLiteral("cardPrint"), QVariant::fromValue(&card_print)},
         {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
         {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
         {QStringLiteral("inferText"), QVariant::fromValue(&infer_text)},
@@ -1302,6 +1366,54 @@ int main(int argc, char* argv[]) {
     }
 
     QObject* const root_object = engine.rootObjects().first();
+    if (arguments->preview_card_id) {
+        QTimer::singleShot(200, &application, [&] {
+            auto* workspace = root_object->findChild<QObject*>(QStringLiteral("cardKitWorkspace"));
+            if (!workspace
+                || !QMetaObject::invokeMethod(
+                    workspace,
+                    "openWorkspace",
+                    Q_ARG(QVariant, QVariant(*arguments->preview_card_id))
+                )) {
+                application.exit(1);
+                return;
+            }
+            if (arguments->preview_capture_prefix
+                && !workflow_smoke::capturePreview(
+                    card_kit,
+                    ui_preferences,
+                    *root_object,
+                    *arguments->preview_capture_prefix
+                ))
+                application.exit(1);
+        });
+    }
+    if (arguments->workflow_directory) {
+        QTimer::singleShot(400, &application, [&] {
+            const bool passed = workflow_smoke::verify(
+                *backend,
+                card_kit,
+                ui_preferences,
+                *root_object,
+                *arguments->workflow_directory,
+                settings_path
+            );
+            application.exit(passed ? 0 : 1);
+        });
+    }
+    if (arguments->card_print_directory) {
+        QTimer::singleShot(400, &application, [&] {
+            const bool passed = card_print_smoke::verify(
+                *backend,
+                card_kit,
+                card_print,
+                ui_preferences,
+                *root_object,
+                *arguments->card_print_directory
+            );
+            application.exit(passed ? 0 : 1);
+        });
+    }
     if (arguments->picture_book_directory) {
         QTimer::singleShot(400, &application, [&] {
             const bool passed = picture_book_smoke::verify(
@@ -1385,7 +1497,8 @@ int main(int argc, char* argv[]) {
         });
     }
     if (arguments->smoke_exit) {
-        if (!audio_preview_smoke::verify()) return 3;
+        if (!audio_preview_smoke::verify())
+            return 3;
         const bool began_without_project = !backend->projectOpen();
         if (!workspace_host_smoke::verifyDraftConflicts(ui_preferences)
             || !workspace_host_smoke::verifyRecentProjects()

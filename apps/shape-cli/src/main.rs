@@ -1,5 +1,6 @@
 //! Public command routing; use cases and script diagnostics retain their own owners.
 
+mod card_kit;
 mod material_edit;
 mod picture_book;
 mod project_status;
@@ -30,13 +31,15 @@ fn run() -> Result<u8, Box<dyn Error>> {
     let mut arguments = env::args_os().skip(1);
     let command = arguments.next().ok_or_else(usage_error)?;
     let path = PathBuf::from(arguments.next().ok_or_else(usage_error)?);
-    if command == "material-edit" || command == "picture-book" {
+    if command == "material-edit" || command == "picture-book" || command == "card-kit" {
         let request = PathBuf::from(arguments.next().ok_or_else(usage_error)?);
         if arguments.next().is_some() {
             return Err(usage_error().into());
         }
         return Ok(if command == "material-edit" {
             material_edit::run(&path, &request)
+        } else if command == "card-kit" {
+            card_kit::run(&path, &request)
         } else {
             picture_book::run(&path, &request)
         });
@@ -123,6 +126,6 @@ fn inspect(path: &Path) -> Result<(), Box<dyn Error>> {
 fn usage_error() -> io::Error {
     io::Error::new(
         io::ErrorKind::InvalidInput,
-        "usage: shape-cli <demo|inspect|project-status> <project.shape> | script-check <script.txt> [--bindings <bindings.json>] | material-edit <project.shape> <request.json> | picture-book <project.shape> <request.json>",
+        "usage: shape-cli <demo|inspect|project-status> <project.shape> | script-check <script.txt> [--bindings <bindings.json>] | material-edit <project.shape> <request.json> | picture-book <project.shape> <request.json> | card-kit <project.shape> <request.json>",
     )
 }

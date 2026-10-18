@@ -3,8 +3,8 @@
 use super::{AcceptedCommit, ProjectStore};
 use crate::StoreError;
 use shape_domain::{
-    ArtifactContentContract, ArtifactId, MaterialEditConfiguration, RevisionId, TransformationKind,
-    TransformationOperation, WorkingOperatorDraft,
+    ArtifactContentContract, ArtifactId, MaterialEditConfiguration, MaterialReturnNormalization,
+    RevisionId, TransformationKind, TransformationOperation, WorkingOperatorDraft,
 };
 use shape_execution::{
     MATERIAL_RETURN_EXECUTOR, MATERIAL_RETURN_REVISION, normalize_material_return,
@@ -63,6 +63,18 @@ impl ProjectStore {
             && source.origin != output.origin
         {
             return Err(invalid());
+        }
+        if matches!(
+            operation.normalization,
+            MaterialReturnNormalization::KnownSrgbIccInput { .. }
+        ) {
+            let source_bytes = self.read_content(&source.content)?;
+            let (_, expected) =
+                shape_execution::RasterExecutor::materialize_shadow_input(&source_bytes)
+                    .map_err(|_| invalid())?;
+            if operation.normalization != expected {
+                return Err(invalid());
+            }
         }
         let verified = normalize_material_return(source_contract, &commit.output_bytes)
             .map_err(|_| invalid())?;

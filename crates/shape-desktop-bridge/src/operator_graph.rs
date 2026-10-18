@@ -39,7 +39,14 @@ pub(crate) fn project_operator_graph(
         .artifact_working_graphs()
         .map_err(|e| e.to_string())?
         .into_iter()
-        .find(|g| g.context_artifact_id() == artifact.id && authored::is_authored_output(g))
+        .find(|g| {
+            g.context_artifact_id() == artifact.id
+                && authored::is_authored_output(g)
+                && (!matches!(
+                    artifact.kind,
+                    ArtifactKind::CardKit | ArtifactKind::PictureBook
+                ) || artifact.accepted_revision.is_none())
+        })
     {
         return authored::project_authored(project, artifact, project_artifacts, &graph);
     }
@@ -386,6 +393,7 @@ fn artifact_data_type(kind: ArtifactKind) -> Result<OperatorDataTypeId, String> 
         ArtifactKind::ImageComposite => "image.composite",
         ArtifactKind::ReferenceSet => "reference.set",
         ArtifactKind::PictureBook => "book.picture",
+        ArtifactKind::CardKit => "card.kit",
         ArtifactKind::AudioClip => AUDIO_CLIP_DATA_TYPE,
     })
     .map_err(|error| error.to_string())
@@ -419,6 +427,7 @@ fn operator_type(
         (_, TransformationKind::GenerativeEdit, _) => "creative.generate",
         (_, TransformationKind::DeterministicEdit, _) => "creative.deterministic_edit",
         (_, TransformationKind::Composite, ArtifactKind::PictureBook) => "book.compose",
+        (_, TransformationKind::Composite, ArtifactKind::CardKit) => "card_kit.compose",
         (_, TransformationKind::Composite, _) => "creative.composite",
         (_, TransformationKind::ExternalRoundTrip, _) => "external.round_trip",
         (_, TransformationKind::Import, _) => "source.import",

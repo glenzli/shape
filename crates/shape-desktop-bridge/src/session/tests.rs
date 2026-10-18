@@ -589,6 +589,7 @@ fn ai_image_candidate_adopts_previews_accepts_and_reopens_as_operator_output() {
         .session_adopt_infer_image(Box::new(InferImageCandidate::new(
             generated,
             draft_id.clone(),
+            fs::canonicalize(&root).unwrap(),
         )))
         .unwrap();
     assert!(adopted.has_image_preview);
@@ -662,6 +663,7 @@ fn image_batch_adopts_distinct_candidates_and_accepts_only_the_chosen_one() {
             vec![first, second],
             draft_id,
             "",
+            fs::canonicalize(&root).unwrap(),
         )))
         .unwrap();
     assert_eq!(adopted.len(), 2);
@@ -707,6 +709,7 @@ fn stopped_image_batch_streams_the_completed_candidate_without_starting_another_
         calls: AtomicUsize::new(0),
     };
     let batch = execute_image_batch(
+        &root,
         &project,
         artifact_id,
         &draft_id,
@@ -726,6 +729,97 @@ fn stopped_image_batch_streams_the_completed_candidate_without_starting_another_
     assert_eq!(session.session_candidates().len(), 1);
     assert!(!session.session_snapshot().unwrap().artifacts[0].has_accepted_revision);
     fs::remove_dir_all(root).unwrap();
+}
+
+fn copy_project_fixture(source: &std::path::Path, destination: &std::path::Path) {
+    fs::create_dir(destination).unwrap();
+    for entry in fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let target = destination.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_project_fixture(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
+#[test]
+fn copied_bundle_rejects_late_streamed_and_batch_images_before_shelf_mutation() {
+    let root = test_root();
+    let copied_root = root.with_extension("copy.shape");
+    let path = root.to_str().unwrap();
+    let mut session = create_desktop_project(path, "Image origin").unwrap();
+    let snapshot = session
+        .session_create_ai_image_draft("Bird", "A cobalt glass bird", 4, 3)
+        .unwrap();
+    let project_id = snapshot.project_id;
+    let artifact_id = snapshot.artifacts[0].id.parse().unwrap();
+    let draft_id = session.session_operator_drafts()[0].draft_id.clone();
+    let parameters = AiImageGenerateParameters::new(
+        "A cobalt glass bird",
+        AiImageOutputCanvas::new(4, 3).unwrap(),
+        1,
+        Vec::new(),
+    )
+    .unwrap();
+    let project = ShapeProject::open(&root).unwrap();
+    let control = ImageGenerationControl::default();
+    let stale_batch = execute_image_batch(
+        &root,
+        &project,
+        artifact_id,
+        &draft_id,
+        &parameters,
+        1,
+        &BridgeImageExecutor::new(),
+        Some(&control),
+    )
+    .unwrap();
+    let stale_stream = image_generation_control_take_candidate(&control).unwrap();
+    let current_batch = execute_image_batch(
+        &root,
+        &project,
+        artifact_id,
+        &draft_id,
+        &parameters,
+        1,
+        &BridgeImageExecutor::new(),
+        None,
+    )
+    .unwrap();
+    drop(project);
+    drop(session);
+    copy_project_fixture(&root, &copied_root);
+    let mut copied = open_desktop_session(copied_root.to_str().unwrap()).unwrap();
+    assert_eq!(copied.session_snapshot().unwrap().project_id, project_id);
+    assert_eq!(copied.session_operator_drafts()[0].draft_id, draft_id);
+    assert_eq!(
+        copied.session_adopt_infer_image(stale_stream).unwrap_err(),
+        "project_unavailable"
+    );
+    assert_eq!(
+        copied
+            .session_adopt_infer_image_batch(stale_batch)
+            .unwrap_err(),
+        "project_unavailable"
+    );
+    assert!(copied.session_candidates().is_empty());
+    assert!(!copied.session_snapshot().unwrap().artifacts[0].has_accepted_revision);
+    // Another spelling of the originating root remains the same canonical bundle.
+    let alias = root.join(".");
+    let mut original = open_desktop_session(alias.to_str().unwrap()).unwrap();
+    assert_eq!(
+        original
+            .session_adopt_infer_image_batch(current_batch)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(original.session_candidates().len(), 1);
+    assert!(!original.session_snapshot().unwrap().artifacts[0].has_accepted_revision);
+    fs::remove_dir_all(root).unwrap();
+    fs::remove_dir_all(copied_root).unwrap();
 }
 
 #[test]

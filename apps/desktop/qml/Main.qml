@@ -18,6 +18,8 @@ ApplicationWindow {
     required property InferAgentController inferAgent
     required property InferSpeechController inferSpeech
     required property PictureBookController pictureBook
+    required property CardKitController cardKit
+    required property CardPrintController cardPrint
     required property MaterialEditController materialEdit
     required property InferImageController inferImage
     required property AudioPreviewController audioPreview
@@ -84,6 +86,23 @@ ApplicationWindow {
         })
     }
 
+    function openCreativeWork(artifactId, index) : void {
+        const artifact = backend.artifacts[index]
+        if (artifact && artifact.kindKey === "card_kit") {
+            selectedArtifactIndex = index
+            cardWorkspace.openWorkspace(artifactId)
+        } else if (artifact && artifact.kindKey === "picture_book") {
+            selectedArtifactIndex = index
+            bookWorkspace.openWorkspace(artifactId)
+        }
+        else workspaceSurface.activateScene(index)
+    }
+
+    function startImageRefinement(artifactId) : void {
+        const draftId = backend.beginOperatorDraft(artifactId, "image.external_edit")
+        if (draftId.length) openDraftTarget(draftId)
+    }
+
     function pasteMaterialIntoProject(originSection) : void {
         if (!backend.pasteMaterial()) return
         selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
@@ -102,6 +121,7 @@ ApplicationWindow {
     }
 
     function openProject(projectUrl) : void {
+        if (!cardWorkspace.flush() || !bookWorkspace.flush()) return
         if (!window.backend.openProject(projectUrl)) return
         window.selectedArtifactIndex = 0
         window.selectedCandidateId = ""
@@ -277,6 +297,7 @@ ApplicationWindow {
     minimumWidth: 1120
     minimumHeight: 720
     visible: true
+    onClosing: close => { if (!cardWorkspace.flush() || !bookWorkspace.flush()) close.accepted = false }
     title: Qt.platform.os === "osx" ? ""
            : window.backend.projectOpen
              ? qsTr("Shape — %1").arg(window.backend.projectName)
@@ -322,10 +343,14 @@ ApplicationWindow {
 
     CreateSceneTypeDialog {
         id: createSceneTypeDialog
+        templateKeys: window.cardKit.templateKeys
+        onAboutToShow: window.cardKit.refresh()
         onTextAuthoringRequested: profile => window.startTextAuthoring(profile)
         onSoundSceneRequested: window.startSoundScene()
         onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
         onPictureBookRequested: bookWorkspace.openWorkspace()
+        onCardKitRequested: cardWorkspace.openWorkspace()
+        onImageRefinementRequested: refineImageChooser.open()
         onImportMaterialRequested: materialImportDialog.open()
         onPasteMaterialRequested: window.pasteMaterialIntoProject()
     }
@@ -334,11 +359,65 @@ ApplicationWindow {
         id: bookWorkspace
         backend: window.backend
         controller: window.pictureBook
+        materialEdit: window.materialEdit
+        inferImage: window.inferImage
+        inferText: window.inferText
+        uiPreferences: window.uiPreferences
+        onInferAccessSetupRequested: settingsDialog.open()
         onMaterialRequested: materialImportDialog.open()
         onEditMaterialRequested: artifactId => {
             bookWorkspace.close()
             const index = window.artifactIndex(artifactId)
             if (index >= 0) workspaceSurface.activateScene(index)
+        }
+    }
+
+    CardKitWorkspace {
+        id: cardWorkspace
+        backend: window.backend
+        controller: window.cardKit
+        cardPrint: window.cardPrint
+        onInferAccessSetupRequested: settingsDialog.open()
+        inferImage: window.inferImage
+        inferText: window.inferText
+        materialEdit: window.materialEdit
+        audioPreview: window.audioPreview
+        uiPreferences: window.uiPreferences
+    }
+
+    ShapeDialog {
+        id: refineImageChooser
+        objectName: "refineImageChooser"
+        readonly property var images: window.backend.artifacts.filter(a => a.kindKey === "image_raster" && a.hasAcceptedRevision)
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent.width - 48)
+        modal: true
+        title: qsTr("Choose an image to refine")
+        contentItem: ColumnLayout {
+            spacing: 12
+            Label { Layout.fillWidth: true; text: qsTr("Open an accepted image in Shadow, then review the returned version in Shape."); color: Theme.muted; wrapMode: Text.WordWrap }
+            ShapeComboBox { id: refineImagePicker; objectName: "refineImagePicker"; Layout.fillWidth: true; model: refineImageChooser.images; textRole: "name" }
+            RowLayout {
+                ShapeButton { text: qsTr("Import an image…"); onClicked: { refineImageChooser.close(); imageRefinementImport.projectId = window.backend.projectId; imageRefinementImport.open() } }
+                Item { Layout.fillWidth: true }
+                ShapeButton { text: qsTr("Continue with this image"); primary: true; enabled: refineImagePicker.currentIndex >= 0 && refineImagePicker.currentIndex < refineImageChooser.images.length; onClicked: { const image = refineImageChooser.images[refineImagePicker.currentIndex]; refineImageChooser.close(); window.startImageRefinement(image.id) } }
+            }
+        }
+    }
+
+    FileDialog {
+        id: imageRefinementImport
+        property string projectId: ""
+        title: qsTr("Choose an image to refine")
+        nameFilters: [qsTr("Images (*.png *.jpg *.jpeg)")]
+        onAccepted: {
+            if (projectId !== window.backend.projectId) return
+            const previous = new Set(window.backend.artifacts.map(a => a.id))
+            if (!window.backend.importRaster(selectedFile)) return
+            const added = window.backend.artifacts.filter(a => !previous.has(a.id)
+                && a.kindKey === "image_raster" && a.hasAcceptedRevision)
+            if (added.length === 1) window.startImageRefinement(added[0].id)
         }
     }
 
@@ -467,7 +546,7 @@ ApplicationWindow {
             selectedAssetId: window.hasSelectedArtifact ? window.selectedArtifact.id : ""
             onSectionRequested: sectionKey => window.workbenchSection = sectionKey
             onSceneSelected: (sceneId, index) => workspaceSurface.activateScene(index)
-            onSceneOpened: (sceneId, index) => workspaceSurface.activateScene(index)
+            onSceneOpened: (sceneId, index) => window.openCreativeWork(sceneId, index)
             onAssetSelected: (assetId, index) => {
                 const targetIndex = window.artifactIndex(assetId)
                 if (targetIndex >= 0) workspaceSurface.activateScene(targetIndex)
@@ -530,6 +609,7 @@ ApplicationWindow {
                     inferTextErrorCode: window.inferText.errorCode
                     inferRuntimeCompatible: window.inferRuntime.compatible
                     onSceneSelected: index => window.selectedArtifactIndex = index
+                    onCompositionRequested: (artifactId, kindKey) => window.openCreativeWork(artifactId, window.artifactIndex(artifactId))
                     onCandidateSelected: candidateId => window.activateCandidate(candidateId)
                     onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
                     onCropRequested: (artifactId, x, y, width, height) => {

@@ -28,20 +28,31 @@ Item {
         && controller.requestArtifactId === outputArtifactId
     readonly property string scopedError: ownsRequest ? controller.errorCode : ""
     readonly property bool ownRunning: ownsRequest && controller.running
+    readonly property bool ownShadow: ownsRequest && controller.shadowActive
     readonly property bool hasCandidate: candidate !== null && candidate.artifactId === outputArtifactId
 
     function feedback() : string {
         if (ownRunning) return qsTr("Preparing edited material…")
+        if (ownShadow) return qsTr("Edit in Shadow, then choose Return edited image. The result will appear here for review.")
         switch (scopedError) {
         case "material_session_changed": return qsTr("This stage changed. Reopen it and export a fresh working copy.")
         case "material_unchanged": return qsTr("The returned material is unchanged. No new version was created.")
         case "material_file_unavailable": return qsTr("The file or folder is unavailable. Choose a new writable folder or a valid file.")
-        case "material_return_invalid": return imageMode ? qsTr("Choose a valid PNG and the handoff from this editing session.") : qsTr("Choose a valid WAV and this session’s handoff. Enable conversion for Echo PCM24 exports.")
+        case "material_return_invalid": return imageMode ? qsTr("The Shadow return is incomplete or unsupported. Use an opaque 8-bit sRGB PNG, or choose a valid manual PNG and this session’s handoff.") : qsTr("Choose a valid WAV and this session’s handoff. Enable conversion for Echo PCM24 exports.")
         case "material_session_restarted": return qsTr("Previous returns were cancelled. Export a fresh copy to continue.")
+        case "material_editor_unavailable": return qsTr("Choose the Shadow application or executable, then try opening it again. Manual working-copy import is also available.")
+        case "material_editor_incomplete": return qsTr("Shadow closed without a completed return. Open it again to retry, or review a saved return manually.")
         default: return hasCandidate ? qsTr("Review the returned material, then adopt it below to continue downstream.") : ""
         }
     }
-    onOutputArtifactIdChanged: { handoffFile = ""; returnedFile = ""; pcm24Conversion.checked = false }
+    onOutputArtifactIdChanged: {
+        handoffFile = ""; returnedFile = ""; pcm24Conversion.checked = false
+        const project = projectPath, output = outputArtifactId
+        Qt.callLater(function() {
+            if (workspace.projectPath === project && workspace.outputArtifactId === output)
+                workspace.controller.restoreShadowSession(project, output)
+        })
+    }
     onInputRevisionIdChanged: { handoffFile = ""; returnedFile = ""; pcm24Conversion.checked = false }
     Connections {
         target: workspace.controller
@@ -54,6 +65,11 @@ Item {
         id: exportFolder
         title: qsTr("Choose a folder for the working copy")
         onAccepted: workspace.controller.exportCopy(workspace.projectPath, workspace.outputArtifactId, selectedFolder.toString())
+    }
+    FileDialog {
+        id: shadowDialog
+        title: qsTr("Choose Shadow application or executable")
+        onAccepted: workspace.controller.setShadowExecutable(selectedFile)
     }
     FileDialog {
         id: handoffDialog
@@ -84,7 +100,7 @@ Item {
         Text {
             Layout.fillWidth: true
             text: workspace.imageMode
-                ? qsTr("Export a working copy, edit source.png in Shadow, then export a new PNG. Bring it back here for review.")
+                ? qsTr("Open a separate working copy in Shadow. Known sRGB profiles use identical pixels in a compatible copy. Return the edited image here for review; the original stays unchanged.")
                 : qsTr("Export a working copy, edit source.wav in Echo, then export a new WAV. Enable PCM24 conversion below to review Echo’s export.")
             color: Theme.muted; wrapMode: Text.Wrap; font.pixelSize: Theme.fontBody
         }
@@ -105,27 +121,48 @@ Item {
         Flow {
             Layout.fillWidth: true; spacing: 8
             ShapeButton {
+                objectName: "materialOpenShadow"
+                visible: workspace.imageMode
+                text: qsTr("Open in Shadow")
+                primary: true
+                enabled: workspace.inputCurrent && !workspace.controller.running && !workspace.controller.shadowActive
+                onClicked: workspace.controller.openShadow(workspace.projectPath, workspace.outputArtifactId)
+            }
+            ShapeButton {
+                objectName: "materialChooseShadow"
+                visible: workspace.imageMode
+                text: qsTr("Choose Shadow…")
+                enabled: !workspace.controller.running && !workspace.controller.shadowActive
+                onClicked: shadowDialog.open()
+            }
+            ShapeButton {
                 objectName: "materialExportCopy"
                 text: qsTr("Export working copy")
-                enabled: workspace.inputCurrent && !workspace.controller.running
+                enabled: workspace.inputCurrent && !workspace.controller.running && !workspace.controller.shadowActive
                 onClicked: exportFolder.open()
             }
             ShapeButton {
                 text: qsTr("Choose handoff")
-                enabled: !workspace.ownRunning
+                enabled: !workspace.ownRunning && !workspace.ownShadow
                 onClicked: handoffDialog.open()
             }
             ShapeButton {
                 text: qsTr("Choose edited file")
-                enabled: !workspace.ownRunning
+                enabled: !workspace.ownRunning && !workspace.ownShadow
                 onClicked: returnDialog.open()
             }
             ShapeButton {
                 objectName: "materialReviewReturn"
                 text: qsTr("Review returned material")
-                enabled: workspace.inputCurrent && !workspace.controller.running && workspace.handoffFile.length > 0 && workspace.returnedFile.length > 0
+                enabled: workspace.inputCurrent && !workspace.controller.running && !workspace.controller.shadowActive && workspace.handoffFile.length > 0 && workspace.returnedFile.length > 0
                 onClicked: workspace.controller.review(workspace.projectPath, workspace.outputArtifactId, workspace.handoffFile, workspace.returnedFile, pcm24Conversion.checked)
             }
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: workspace.imageMode && workspace.controller.shadowExecutable.length > 0
+            text: qsTr("Shadow: %1").arg(workspace.controller.shadowExecutable)
+            elide: Text.ElideMiddle; color: Theme.muted; font.pixelSize: Theme.fontMeta
         }
         Text {
             Layout.fillWidth: true

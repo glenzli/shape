@@ -43,3 +43,28 @@ fn configuration_requires_exact_schema_media_and_positive_session() {
         .is_err()
     );
 }
+
+#[test]
+fn srgb_input_materialization_is_image_only_and_round_trips_explicit_digests() {
+    let (_, stage) = draft();
+    let mut operation = MaterialEditOperation {
+        editor: MaterialEditor::Shadow,
+        stage_id: stage.id().clone(),
+        session: 1,
+        source: stage.input().unwrap(),
+        input_digest: ContentDigest::from_bytes(b"source"),
+        returned_digest: ContentDigest::from_bytes(b"return"),
+        normalization: MaterialReturnNormalization::KnownSrgbIccInput {
+            profile_digest: ContentDigest::from_bytes(b"profile"),
+            materialized_digest: ContentDigest::from_bytes(b"working"),
+        },
+    };
+    operation.validate().unwrap();
+    let bytes = serde_json::to_vec(&operation).unwrap();
+    assert_eq!(
+        serde_json::from_slice::<MaterialEditOperation>(&bytes).unwrap(),
+        operation
+    );
+    operation.editor = MaterialEditor::Echo;
+    assert!(operation.validate().is_err());
+}

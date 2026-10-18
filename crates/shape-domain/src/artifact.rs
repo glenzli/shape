@@ -18,6 +18,8 @@ pub enum ArtifactKind {
     TextDocument,
     /// Ordered multilingual book composition over pinned accepted materials.
     PictureBook,
+    /// Card text, artwork bindings and authored material-kit direction.
+    CardKit,
     /// One immutable raster with an explicit image contract.
     ImageRaster,
     /// A structured layer/mask composition.

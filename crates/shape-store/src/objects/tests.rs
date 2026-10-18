@@ -62,12 +62,39 @@ fn bounded_verification_admits_exact_bytes_and_rejects_size_or_digest_mismatch()
         store.verify_bounded(&content, 8),
         Err(StoreError::CorruptObject { .. })
     ));
+    assert!(matches!(
+        store.read(&content),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.publish(b"original", "image/png"),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    // A sparse oversized regular file is rejected from metadata instead of first reading its payload.
+    File::options()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_len(8 * 1024 * 1024)
+        .unwrap();
+    assert!(matches!(
+        store.read(&content),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.verify_bounded(&content, 8),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.publish(b"original", "image/png"),
+        Err(StoreError::CorruptObject { .. })
+    ));
     fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(unix)]
 #[test]
-fn bounded_verification_rejects_a_fifo_before_opening_it() {
+fn accepted_read_bounded_verification_and_dedup_reject_a_fifo_before_opening_it() {
     let root = test_root("fifo-verification");
     let store = ObjectStore::create(&root).unwrap();
     let content = store.publish(b"original", "image/png").unwrap();
@@ -82,6 +109,66 @@ fn bounded_verification_rejects_a_fifo_before_opening_it() {
     );
     assert!(matches!(
         store.verify_bounded(&content, 8),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.read(&content),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.publish(b"original", "image/png"),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn missing_objects_remain_io_errors_and_directories_are_corrupt_objects() {
+    let root = test_root("nonregular-read");
+    let store = ObjectStore::create(&root).unwrap();
+    let content = store.publish(b"original", "text/plain").unwrap();
+    let path = store.path_for(content.digest);
+    fs::remove_file(&path).unwrap();
+    assert!(
+        matches!(store.read(&content), Err(StoreError::Io(error)) if error.kind()==std::io::ErrorKind::NotFound)
+    );
+    fs::create_dir(&path).unwrap();
+    assert!(matches!(
+        store.read(&content),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.verify_bounded(&content, 8),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.publish(b"original", "text/plain"),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn accepted_reads_do_not_follow_symlinks_outside_the_cas() {
+    let root = test_root("symlink-read");
+    let store = ObjectStore::create(&root).unwrap();
+    let content = store.publish(b"original", "text/plain").unwrap();
+    let path = store.path_for(content.digest);
+    fs::remove_file(&path).unwrap();
+    let external = root.join("outside-object");
+    fs::write(&external, b"original").unwrap();
+    std::os::unix::fs::symlink(&external, &path).unwrap();
+    assert!(matches!(
+        store.read(&content),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.verify_bounded(&content, 8),
+        Err(StoreError::CorruptObject { .. })
+    ));
+    assert!(matches!(
+        store.publish(b"original", "text/plain"),
         Err(StoreError::CorruptObject { .. })
     ));
     fs::remove_dir_all(root).unwrap();

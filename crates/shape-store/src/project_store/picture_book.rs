@@ -5,6 +5,26 @@ use shape_domain::{
 };
 use shape_execution::ExecutionReceipt;
 
+impl ProjectStore {
+    /// Stores authored workspace bytes without creating or accepting any Text Artifact revision.
+    /// # Errors
+    /// Rejects oversized/non-UTF-8 scripts and durable CAS publication failures.
+    pub fn checkpoint_picture_book_script(
+        &self,
+        bytes: &[u8],
+    ) -> Result<shape_domain::ContentRef, StoreError> {
+        if bytes.len() > shape_domain::PICTURE_BOOK_DRAFT_MAX_SCRIPT_BYTES
+            || std::str::from_utf8(bytes).is_err()
+        {
+            return Err(StoreError::InvalidCommit(
+                "picture book draft script exceeds its UTF-8 bound",
+            ));
+        }
+        self.objects
+            .publish(bytes, shape_domain::PICTURE_BOOK_DRAFT_SCRIPT_MEDIA_TYPE)
+    }
+}
+
 pub(super) fn document(bytes: &[u8]) -> Result<PictureBookDocument, StoreError> {
     if bytes.len() > 256 * 1024 {
         return Err(StoreError::InvalidCommit("book manifest exceeds 256 KiB"));

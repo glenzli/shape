@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use shape_domain::{
     Artifact, ArtifactId, ArtifactKind, ArtifactRevision, ContentDigest, IntentSpec,
     PICTURE_BOOK_MEDIA_TYPE, PictureBookDocument, RevisionId, Transformation, TransformationKind,
-    WorkingInput,
+    WorkingInput, WorkingOperatorDraft,
 };
 use shape_execution::{
     CapabilityId, ExecutionCoordinator, ExecutionFailure, ExecutionOutput, ExecutionReceipt,
@@ -21,6 +21,8 @@ use std::path::Path;
 pub struct PictureBookCandidate {
     artifact: Artifact,
     expected_head: Option<RevisionId>,
+    existing_target: bool,
+    expected_node: Option<WorkingOperatorDraft>,
     document: PictureBookDocument,
     transformation: Transformation,
     receipt: ExecutionReceipt,
@@ -42,10 +44,13 @@ impl PictureBookCandidate {
     pub const fn composition(&self) -> &PictureBookRequest {
         &self.document.composition
     }
+    pub const fn request_node(&self) -> Option<&WorkingOperatorDraft> {
+        self.expected_node.as_ref()
+    }
     /// Stable review identity excludes random execution/Artifact identities for a new book.
     pub fn review_digest(&self) -> String {
         let payload = json!({"composition":self.document,"expected_head":self.expected_head,
-            "artifact_id":self.expected_head.map(|_| self.artifact.id)})
+            "artifact_id":self.existing_target.then_some(self.artifact.id)})
         .to_string();
         ContentDigest::from_bytes(payload.as_bytes()).to_string()
     }
@@ -84,9 +89,6 @@ impl ShapeProject {
         target: Option<WorkingInput>,
         request: PictureBookRequest,
     ) -> Result<PictureBookCandidate, PictureBookError> {
-        validate_request(&request)?;
-        // Reuse the native composition validator; it checks media, byte identity, and bilingual roles.
-        let composition = self.compose_picture_book(&request, true)?;
         let artifact = if let Some(target) = target {
             self.verify_book_head(target)?;
             let artifact = self
@@ -101,6 +103,26 @@ impl ShapeProject {
         } else {
             Artifact::new(&request.name, ArtifactKind::PictureBook).map_err(CoreError::from)?
         };
+        self.prepare_picture_book(
+            artifact,
+            target.map(|t| t.revision_id),
+            target.is_some(),
+            None,
+            request,
+        )
+    }
+
+    pub(super) fn prepare_picture_book(
+        &self,
+        artifact: Artifact,
+        expected_head: Option<RevisionId>,
+        existing_target: bool,
+        expected_node: Option<WorkingOperatorDraft>,
+        request: PictureBookRequest,
+    ) -> Result<PictureBookCandidate, PictureBookError> {
+        validate_request(&request)?;
+        // Reuse media, exact-byte and multilingual role checks for both direct and saved-draft proposals.
+        let composition = self.compose_picture_book(&request, true)?;
         let inputs = request.inputs();
         let transformation = Transformation::new(
             TransformationKind::Composite,
@@ -142,7 +164,9 @@ impl ShapeProject {
         let result =
             ExecutionCoordinator::execute(&executor, &execution).map_err(CoreError::from)?;
         Ok(PictureBookCandidate {
-            expected_head: target.map(|t| t.revision_id),
+            expected_head,
+            existing_target,
+            expected_node,
             artifact,
             document,
             transformation,
@@ -165,8 +189,19 @@ impl ShapeProject {
             .iter()
             .map(|i| (i.artifact_id, i.revision_id))
             .collect::<Vec<_>>();
-        let revision = if candidate.expected_head.is_some() {
-            self.store.accept_with_inputs(
+        let expected_node = candidate
+            .expected_node
+            .as_ref()
+            .map(|node| {
+                self.current_book_candidate_node(
+                    candidate.artifact.id,
+                    node,
+                    &candidate.document.composition,
+                )
+            })
+            .transpose()?;
+        let revision = if candidate.existing_target {
+            self.store.accept_with_node(
                 AcceptedCommit {
                     artifact_id: candidate.artifact.id,
                     expected_head: candidate.expected_head,
@@ -177,6 +212,7 @@ impl ShapeProject {
                     content_contract: None,
                 },
                 &inputs,
+                expected_node.as_ref(),
             )
         } else {
             self.store.accept_new_artifact(NewArtifactCommit {

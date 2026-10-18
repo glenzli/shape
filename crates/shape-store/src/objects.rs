@@ -79,14 +79,11 @@ impl ObjectStore {
     }
 
     pub(super) fn read(&self, content: &ContentRef) -> Result<Vec<u8>, StoreError> {
-        let path = self.path_for(content.digest);
-        let bytes = fs::read(&path)?;
-        let expected_length =
-            usize::try_from(content.byte_length).map_err(|_| StoreError::IntegerOutOfRange)?;
-        if bytes.len() != expected_length || ContentDigest::from_bytes(&bytes) != content.digest {
-            return Err(StoreError::CorruptObject { path });
-        }
-        Ok(bytes)
+        Self::read_exact(
+            &self.path_for(content.digest),
+            content.digest,
+            content.byte_length,
+        )
     }
 
     /// Verifies exact bytes with an admission limit before any payload allocation.
@@ -101,25 +98,40 @@ impl ObjectStore {
                 maximum,
             });
         }
-        let path = self.path_for(content.digest);
+        self.read(content).map(|_| ())
+    }
+
+    /// One exact read for accepted consumption, bounded inspection and publication deduplication.
+    /// Admit the real file length before allocation; cap a concurrent growth at one extra byte.
+    fn read_exact(
+        path: &Path,
+        expected_digest: ContentDigest,
+        expected_length: u64,
+    ) -> Result<Vec<u8>, StoreError> {
+        let expected_size =
+            usize::try_from(expected_length).map_err(|_| StoreError::IntegerOutOfRange)?;
         // Admit regular objects before opening: a damaged CAS FIFO could block File::open.
-        if !fs::symlink_metadata(&path)?.file_type().is_file() {
-            return Err(StoreError::CorruptObject { path });
+        if !fs::symlink_metadata(path)?.file_type().is_file() {
+            return Err(StoreError::CorruptObject {
+                path: path.to_owned(),
+            });
         }
-        let file = File::open(&path)?;
+        let file = File::open(path)?;
         let metadata = file.metadata()?;
-        if !metadata.is_file() || metadata.len() != content.byte_length {
-            return Err(StoreError::CorruptObject { path });
+        if !metadata.is_file() || metadata.len() != expected_length {
+            return Err(StoreError::CorruptObject {
+                path: path.to_owned(),
+            });
         }
         let mut bytes = Vec::new();
-        file.take(content.byte_length.saturating_add(1))
+        file.take(expected_length.saturating_add(1))
             .read_to_end(&mut bytes)?;
-        if bytes.len() as u64 != content.byte_length
-            || ContentDigest::from_bytes(&bytes) != content.digest
-        {
-            return Err(StoreError::CorruptObject { path });
+        if bytes.len() != expected_size || ContentDigest::from_bytes(&bytes) != expected_digest {
+            return Err(StoreError::CorruptObject {
+                path: path.to_owned(),
+            });
         }
-        Ok(())
+        Ok(bytes)
     }
 
     fn verify_path(
@@ -127,13 +139,12 @@ impl ObjectStore {
         expected_digest: ContentDigest,
         expected_length: usize,
     ) -> Result<(), StoreError> {
-        let bytes = fs::read(path)?;
-        if bytes.len() != expected_length || ContentDigest::from_bytes(&bytes) != expected_digest {
-            return Err(StoreError::CorruptObject {
-                path: path.to_owned(),
-            });
-        }
-        Ok(())
+        Self::read_exact(
+            path,
+            expected_digest,
+            u64::try_from(expected_length).map_err(|_| StoreError::IntegerOutOfRange)?,
+        )
+        .map(|_| ())
     }
 
     fn path_for(&self, digest: ContentDigest) -> PathBuf {

@@ -9,6 +9,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+base64.workspace = true
 blake3.workspace = true
 time.workspace = true
 uuid.workspace = true

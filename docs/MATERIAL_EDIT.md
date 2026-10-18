@@ -9,7 +9,16 @@ explicit **Adopt** / CLI `accept` creates an accepted revision on that output.
 ## Human workflow
 
 1. Select an accepted image or audio clip and add **Edit in Shadow** or **Edit in Echo**.
-2. Export a working copy into a selected external folder. Shape creates a new
+2. For images, choose **Open in Shadow**. Shape exports a fresh temporary working
+   directory, launches Shadow with `--pipeline-edit --request ... --result ...`,
+   and waits for its native completion. **Choose Shadow…** stores an explicit
+   application/executable selection in local desktop settings. An unavailable
+   explicit selection does not silently fall back to another editor. Without a
+   selection, discovery checks `SHAPE_SHADOW_BINARY`, `PATH`, and macOS
+   `/Applications/Shadow.app`. Executability is discovery only; the actual strict
+   protocol determines compatibility. Use Shadow's **Return edited image** to
+   return a candidate automatically, then review and explicitly adopt it.
+   The manual fallback exports into a selected external folder. Shape creates a new
    subfolder with `source.png` / `source.wav` and publishes `handoff.json` last.
 3. Edit that copy in the editor, save/export a different file, then select that
    returned file and its original handoff in Shape. Review the image against its
@@ -28,12 +37,13 @@ retained; the accepted audio origin also inherits the Shape source's disclosure.
 The converter supports bounded mono/stereo plain PCM24 and PCM24 extensible WAV
 with PCM GUID and supported speaker masks. Other formats are rejected.
 
-The file handoff does not launch a provider, attach to a live GUI, infer unsaved
+The manual file handoff does not launch a provider, attach to a live GUI, infer unsaved
 changes, or claim that the named editor ran. A human may edit the working copy;
 an AI may use the provider's native tools. Shape's receipt is explicitly a local
 return verifier, never a fabricated provider execution receipt. The current
-Shadow version must support the canonical PNG input; do not silently transcode
-to JPEG or discard alpha/ICC to bypass a provider limitation.
+Shadow version must support the prepared PNG input. The only ICC preparation is
+the exact known-sRGB working-copy operation described below; do not transcode to
+JPEG, discard alpha or strip an arbitrary profile to bypass a provider limitation.
 
 ## AI interface
 
@@ -109,6 +119,30 @@ already reviewed candidate intact. Repeated acceptance cannot append the same
 stale return. Cancellation invalidates both pending worker results and reviewed
 candidates, retaining the stage, original, accepted output and exported files.
 Background completion for stage A cannot navigate, populate or show errors in B.
+The native launcher additionally compares the complete ticket before launch and
+before reading a completion. Its own `QProcess` observes the launched editor's
+exit: no completed result stops waiting with an incomplete-return error and a
+retry path. A known startup failure or exit without a receipt clears that ticket's
+local recovery record, so reopening cannot resume a known failed wait. There is
+no short timeout on normal human editing. Cancellation invalidates the watcher
+and leaves Shadow's independently running window and exported files intact.
+Closing or crashing Shape never turns a later completion into accepted content
+and does not cancel that stage.
+
+The desktop stores the automatic handoff/result paths and complete ticket in
+local settings, scoped by canonical bundle location and output stage, with project
+identity checked in the record. Copies of a project can retain identical portable
+identities without overwriting one another's local return location. Earlier local
+records migrate only after their bundle path and complete ticket match; cancelling
+one bundle cannot clear another copy's continuation. Reopening the still-current
+stage restores waiting or reconstructs a reviewable candidate from its existing
+receipt. It verifies project/path/ticket identity before waiting, then the core
+rechecks the handoff, source and native receipt. These machine paths are not in
+accepted history. The file controls also expose the working-copy location, and
+manual `handoff.json` / `shadow-result.json` selection remains available.
+Temporary launch folders may be removed by the operating system; use a manually
+exported folder for retained working copies. Process launch, exit and recovery
+never imply successful production or acceptance.
 
 File reads require regular non-symlink files, bounded sizes and exact bytes. WAV
 returns are limited to 128 MiB; the PNG decoder additionally enforces its raster
@@ -146,8 +180,10 @@ CARGO_BUILD_JOBS=1 cargo test --offline -p shape-core --test material_edit_echo 
 ```
 
 This test does not open a visible UI, spend on inference, or change real user
-materials. GUI-human return in Echo and live Shadow editing require their own
-provider integration verification; do not infer those from synthetic return tests.
+materials. GUI-human return in Echo requires its own provider integration
+verification; this slice does not add a new Echo GUI claim. Real Shadow producer
+and desktop launcher checks are described separately below; do not infer them
+from synthetic returns.
 
 
 ## Native Shadow completion
@@ -169,10 +205,26 @@ The provider JSON stays in the external handoff; accepted history records Shape
 lineage and the raw returned BLAKE3, not a signed provider attestation.
 
 The fixed Shadow producer supports only RGB8/fully opaque RGBA8 PNG, untagged
-sRGB or an sRGB chunk, at most 64 MiB and 16,777,216 pixels. Transparency, 16-bit
-and arbitrary ICC input remain unsupported. Its returned PNG contains a standard
-sRGB ICC profile. Re-entering that result into another Shadow stage requires an
-explicit known-sRGB materialization; Shape does not silently strip the profile.
+sRGB or an sRGB chunk, at most 64 MiB, 16,777,216 pixels and 16,384 pixels per
+axis. Transparency, 16-bit and arbitrary ICC input remain unsupported. Its
+returned PNG contains Qt's standard sRGB profile. Shape recognizes only that
+complete 480-byte profile, with BLAKE3
+`fc9a5af37a9933652f8992e652b8a4cd303eb58318240f1d97dff993a34e567a`
+(SHA-256 `ef087eece0b3a8ca7b79e56b8e82578bea636870a4bd547c44c25722605ff838`).
+`shape-execution::raster::shadow_input` pins those bytes; the verified producer
+uses `QColorSpace::SRgb` in Shadow's `backend/export_backend.cpp`. Descriptions,
+declared primaries or profile names alone never authorize preparation.
+
+For this exact profile on opaque 8-bit PNG, handoff export preserves `source.png`
+byte-for-byte and writes the same decoded RGBA samples to `shadow-source.png`
+without an ICC chunk. `handoff.json` records `known_srgb_icc_input`, the profile
+BLAKE3 and prepared-byte BLAKE3; the native request pins the prepared path and
+SHA-256. Shape recomputes that preparation when reviewing and accepting the
+return, and Store independently verifies it from the original CAS source before
+durable acceptance. The accepted transformation records the same explicit
+normalization. This is an identity on known sRGB samples, not general ICC color
+conversion. Unknown or even one-byte-mutated profiles fail closed. The launcher
+explains this preparation beside **Open in Shadow**, without an extra dialog.
 Other consumers may use the preserved accepted PNG directly. Export cancellation
 inside Shadow remains unsupported; Shape cancellation invalidates acceptance
 and ignores late completion without promising to interrupt the renderer.
@@ -180,8 +232,29 @@ and ignores late completion without promising to interrupt the renderer.
 The opt-in `material_edit_shadow` test uses `SHAPE_SHADOW_BINARY` and a new
 `SHAPE_SHADOW_EVIDENCE` directory. It runs actual public stdio/external-stage
 processes offscreen, accepts two separate versions, checks pinned downstream
-refresh and verifies original bytes and reopened history. It is additional to,
-not replaced by, the producer's own tests.
+refresh and verifies original bytes and reopened history. It then uses an actual
+accepted ICC-tagged return as the source of a new Shadow stage, verifies the
+prepared copy and rejection of tampering, and runs the real producer again before
+accepting/reopening the second-stage lineage. This repeated-edit path is
+additional to, not replaced by, the producer's own tests.
+
+The desktop picture-book smoke has an independent opt-in real launcher branch
+when `SHAPE_SHADOW_BINARY` names that verified binary. It exercises Shadow's human
+return control, cancellation with a late receipt, and destruction/recreation of
+the Shape controller while Shadow continues. A short-lived executable separately
+checks that exit without a receipt releases the busy state. These checks create
+isolated projects, local settings and Shadow profiles; they do not edit user
+materials or prove unrestricted compatibility with other Shadow builds.
+
+A separate two-process branch of `--smoke-picture-book` is explicitly enabled by
+`SHAPE_BOOK_PROCESS_RESTART_PHASE=launch` and then `resume`, with the same new
+absolute fixture directory and `SHAPE_SHADOW_BINARY`. The launch phase saves an
+unfinished book checkpoint and local handoff, then lets the complete Shape process
+exit while the real Shadow result is pending. An outer runner waits for that PID
+to exit and Shadow to complete before starting a fresh Shape PID for recovery.
+The resume phase requires the exact original bytes, unfinished script and stage,
+reconstructs only a candidate, then explicitly cancels it. This branch does not run
+in the ordinary offline smoke and never reads the user's inference credentials.
 
 The native Shadow request ID hashes the complete Shape ticket, including the expected
 output head. Rebinding an earlier completed receipt to a later output version is

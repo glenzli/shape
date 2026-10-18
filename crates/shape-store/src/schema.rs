@@ -12,6 +12,7 @@ pub(super) const SCENE_SCHEMA_REVISION: &str = "20260811.1";
 pub(super) const AUDIO_SCHEMA_REVISION: &str = "20260811.2";
 pub(super) const WORKING_GRAPH_SCHEMA_REVISION: &str = "20260811.3";
 pub(super) const CONFIGURED_WORKING_GRAPH_SCHEMA_REVISION: &str = "20260811.4";
+pub(super) const PICTURE_BOOK_SCHEMA_REVISION: &str = "20261004.1";
 
 const SCENE_SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS scenes (
@@ -100,6 +101,7 @@ pub(super) fn supports_migration(revision: &str) -> bool {
             | WORKING_GRAPH_SCHEMA_REVISION
             | CONFIGURED_WORKING_GRAPH_SCHEMA_REVISION
             | MATERIAL_SCHEMA_REVISION
+            | PICTURE_BOOK_SCHEMA_REVISION
             | SHAPE_PROJECT_SCHEMA_REVISION
     )
 }

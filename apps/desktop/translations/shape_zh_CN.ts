@@ -908,6 +908,777 @@
     </message>
 </context>
 <context>
+    <name>CardKitController</name>
+    <message>
+        <location filename="../src/card_kit_controller.cpp" line="+210"/>
+        <source>Could not load saved card drafts. Your current work is still here.</source>
+        <translation>无法读取已保存的卡牌草稿，当前内容仍然保留。</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>New card materials</source>
+        <translation>新卡牌物料</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Could not create a card draft. Check that this project is writable.</source>
+        <translation>无法创建卡牌草稿，请检查项目是否可写。</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <location line="+109"/>
+        <source>Could not open these cards. The saved version has not changed.</source>
+        <translation>无法打开这些卡牌，已保存的版本未被更改。</translation>
+    </message>
+    <message>
+        <location line="-88"/>
+        <source>Draft saved in this project.</source>
+        <translation>草稿已保存在此项目中。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Could not save this draft. Keep this window open and copy your text before reopening the project.</source>
+        <translation>无法保存草稿。请保持此窗口打开，并在重新打开项目前复制当前文字。</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Check every card before using this version.</source>
+        <translation>采用此版本前，请检查每张卡牌。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Could not check these cards. Check the text, artwork and current materials, then try again.</source>
+        <translation>无法检查这些卡牌。请核对文字、插图和当前素材后重试。</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>This card version is now accepted.</source>
+        <translation>已采用此卡牌版本。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>The cards or a material changed. Reopen the draft and check again before using this version.</source>
+        <translation>卡牌或素材已更改。请重新打开草稿并检查后，再采用此版本。</translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>Exported accepted card files for inspection.</source>
+        <translation>已导出采用的卡牌文件，可继续检查。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Could not export the cards. Choose a new writable ZIP file.</source>
+        <translation>无法导出卡牌，请选择一个新的、可写入的 ZIP 文件。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Copied the complete card draft.</source>
+        <translation>已复制完整卡牌草稿。</translation>
+    </message>
+</context>
+<context>
+    <name>CardKitWorkspace</name>
+    <message>
+        <location filename="../qml/components/CardKitWorkspace.qml" line="+39"/>
+        <source>Choose accepted artwork…</source>
+        <translation>选择已采用的插图…</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Continue saved cards…</source>
+        <translation>继续已保存的卡牌…</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Card materials</source>
+        <translation>卡牌物料</translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>Paste at least one card title to begin.</source>
+        <translation>请先粘贴至少一个卡牌标题。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This list is too large for these cards. Add a smaller group.</source>
+        <translation>这份清单太大，请分成更小的一组再添加。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A set can contain up to 64 cards. Add fewer rows or start a new set.</source>
+        <translation>每组最多包含 64 张卡牌。请减少行数，或新建一组卡牌。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row %1 has more than three columns. Use title, rules and artwork description.</source>
+        <translation>第 %1 行超过三列，请按标题、规则、插图描述的顺序填写。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row %1 needs a card title.</source>
+        <translation>请为第 %1 行填写卡牌标题。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row %1 has too much text. Shorten its title, rules or artwork description.</source>
+        <translation>第 %1 行文字过长，请精简标题、规则或插图描述。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Check the quotation marks around row %1. Copying the cells again may help.</source>
+        <translation>请检查第 %1 行的引号，也可以重新复制表格中的单元格。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row %1 contains unsupported text. Remove hidden control characters and try again.</source>
+        <translation>第 %1 行含有不支持的文字，请去除隐藏控制字符后重试。</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Review returned artwork</source>
+        <translation>审阅返回的插图</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Artwork edit in progress</source>
+        <translation>插图正在编辑</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Needs text</source>
+        <translation>待补文字</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Needs artwork</source>
+        <translation>待补插图</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shorten text</source>
+        <translation>需精简文字</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ready</source>
+        <translation>已就绪</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Checked</source>
+        <translation>已检查</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ready to check</source>
+        <translation>待检查</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>The image was imported. Choose it from accepted artwork to add it to this card.</source>
+        <translation>图像已导入，请在已采用的插图中选择它，添加到此卡牌。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Finish or stop the current image run before starting another.</source>
+        <translation>请完成或停止当前图像生成后，再开始下一次生成。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Landscape card illustration. Keep lettering and rules outside the artwork.</source>
+        <translation>横幅卡牌插图，图中不要包含文字或规则。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Card artwork</source>
+        <translation>卡牌插图</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Choose the current accepted artwork explicitly before editing it.</source>
+        <translation>编辑前，请明确选择插图当前已采用的版本。</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>The working copy is open. Its return location could not be saved for reopening Shape.</source>
+        <translation>工作副本已打开，但无法保存重开 Shape 后的返回位置。</translation>
+    </message>
+    <message>
+        <location line="+75"/>
+        <source>Choose card artwork</source>
+        <translation>选择卡牌插图</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Images (*.png *.jpg *.jpeg)</source>
+        <translation>图像 (*.png *.jpg *.jpeg)</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Export accepted card files</source>
+        <translation>导出已采用的卡牌文件</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Card material archive (*.zip)</source>
+        <translation>卡牌物料归档 (*.zip)</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>New cards</source>
+        <translation>新建卡牌</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Name these card materials</source>
+        <translation>为这些卡牌物料命名</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Saving draft…</source>
+        <translation>正在保存草稿…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Draft saved</source>
+        <translation>草稿已保存</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Draft not saved</source>
+        <translation>草稿尚未保存</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Shared brief</source>
+        <translation>共同创作要求</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>What are these cards for?</source>
+        <translation>这些卡牌用来做什么？</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Visual style</source>
+        <translation>视觉风格</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Palette, mood and illustration style…</source>
+        <translation>配色、氛围和插画风格…</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Cards · %1</source>
+        <translation>卡牌 · %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add</source>
+        <translation>添加</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Add from a list…</source>
+        <translation>从清单添加…</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Untitled card</source>
+        <translation>未命名卡牌</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Move up</source>
+        <translation>上移</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move down</source>
+        <translation>下移</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Card text</source>
+        <translation>卡牌文字</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Card title</source>
+        <translation>卡牌标题</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Type (optional)</source>
+        <translation>类型（可选）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cost</source>
+        <translation>费用</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Rules or description</source>
+        <translation>规则或说明</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Write the card effect or description…</source>
+        <translation>填写卡牌效果或说明…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Stats (optional)</source>
+        <translation>数值（可选）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Flavor text (optional)</source>
+        <translation>背景描述（可选）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Artwork description</source>
+        <translation>插图描述</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Describe this card’s subject and composition…</source>
+        <translation>描述这张卡牌的主体和构图…</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Copies</source>
+        <translation>张数</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Remove card</source>
+        <translation>移除卡牌</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Artwork and check</source>
+        <translation>插图与检查</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Check the cards to see the layout here.</source>
+        <translation>检查卡牌后，可在这里查看排版。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Enlarge preview</source>
+        <translation>放大预览</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Import image…</source>
+        <translation>导入图像…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Generate image…</source>
+        <translation>生成图像…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Refine in Shadow…</source>
+        <translation>在 Shadow 中微调…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Continue artwork edit…</source>
+        <translation>继续编辑插图…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Next: add text and accepted artwork, check each card, then use the version before exporting.</source>
+        <translation>下一步：补齐文字和已采用的插图，逐张检查并采用此版本后导出。</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Copy complete draft</source>
+        <translation>复制完整草稿</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Reload saved draft</source>
+        <translation>重新加载已保存的草稿</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Reloading replaces unsaved fields. Copy the draft first if you want to keep them.</source>
+        <translation>重新加载会替换尚未保存的内容。如需保留，请先复制草稿。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Shorten the text on %1 cards before exporting.</source>
+        <translation>导出前，请精简 %1 张卡牌上的文字。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Some chosen materials have newer versions. Choose them explicitly if you want to update these cards.</source>
+        <translation>部分已选素材有更新版本。若要更新这些卡牌，请明确选择新版素材。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Back to project</source>
+        <translation>返回项目</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Check cards</source>
+        <translation>检查卡牌</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Use this version</source>
+        <translation>采用此版本</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Print layout…</source>
+        <translation>打印排版…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Export accepted files…</source>
+        <translation>导出已采用的文件…</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Card preview</source>
+        <translation>卡牌预览</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Actual size · Scroll to inspect the whole card</source>
+        <translation>原始尺寸 · 滚动查看整张卡牌</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fit to window</source>
+        <translation>适应窗口</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fit</source>
+        <translation>适应窗口</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Actual size</source>
+        <translation>原始尺寸</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Add cards from a list</source>
+        <translation>从清单添加卡牌</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Copy rows from a table: title, rules, artwork description. Only the title is required; the other columns can be filled in later.</source>
+        <translation>从表格复制整行：标题、规则、插图描述。只需填写标题，其他列可以稍后补齐。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Paste your rows here…</source>
+        <translation>在这里粘贴表格行…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>New cards: %1. Existing cards stay as they are.</source>
+        <translation>将新增 %1 张卡牌，已有卡牌保持原样。</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>New cards: %1. The empty starter card will be replaced.</source>
+        <translation>将新增 %1 张卡牌，并替换空白起始卡。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The column heading row is skipped.</source>
+        <translation>已跳过表头行。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Repeated titles are kept as separate cards: %1.</source>
+        <translation>重复标题将作为独立卡牌保留：%1 张。</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Details can be added later.</source>
+        <translation>可以稍后补充详细内容。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Add card</source>
+        <translation>添加卡牌</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Add %1 cards</source>
+        <translation>添加 %1 张卡牌</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Create artwork for this card</source>
+        <translation>为此卡牌创作插图</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The shared brief and style are included. Review the result before adding it to the card.</source>
+        <translation>已包含共同创作要求和风格。请审阅结果后再加入此卡牌。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Creating artwork…</source>
+        <translation>正在创作插图…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Generate a version</source>
+        <translation>生成一个版本</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop after current image</source>
+        <translation>完成当前图像后停止</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add the Shape Infer credential in Settings before generating.</source>
+        <translation>生成前，请在设置中添加 Shape 的 Infer 凭据。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open Settings</source>
+        <translation>打开设置</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+30"/>
+        <source>Use this artwork for the card</source>
+        <translation>采用此插图到卡牌</translation>
+    </message>
+    <message>
+        <location line="-94"/>
+        <location line="+65"/>
+        <location line="+27"/>
+        <source>Back to cards</source>
+        <translation>返回卡牌</translation>
+    </message>
+    <message>
+        <location line="-18"/>
+        <source>Refine card artwork</source>
+        <translation>微调卡牌插图</translation>
+    </message>
+</context>
+<context>
+    <name>CardPrintController</name>
+    <message>
+        <location filename="../src/card_print_controller.cpp" line="+24"/>
+        <source>Could not export PDF. Choose a new file outside the project and try again.</source>
+        <translation>无法导出 PDF，请在项目之外选择一个新文件后重试。</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Exporting print PDF…</source>
+        <translation>正在导出打印 PDF…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Exported %1 pages. Print at 100% or Actual size.</source>
+        <translation>已导出 %1 页，请按 100% 或原始尺寸打印。</translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>The crop marks need more room. Increase the card spacing or shorten the marks, and keep the mark offset at least half the line width.</source>
+        <translation>裁切线需要更多空间。请增大卡牌间隙或缩短裁切线，并让裁切线与卡牌的距离至少为线宽的一半。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>The cards and crop marks do not fit on this paper. Use smaller cards or margins, or shorter crop marks.</source>
+        <translation>卡牌和裁切线无法放入此纸张。请减小卡牌尺寸或边距，或缩短裁切线。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>This artwork is too large for a print job. Use smaller accepted images or fewer card designs.</source>
+        <translation>此次打印的插图太大，请选择尺寸更小的已采用图像，或减少不同卡牌的种类。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>This print job has too many copies or pages. Reduce the quantities or split the cards into smaller sets.</source>
+        <translation>此次打印的张数或页数过多，请减少张数，或将卡牌分成较小的几组。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Too many cards fit on one sheet. Use a larger card size or more spacing.</source>
+        <translation>单页卡牌数量过多，请增大卡牌尺寸或卡牌间隙。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Some cards need a title, rules or accepted artwork. Complete and accept the card version before printing.</source>
+        <translation>部分卡牌缺少标题、规则或已采用的插图。请补齐并采用卡牌版本后再打印。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>The text does not fit at a readable print size. Shorten it or use larger cards, then check the layout again.</source>
+        <translation>以清晰可读的字号打印时，文字无法放入卡面。请精简文字或增大卡牌尺寸后重新检查排版。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>One of the print measurements is outside its allowed range. Check the paper and crop-mark settings.</source>
+        <translation>某项打印尺寸超出允许范围，请检查纸张和裁切线设置。</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Could not prepare this print layout. Reopen the accepted card version and check its saved artwork, then try again.</source>
+        <translation>无法准备此打印排版。请重新打开已采用的卡牌版本并检查已保存的插图后重试。</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Could not show this print page. Reopen the print layout and try again.</source>
+        <translation>无法显示此打印页，请重新打开打印排版后重试。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>The print layout changed. Choose the PDF destination again.</source>
+        <translation>打印排版已更改，请重新选择 PDF 保存位置。</translation>
+    </message>
+</context>
+<context>
+    <name>CardPrintDialog</name>
+    <message>
+        <location filename="../qml/components/CardPrintDialog.qml" line="+20"/>
+        <source>Print card layout</source>
+        <translation>卡牌打印排版</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Export card print PDF</source>
+        <translation>导出卡牌打印 PDF</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>PDF documents (*.pdf)</source>
+        <translation>PDF 文档 (*.pdf)</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 · %2 copies · %3 pages · %4 cards per full page</source>
+        <translation>%1 · 共 %2 张 · %3 页 · 满页 %4 张</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Choose a layout for the accepted card version.</source>
+        <translation>为已采用的卡牌版本选择打印排版。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Paper</source>
+        <translation>纸张</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A4 · 210 × 297 mm</source>
+        <translation>A4 · 210 × 297 毫米</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>US Letter · 8.5 × 11 in</source>
+        <translation>US Letter · 8.5 × 11 英寸</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Card width (mm)</source>
+        <translation>卡牌宽度（毫米）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Card height (mm)</source>
+        <translation>卡牌高度（毫米）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Paper margin (mm)</source>
+        <translation>纸张边距（毫米）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Space between cards (mm)</source>
+        <translation>卡牌间隙（毫米）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mark distance from card (mm)</source>
+        <translation>裁切线与卡牌的距离（毫米）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mark length (mm)</source>
+        <translation>裁切线长度（毫米）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mark line width (mm)</source>
+        <translation>裁切线粗细（毫米）</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Crop marks stay outside the finished card. Increase the spacing if longer marks do not fit.</source>
+        <translation>裁切线位于成品卡牌之外。若较长的裁切线放不下，请增大卡牌间隙。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Adjust the layout to see the paper preview.</source>
+        <translation>调整排版后可查看整张纸的预览。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Previous page</source>
+        <translation>上一页</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Page %1 of %2</source>
+        <translation>第 %1 页，共 %2 页</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Next page</source>
+        <translation>下一页</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Print the PDF at 100% or Actual size. Turn off Fit to page. This layout is for single-sided printing.</source>
+        <translation>请按 100% 或原始尺寸打印 PDF，关闭“适应页面”。此排版用于单面打印。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Back to cards</source>
+        <translation>返回卡牌</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Exporting…</source>
+        <translation>正在导出…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Export print PDF…</source>
+        <translation>导出打印 PDF…</translation>
+    </message>
+</context>
+<context>
     <name>ContextInspector</name>
     <message>
         <location filename="../qml/components/ContextInspector.qml" line="+44"/>
@@ -1039,27 +1810,17 @@
 <context>
     <name>CreateSceneTypeDialog</name>
     <message>
-        <location filename="../qml/components/CreateSceneTypeDialog.qml" line="+77"/>
+        <location filename="../qml/components/CreateSceneTypeDialog.qml" line="+127"/>
         <source>Create sound effects or music</source>
         <translation>创作音效或音乐</translation>
     </message>
     <message>
-        <location line="-55"/>
+        <location line="-101"/>
         <source>What do you want to make?</source>
         <translation>你想创作什么？</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Choose a format. Start with an idea, existing material, or an empty page.</source>
-        <translation>选择内容形式，从想法、已有素材或空白页开始。</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Text</source>
-        <translation>文本</translation>
-    </message>
-    <message>
-        <location line="+17"/>
+        <location line="+75"/>
         <source>Free writing</source>
         <translation>自由文字</translation>
     </message>
@@ -1089,12 +1850,62 @@
         <translation>开始写脚本</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-75"/>
         <source>Create or continue a picture book</source>
         <translation>创建或继续编辑绘本</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-10"/>
+        <source>Start with a complete task, or choose a single creative tool below.</source>
+        <translation>从完整创作任务开始，也可以选用下方的单项工具。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Picture book</source>
+        <translation>绘本</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Write a story, prepare page artwork, then review the book.</source>
+        <translation>编写故事、准备逐页插图，然后审阅整本绘本。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Card materials</source>
+        <translation>卡牌物料</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Keep a shared brief and style. Add artwork and text to each card.</source>
+        <translation>设定共同要求和风格，为每张卡牌添加插图与文字。</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Create or continue cards</source>
+        <translation>新建或继续卡牌</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Refine an image</source>
+        <translation>微调图片</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Choose an image, edit it in Shadow, then review the returned version.</source>
+        <translation>选择图片，在 Shadow 中微调，然后审阅返回的版本。</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Choose an image</source>
+        <translation>选择图片</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Writing tools</source>
+        <translation>写作工具</translation>
+    </message>
+    <message>
+        <location line="+44"/>
         <source>Image and external material</source>
         <translation>图像与外部素材</translation>
     </message>
@@ -1433,7 +2244,7 @@
 <context>
     <name>DesktopBackend</name>
     <message>
-        <location filename="../src/desktop_backend.cpp" line="+120"/>
+        <location filename="../src/desktop_backend.cpp" line="+129"/>
         <source>Edit image in Shadow</source>
         <translation>在 Shadow 中编辑图片</translation>
     </message>
@@ -1443,12 +2254,12 @@
         <translation>在 Echo 中编辑音频</translation>
     </message>
     <message>
-        <location line="-81"/>
+        <location line="-88"/>
         <source>This draft changed in another session. Copy any unsaved text, then reopen the project.</source>
         <translation>此草稿已在另一个会话中更改。请先复制尚未保存的文本，再重新打开项目。</translation>
     </message>
     <message>
-        <location line="+610"/>
+        <location line="+617"/>
         <source>Could not create the sound Scene.</source>
         <translation>无法创建声音场景。</translation>
     </message>
@@ -1463,7 +2274,7 @@
         <translation>无法保存声音描述。</translation>
     </message>
     <message>
-        <location line="+738"/>
+        <location line="+748"/>
         <source>Open a Shape project before pasting material.</source>
         <translation>请先打开 Shape 项目，再粘贴素材。</translation>
     </message>
@@ -1530,7 +2341,7 @@
         <translation>无法保存最终文件。</translation>
     </message>
     <message>
-        <location line="-1476"/>
+        <location line="-1490"/>
         <source>Text document</source>
         <translation>文本文档</translation>
     </message>
@@ -1571,30 +2382,30 @@
     </message>
     <message>
         <location line="+3"/>
-        <location line="+71"/>
+        <location line="+75"/>
         <source>Deterministic edit</source>
         <translation>确定性编辑</translation>
     </message>
     <message>
-        <location line="-68"/>
-        <location line="+65"/>
+        <location line="-72"/>
+        <location line="+69"/>
         <source>Generative edit</source>
         <translation>生成式编辑</translation>
     </message>
     <message>
-        <location line="-62"/>
-        <location line="+68"/>
+        <location line="-66"/>
+        <location line="+72"/>
         <source>Composite</source>
         <translation>合成</translation>
     </message>
     <message>
-        <location line="-65"/>
-        <location line="+68"/>
+        <location line="-69"/>
+        <location line="+72"/>
         <source>External round trip</source>
         <translation>外部往返编辑</translation>
     </message>
     <message>
-        <location line="-66"/>
+        <location line="-70"/>
         <source>Unknown transformation</source>
         <translation>未知变换</translation>
     </message>
@@ -1619,17 +2430,17 @@
         <translation>未知节点</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+13"/>
         <source>Source input</source>
         <translation>输入源</translation>
     </message>
     <message>
-        <location line="-24"/>
+        <location line="-28"/>
         <source>Deterministic text calibration</source>
         <translation>确定性文本校准</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+49"/>
         <source>Speech synthesis</source>
         <translation>语音合成</translation>
     </message>
@@ -1640,12 +2451,27 @@
         <translation>图像编辑</translation>
     </message>
     <message>
-        <location line="-74"/>
+        <location line="-80"/>
+        <source>Card materials</source>
+        <translation>卡牌物料</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Picture book</source>
         <translation>绘本</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+64"/>
+        <source>Card composition</source>
+        <translation>卡牌编排</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Picture book composition</source>
+        <translation>绘本编排</translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Text creation</source>
         <translation>文本创作</translation>
     </message>
@@ -1720,12 +2546,12 @@
         <translation>无法创建文本场景。</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+97"/>
         <source>Enter a Scene name, an image description, and valid dimensions.</source>
         <translation>请输入场景名称、图像描述和有效尺寸。</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Could not create the AI image Scene.</source>
         <translation>无法创建 AI 图像场景。</translation>
     </message>
@@ -2032,12 +2858,12 @@
         <translation>没有可以接受的候选。</translation>
     </message>
     <message>
-        <location line="-1670"/>
+        <location line="-1680"/>
         <source>Sound generation</source>
         <translation>声音生成</translation>
     </message>
     <message>
-        <location line="+1009"/>
+        <location line="+1019"/>
         <location line="+36"/>
         <source>Wait for the audio cue import to finish.</source>
         <translation>请等待音效导入完成。</translation>
@@ -2130,12 +2956,12 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/Main.qml" line="+213"/>
+        <location filename="../qml/Main.qml" line="+233"/>
         <source>Untitled sound</source>
         <translation>未命名声音</translation>
     </message>
     <message>
-        <location line="+195"/>
+        <location line="+254"/>
         <source>Export accepted result</source>
         <translation>导出已采用的结果</translation>
     </message>
@@ -2151,7 +2977,7 @@
         <translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation>
     </message>
     <message>
-        <location line="-186"/>
+        <location line="-245"/>
         <source>Finishing the current image, then stopping. %1 of %2 ready.</source>
         <translation>当前图片完成后停止，已完成 %1/%2 个。</translation>
     </message>
@@ -2171,12 +2997,12 @@
         <translation>已完成 %1/%2 个图片候选。请先查看，再决定是否重试。</translation>
     </message>
     <message>
-        <location line="+485"/>
+        <location line="+545"/>
         <source>Generate %1 versions</source>
         <translation>生成 %1 个候选</translation>
     </message>
     <message>
-        <location line="-492"/>
+        <location line="-552"/>
         <source>AI is creating a new image version…</source>
         <translation>AI 正在创建新的图片版本…</translation>
     </message>
@@ -2211,7 +3037,28 @@
         <translation>每次运行都会创建可查看的版本。只有选择采用后，当前结果才会改变。</translation>
     </message>
     <message>
-        <location line="+130"/>
+        <location line="+119"/>
+        <location line="+16"/>
+        <source>Choose an image to refine</source>
+        <translation>选择要微调的图片</translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <source>Open an accepted image in Shadow, then review the returned version in Shape.</source>
+        <translation>在 Shadow 中打开已采用的图片，然后在 Shape 中审阅返回的版本。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Import an image…</source>
+        <translation>导入图片…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Continue with this image</source>
+        <translation>使用此图片继续</translation>
+    </message>
+    <message>
+        <location line="+62"/>
         <source>Import material into this project</source>
         <translation>将素材导入此项目</translation>
     </message>
@@ -2221,7 +3068,7 @@
         <translation>可复用组件将是下一步能力。这里先为大型项目预留位置，让重复的创作工作可以被整理起来，同时不改变当前的项目结构。</translation>
     </message>
     <message>
-        <location line="+284"/>
+        <location line="+285"/>
         <source>Create an image</source>
         <translation>创建图片</translation>
     </message>
@@ -2256,12 +3103,12 @@
         <translation>生成一个版本</translation>
     </message>
     <message>
-        <location line="-443"/>
+        <location line="-502"/>
         <source>Shape — %1</source>
         <translation>Shape — %1</translation>
     </message>
     <message>
-        <location line="-207"/>
+        <location line="-226"/>
         <source>Untitled text</source>
         <translation>未命名文本</translation>
     </message>
@@ -2271,17 +3118,18 @@
         <translation>未命名配音脚本</translation>
     </message>
     <message>
-        <location line="+208"/>
+        <location line="+227"/>
         <source>Shape — No Project</source>
         <translation>Shape — 无项目</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+156"/>
         <source>Open Shape project folder</source>
         <translation>打开 Shape 项目文件夹</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-47"/>
+        <location line="+56"/>
         <source>Images (*.png *.jpg *.jpeg)</source>
         <translation>图像 (*.png *.jpg *.jpeg)</translation>
     </message>
@@ -2301,7 +3149,7 @@
         <translation>组件</translation>
     </message>
     <message>
-        <location line="+289"/>
+        <location line="+290"/>
         <source>Describe the image, composition, light, and mood…</source>
         <translation>描述图像、构图、光线与氛围…</translation>
     </message>
@@ -2347,7 +3195,7 @@
 <context>
     <name>MaterialEditWorkspace</name>
     <message>
-        <location filename="../qml/components/MaterialEditWorkspace.qml" line="+101"/>
+        <location filename="../qml/components/MaterialEditWorkspace.qml" line="+117"/>
         <source>Convert Echo PCM24 returns to PCM16 for Shape</source>
         <translation>将 Echo 的 PCM24 返回音频转换为 Shape 所需的 PCM16</translation>
     </message>
@@ -2357,9 +3205,14 @@
         <translation>此操作会降低采样精度。原导出文件会保留，转换信息会记录在采用的版本中。</translation>
     </message>
     <message>
-        <location line="-69"/>
+        <location line="-84"/>
         <source>Preparing edited material…</source>
         <translation>正在准备编辑后的素材…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Edit in Shadow, then choose Return edited image. The result will appear here for review.</source>
+        <translation>在 Shadow 中微调后，选择“返回编辑后的图像”。结果会出现在这里供你审阅。</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -2377,14 +3230,19 @@
         <translation>文件或文件夹不可用。请选择新的可写文件夹或有效文件。</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Choose a valid PNG and the handoff from this editing session.</source>
-        <translation>请选择有效的 PNG 和本次编辑会话的交接文件。</translation>
+        <location line="+2"/>
+        <source>Previous returns were cancelled. Export a fresh copy to continue.</source>
+        <translation>先前的返回结果已取消。请导出新副本以继续。</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Previous returns were cancelled. Export a fresh copy to continue.</source>
-        <translation>先前的返回结果已取消。请导出新副本以继续。</translation>
+        <source>Choose the Shadow application or executable, then try opening it again. Manual working-copy import is also available.</source>
+        <translation>请选择 Shadow 应用或可执行文件后重试，也可以手动导出工作副本并导入结果。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shadow closed without a completed return. Open it again to retry, or review a saved return manually.</source>
+        <translation>Shadow 已关闭，但尚未返回完成的结果。请重新打开重试，或手动审阅已保存的返回文件。</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2392,9 +3250,14 @@
         <translation>请审阅返回的素材，然后在下方采用，再继续后续创作。</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+21"/>
         <source>Choose a folder for the working copy</source>
         <translation>选择工作副本的存放文件夹</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Choose Shadow application or executable</source>
+        <translation>选择 Shadow 应用或可执行文件</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -2428,8 +3291,8 @@
     </message>
     <message>
         <location line="+6"/>
-        <source>Export a working copy, edit source.png in Shadow, then export a new PNG. Bring it back here for review.</source>
-        <translation>导出工作副本，在 Shadow 中编辑 source.png 并导出新的 PNG，然后回到此处审阅。</translation>
+        <source>Open a separate working copy in Shadow. Known sRGB profiles use identical pixels in a compatible copy. Return the edited image here for review; the original stays unchanged.</source>
+        <translation>在 Shadow 中打开独立的工作副本。已识别的 sRGB 配置会生成像素完全相同的兼容副本。返回编辑后的图像，在这里审阅；原图保持不变。</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -2437,7 +3300,17 @@
         <translation>原素材已有新版本。请明确刷新输入后再继续。</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
+        <source>Open in Shadow</source>
+        <translation>在 Shadow 中打开</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Choose Shadow…</source>
+        <translation>选择 Shadow…</translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>Export working copy</source>
         <translation>导出工作副本</translation>
     </message>
@@ -2457,7 +3330,12 @@
         <translation>审阅返回的素材</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
+        <source>Shadow: %1</source>
+        <translation>Shadow：%1</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Handoff: %1</source>
         <translation>交接文件：%1</translation>
     </message>
@@ -2497,12 +3375,17 @@
         <translation>取消后，已导出的副本仍保留在磁盘上。</translation>
     </message>
     <message>
-        <location line="-138"/>
+        <location line="-173"/>
         <source>Choose a valid WAV and this session’s handoff. Enable conversion for Echo PCM24 exports.</source>
         <translation>请选择有效的 WAV 和本次会话的交接文件。对于 Echo 导出的 PCM24，请启用转换。</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+0"/>
+        <source>The Shadow return is incomplete or unsupported. Use an opaque 8-bit sRGB PNG, or choose a valid manual PNG and this session’s handoff.</source>
+        <translation>Shadow 返回的结果不完整或格式不受支持。请使用不透明的 8 位 sRGB PNG，或手动选择有效的 PNG 和本次编辑的交接文件。</translation>
+    </message>
+    <message>
+        <location line="+63"/>
         <source>Export a working copy, edit source.wav in Echo, then export a new WAV. Enable PCM24 conversion below to review Echo’s export.</source>
         <translation>导出工作副本，在 Echo 中编辑 source.wav，再导出新的 WAV。启用下方的 PCM24 转换即可审阅 Echo 的导出结果。</translation>
     </message>
@@ -2951,17 +3834,37 @@
 <context>
     <name>PictureBookController</name>
     <message>
-        <location filename="../src/picture_book_controller.cpp" line="+68"/>
+        <location filename="../src/picture_book_controller.cpp" line="+80"/>
         <source>New picture book</source>
         <translation>新绘本</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+28"/>
+        <source>Could not create a book draft. Your current work is still here.</source>
+        <translation>无法创建绘本草稿，当前内容仍然保留。</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Could not load saved book drafts. Your current work is still here.</source>
+        <translation>无法读取已保存的绘本草稿，当前内容仍然保留。</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Could not save this book draft. Keep this window open and retry before closing the project.</source>
+        <translation>无法保存绘本草稿。请保持此窗口打开，并在关闭项目前重试。</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Could not discard a changed draft. Reopen its saved version before trying again.</source>
+        <translation>草稿已更改，无法放弃。请重新打开已保存的版本后重试。</translation>
+    </message>
+    <message>
+        <location line="+28"/>
         <source>Could not open this book. Its saved version has not changed.</source>
         <translation>无法打开此绘本，已保存的版本未改变。</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+61"/>
         <source>Could not prepare the book. Check language page tags, current materials, text length and font size.</source>
         <translation>无法准备绘本。请检查各语言的页面标签、素材版本、文字长度和字号。</translation>
     </message>
@@ -3006,7 +3909,12 @@
         <translation>无法采用此脚本。请检查页面标签，或重新打开已经更改的来源。</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+58"/>
+        <source>Could not edit this page. Choose its current artwork version explicitly and try again.</source>
+        <translation>无法编辑此页。请明确选择插图的当前版本后重试。</translation>
+    </message>
+    <message>
+        <location line="+66"/>
         <source>Exported the adopted book as an editable Storybook project.</source>
         <translation>已将采用的绘本版本导出为可编辑的 Storybook 工程。</translation>
     </message>
@@ -3029,7 +3937,7 @@
 <context>
     <name>PictureBookWorkspace</name>
     <message>
-        <location filename="../qml/components/PictureBookWorkspace.qml" line="+21"/>
+        <location filename="../qml/components/PictureBookWorkspace.qml" line="+72"/>
         <source>Choose a text material…</source>
         <translation>选择文本素材…</translation>
     </message>
@@ -3039,12 +3947,12 @@
         <translation>空白页</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Picture book</source>
         <translation>绘本</translation>
     </message>
     <message>
-        <location line="+63"/>
+        <location line="+281"/>
         <source>Export editable Storybook project</source>
         <translation>导出可编辑的 Storybook 工程</translation>
     </message>
@@ -3054,7 +3962,7 @@
         <translation>Storybook 工程 (*.scproj)</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+36"/>
         <source>Export adopted reading layout as PDF</source>
         <translation>将采用的阅读版排版导出为 PDF</translation>
     </message>
@@ -3064,7 +3972,96 @@
         <translation>PDF 文档 (*.pdf)</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+11"/>
+        <source>Artwork for page %1</source>
+        <translation>第 %1 页的插图</translation>
+    </message>
+    <message>
+        <location line="-24"/>
+        <location line="+26"/>
+        <source>Back to current page</source>
+        <translation>返回当前页</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Adopting saves the edited image and changes only this page’s artwork draft. Review and adopt the book separately to save its new version.</source>
+        <translation>采用会保存编辑后的图像，并仅更新此页的插图草稿。之后请单独审阅并采用绘本，保存绘本的新版本。</translation>
+    </message>
+    <message>
+        <location line="-49"/>
+        <location line="+50"/>
+        <source>Adopt image for this page</source>
+        <translation>采用图像到此页</translation>
+    </message>
+    <message>
+        <location line="-350"/>
+        <source>The page sequence changed. Reopen artwork editing for the page you want to adjust.</source>
+        <translation>页面顺序或内容已改变。请从要调整的页面重新打开插图编辑。</translation>
+    </message>
+    <message>
+        <location line="+185"/>
+        <source>Finish or stop the current image run before starting another.</source>
+        <translation>请先完成或停止当前图像生成，再开始新的生成。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Picture-book illustration for page %1. Keep lettering and captions outside the artwork.</source>
+        <translation>为绘本第 %1 页创作插画。请勿在画面中绘制文字或说明。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Page script:
+%1</source>
+        <translation>此页脚本：
+%1</translation>
+    </message>
+    <message>
+        <location line="+89"/>
+        <source>Create artwork for this page</source>
+        <translation>为此页创作插画</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The current page script is included. Adjust the description, then review a generated version before adopting it.</source>
+        <translation>已填入当前页脚本。调整画面描述后生成版本，审阅满意后再采用。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Creating artwork…</source>
+        <translation>正在创作插画…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Could not generate this page. Check image access and try again.</source>
+        <translation>无法为此页生成插画。请检查图像生成权限后重试。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This page changed while the image was being prepared. Reopen generation from the page to choose a new target.</source>
+        <translation>准备图像期间，此页已发生变化。请从目标页面重新打开生成窗口。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Generate a version</source>
+        <translation>生成一个版本</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop after current image</source>
+        <translation>在当前图像完成后停止</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add the Shape Infer credential in Settings before generating.</source>
+        <translation>生成前，请在设置中添加 Shape Infer 凭据。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open Settings</source>
+        <translation>打开设置</translation>
+    </message>
+    <message>
+        <location line="+70"/>
         <source>Saved picture books</source>
         <translation>已保存的绘本</translation>
     </message>
@@ -3082,6 +4079,21 @@
         <location line="+3"/>
         <source>Import artwork…</source>
         <translation>导入插图…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Draft not saved</source>
+        <translation>草稿尚未保存</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Saving draft…</source>
+        <translation>正在保存草稿…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Draft saved</source>
+        <translation>草稿已保存</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -3134,42 +4146,63 @@
         <translation>空白页 / 文字页</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+21"/>
         <source>Print-only page</source>
         <translation>仅供印刷的页面</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>Edit artwork material</source>
-        <translation>编辑插图素材</translation>
+        <location line="+8"/>
+        <source>Generate artwork for this page…</source>
+        <translation>为此页生成插画…</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Adjust this page in Shadow</source>
+        <translation>在 Shadow 中微调此页</translation>
     </message>
     <message>
         <location line="+4"/>
-        <source>Page tags keep their positions when artwork is reordered. Bind an adopted edited material to continue.</source>
-        <translation>调整插图顺序时，脚本标签仍对应原来的页码。编辑素材并采用后，可在此选择新素材继续编排。</translation>
+        <source>Page tags keep their positions when artwork is reordered. An edited image returns to this page after you adopt it.</source>
+        <translation>调整插图顺序时，脚本页标签保持原位置。采用编辑后的图像后，它会返回到此页。</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+110"/>
+        <source>Drafts and unfinished scripts are saved in this project. Adopt a book version to export it. Storybook keeps its own editable typography and print tools.</source>
+        <translation>草稿和尚未采用的脚本都保存在此项目中。采用绘本版本后即可导出，Storybook 提供独立的可编辑排版和印刷工具。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open the exported .scproj in Storybook to refine multilingual text, soft backdrops and print layout.</source>
+        <translation>在 Storybook 中打开导出的 .scproj，继续调整多语文字、柔和底纹和印刷排版。</translation>
+    </message>
+    <message>
+        <location line="-94"/>
         <source>Add a language script and page artwork, then review the book.</source>
         <translation>添加语言脚本和页面插图，然后审阅绘本。</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="-503"/>
+        <source>Continue saved books…</source>
+        <translation>继续已保存的绘本…</translation>
+    </message>
+    <message>
+        <location line="+516"/>
         <source>Language script</source>
         <translation>语言脚本</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <source>Default reading language</source>
         <translation>默认阅读语言</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+41"/>
         <source>Adopt script as new material</source>
         <translation>采用脚本为新素材</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-343"/>
+        <location line="+347"/>
         <source>Book</source>
         <translation>绘本</translation>
     </message>
@@ -3205,16 +4238,16 @@
     </message>
     <message>
         <location line="+2"/>
+        <source>Continue in Storybook</source>
+        <translation>在 Storybook 中继续</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Return to project</source>
         <translation>返回工程</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Adopted versions reopen with the project. Drafts stay in this window until the app closes. PDF uses Shape’s reading layout; Storybook keeps its own editable typography and print tools.</source>
-        <translation>采用的版本会随工程保存并恢复。草稿仅在本次应用会话中保留。PDF 使用 Shape 的阅读版排版；Storybook 保留自身的文字排版和印刷工具。</translation>
-    </message>
-    <message>
-        <location filename="../qml/components/PictureBookWorkspace.qml" line="293"/>
+        <location line="-46"/>
         <source>Adopt this script or discard the draft before switching languages, choosing text, or refreshing materials.</source>
         <translation>切换语言、选择文本或刷新素材前，请先采用当前脚本或放弃草稿。</translation>
     </message>

@@ -16,5 +16,10 @@ pub use project::{
     TextEditParameters, TextTransformMode, TextTransformParameters,
 };
 pub use project::{
-    PictureBookCandidate, PictureBookError, PictureBookExport, PictureBookPage, PictureBookRequest,
+    CardKitAction, CardKitCandidate, CardKitDraft, CardKitError, CardKitExport, CardPrintOptions,
+    CardPrintPaper, CardPrintPlan,
+};
+pub use project::{
+    PictureBookCandidate, PictureBookDraft, PictureBookDraftAction, PictureBookError,
+    PictureBookExport, PictureBookPage, PictureBookRequest,
 };

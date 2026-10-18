@@ -3,6 +3,17 @@
 `main.rs` routes the public commands. `demo` creates a synthetic project; `inspect` opens and
 summarizes an existing project through Core (including supported project schema upgrades).
 
+`card_kit.rs` routes recoverable card-list drafts, exact review/accept, historical reads, offline
+material-kit export and accepted-version home-print planning through the same Core action used by
+the desktop. The concrete JSON actions,
+material bindings, readiness checks and bounds are in [Card material kits](../../docs/CARD_KIT.md).
+Run `shape-cli card-kit /path/to/project.shape /path/to/request.json`; separate invocations recover
+the same project-backed draft and require its last observed digest before saving or accepting.
+`{"action":"print_plan","source":{"artifact_id":"<UUID>","revision_id":"<UUID>"}}`
+returns unique readable card SVGs and the exact A4 page/crop geometry consumed by the desktop PDF
+writer. Optional settings select Letter, card size, margins and crop marks; they do not alter history.
+The CLI returns the bounded plan as JSON; the desktop paints the PDF using that plan.
+
 `script_check.rs` owns read-only file intake and the JSON diagnostics command used by external
 AI tools and authoring scripts. It calls the same `shape-domain::speech_script` parser as desktop
 review and synthesis planning. It does not open a project, run inference, resolve voices/assets,

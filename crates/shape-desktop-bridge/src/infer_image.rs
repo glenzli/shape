@@ -3,6 +3,7 @@
 
 use std::{
     collections::VecDeque,
+    path::{Path, PathBuf},
     sync::{
         Mutex,
         atomic::{AtomicBool, Ordering},
@@ -20,6 +21,7 @@ use crate::operator_catalog::{IMAGE_GENERATE_OPERATOR, ai_image_generate_paramet
 pub struct InferImageCandidate {
     candidate: AiImageCandidate,
     draft_id: String,
+    origin_bundle: PathBuf,
 }
 
 /// One user action with independently executed, transient image results.
@@ -28,6 +30,7 @@ pub struct InferImageBatch {
     candidates: Vec<AiImageCandidate>,
     draft_id: String,
     failure_code: String,
+    origin_bundle: PathBuf,
 }
 
 /// Thread-safe progress and transfer queue for one image batch. The desktop
@@ -72,16 +75,23 @@ impl InferImageBatch {
         candidates: Vec<AiImageCandidate>,
         draft_id: impl Into<String>,
         failure_code: impl Into<String>,
+        origin_bundle: PathBuf,
     ) -> Self {
         Self {
             candidates,
             draft_id: draft_id.into(),
             failure_code: failure_code.into(),
+            origin_bundle,
         }
     }
 
-    pub(super) fn into_parts(self) -> (Vec<AiImageCandidate>, String, String) {
-        (self.candidates, self.draft_id, self.failure_code)
+    pub(super) fn into_parts(self) -> (Vec<AiImageCandidate>, String, String, PathBuf) {
+        (
+            self.candidates,
+            self.draft_id,
+            self.failure_code,
+            self.origin_bundle,
+        )
     }
 }
 
@@ -94,15 +104,20 @@ pub(super) fn infer_image_batch_failure_code(batch: &InferImageBatch) -> String 
 }
 
 impl InferImageCandidate {
-    pub(super) fn new(candidate: AiImageCandidate, draft_id: impl Into<String>) -> Self {
+    pub(super) fn new(
+        candidate: AiImageCandidate,
+        draft_id: impl Into<String>,
+        origin_bundle: PathBuf,
+    ) -> Self {
         Self {
             candidate,
             draft_id: draft_id.into(),
+            origin_bundle,
         }
     }
 
-    pub(super) fn into_parts(self) -> (AiImageCandidate, String) {
-        (self.candidate, self.draft_id)
+    pub(super) fn into_parts(self) -> (AiImageCandidate, String, PathBuf) {
+        (self.candidate, self.draft_id, self.origin_bundle)
     }
 }
 
@@ -125,10 +140,11 @@ pub(super) fn generate_infer_image_candidate(
         effort_key,
         1,
     )?;
-    let (mut candidates, _, _) = batch.into_parts();
+    let (mut candidates, _, _, origin_bundle) = batch.into_parts();
     Ok(Box::new(InferImageCandidate::new(
         candidates.remove(0),
         draft_id,
+        origin_bundle,
     )))
 }
 
@@ -206,7 +222,11 @@ fn generate_infer_image_batch_impl(
         .map_err(|_| "invalid_artifact".to_owned())?;
     let draft_identity =
         OperatorNodeId::new(draft_id).map_err(|_| "invalid_operator_draft".to_owned())?;
-    let project = ShapeProject::open(project_path).map_err(|_| "project_unavailable".to_owned())?;
+    let origin_bundle = Path::new(project_path)
+        .canonicalize()
+        .map_err(|_| "project_unavailable".to_owned())?;
+    let project =
+        ShapeProject::open(&origin_bundle).map_err(|_| "project_unavailable".to_owned())?;
     let artifact = project
         .snapshot()
         .map_err(|_| "project_unavailable".to_owned())?
@@ -253,6 +273,7 @@ fn generate_infer_image_batch_impl(
     )
     .map_err(|_| "executor_invalid".to_owned())?;
     execute_image_batch(
+        &origin_bundle,
         &project,
         artifact_id,
         draft_id,
@@ -263,7 +284,9 @@ fn generate_infer_image_batch_impl(
     )
 }
 
+#[allow(clippy::too_many_arguments)] // The origin root and exact persisted draft remain separate inputs.
 pub(crate) fn execute_image_batch(
+    origin_path: &Path,
     project: &ShapeProject,
     artifact_id: ArtifactId,
     draft_id: &str,
@@ -272,6 +295,9 @@ pub(crate) fn execute_image_batch(
     executor: &dyn Executor,
     control: Option<&ImageGenerationControl>,
 ) -> Result<Box<InferImageBatch>, String> {
+    let origin_bundle = origin_path
+        .canonicalize()
+        .map_err(|_| "project_unavailable".to_owned())?;
     let mut candidates = Vec::with_capacity(usize::from(requested_count));
     let mut failure_code = String::new();
     for _ in 0..requested_count {
@@ -289,7 +315,11 @@ pub(crate) fn execute_image_batch(
                         .ready
                         .lock()
                         .map_err(|_| "image_candidate_queue_failed")?
-                        .push_back(InferImageCandidate::new(candidate.clone(), draft_id));
+                        .push_back(InferImageCandidate::new(
+                            candidate.clone(),
+                            draft_id,
+                            origin_bundle.clone(),
+                        ));
                 }
                 candidates.push(candidate);
             }
@@ -304,6 +334,7 @@ pub(crate) fn execute_image_batch(
         candidates,
         draft_id,
         failure_code,
+        origin_bundle,
     )))
 }
 

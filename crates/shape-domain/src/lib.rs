@@ -6,6 +6,8 @@
 //! - [`ids`] owns strongly typed persistent identities;
 //! - [`content`] owns immutable content references and media contracts;
 //! - [`artifact`] owns creative identity and immutable accepted revisions;
+//! - [`card_kit`] owns card material lists with independent text/artwork bindings;
+//! - [`workflow`] routes creation templates to their concrete content consumers;
 //! - [`audio`] owns portable audio values, family ports, and voice authorization;
 //! - [`ai_image`] owns provider-neutral generative image families and authored parameters;
 //! - [`image_blur`] owns deterministic alpha-aware blur parameters;
@@ -25,6 +27,13 @@
 
 mod ai_image;
 mod artifact;
+mod card_kit;
+pub use card_kit::{
+    CARD_KIT_DATA_TYPE, CARD_KIT_DRAFT_SCHEMA, CARD_KIT_MAX_BYTES, CARD_KIT_MEDIA_TYPE,
+    CARD_KIT_OPERATOR_TYPE, CARD_KIT_SCHEMA, CardKitCard, CardKitDocument, CardKitRequest,
+};
+mod workflow;
+pub use workflow::{WorkflowTemplate, workflow_templates};
 mod material_edit;
 pub use material_edit::{
     MATERIAL_EDIT_SCHEMA, MaterialEditConfiguration, MaterialEditOperation, MaterialEditor,
@@ -47,6 +56,12 @@ mod image_transform;
 mod image_unsharp_mask;
 mod operator_graph;
 mod picture_book;
+mod picture_book_draft;
+pub use picture_book_draft::{
+    PICTURE_BOOK_DRAFT_MAX_SCRIPT_BYTES, PICTURE_BOOK_DRAFT_SCHEMA,
+    PICTURE_BOOK_DRAFT_SCRIPT_MEDIA_TYPE, PictureBookArtworkEditDraft, PictureBookDraftCheckpoint,
+    PictureBookDraftState,
+};
 mod project;
 pub use picture_book::{
     PICTURE_BOOK_MEDIA_TYPE, PICTURE_BOOK_SCHEMA, PictureBookDocument, PictureBookPage,

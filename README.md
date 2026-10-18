@@ -152,6 +152,12 @@ The text workspace authors production scripts with declared roles, delivery, sce
 
 ## Material editing and picture-book composition
 
+The creation menu now starts from concrete tasks: **Picture book**, **Card materials**,
+and **Refine an image**. Card kits keep recoverable direction, an ordered card list,
+accepted artwork, a reviewed offline SVG/HTML material package, and physical-size PDF sheets
+with crop marks for home printing. See
+[creative template design](docs/CREATIVE_TEMPLATES.md) and [card material kits](docs/CARD_KIT.md).
+
 Persistent Shadow/Echo material stages keep originals intact and accept edited
 returns as derived versions only after review. The desktop and strict JSON CLI
 share ticket/session/source/head validation; Echo PCM24 conversion is explicit.

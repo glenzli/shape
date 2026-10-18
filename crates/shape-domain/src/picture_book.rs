@@ -68,24 +68,30 @@ impl PictureBookRequest {
     /// # Errors
     /// Rejects unsupported or out-of-bounds picture-book contracts.
     pub fn validate(&self) -> Result<(), &'static str> {
+        self.validate_draft()?;
         if self.name.trim().is_empty()
-            || self.name.len() > 256
+            || self.languages.is_empty()
+            || !self.languages.contains_key(&self.default_language)
+        {
+            return Err("an accepted picture book needs a name and a default language material");
+        }
+        Ok(())
+    }
+
+    /// Checks recoverable composition state before every language material has been adopted.
+    /// # Errors
+    /// Rejects unsupported layout, malformed language ids and ambiguous accepted pins.
+    pub fn validate_draft(&self) -> Result<(), &'static str> {
+        if self.name.len() > 256
             || self.name.chars().any(char::is_control)
             || self.pages.is_empty()
             || self.pages.len() > 64
-            || self.languages.is_empty()
             || self.languages.len() > 8
-            || !self.languages.contains_key(&self.default_language)
+            || !valid_language(&self.default_language)
             || !(1..=8192).contains(&self.canvas_width)
             || !(1..=8192).contains(&self.canvas_height)
             || !(12..=96).contains(&self.font_size)
-            || self.languages.keys().any(|s| {
-                s.is_empty()
-                    || s.len() > 35
-                    || s.starts_with('-')
-                    || s.ends_with('-')
-                    || !s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
-            })
+            || self.languages.keys().any(|s| !valid_language(s))
         {
             return Err(
                 "invalid name, language, canvas, font size or page count (maximum 64 pages / 8 languages)",
@@ -101,6 +107,16 @@ impl PictureBookRequest {
         }
         Ok(())
     }
+}
+
+pub(crate) fn valid_language(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 35
+        && !value.starts_with('-')
+        && !value.ends_with('-')
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

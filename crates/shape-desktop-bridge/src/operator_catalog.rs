@@ -222,6 +222,16 @@ pub(crate) fn validate_draft_configuration(
     draft: &shape_domain::WorkingOperatorDraft,
 ) -> Result<(), String> {
     match (draft.operator_type().as_str(), draft.configuration()) {
+        ("book.compose", Some(configuration)) => {
+            shape_domain::PictureBookDraftCheckpoint::from_configuration(configuration)
+                .map(|_| ())
+                .map_err(str::to_owned)
+        }
+        (shape_domain::CARD_KIT_OPERATOR_TYPE, Some(configuration)) => {
+            shape_domain::CardKitRequest::from_configuration(configuration)
+                .map(|_| ())
+                .map_err(str::to_owned)
+        }
         ("image.external_edit" | "audio.external_edit", _) => {
             shape_domain::MaterialEditConfiguration::from_draft(draft)
                 .map(|_| ())

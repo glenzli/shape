@@ -56,6 +56,20 @@ fn completed_receipt_binds_source_paths_hashes_dimensions_and_success_before_can
         .project
         .propose_shadow_return(&handoff, &path, None)
         .unwrap();
+    let mut forged = candidate.clone();
+    let Some(TransformationOperation::MaterialEdit(operation)) =
+        &mut forged.transformation.operation
+    else {
+        panic!("material operation")
+    };
+    operation.normalization = MaterialReturnNormalization::KnownSrgbIccInput {
+        profile_digest: ContentDigest::from_bytes(b"forged ICC"),
+        materialized_digest: ContentDigest::from_bytes(b"forged working pixels"),
+    };
+    assert!(
+        f.project.accept_material_return(forged).is_err(),
+        "store independently rejects a claimed input materialization not derived from source"
+    );
     f.project.accept_material_return(candidate).unwrap();
     assert!(
         f.project

@@ -1,4 +1,4 @@
-find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Multimedia Quick QuickControls2 WebEngineQuick LinguistTools)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Multimedia Quick QuickControls2 Svg WebEngineQuick LinguistTools)
 find_package(Threads REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.9 I18N_TRANSLATED_LANGUAGES zh_CN)
@@ -78,6 +78,12 @@ qt_add_executable(shape-desktop
     src/main.cpp
     src/desktop_backend.cpp
     src/desktop_backend.hpp
+    src/card_kit_controller.cpp
+    src/card_kit_controller.hpp
+    src/card_print_controller.cpp
+    src/card_print_controller.hpp
+    src/card_print_export.cpp
+    src/card_print_export.hpp
     src/picture_book_controller.cpp
     src/picture_book_controller.hpp
     src/picture_book_renderer.cpp
@@ -124,8 +130,14 @@ qt_add_executable(shape-desktop
     tests/text_authoring_smoke.hpp
     tests/speech_feedback_smoke.cpp
     tests/speech_feedback_smoke.hpp
+    tests/workflow_smoke.cpp
+    tests/workflow_smoke.hpp
     tests/picture_book_smoke.cpp
     tests/picture_book_smoke.hpp
+    tests/picture_book_process_smoke.cpp
+    tests/picture_book_process_smoke.hpp
+    tests/card_print_smoke.cpp
+    tests/card_print_smoke.hpp
     tests/material_edit_smoke.cpp
     tests/material_edit_smoke.hpp
     tests/audio_preview_smoke.cpp
@@ -158,6 +170,9 @@ qt_add_qml_module(shape-desktop
         qml/components/SoundGenerationWorkspace.qml
         qml/components/MaterialEditWorkspace.qml
         qml/components/PictureBookWorkspace.qml
+        qml/components/CardKitWorkspace.qml
+        qml/components/CardPrintDialog.qml
+        qml/components/CardListImport.js
         qml/components/AiImageOperatorWorkspace.qml
         qml/components/AiModelPicker.qml
         qml/components/CandidateFilmstrip.qml
@@ -254,6 +269,7 @@ target_link_libraries(shape-desktop
         Qt6::QuickControls2
         Qt6::Concurrent
         Qt6::Multimedia
+        Qt6::Svg
         Qt6::WebEngineQuick
         shape-desktop-rust
         Threads::Threads
@@ -305,6 +321,28 @@ if(BUILD_TESTING)
             "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
             "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/picture_book_smoke.cmake"
+    )
+    add_test(
+        NAME shape-desktop-workflow-smoke
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/workflow_smoke.cmake"
+    )
+    set_tests_properties(shape-desktop-workflow-smoke PROPERTIES
+        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
+        TIMEOUT 60
+    )
+    add_test(
+        NAME shape-desktop-card-print-smoke
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/card_print_smoke.cmake"
+    )
+    set_tests_properties(shape-desktop-card-print-smoke PROPERTIES
+        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
+        TIMEOUT 90
     )
     set_tests_properties(shape-desktop-picture-book-smoke PROPERTIES
         FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"

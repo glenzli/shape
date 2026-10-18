@@ -1,9 +1,11 @@
 //! Mutable desktop lifecycle over one project and its transient Candidate Shelf.
 
 mod candidate_shelf;
+mod card_kit;
 mod material_edit;
 mod operator_drafts;
 mod picture_book;
+mod picture_book_draft;
 mod sound_generation;
 mod speech_script;
 mod text_authoring;
@@ -47,6 +49,7 @@ const USER_AUTHORED_TEXT_INTENT: &str = "Calibrate text with a user-authored rep
 pub struct DesktopSession {
     project: ShapeProject,
     bundle_path: String,
+    canonical_bundle: std::path::PathBuf,
     candidates: CandidateShelf,
     operator_drafts: OperatorDrafts,
 }
@@ -90,6 +93,8 @@ fn desktop_session(project: ShapeProject, path: &str) -> Result<Box<DesktopSessi
     Ok(Box::new(DesktopSession {
         project,
         bundle_path: super::project_path(path),
+        canonical_bundle: std::fs::canonicalize(path)
+            .map_err(|_| "project_unavailable".to_owned())?,
         candidates: CandidateShelf::default(),
         operator_drafts,
     }))
@@ -122,6 +127,18 @@ impl DesktopSession {
         output_width: u32,
         output_height: u32,
     ) -> Result<ffi::ProjectSnapshotWire, String> {
+        self.session_begin_ai_image_draft(artifact_name, instruction, output_width, output_height)?;
+        self.session_snapshot()
+    }
+
+    /// Returns the exact newly reserved image output and authored draft identity to its caller.
+    pub fn session_begin_ai_image_draft(
+        &mut self,
+        artifact_name: &str,
+        instruction: &str,
+        output_width: u32,
+        output_height: u32,
+    ) -> Result<ffi::OperatorDraftWire, String> {
         let artifact = Artifact::new(artifact_name, ArtifactKind::ImageRaster)
             .map_err(|error| error.to_string())?;
         let previous = self.operator_drafts.clone();
@@ -143,7 +160,11 @@ impl DesktopSession {
             self.operator_drafts = previous;
             return Err(error.to_string());
         }
-        self.session_snapshot()
+        let node = graph
+            .operators()
+            .first()
+            .ok_or_else(|| "AI image source draft disappeared".to_owned())?;
+        Ok(operator_draft_wire(artifact.id, node))
     }
 
     /// Creates one durable, detached AI text-editing node with no material input.
@@ -801,6 +822,7 @@ impl DesktopSession {
         let preserves_text_intent = matches!(&candidate, Candidate::Text(_));
         let preserves_node = matches!(&candidate, Candidate::Material(_))
             || preserves_text_intent
+            || matches!(&candidate, Candidate::Book(book) if book.request_node().is_some())
             || matches!(&candidate, Candidate::Audio(a) if a.request_node().is_some());
         let accepted_revision = match candidate {
             Candidate::Book(candidate) => self
@@ -1183,7 +1205,10 @@ impl DesktopSession {
         &mut self,
         candidate: Box<InferImageCandidate>,
     ) -> Result<ffi::CandidateWire, String> {
-        let (candidate, draft_id) = (*candidate).into_parts();
+        let (candidate, draft_id, origin_bundle) = (*candidate).into_parts();
+        if self.canonical_bundle != origin_bundle {
+            return Err("project_unavailable".to_owned());
+        }
         let artifact_id = candidate.artifact_id();
         let artifact = self
             .project
@@ -1217,7 +1242,10 @@ impl DesktopSession {
         &mut self,
         batch: Box<InferImageBatch>,
     ) -> Result<Vec<ffi::CandidateWire>, String> {
-        let (candidates, draft_id, _) = (*batch).into_parts();
+        let (candidates, draft_id, _, origin_bundle) = (*batch).into_parts();
+        if self.canonical_bundle != origin_bundle {
+            return Err("project_unavailable".to_owned());
+        }
         let mut wires = Vec::with_capacity(candidates.len());
         for candidate in &candidates {
             let artifact_id = candidate.artifact_id();

@@ -120,6 +120,7 @@ Item {
     signal aiImageDraftSaveRequested(string draftId, string instruction,
                                      int outputWidth, int outputHeight, int candidateCount)
     signal operatorDraftRequested(string operatorTypeKey)
+    signal compositionRequested(string artifactId, string kindKey)
     signal operatorDraftDiscardRequested(string draftId)
     signal textStudioDraftSaveRequested(string draftId, string modeKey,
                                         string instruction, string expressionJson,
@@ -335,6 +336,12 @@ Item {
         }
         if (node === null) node = nodeForId(nodeId)
         if (node === null) return false
+        const composition = allArtifacts.find(a => a.id === node.artifactId
+            && (a.kindKey === "card_kit" || a.kindKey === "picture_book"))
+        if (composition) {
+            compositionRequested(composition.id, composition.kindKey)
+            return true
+        }
         if (node.roleKey === "output") {
             const incoming = workGraph.edges.filter(edge => edge.targetNodeId === node.id)
             if (incoming.length !== 1) return false
@@ -364,6 +371,10 @@ Item {
         if (draft === null || !hasSelectedArtifact
                 || draft.contextArtifactId !== selectedArtifact.id) {
             return false
+        }
+        if (selectedArtifact.kindKey === "card_kit" || selectedArtifact.kindKey === "picture_book") {
+            compositionRequested(selectedArtifact.id, selectedArtifact.kindKey)
+            return true
         }
         selectedNodeId = draftId
         if (!operatorWorkspaceHost.openWorkspace(

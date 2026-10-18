@@ -479,6 +479,20 @@ mod ffi {
             source: &str,
             kind: &str,
         ) -> Result<Vec<u8>>;
+        fn session_book_draft_action_json(
+            self: &mut DesktopSession,
+            request_json: &str,
+        ) -> Result<String>;
+        fn session_book_draft_propose(
+            self: &mut DesktopSession,
+            artifact_id: &str,
+            draft_digest: &str,
+        ) -> Result<String>;
+        fn session_card_kit_action_json(
+            self: &mut DesktopSession,
+            request_json: &str,
+        ) -> Result<String>;
+        fn session_workflow_templates_json(self: &DesktopSession) -> Result<String>;
         fn session_snapshot(self: &DesktopSession) -> Result<ProjectSnapshotWire>;
         fn session_rename_artifact(
             self: &DesktopSession,
@@ -497,6 +511,13 @@ mod ffi {
             output_width: u32,
             output_height: u32,
         ) -> Result<ProjectSnapshotWire>;
+        fn session_begin_ai_image_draft(
+            self: &mut DesktopSession,
+            artifact_name: &str,
+            instruction: &str,
+            output_width: u32,
+            output_height: u32,
+        ) -> Result<OperatorDraftWire>;
         fn session_create_detached_text_editor(
             self: &mut DesktopSession,
             artifact_name: &str,
@@ -1014,6 +1035,7 @@ const fn artifact_kind_key(kind: ArtifactKind) -> &'static str {
         ArtifactKind::ImageComposite => "image_composite",
         ArtifactKind::ReferenceSet => "reference_set",
         ArtifactKind::PictureBook => "picture_book",
+        ArtifactKind::CardKit => "card_kit",
         ArtifactKind::AudioClip => "audio_clip",
     }
 }

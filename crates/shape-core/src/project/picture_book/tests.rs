@@ -92,6 +92,17 @@ fn native_archive_preserves_page_roles_languages_source_bytes_and_independent_re
     assert_eq!(origin["parsed_scripts"]["en"]["page_text"]["2"], "Hello");
     assert_eq!(origin["parsed_scripts"]["zh-CN"]["page_text"]["2"], "你好");
     assert_eq!(origin["parsed_scripts"]["en"]["author"], "Ada");
+    // These values use Storybook's native 0..100 effect scale, not opacity fractions.
+    for language in ["en", "zh-CN"] {
+        for role in ["cover", "title", "inner", "author"] {
+            let settings = &project["languages"][language][format!("{role}_text_settings")];
+            assert_eq!(settings["readability_mode"], "wash");
+            assert_eq!(settings["max_width_percent"], 90);
+            assert_eq!(settings["text_effects"]["strength"], 55);
+            assert_eq!(settings["text_effects"]["feather"], 80);
+            assert_eq!(settings["text_effects"]["color"], "#ffffff");
+        }
+    }
     // Native page settings are indexed, not keyed by the visible asset path.
     assert!(project["page_settings"].get("blank://shape-3").is_none());
     assert!(

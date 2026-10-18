@@ -1,7 +1,10 @@
 //! Actual Shadow external-stage roundtrip; opt in with `SHAPE_SHADOW_BINARY` and `SHAPE_SHADOW_EVIDENCE`.
 use image::{ColorType, ImageEncoder, codecs::png::PngEncoder};
 use shape_core::ShapeProject;
-use shape_domain::{ContentDigest, MaterialEditor, WorkingInput};
+use shape_domain::{
+    ContentDigest, MaterialEditor, MaterialReturnNormalization, TransformationOperation,
+    WorkingInput,
+};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -35,6 +38,10 @@ fn run_shadow(binary: &Path, directory: &Path, evidence: &Path, exposure: &str) 
 
 #[test]
 #[ignore = "requires separately built Shadow; isolated synthetic pixels only"]
+#[allow(
+    clippy::too_many_lines,
+    reason = "One real lifecycle preserves source, repeated ICC handoff, accepted lineage and reopened state together"
+)]
 fn real_shadow_completed_return_accepts_separate_versions_and_refreshes_downstream() {
     let binary = PathBuf::from(std::env::var_os("SHAPE_SHADOW_BINARY").expect("Shadow binary"));
     let root =
@@ -111,6 +118,85 @@ fn real_shadow_completed_return_accepts_separate_versions_and_refreshes_downstre
     );
     let refreshed = project.restart_material_edit(&downstream, true).unwrap();
     assert_eq!(refreshed.draft.input().unwrap().revision_id, accepted[1].id);
+    // Re-enter an actual ICC-tagged Shadow result as the next page-edit source.
+    let returned_source = WorkingInput {
+        artifact_id: accepted[1].artifact_id,
+        revision_id: accepted[1].id,
+    };
+    let returned_original = project
+        .read_revision_content(returned_source.revision_id)
+        .unwrap()
+        .bytes;
+    let repeated_ticket = project
+        .create_material_edit(
+            returned_source,
+            "Repeated Shadow adjustment",
+            MaterialEditor::Shadow,
+        )
+        .unwrap();
+    let repeated_directory = root.join("handoff-repeated");
+    let repeated_handoff = project
+        .export_material_edit(&repeated_ticket, &repeated_directory)
+        .unwrap();
+    assert!(matches!(
+        repeated_handoff.input_materialization,
+        Some(MaterialReturnNormalization::KnownSrgbIccInput { .. })
+    ));
+    assert_eq!(
+        fs::read(&repeated_handoff.input_path).unwrap(),
+        returned_original
+    );
+    let normalized_path = repeated_directory.join("shadow-source.png");
+    let normalized = fs::read(&normalized_path).unwrap();
+    let decoded = image::load_from_memory(&normalized).unwrap().to_rgba8();
+    assert_eq!(
+        decoded,
+        image::load_from_memory(&returned_original)
+            .unwrap()
+            .to_rgba8()
+    );
+    let mut changed = normalized.clone();
+    changed[32] ^= 1;
+    fs::write(&normalized_path, changed).unwrap();
+    assert!(
+        project.shadow_material_request(&repeated_handoff).is_err(),
+        "altered working input cannot launch or return"
+    );
+    fs::write(&normalized_path, normalized).unwrap();
+    run_shadow(
+        &binary,
+        &repeated_directory,
+        &root.join("shadow-repeated"),
+        "0.25",
+    );
+    let repeated_candidate = project
+        .propose_shadow_return(
+            &repeated_handoff,
+            &repeated_directory.join("shadow-result.json"),
+            None,
+        )
+        .unwrap();
+    assert_eq!(
+        Some(repeated_candidate.normalization()),
+        repeated_handoff.input_materialization
+    );
+    let repeated = project.accept_material_return(repeated_candidate).unwrap();
+    let transformation = project.transformation(repeated.transformation_id).unwrap();
+    let Some(TransformationOperation::MaterialEdit(operation)) = transformation.operation else {
+        panic!("material operation")
+    };
+    assert_eq!(
+        Some(operation.normalization),
+        repeated_handoff.input_materialization
+    );
+    assert_eq!(operation.source, returned_source);
+    assert_eq!(
+        project
+            .read_revision_content(returned_source.revision_id)
+            .unwrap()
+            .bytes,
+        returned_original
+    );
     assert_eq!(
         project
             .read_accepted(original.artifact_id)
@@ -123,6 +209,15 @@ fn real_shadow_completed_return_accepts_separate_versions_and_refreshes_downstre
     let project = ShapeProject::open(root.join("fixture.shape")).unwrap();
     assert_eq!(
         project
+            .read_accepted(repeated.artifact_id)
+            .unwrap()
+            .unwrap()
+            .revision
+            .id,
+        repeated.id
+    );
+    assert_eq!(
+        project
             .material_edit_ticket(ticket.output_artifact_id)
             .unwrap()
             .expected_output_head,
@@ -130,7 +225,9 @@ fn real_shadow_completed_return_accepts_separate_versions_and_refreshes_downstre
     );
     fs::write(root.join("shape-acceptance.json"),serde_json::to_vec_pretty(&serde_json::json!({
         "original":original,"accepted":accepted,"downstream_before":downstream,"downstream_after":refreshed,
-        "completed_receipts_verified":true,"original_bytes_unchanged":true,"reopened":true
+        "completed_receipts_verified":true,"original_bytes_unchanged":true,"reopened":true,
+        "repeated_icc_source":returned_source,"repeated":repeated,
+        "input_materialization":repeated_handoff.input_materialization,"repeated_pixels_preserved":true
     })).unwrap()).unwrap();
 }
 

@@ -5,6 +5,7 @@ mod crop;
 mod drop_shadow;
 mod pixels;
 mod resize;
+mod shadow_input;
 mod transform;
 mod unsharp_mask;
 
@@ -50,6 +51,16 @@ pub struct RasterExecutor {
 }
 
 impl RasterExecutor {
+    /// Prepares Shadow's bounded opaque sRGB input without altering accepted source bytes.
+    /// Only the exact frozen Qt sRGB ICC fingerprint may be replaced by untagged sRGB pixels.
+    /// # Errors
+    /// Rejects arbitrary profiles, transparency, higher bit depths and Shadow's raster bounds.
+    pub fn materialize_shadow_input(
+        bytes: &[u8],
+    ) -> Result<(Vec<u8>, shape_domain::MaterialReturnNormalization), ExecutionFailure> {
+        shadow_input::materialize(bytes)
+    }
+
     /// Creates the versioned built-in raster executor.
     ///
     /// # Errors

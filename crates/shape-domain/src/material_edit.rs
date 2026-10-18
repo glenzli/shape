@@ -100,7 +100,7 @@ impl MaterialEditConfiguration {
     }
 }
 
-/// Explicit media normalization used when adopting an editor return.
+/// Explicit media normalization used for an editor input or accepted return.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MaterialReturnNormalization {
@@ -108,6 +108,12 @@ pub enum MaterialReturnNormalization {
     Canonical,
     /// Quantize signed PCM24 to PCM16, nearest with ties away from zero and saturation.
     Pcm24ToPcm16,
+    /// Materialize identical opaque RGB8 samples from one exactly known sRGB ICC profile.
+    /// The accepted source bytes remain intact; this identifies only the external working copy.
+    KnownSrgbIccInput {
+        profile_digest: ContentDigest,
+        materialized_digest: ContentDigest,
+    },
 }
 
 /// Accepted return lineage. Digests describe exact input and selected return bytes;
@@ -134,6 +140,10 @@ impl MaterialEditOperation {
         if self.session == 0
             || (self.normalization == MaterialReturnNormalization::Pcm24ToPcm16
                 && self.editor != MaterialEditor::Echo)
+            || (matches!(
+                self.normalization,
+                MaterialReturnNormalization::KnownSrgbIccInput { .. }
+            ) && self.editor != MaterialEditor::Shadow)
         {
             return Err(DomainError::InvalidTransformationOperation);
         }

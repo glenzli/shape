@@ -11,6 +11,8 @@
 #include <QFutureWatcher>
 #include <QGuiApplication>
 #include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMimeData>
 #include <QSaveFile>
 #include <QVariantMap>
@@ -53,6 +55,8 @@ bool is_text_file_suffix(const QString& suffix) {
 }
 
 QString artifact_kind_label(const QString& key) {
+    if (key == QStringLiteral("card_kit"))
+        return DesktopBackend::tr("Card materials");
     if (key == QStringLiteral("picture_book"))
         return DesktopBackend::tr("Picture book");
     if (key == QStringLiteral("text_document")) {
@@ -117,6 +121,10 @@ QString operator_role_label(const QString& key) {
 }
 
 QString operator_type_label(const QString& key) {
+    if (key == QStringLiteral("card_kit.compose"))
+        return DesktopBackend::tr("Card composition");
+    if (key == QStringLiteral("book.compose"))
+        return DesktopBackend::tr("Picture book composition");
     if (key == QStringLiteral("image.external_edit"))
         return DesktopBackend::tr("Edit image in Shadow");
     if (key == QStringLiteral("audio.external_edit"))
@@ -714,29 +722,39 @@ bool DesktopBackend::createAiImageScene(
     int outputWidth,
     int outputHeight
 ) {
+    return !beginAiImageDraft(sceneName, instruction, outputWidth, outputHeight).isEmpty();
+}
+
+QVariantMap DesktopBackend::beginAiImageDraft(
+    const QString& sceneName,
+    const QString& instruction,
+    int outputWidth,
+    int outputHeight
+) {
     constexpr int kMaximumImageDimension = 4096;
     if (session_ == nullptr || sceneName.trimmed().isEmpty() || instruction.trimmed().isEmpty()
         || outputWidth <= 0 || outputHeight <= 0 || outputWidth > kMaximumImageDimension
         || outputHeight > kMaximumImageDimension) {
         setLastError(tr("Enter a Scene name, an image description, and valid dimensions."));
-        return false;
+        return {};
     }
     try {
-        applySnapshot(session_->session->session_create_ai_image_draft(
+        const auto draft = session_->session->session_begin_ai_image_draft(
             to_utf8(sceneName.trimmed()),
             to_utf8(instruction),
             static_cast<std::uint32_t>(outputWidth),
             static_cast<std::uint32_t>(outputHeight)
-        ));
+        );
+        applySnapshot(session_->session->session_snapshot());
         applyOperatorDrafts(session_->session->session_operator_drafts());
         setLastError(QString());
         emit projectChanged();
         emit operatorDraftsChanged();
-        return true;
+        return operator_draft_projection(draft);
     } catch (const rust::Error& error) {
         qWarning().noquote() << "could not create AI image Scene:" << error.what();
         setLastError(tr("Could not create the AI image Scene."));
-        return false;
+        return {};
     }
 }
 
@@ -2234,4 +2252,53 @@ DesktopBackend::bookScript(const QString& name, const QString& source, const QSt
     applySnapshot(session_->session->session_snapshot());
     emit projectChanged();
     return result;
+}
+
+QString DesktopBackend::cardKitAction(const QString& request) {
+    if (!session_)
+        throw std::runtime_error("no project");
+    const auto result =
+        from_rust(session_->session->session_card_kit_action_json(to_utf8(request)));
+    const auto action = QJsonDocument::fromJson(request.toUtf8()).object()["action"].toString();
+    if ((action.startsWith("draft_") && action != "draft_list") || action == "accept") {
+        applySnapshot(session_->session->session_snapshot());
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        emit projectChanged();
+    }
+    return result;
+}
+
+QString DesktopBackend::bookDraftAction(const QString& request) {
+    if (!session_)
+        throw std::runtime_error("no project");
+    const auto result =
+        from_rust(session_->session->session_book_draft_action_json(to_utf8(request)));
+    const auto action = QJsonDocument::fromJson(request.toUtf8()).object()["action"].toString();
+    if (action != "draft_list") {
+        applySnapshot(session_->session->session_snapshot());
+        applyOperatorDrafts(session_->session->session_operator_drafts());
+        emit projectChanged();
+        emit operatorDraftsChanged();
+    }
+    return result;
+}
+
+QString DesktopBackend::bookDraftPropose(const QString& artifactId, const QString& draftDigest) {
+    if (!session_)
+        throw std::runtime_error("no project");
+    const auto id = from_rust(
+        session_->session->session_book_draft_propose(to_utf8(artifactId), to_utf8(draftDigest))
+    );
+    applySnapshot(session_->session->session_snapshot());
+    applyOperatorDrafts(session_->session->session_operator_drafts());
+    applyCandidates(session_->session->session_candidates(), id);
+    emit projectChanged();
+    emit operatorDraftsChanged();
+    emit candidateChanged();
+    return id;
+}
+QString DesktopBackend::workflowTemplates() const {
+    if (!session_)
+        throw std::runtime_error("no project");
+    return from_rust(session_->session->session_workflow_templates_json());
 }

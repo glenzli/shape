@@ -7,6 +7,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use shape_domain::{
     ArtifactContentContract, ContentDigest, MaterialEditConfiguration, MaterialEditor,
+    MaterialReturnNormalization, TransformationOperation,
 };
 use std::path::{Path, PathBuf};
 
@@ -75,10 +76,36 @@ impl ShapeProject {
             .input_path
             .parent()
             .ok_or(CoreError::InvalidMaterialEdit)?;
+        if source.revision.content_contract.as_ref() != Some(&handoff.input_contract) {
+            return Err(CoreError::InvalidMaterialEdit);
+        }
+        let (working, normalization) =
+            shape_execution::RasterExecutor::materialize_shadow_input(&source.bytes)
+                .map_err(|_| CoreError::InvalidMaterialEdit)?;
+        let input = match (&handoff.input_materialization, normalization) {
+            (None, MaterialReturnNormalization::Canonical) => handoff.input_path.clone(),
+            (Some(recorded), known @ MaterialReturnNormalization::KnownSrgbIccInput { .. })
+                if *recorded == known =>
+            {
+                directory.join("shadow-source.png")
+            }
+            _ => return Err(CoreError::InvalidMaterialEdit),
+        };
+        if read_regular(&input, 64 * 1024 * 1024)? != working {
+            return Err(CoreError::InvalidMaterialEdit);
+        }
+        let request_digest = if handoff.input_materialization.is_some() {
+            ContentDigest::from_bytes(&serde_json::to_vec(&(
+                ticket,
+                &handoff.input_materialization,
+            ))?)
+        } else {
+            ContentDigest::from_bytes(&serde_json::to_vec(ticket)?)
+        };
         Ok(json!({"schema":"shadow.external-edit/1",
-            "requestId":format!("shape-{}", ContentDigest::from_bytes(&serde_json::to_vec(ticket)?)),
-            "input":{"path":handoff.input_path,"revision":ticket.draft.input().ok_or(CoreError::InvalidMaterialEdit)?.revision_id.to_string(),
-                "sha256":sha256(&source.bytes)}, "output":{"path":directory.join("edited.png")}}))
+            "requestId":format!("shape-{request_digest}"),
+            "input":{"path":input,"revision":ticket.draft.input().ok_or(CoreError::InvalidMaterialEdit)?.revision_id.to_string(),
+                "sha256":sha256(&working)}, "output":{"path":directory.join("edited.png")}}))
     }
 
     /// Verifies a completed native Shadow return before it can become a candidate.
@@ -98,7 +125,8 @@ impl ShapeProject {
             || result.outcome != "completed"
             || !result.errors.is_empty()
             || result.request_id != request["requestId"]
-            || result.input.path != handoff.input_path
+            || result.input.path
+                != Path::new(request["input"]["path"].as_str().ok_or_else(invalid)?)
             || result.input.revision != request["input"]["revision"]
             || result.input.sha256 != request["input"]["sha256"]
         {
@@ -130,7 +158,13 @@ impl ShapeProject {
             return Err(invalid());
         }
         let digest = expected_digest.unwrap_or_else(|| ContentDigest::from_bytes(&bytes));
-        let candidate = self.propose_material_return(&handoff.ticket, bytes, digest)?;
+        let mut candidate = self.propose_material_return(&handoff.ticket, bytes, digest)?;
+        if let Some(normalization) = handoff.input_materialization
+            && let Some(TransformationOperation::MaterialEdit(operation)) =
+                &mut candidate.transformation.operation
+        {
+            operation.normalization = normalization;
+        }
         let ArtifactContentContract::ImageRaster(contract) = candidate.contract() else {
             return Err(invalid());
         };

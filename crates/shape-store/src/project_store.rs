@@ -1,6 +1,7 @@
 //! Project bundle lifecycle and atomic Artifact/Scene accepted-head transactions.
 
 mod audio;
+mod card_kit;
 mod inspection;
 mod material_edit;
 mod picture_book;
@@ -645,6 +646,8 @@ impl ProjectStore {
     ///
     /// # Errors
     /// Rejects obsolete nodes, stale heads and invalid commits.
+    // Keep accepted-head, provenance, authored-node and display metadata mutation in one transaction.
+    #[allow(clippy::too_many_lines)]
     pub fn accept_with_node(
         &mut self,
         commit: AcceptedCommit,
@@ -657,6 +660,13 @@ impl ProjectStore {
             .artifact(commit.artifact_id)?
             .ok_or(StoreError::UnknownArtifact(commit.artifact_id))?;
         picture_book::validate_commit(
+            self,
+            artifact.kind,
+            &commit.output_bytes,
+            (&commit.transformation, &commit.receipt),
+            expected_input_heads,
+        )?;
+        card_kit::validate_commit(
             self,
             artifact.kind,
             &commit.output_bytes,
@@ -741,6 +751,22 @@ impl ProjectStore {
                 actual: actual_head,
             });
         }
+        if artifact.kind == ArtifactKind::CardKit {
+            let document = card_kit::document(&commit.output_bytes)?;
+            transaction.execute(
+                "UPDATE artifacts SET name = ?2 WHERE id = ?1",
+                params![commit.artifact_id.to_string(), document.composition.name],
+            )?;
+        }
+        if artifact.kind == ArtifactKind::PictureBook {
+            let document = picture_book::document(&commit.output_bytes)?;
+            if document.composition.name.len() <= 120 {
+                transaction.execute(
+                    "UPDATE artifacts SET name = ?2 WHERE id = ?1",
+                    params![commit.artifact_id.to_string(), document.composition.name],
+                )?;
+            }
+        }
         if let Some(graph) = &mut graph {
             graph.rebase_accepted_input(revision.id)?;
             transaction.execute(
@@ -771,6 +797,13 @@ impl ProjectStore {
         validate_new_artifact_commit(&commit)?;
         self.validate_script_commit(&commit)?;
         picture_book::validate_commit(
+            self,
+            commit.artifact.kind,
+            &commit.output_bytes,
+            (&commit.transformation, &commit.receipt),
+            &commit.expected_input_heads,
+        )?;
+        card_kit::validate_commit(
             self,
             commit.artifact.kind,
             &commit.output_bytes,
@@ -1074,6 +1107,12 @@ fn validate_content_contract(
     output_bytes: &[u8],
 ) -> Result<(), StoreError> {
     match (artifact_kind, contract) {
+        (ArtifactKind::CardKit, None) if media_type == shape_domain::CARD_KIT_MEDIA_TYPE => {
+            card_kit::document(output_bytes).map(|_| ())
+        }
+        (ArtifactKind::CardKit, _) => Err(StoreError::InvalidCommit(
+            "card kits require their versioned composition document",
+        )),
         (ArtifactKind::PictureBook, None)
             if media_type == shape_domain::PICTURE_BOOK_MEDIA_TYPE =>
         {

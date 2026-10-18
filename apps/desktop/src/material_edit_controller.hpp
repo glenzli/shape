@@ -4,9 +4,12 @@
 #include <QMutex>
 #include <QObject>
 #include <QString>
+#include <QTimer>
+#include <QUrl>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 class DesktopBackend;
+class QSettings;
 
 class MaterialEditController : public QObject {
     Q_OBJECT
@@ -17,8 +20,15 @@ class MaterialEditController : public QObject {
     Q_PROPERTY(QString requestArtifactId READ requestArtifactId NOTIFY statusChanged)
     Q_PROPERTY(QString errorCode READ errorCode NOTIFY statusChanged)
     Q_PROPERTY(QString handoffPath READ handoffPath NOTIFY statusChanged)
+    Q_PROPERTY(bool shadowActive READ shadowActive NOTIFY statusChanged)
+    Q_PROPERTY(QString shadowExecutable READ shadowExecutable NOTIFY statusChanged)
   public:
     explicit MaterialEditController(DesktopBackend& backend, QObject* parent = nullptr);
+    MaterialEditController(
+        DesktopBackend& backend,
+        const QString& settingsPath,
+        QObject* parent = nullptr
+    );
     ~MaterialEditController() override;
     [[nodiscard]] bool running() const {
         return running_;
@@ -35,6 +45,13 @@ class MaterialEditController : public QObject {
     [[nodiscard]] QString handoffPath() const {
         return handoff_path_;
     }
+    [[nodiscard]] bool shadowActive() const {
+        return shadow_active_;
+    }
+    [[nodiscard]] QString shadowExecutable() const;
+    Q_INVOKABLE bool setShadowExecutable(const QUrl& executable);
+    Q_INVOKABLE void openShadow(const QString& projectPath, const QString& outputId);
+    Q_INVOKABLE bool restoreShadowSession(const QString& projectPath, const QString& outputId);
     Q_INVOKABLE void
     exportCopy(const QString& projectPath, const QString& outputId, const QString& parentFolder);
     Q_INVOKABLE void review(
@@ -62,11 +79,21 @@ class MaterialEditController : public QObject {
         bool allowPcm24Conversion = false
     );
     void finish();
+    void launchShadow();
+    void inspectShadowResult();
+    QString shadowSessionKey(const QString& projectPath, const QString& outputId) const;
+    void saveShadowSession();
+    void clearShadowSession();
     DesktopBackend& backend_;
+    std::unique_ptr<QSettings> settings_;
     QFutureWatcher<void> watcher_;
     QMutex mutex_;
     std::unique_ptr<Result> pending_;
     quint64 generation_ = 0;
     bool running_ = false;
+    bool launch_after_export_ = false, shadow_active_ = false;
+    quint64 shadow_generation_ = 0;
+    QTimer shadow_poll_;
+    QString shadow_ticket_, shadow_result_, shadow_executable_;
     QString project_path_, artifact_id_, error_code_, handoff_path_;
 };

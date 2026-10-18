@@ -140,7 +140,11 @@ pub(super) fn is_authored_output(graph: &ArtifactWorkingGraph) -> bool {
         && graph.operators().iter().any(|d| {
             matches!(
                 d.operator_type().as_str(),
-                "audio.speech_synthesize" | "image.external_edit" | "audio.external_edit"
+                "audio.speech_synthesize"
+                    | "image.external_edit"
+                    | "audio.external_edit"
+                    | "card_kit.compose"
+                    | "book.compose"
             ) || (matches!(d.operator_type().as_str(), "text.create" | "text.edit")
                 && d.configuration().is_some_and(|c| {
                     c.schema().as_str() == crate::operator_catalog::text_authoring::SCHEMA
