@@ -71,6 +71,291 @@ void require(bool condition, const char* message) {
     if (!condition)
         throw std::runtime_error(message);
 }
+QJsonObject action(DesktopBackend& backend, const QJsonObject& request) {
+    const auto result =
+        QJsonDocument::fromJson(
+            backend.cardKitAction(QString::fromUtf8(QJsonDocument(request).toJson())).toUtf8()
+        )
+            .object();
+    require(!result.isEmpty(), "card fixture action failed");
+    return result;
+}
+int visibleTextCount(QQuickItem* item, const QString& text, bool buttonsOnly = false) {
+    if (!item)
+        return 0;
+    int count = item->isVisible() && item->isEnabled() && item->width() > 0 && item->height() > 0
+                        && item->property("text").toString() == text
+                        && (!buttonsOnly || item->metaObject()->indexOfSignal("clicked()") >= 0)
+                    ? 1
+                    : 0;
+    for (auto* child : item->childItems())
+        count += visibleTextCount(child, text, buttonsOnly);
+    return count;
+}
+QJsonObject verifyReturnedReceipts(
+    DesktopBackend& backend,
+    DeckHandoffController& deck,
+    QObject& root,
+    const QString& directory,
+    const QString& settingsPath,
+    const QString& kit,
+    const QString& draftDigest
+) {
+    QSettings settings(settingsPath, QSettings::IniFormat);
+    settings.sync();
+    QString recordKey;
+    for (const auto& key : settings.allKeys())
+        if (key.startsWith("deck/links/") && key.endsWith('/' + kit))
+            recordKey = key;
+    const auto record = QJsonDocument::fromJson(settings.value(recordKey).toByteArray()).object();
+    require(!record.isEmpty(), "prepared handoff record missing");
+    const auto request = read(record.value("request_path").toString());
+
+    // A separate real accepted project exercises the verifier's document and revision checks.
+    const auto documentPath = directory + "/Returned cards.deck";
+    DesktopBackend document(
+        shape::desktop::create_desktop_project(documentPath.toStdString(), "Returned card fixture")
+    );
+    const auto draft =
+        action(
+            document,
+            {{"action", "draft_new"},
+             {"composition",
+              QJsonObject{
+                  {"name", "Returned cards"},
+                  {"layout", QJsonObject{{"mode", "text"}}},
+                  {"cards",
+                   QJsonArray{QJsonObject{{"id", "returned-card"}, {"title", "Verified return"}}}}
+              }}}
+        )["draft"]
+            .toObject();
+    const auto review = action(
+        document,
+        {{"action", "preview"},
+         {"artifact_id", draft["artifact_id"]},
+         {"draft_digest", draft["draft_digest"]}}
+    );
+    const auto source = action(
+                            document,
+                            {{"action", "accept"},
+                             {"artifact_id", draft["artifact_id"]},
+                             {"draft_digest", draft["draft_digest"]},
+                             {"review_digest", review["review_digest"]}}
+    )["source"]
+                            .toObject();
+    require(!source.isEmpty(), "accepted returned kit missing");
+    write(
+        documentPath + "/deck-transfer.json",
+        QJsonDocument(
+            QJsonObject{
+                {"schema", "deck.transfer-import/1"},
+                {"project_id", document.projectId()},
+                {"kit_id", source["artifact_id"]},
+                {"request_id", request["request_id"]},
+                {"manifest_blake3", request["input"].toObject()["manifest_blake3"]},
+                {"origin", request["origin"]}
+            }
+        ).toJson()
+    );
+    const auto zipPath = directory + "/returned-cards.zip";
+    const auto exported =
+        action(document, {{"action", "export"}, {"source", source}, {"destination", zipPath}});
+    require(exported["byte_length"].toDouble() > 0, "real material ZIP not exported");
+    // Deterministic valid one-page PDF; the native worker verifies these exact bytes and BLAKE3.
+    const QByteArray pdf =
+        "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 72 72] /Resources << >> >>\n"
+        "endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n"
+        "0000000058 00000 n \n0000000115 00000 n \ntrailer\n<< /Size 4 /Root 1 0 R >>\n"
+        "startxref\n201\n%%EOF\n";
+    const auto pdfPath = directory + "/returned-cards.pdf";
+    write(pdfPath, pdf);
+    const QJsonObject completed{
+        {"schema", "deck.external-edit-result/1"},
+        {"request_id", request["request_id"]},
+        {"request_blake3", record["request_blake3"]},
+        {"outcome", "completed"},
+        {"document",
+         QJsonObject{
+             {"project_path", documentPath},
+             {"project_id", document.projectId()},
+             {"kit_id", source["artifact_id"]},
+             {"accepted_revision_id", source["revision_id"]}
+         }},
+        {"outputs",
+         QJsonArray{
+             QJsonObject{
+                 {"kind", "print_pdf"},
+                 {"path", pdfPath},
+                 {"byte_length", pdf.size()},
+                 {"blake3", "38a62899b9e2d4e047f1a82daa20415de19ae0ad4b19a88a165254ab71ac6dc4"},
+                 {"media_type", "application/pdf"}
+             },
+             QJsonObject{
+                 {"kind", "materials_zip"},
+                 {"path", zipPath},
+                 {"byte_length", exported["byte_length"]},
+                 {"blake3", exported["output_blake3"]},
+                 {"media_type", "application/zip"}
+             }
+         }},
+        {"error", QJsonValue::Null}
+    };
+    const auto resultPath = record.value("result_path").toString();
+    write(resultPath, QJsonDocument(completed).toJson());
+    auto* dialog = root.findChild<QObject*>("deckHandoffDialog");
+    require(
+        dialog
+            && QMetaObject::invokeMethod(
+                dialog,
+                "openForKit",
+                Q_ARG(QVariant, QVariant(kit)),
+                Q_ARG(QVariant, QVariant(draftDigest))
+            ),
+        "open actual returned-output dialog"
+    );
+    auto* readButton = root.findChild<QQuickItem*>("deckReadResult");
+    require(
+        readButton && readButton->isVisible() && readButton->isEnabled()
+            && QMetaObject::invokeMethod(readButton, "clicked") && deck.busy(),
+        "actual Read returned files action did not start Verify"
+    );
+    const auto successStatus = QCoreApplication::translate(
+        "DeckHandoffController",
+        "Returned files verified. Open them below."
+    );
+    require(
+        wait([&] { return !deck.busy(); }) && !deck.waiting() && deck.error().isEmpty()
+            && deck.status() == successStatus && deck.hasDocument() && deck.outputs().size() == 2,
+        "verified completed receipt did not reach returned state"
+    );
+    auto* content = qvariant_cast<QQuickItem*>(dialog->property("contentItem"));
+    const auto label = [](const char* text) {
+        return QCoreApplication::translate("DeckHandoffDialog", text);
+    };
+    const bool linksVisible = wait([&] {
+        return visibleTextCount(content, label("Verified print PDF")) == 1
+               && visibleTextCount(content, label("Verified materials ZIP")) == 1
+               && visibleTextCount(content, label("Open"), true) == 2
+               && visibleTextCount(content, label("Show folder"), true) == 2;
+    });
+    QEventLoop rendered;
+    QTimer::singleShot(200, &rendered, &QEventLoop::quit);
+    rendered.exec();
+    auto* window = qobject_cast<QQuickWindow*>(&root);
+    require(
+        window && window->grabWindow().save(directory + "/returned-output-links.png"),
+        "capture actual returned-output links"
+    );
+    if (!linksVisible) {
+        QJsonArray items;
+        const std::function<void(QQuickItem*)> inspect = [&](QQuickItem* item) {
+            if (!item)
+                return;
+            items.append(
+                QJsonObject{
+                    {"name", item->objectName()},
+                    {"class", item->metaObject()->className()},
+                    {"text", item->property("text").toString()},
+                    {"visible", item->isVisible()},
+                    {"enabled", item->isEnabled()},
+                    {"width", item->width()},
+                    {"height", item->height()}
+                }
+            );
+            for (auto* child : item->childItems())
+                inspect(child);
+        };
+        inspect(content);
+        write(
+            directory + "/returned-links-diagnostic.json",
+            QJsonDocument(
+                QJsonObject{
+                    {"kit", dialog->property("kitId").toString()},
+                    {"bound", dialog->property("boundToKit").toBool()},
+                    {"items", items}
+                }
+            ).toJson()
+        );
+    }
+    require(linksVisible, "verified PDF and ZIP links are not visible and enabled");
+    require(QMetaObject::invokeMethod(dialog, "close"), "close returned-output dialog");
+    DeckHandoffController reopened(backend, settingsPath);
+    require(
+        reopened.attach(kit) && reopened.busy() && wait([&] { return !reopened.busy(); })
+            && reopened.error().isEmpty() && reopened.outputs().size() == 2
+            && reopened.status() == successStatus,
+        "reopened controller lost the verified completed receipt"
+    );
+    settings.sync();
+    const auto saved = QJsonDocument::fromJson(settings.value(recordKey).toByteArray()).object();
+    require(
+        saved["local_state"] == "returned" && !saved["waiting"].toBool()
+            && saved["outputs"].toArray().size() == 2,
+        "completed returned state was not persisted"
+    );
+    for (const auto& outcome : {QString("cancelled"), QString("failed"), QString("tampered")}) {
+        auto receipt = completed;
+        const bool tampered = outcome == "tampered";
+        if (tampered) {
+            auto outputs = receipt["outputs"].toArray();
+            auto output = outputs[0].toObject();
+            output["blake3"] = QString(64, '0');
+            outputs[0] = output;
+            receipt["outputs"] = outputs;
+        } else {
+            receipt["outcome"] = outcome;
+            receipt["document"] = QJsonValue::Null;
+            receipt["outputs"] = QJsonArray{};
+            receipt["error"] = outcome == "failed" ? QJsonValue("Fixture producer failure")
+                                                   : QJsonValue(QJsonValue::Null);
+        }
+        const auto path = directory + '/' + outcome + "-result.json";
+        write(path, QJsonDocument(receipt).toJson());
+        auto isolatedRecord = saved;
+        isolatedRecord["result_path"] = path;
+        const auto profile = directory + '/' + outcome + ".ini";
+        QSettings isolated(profile, QSettings::IniFormat);
+        isolated.setValue(recordKey, QJsonDocument(isolatedRecord).toJson());
+        isolated.sync();
+        DeckHandoffController terminal(backend, profile);
+        require(
+            terminal.attach(kit) && terminal.busy() && wait([&] { return !terminal.busy(); })
+                && !terminal.waiting() && terminal.outputs().isEmpty(),
+            "terminal receipt worker did not finish safely"
+        );
+        const auto expectedStatus = QCoreApplication::translate(
+            "DeckHandoffController",
+            outcome == "cancelled" ? "Deck editing was cancelled. Saved Deck work can be continued."
+                                   : "Deck reported an error. Saved work can be continued."
+        );
+        require(
+            tampered ? !terminal.error().isEmpty() && terminal.status().isEmpty()
+                     : terminal.error().isEmpty() && terminal.status() == expectedStatus,
+            "producer terminal outcome confused with verifier failure"
+        );
+        isolated.sync();
+        const auto terminalRecord =
+            QJsonDocument::fromJson(isolated.value(recordKey).toByteArray()).object();
+        require(
+            terminalRecord["local_state"] == (tampered ? "incomplete" : "returned")
+                && terminalRecord["outputs"].toArray().isEmpty() && read(path) == receipt,
+            "terminal receipt state or immutable result changed"
+        );
+    }
+    require(read(resultPath) == completed, "completed receipt overwritten");
+    return {
+        {"native_verify_completed_error_null", true},
+        {"verified_pdf_zip_links_visible", true},
+        {"returned_record_reopened", true},
+        {"cancelled_error_null_returned", true},
+        {"failed_producer_error_returned", true},
+        {"tampered_output_rejected_and_links_cleared", true},
+        {"completed_result_path", resultPath},
+        {"returned_document", completed["document"]}
+    };
+}
 } // namespace
 bool deck_handoff_smoke::verify(
     DesktopBackend& backend,
@@ -299,6 +584,9 @@ bool deck_handoff_smoke::verify(
         report["reopened_getter_follows_promotion"] = true;
         report["launched_process_identity_pinned"] = true;
 #endif
+        report["returned_receipts"] =
+            verifyReturnedReceipts(backend, deck, root, directory, settingsPath, kit, digest);
+        require(digests(backend.bundlePath()) == before, "receipt reads changed the source bundle");
         const auto taskPath = directory + "/image-task.json",
                    resultPath = directory + "/image-result.json";
         write(

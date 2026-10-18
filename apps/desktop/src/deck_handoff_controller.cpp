@@ -295,7 +295,7 @@ void DeckHandoffController::openKit(
     watcher_.setFuture(
         QtConcurrent::run([project, kitId, digest, requestId, directory, document, binary] {
             if (!supportsDeck(binary))
-                return QJsonObject{{"error", "unsupported"}};
+                return QJsonObject{{"worker_error", "unsupported"}};
             try {
                 return object(fromRust(
                     shape::desktop::prepare_deck_handoff(
@@ -308,7 +308,7 @@ void DeckHandoffController::openKit(
                     )
                 ));
             } catch (const rust::Error& error) {
-                return QJsonObject{{"error", QString::fromUtf8(error.what())}};
+                return QJsonObject{{"worker_error", QString::fromUtf8(error.what())}};
             }
         })
     );
@@ -323,7 +323,8 @@ void DeckHandoffController::finish() {
         emit changed();
         return;
     }
-    if (result.contains("error")) {
+    // A verified terminal receipt has its own nullable producer `error` field.
+    if (result.contains("worker_error")) {
         pending_open_index_ = -1;
         waiting_ = false;
         if (work == Work::Verify)
@@ -331,7 +332,7 @@ void DeckHandoffController::finish() {
         record_["local_state"] = "incomplete";
         saveRecord();
         fail(
-            result.value("error") == "unsupported"
+            result.value("worker_error") == "unsupported"
                 ? QString::fromUtf8(QT_TR_NOOP(
                       "This Deck version does not support this handoff. Choose an updated "
                       "application."
@@ -518,7 +519,7 @@ void DeckHandoffController::readReturnedOutputs() {
                 shape::desktop::verify_deck_output_return(utf8(request), utf8(result), utf8(digest))
             ));
         } catch (const rust::Error& error) {
-            return QJsonObject{{"error", QString::fromUtf8(error.what())}};
+            return QJsonObject{{"worker_error", QString::fromUtf8(error.what())}};
         }
     }));
     emit changed();
@@ -552,7 +553,7 @@ void DeckHandoffController::retryHandoff() {
     work_generation_ = generation_;
     error_.clear();
     watcher_.setFuture(QtConcurrent::run([binary] {
-        return supportsDeck(binary) ? QJsonObject{} : QJsonObject{{"error", "unsupported"}};
+        return supportsDeck(binary) ? QJsonObject{} : QJsonObject{{"worker_error", "unsupported"}};
     }));
     emit changed();
 }
@@ -572,7 +573,7 @@ void DeckHandoffController::openNewDeck() {
     work_generation_ = generation_;
     error_.clear();
     watcher_.setFuture(QtConcurrent::run([binary] {
-        return supportsDeck(binary) ? QJsonObject{} : QJsonObject{{"error", "unsupported"}};
+        return supportsDeck(binary) ? QJsonObject{} : QJsonObject{{"worker_error", "unsupported"}};
     }));
     emit changed();
 }
