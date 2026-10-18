@@ -34,6 +34,67 @@ pub struct MaterialInspection {
 }
 
 impl ProjectStore {
+    /// Reads and verifies one historical accepted card-kit revision without migrating the bundle.
+    /// This narrow external-document check also returns its immutable exact bytes.
+    /// # Errors
+    /// Rejects wrong kinds/pins, inconsistent metadata and card documents over their domain bound.
+    pub fn inspect_card_kit_revision(
+        root: impl AsRef<Path>,
+        source: WorkingInput,
+    ) -> Result<(ProjectMetadata, ArtifactRevision, Vec<u8>), StoreError> {
+        let store = open_for_inspection(root.as_ref())?;
+        let transaction = store.connection.unchecked_transaction()?;
+        let mut budget = MAX_METADATA_BYTES;
+        check_record_budget(
+            &store.connection,
+            "SELECT LENGTH(CAST(metadata_json AS BLOB)) FROM project_singleton WHERE singleton = ?1",
+            "1",
+            &mut budget,
+        )?;
+        let metadata: String = store.connection.query_row(
+            "SELECT metadata_json FROM project_singleton WHERE singleton = 1",
+            [],
+            |row| row.get(0),
+        )?;
+        if serde_json::from_str::<ProjectMetadata>(&metadata)? != store.metadata {
+            return Err(StoreError::MetadataMismatch);
+        }
+        check_record_budget(
+            &store.connection,
+            "SELECT LENGTH(CAST(kind_json AS BLOB)) + LENGTH(CAST(name AS BLOB)) + COALESCE(LENGTH(CAST(accepted_revision AS BLOB)),0) FROM artifacts WHERE id = ?1",
+            &source.artifact_id.to_string(),
+            &mut budget,
+        )?;
+        let artifact = store
+            .artifact(source.artifact_id)?
+            .ok_or(StoreError::UnknownArtifact(source.artifact_id))?;
+        check_record_budget(
+            &store.connection,
+            "SELECT LENGTH(CAST(revision_json AS BLOB)) FROM artifact_revisions WHERE id = ?1",
+            &source.revision_id.to_string(),
+            &mut budget,
+        )?;
+        let revision = store.revision(source.revision_id)?;
+        if artifact.kind != ArtifactKind::CardKit
+            || artifact.accepted_revision.is_none()
+            || revision.artifact_id != source.artifact_id
+            || revision.id != source.revision_id
+            || revision.content.media_type != shape_domain::CARD_KIT_MEDIA_TYPE
+            || revision.content.byte_length > (shape_domain::CARD_KIT_MAX_BYTES + 1024) as u64
+        {
+            return Err(StoreError::InvalidInspection(
+                "pin is not an accepted card-kit revision",
+            ));
+        }
+        store.objects.verify_bounded(
+            &revision.content,
+            (shape_domain::CARD_KIT_MAX_BYTES + 1024) as u64,
+        )?;
+        let bytes = store.read_content(&revision.content)?;
+        transaction.rollback()?;
+        Ok((store.metadata, revision, bytes))
+    }
+
     /// Reads a precise accepted material pin without following a newer head or migrating a bundle.
     /// Verifies the durable bytes but returns metadata only, including return normalization/lineage.
     /// # Errors

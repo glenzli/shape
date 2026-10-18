@@ -9,8 +9,11 @@ use std::{
     fs,
     path::PathBuf,
     process::Command,
+    sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
+
+static NEXT_FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
 struct Fixture(PathBuf);
 impl Fixture {
@@ -19,8 +22,10 @@ impl Fixture {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
+        // Concurrent cases can receive the same wall-clock stamp on macOS.
+        let serial = NEXT_FIXTURE_ID.fetch_add(1, Ordering::Relaxed);
         let root = std::env::temp_dir().join(format!(
-            "shape-project-status-{}-{stamp}",
+            "shape-project-status-{}-{stamp}-{serial}",
             std::process::id()
         ));
         fs::create_dir(&root).unwrap();

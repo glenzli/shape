@@ -4,6 +4,9 @@
 #include "card_kit_controller.hpp"
 #include "card_print_controller.hpp"
 #include "card_print_smoke.hpp"
+#include "deck_handoff_controller.hpp"
+#include "deck_handoff_smoke.hpp"
+#include "deck_material_task_controller.hpp"
 #include "desktop_backend.hpp"
 #include "image_live_smoke.hpp"
 #include "image_preview_provider.hpp"
@@ -39,6 +42,7 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QQmlApplicationEngine>
@@ -75,6 +79,11 @@ struct Arguments {
     std::optional<QString> speech_script_directory;
     std::optional<QString> text_authoring_directory;
     std::optional<QString> image_live_directory;
+    std::optional<QString> deck_handoff_directory;
+    std::optional<QString> deck_material_request;
+    std::optional<QString> deck_material_result;
+    bool deck_material_cancel_smoke = false;
+    bool deck_material_live_smoke = false;
 };
 
 std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
@@ -86,6 +95,16 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
                 return std::nullopt;
             }
             arguments.project_path = std::string(argv[++index]);
+        } else if (argument == "--deck-material-task" && index + 1 < argc) {
+            arguments.deck_material_request = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--result" && index + 1 < argc) {
+            arguments.deck_material_result = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--smoke-deck-handoff" && index + 1 < argc) {
+            arguments.deck_handoff_directory = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--smoke-deck-material-cancel") {
+            arguments.deck_material_cancel_smoke = true;
+        } else if (argument == "--smoke-deck-material-live") {
+            arguments.deck_material_live_smoke = true;
         } else if (argument == "--smoke-picture-book" && index + 1 < argc) {
             arguments.picture_book_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-workflow" && index + 1 < argc) {
@@ -116,6 +135,12 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             return std::nullopt;
         }
     }
+    if (arguments.deck_material_request.has_value() != arguments.deck_material_result.has_value()
+        || (arguments.deck_material_request && arguments.project_path)
+        || ((arguments.deck_material_cancel_smoke || arguments.deck_material_live_smoke)
+            && !arguments.deck_material_request)
+        || (arguments.deck_material_cancel_smoke && arguments.deck_material_live_smoke))
+        return std::nullopt;
     return arguments;
 }
 
@@ -1222,6 +1247,12 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
 } // namespace
 
 int main(int argc, char* argv[]) {
+    if (argc == 2 && std::string(argv[1]) == "--handoff-capabilities") {
+        std::cout
+            << R"({"schema":"shape.handoff-capabilities/1","deck_material_task":"deck.material-task/1","deck_material_result":"deck.material-task-result/1"})"
+            << std::endl;
+        return 0;
+    }
     const auto arguments = parse_arguments(argc, argv);
     if (!arguments.has_value()) {
         std::cerr << "usage: shape-desktop [--project PROJECT.shape] [--smoke-exit] "
@@ -1240,12 +1271,14 @@ int main(int argc, char* argv[]) {
         arguments->smoke_exit || arguments->smoke_text_cycle || arguments->smoke_raster_cycle
         || arguments->picture_book_directory.has_value()
         || arguments->workflow_directory.has_value() || arguments->card_print_directory.has_value()
+        || arguments->deck_handoff_directory.has_value() || arguments->deck_material_cancel_smoke
         || arguments->preview_card_id.has_value();
     const bool smoke_mode = offline_smoke || arguments->speech_live_directory.has_value()
                             || arguments->speech_script_directory.has_value()
                             || arguments->text_authoring_directory.has_value()
                             || arguments->image_live_directory.has_value()
-                            || arguments->sound_live_directory.has_value();
+                            || arguments->sound_live_directory.has_value()
+                            || arguments->deck_material_live_smoke;
     std::optional<QTemporaryDir> smoke_profile;
     if (smoke_mode) {
         smoke_profile.emplace();
@@ -1285,12 +1318,36 @@ int main(int argc, char* argv[]) {
     CardKitController card_kit(*backend, settings_path, &application);
     CardPrintController card_print(*backend, &application);
     InferImageController infer_image(*backend, infer_credential_path, &application);
+    DeckHandoffController deck_handoff(*backend, settings_path, &application);
+    DeckMaterialTaskController deck_material_task(*backend, infer_image, &application);
+    if (arguments->deck_material_request) {
+        const auto task_root = smoke_mode
+                                   ? QFileInfo(*arguments->deck_material_result).absolutePath()
+                                         + QStringLiteral("/smoke-task-data")
+                                   : QString();
+        if (!deck_material_task.initialize(
+                *arguments->deck_material_request,
+                *arguments->deck_material_result,
+                task_root
+            )) {
+            std::cerr << "cannot start Deck image task: "
+                      << deck_material_task.error().toStdString() << std::endl;
+            return 2;
+        }
+        QObject::connect(
+            &deck_material_task,
+            &DeckMaterialTaskController::finished,
+            &application,
+            &QCoreApplication::quit,
+            Qt::QueuedConnection
+        );
+    }
     AudioPreviewController audio_preview(*backend, &application);
     AudioExportController audio_export(*backend, &application);
     UiPreferences ui_preferences(application, settings_path);
     RecentProjects recent_projects(settings_path);
     WebAnimationPreviewProfile web_animation_preview;
-    if (!smoke_mode) {
+    if (!smoke_mode && !arguments->deck_material_request) {
         const auto record_project = [&recent_projects, project = backend.get()] {
             if (project->projectOpen()) {
                 recent_projects.record(project->bundlePath(), project->projectName());
@@ -1322,6 +1379,18 @@ int main(int argc, char* argv[]) {
         &UiPreferences::languageModeChanged,
         &card_print,
         &CardPrintController::retranslate
+    );
+    QObject::connect(
+        &ui_preferences,
+        &UiPreferences::languageModeChanged,
+        &deck_handoff,
+        &DeckHandoffController::retranslate
+    );
+    QObject::connect(
+        &ui_preferences,
+        &UiPreferences::languageModeChanged,
+        &deck_material_task,
+        &DeckMaterialTaskController::retranslate
     );
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(
@@ -1356,6 +1425,8 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("audioExport"), QVariant::fromValue(&audio_export)},
         {QStringLiteral("uiPreferences"), QVariant::fromValue(&ui_preferences)},
         {QStringLiteral("recentProjects"), QVariant::fromValue(&recent_projects)},
+        {QStringLiteral("deckHandoff"), QVariant::fromValue(&deck_handoff)},
+        {QStringLiteral("deckMaterialTask"), QVariant::fromValue(&deck_material_task)},
     });
     infer_runtime.refresh();
     engine.loadFromModule(QStringLiteral("Shape.Desktop"), QStringLiteral("Main"));
@@ -1366,6 +1437,37 @@ int main(int argc, char* argv[]) {
     }
 
     QObject* const root_object = engine.rootObjects().first();
+    if (arguments->deck_material_request) {
+        QTimer::singleShot(150, &application, [&] {
+            QMetaObject::invokeMethod(root_object, "openDeckMaterialTask");
+            if (arguments->deck_material_cancel_smoke)
+                QTimer::singleShot(250, &application, [&] { deck_material_task.cancel(); });
+            if (arguments->deck_material_live_smoke) {
+                const bool passed = deck_handoff_smoke::runLiveTask(
+                    *backend,
+                    infer_image,
+                    deck_material_task,
+                    *root_object,
+                    ui_preferences.imageModel(),
+                    ui_preferences.imageEffort()
+                );
+                application.exit(passed ? 0 : 1);
+            }
+        });
+    }
+    if (arguments->deck_handoff_directory) {
+        QTimer::singleShot(150, &application, [&] {
+            const bool passed = deck_handoff_smoke::verify(
+                *backend,
+                deck_handoff,
+                deck_material_task,
+                *root_object,
+                *arguments->deck_handoff_directory,
+                settings_path
+            );
+            application.exit(passed ? 0 : 1);
+        });
+    }
     if (arguments->preview_card_id) {
         QTimer::singleShot(200, &application, [&] {
             auto* workspace = root_object->findChild<QObject*>(QStringLiteral("cardKitWorkspace"));

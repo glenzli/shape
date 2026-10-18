@@ -47,6 +47,12 @@ SDK 校验输出摘要，Shape 校验 Job 来源，再在原 Source 下显示临
 旧版已采用卡牌保留原外观，新版式通过明确采用形成新版本。
 设计判断与后续模板约束见 [创作流程模板](docs/CREATIVE_TEMPLATES.md)。
 
+2026-10-18 应用边界进一步收敛：Shape 保留通用 AI 素材创作与转换，Deck 独立承担卡牌
+制作和打印，绘本继续归 Storybook Co-Editor。现有配音保持不变，Vox 仅建立后续规划仓库。
+外部应用通过明确输入、结果回执和文档入口联动；AI 可以直接调用各应用的真实公开能力。
+本轮优先复用 CardKit 完成 Deck，不推进把专业编辑器全部嵌入 Shape 的统一工作台。
+旧项目和已采用历史继续兼容。具体约定见 [创作能力与应用边界](docs/NATURAL_WORKFLOW.md)。
+
 ## 0. 执行摘要
 
 Shape 的产品核心不是“用聊天控制编辑器”，也不是“把所有创作软件装进一个窗口”，而是下面这个持续循环：
@@ -62,7 +68,7 @@ Shape 的产品核心不是“用聊天控制编辑器”，也不是“把所�
 
 本方案做出以下关键决策：
 
-1. **Scene Operator Graph 是每个 Scene 的主视图。**它以纯输入 Source、创作语义 Operator、命名 Output 为节点；Artifact Revision 通过类型化端口流动，而不是把所有东西都伪装成同一种节点。
+1. **Scene Operator Graph 描述素材转换与依赖，专业作品由相应应用编辑。**图以纯输入 Source、创作语义 Operator、命名 Output 为节点；Artifact Revision 通过类型化端口流动。文档入口与可执行的外部转换分别表达，不能把打开专业应用视为完成一次转换。
 2. **Artifact 是稳定的创作对象身份；Artifact Revision 是不可变的已接受状态；Artifact Content 保存其内部图层、片段、轨道或对象结构。**
 3. **Transformation 只表达创作意义；Execution Plan/Receipt 记录系统实际怎样完成。两者不可混为一个对象。**
 4. **Constraint 成为一等对象。**用户不仅说“改变什么”，还要能明确“人物、姿势、节奏、文字或构图不能变”。
@@ -103,7 +109,7 @@ Shape 要解决五个问题：
 首个可用版本不追求：
 
 - 完整替代 Photoshop、Krita、Premiere、Kdenlive、DaVinci Resolve、Blender 或 DAW；
-- 向普通用户暴露节点式物理模型/执行器 workflow；创作级 Operator Graph 是产品主界面；
+- 向普通用户暴露节点式物理模型/执行器 workflow；创作级 Operator Graph 保留为依赖与组合视图；
 - 成为模型下载器、模型市场或训练平台；
 - 在一个版本内同时完成图像、音频、视频和 3D；
 - 实时多人协作、CRDT 或云项目托管；

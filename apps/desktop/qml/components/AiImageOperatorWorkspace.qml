@@ -16,6 +16,9 @@ Rectangle {
     property string candidateSource: ""
     property bool running: false
     property string errorCode: ""
+    readonly property bool customCanvas: !((outputWidth === 1024 && outputHeight === 1024)
+                                          || (outputWidth === 1536 && outputHeight === 1024)
+                                          || (outputWidth === 1024 && outputHeight === 1536))
 
     signal canvasRequested(int width, int height)
 
@@ -63,13 +66,13 @@ Rectangle {
                 qsTr("Square · 1:1"),
                 qsTr("Landscape · 3:2"),
                 qsTr("Portrait · 2:3")
-            ]
-            currentIndex: workspace.outputWidth === 1536 ? 1
+            ].concat(workspace.customCanvas ? [qsTr("Custom · %1 × %2").arg(workspace.outputWidth).arg(workspace.outputHeight)] : [])
+            currentIndex: workspace.customCanvas ? 3 : workspace.outputWidth === 1536 ? 1
                           : workspace.outputHeight === 1536 ? 2 : 0
             onActivated: index => {
                 if (index === 1) workspace.canvasRequested(1536, 1024)
                 else if (index === 2) workspace.canvasRequested(1024, 1536)
-                else workspace.canvasRequested(1024, 1024)
+                else if (index === 0) workspace.canvasRequested(1024, 1024)
             }
         }
     }

@@ -9,11 +9,12 @@ mod project;
 
 pub use error::CoreError;
 pub use project::{
-    AcceptedArtifactContent, AgentTextCandidate, AiImageCandidate, AudioCandidate, ImageCandidate,
-    ImageEditCandidate, ImageResizeCandidate, MATERIAL_EDIT_TICKET_SCHEMA, MaterialEditCandidate,
-    MaterialEditHandoff, MaterialEditTicket, SceneGraphCandidate, ShapeProject, SoundCandidate,
-    TEXT_DOCUMENT_DATA_TYPE, TEXT_EDIT_OPERATOR_TYPE, TEXT_TRANSFORM_OPERATOR_TYPE, TextCandidate,
-    TextEditParameters, TextTransformMode, TextTransformParameters,
+    AcceptedArtifactContent, AgentTextCandidate, AiImageCandidate, AudioCandidate,
+    DeckHandoffError, ImageCandidate, ImageEditCandidate, ImageResizeCandidate,
+    MATERIAL_EDIT_TICKET_SCHEMA, MaterialEditCandidate, MaterialEditHandoff, MaterialEditTicket,
+    SceneGraphCandidate, ShapeProject, SoundCandidate, TEXT_DOCUMENT_DATA_TYPE,
+    TEXT_EDIT_OPERATOR_TYPE, TEXT_TRANSFORM_OPERATOR_TYPE, TextCandidate, TextEditParameters,
+    TextTransformMode, TextTransformParameters,
 };
 pub use project::{
     CardKitAction, CardKitCandidate, CardKitDraft, CardKitError, CardKitExport, CardPrintOptions,

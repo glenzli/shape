@@ -571,3 +571,29 @@ See
 synthetic bilingual material and records rendered pages, PDFs and a screenshot.
 Use `SHAPE_BUILD_JOBS=2 CARGO_BUILD_JOBS=2 scripts/build_and_promote_debug.sh --full`
 when sharing the machine under a two-job build budget.
+
+## Dedicated editors and Deck material tasks
+
+New card sets open Deck; new picture books open the installed Storybook Co Editor without inventing
+a document-import argument. Existing Shape CardKit/PictureBook history remains readable in its old
+workspace. A legacy card set's **Continue in Deck** sends a saved, complete material snapshot to an
+independent Deck project. `DeckHandoffController` owns protocol probing, exact bundle/request identity,
+process/restart recovery and independently verified PDF/ZIP links. It never imports those files as
+images or accepts another application's artifact ids.
+
+`shape-desktop --handoff-capabilities` reports the supported file protocols without opening the GUI.
+`shape-desktop --deck-material-task REQUEST.json --result NEW-RESULT.json` creates/reopens one isolated
+image task, opens the existing AI image workspace with the prompt/canvas, and uses Shape's own Infer
+identity. Candidates still require explicit acceptance; **Return to Deck** exports the exact accepted
+PNG, while cancelling/closing writes a cancelled receipt. `DeckMaterialTaskController` owns this
+separate task lifecycle. See [Deck handoff](../../docs/DECK_HANDOFF.md) for bounds and strict schemas.
+
+The packaged `--smoke-deck-handoff DIRECTORY` path runs offline with isolated settings and produces
+retained evidence for a real legacy/incomplete transfer from a mixed audio/image/text project,
+process exit without a receipt, the real task workspace/target, explicit cancellation and no-clobber
+results. Its process fixture tests lifecycle only; real Deck importer/GUI acceptance is separate
+producer-to-consumer evidence. `--smoke-deck-material-cancel` is a test-only modifier for the actual
+material-task entry and never generates with real credentials.
+The separate opt-in `--smoke-deck-material-live` modifier runs the actual image consumer, explicitly
+accepts its exact target Candidate, and clicks the real **Return to Deck** button; it intentionally
+uses Shape's existing Infer credential and is excluded from offline CTest.

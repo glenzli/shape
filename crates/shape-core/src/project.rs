@@ -2,10 +2,12 @@
 
 mod agent_file;
 mod card_kit;
+mod deck_handoff;
 pub use card_kit::{
     CardKitAction, CardKitCandidate, CardKitDraft, CardKitError, CardKitExport, CardPrintOptions,
     CardPrintPaper, CardPrintPlan, CardPrintRequestOptions,
 };
+pub use deck_handoff::DeckHandoffError;
 mod material_edit;
 mod picture_book;
 pub use material_edit::{

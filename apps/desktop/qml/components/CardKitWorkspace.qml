@@ -76,6 +76,7 @@ ShapeDialog {
     readonly property string imageCropMessage: qsTr("Some images are too narrow or wide for edge cropping. Choose Show the complete image, or use artwork with more suitable proportions.")
     readonly property var listPreview: CardListImport.parse(listText.text, composition, listFirstHeader)
     signal inferAccessSetupRequested()
+    signal deckRequested(string artifactId, string draftDigest)
 
     parent: Overlay.overlay
     anchors.centerIn: parent
@@ -508,6 +509,11 @@ ShapeDialog {
             ShapeButton { objectName: "cardKitSetLayout"; text: qsTr("Set layout…"); onClicked: setLayoutDialog.open() }
             ShapeButton { objectName: "cardKitSave"; text: qsTr("Save draft"); enabled: root.dirty; onClicked: root.flush() }
             Label { text: root.dirty ? (root.controller.error.length ? qsTr("Draft not saved") : qsTr("Saving draft…")) : qsTr("Draft saved"); color: Theme.muted; font.pixelSize: 11 }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Label { Layout.fillWidth: true; text: qsTr("Keep this Shape card set, or continue editing and printing in Deck."); color: Theme.muted; wrapMode: Text.WordWrap }
+            ShapeButton { objectName: "cardKitContinueDeck"; text: qsTr("Continue in Deck…"); onClicked: if (root.flush()) root.deckRequested(root.controller.draft.artifact_id, root.controller.draft.draft_digest) }
         }
         RowLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; spacing: 16

@@ -26,6 +26,8 @@ ApplicationWindow {
     required property AudioExportController audioExport
     required property UiPreferences uiPreferences
     required property RecentProjects recentProjects
+    required property DeckHandoffController deckHandoff
+    required property DeckMaterialTaskController deckMaterialTask
 
     property int selectedArtifactIndex: 0
     property string selectedCandidateId: ""
@@ -97,6 +99,15 @@ ApplicationWindow {
         }
         else workspaceSurface.activateScene(index)
     }
+    function openDeckMaterialTask() : void {
+        if (!window.deckMaterialTask.active) return
+        const index = artifactIndex(window.deckMaterialTask.artifactId)
+        if (index < 0) return
+        selectedArtifactIndex = index
+        const draft = window.backend.operatorDrafts.find(d => d.id === window.deckMaterialTask.draftId)
+        if (draft) openDraftTarget(draft.id)
+        else workspaceSurface.activateScene(index)
+    }
 
     function startImageRefinement(artifactId) : void {
         const draftId = backend.beginOperatorDraft(artifactId, "image.external_edit")
@@ -121,6 +132,7 @@ ApplicationWindow {
     }
 
     function openProject(projectUrl) : void {
+        if (window.deckMaterialTask.active) return
         if (!cardWorkspace.flush() || !bookWorkspace.flush()) return
         if (!window.backend.openProject(projectUrl)) return
         window.selectedArtifactIndex = 0
@@ -297,7 +309,12 @@ ApplicationWindow {
     minimumWidth: 1120
     minimumHeight: 720
     visible: true
-    onClosing: close => { if (!cardWorkspace.flush() || !bookWorkspace.flush()) close.accepted = false }
+    onClosing: close => {
+        if (window.deckMaterialTask.active) {
+            close.accepted = false
+            window.deckMaterialTask.cancel()
+        } else if (!cardWorkspace.flush() || !bookWorkspace.flush()) close.accepted = false
+    }
     title: Qt.platform.os === "osx" ? ""
            : window.backend.projectOpen
              ? qsTr("Shape — %1").arg(window.backend.projectName)
@@ -348,8 +365,8 @@ ApplicationWindow {
         onTextAuthoringRequested: profile => window.startTextAuthoring(profile)
         onSoundSceneRequested: window.startSoundScene()
         onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
-        onPictureBookRequested: bookWorkspace.openWorkspace()
-        onCardKitRequested: cardWorkspace.openWorkspace()
+        onPictureBookRequested: if (!window.deckHandoff.openStorybook()) externalApplicationMessage.open()
+        onCardKitRequested: deckDialog.openForKit("", "")
         onImageRefinementRequested: refineImageChooser.open()
         onImportMaterialRequested: materialImportDialog.open()
         onPasteMaterialRequested: window.pasteMaterialIntoProject()
@@ -383,7 +400,12 @@ ApplicationWindow {
         materialEdit: window.materialEdit
         audioPreview: window.audioPreview
         uiPreferences: window.uiPreferences
+        onDeckRequested: (artifactId, digest) => deckDialog.openForKit(artifactId, digest)
     }
+
+    DeckHandoffDialog { id: deckDialog; controller: window.deckHandoff; backend: window.backend }
+    ShapeMessageDialog { id: externalApplicationMessage; title: qsTr("Open the dedicated editor"); text: window.deckHandoff.error }
+    footer: DeckMaterialTaskBar { controller: window.deckMaterialTask }
 
     ShapeDialog {
         id: refineImageChooser
@@ -531,6 +553,7 @@ ApplicationWindow {
         spacing: 0
 
         WorkbenchProjectRail {
+            enabled: !window.deckMaterialTask.active
             Layout.minimumWidth: 216
             Layout.preferredWidth: 216
             Layout.maximumWidth: 216

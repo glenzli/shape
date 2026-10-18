@@ -21,6 +21,13 @@ from that ratio; one explicit axis derives the other, and two explicit axes are 
 return normalized `print_defaults`, resolved layouts, hidden-content hints and authoritative readiness.
 Historical compositions without a layout retain their exact original rendering and default size.
 
+`{"action":"deck_transfer","artifact_id":"<kit UUID>","draft_digest":"<saved digest>","request_id":"<unique token>","destination":"/absolute/new-directory"}`
+exports an editable Deck snapshot through the same public command. It preserves unfinished/hidden
+fields, stable card ids, legacy layout absence and all exact accepted image/text pins. It does not
+accept the kit or require print readiness. The returned `manifest_path` and `manifest_blake3` are
+consumed by Deck's `import-transfer`, not by opening the Shape bundle. See the exact
+[request, result and material-task contracts](../../docs/DECK_HANDOFF.md).
+
 `script_check.rs` owns read-only file intake and the JSON diagnostics command used by external
 AI tools and authoring scripts. It calls the same `shape-domain::speech_script` parser as desktop
 review and synthesis planning. It does not open a project, run inference, resolve voices/assets,

@@ -4,6 +4,7 @@ mod export;
 mod layout;
 mod preview;
 mod print;
+mod transfer;
 
 pub use draft::CardKitDraft;
 pub use export::CardKitExport;
@@ -102,6 +103,12 @@ pub enum CardKitAction {
         source: WorkingInput,
         #[serde(default)]
         options: CardPrintRequestOptions,
+    },
+    DeckTransfer {
+        artifact_id: ArtifactId,
+        draft_digest: String,
+        request_id: String,
+        destination: PathBuf,
     },
 }
 
@@ -219,6 +226,17 @@ impl ShapeProject {
             CardKitAction::PrintPlan { source, options } => Ok(json!({
                 "print_plan": self.plan_card_print_request(source, &options)?
             })),
+            CardKitAction::DeckTransfer {
+                artifact_id,
+                draft_digest,
+                request_id,
+                destination,
+            } => self.export_deck_card_transfer(
+                artifact_id,
+                &draft_digest,
+                &request_id,
+                &destination,
+            ),
         }
     }
 

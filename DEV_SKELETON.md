@@ -16,6 +16,12 @@
 
 ## Stable constraints
 
+- Shape owns general material creation/transformation and accepted source history. Deck is the
+  dedicated card authoring/printing application; Storybook Co-Editor owns book production. Existing
+  in-project CardKit/PictureBook data remains compatible. External applications exchange bounded
+  material snapshots and receipts, not writable project databases. See
+  [`docs/NATURAL_WORKFLOW.md`](docs/NATURAL_WORKFLOW.md). Existing speech stays in Shape while Vox
+  is only a planning repository.
 - Shape is intent-anchored: accepted creative intent may transform source material, but imported
   Shadow/Echo originals remain read-only references.
 - `Scene` is the user-authored creative orchestration boundary. Its typed Operator Graph connects

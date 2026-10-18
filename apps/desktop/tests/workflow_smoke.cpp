@@ -458,10 +458,21 @@ bool verify(
         window->resize(entry_wide_size);
         settle();
         pointerClick(*window, child(entry, "createCardKitButton"));
+        auto& deck_entry = child(root, "deckHandoffDialog");
+        require(
+            deck_entry.property("visible").toBool() && kit.draft().isEmpty(),
+            "new cards open Deck without creating a Shape card set"
+        );
+        QMetaObject::invokeMethod(&deck_entry, "close");
         auto& workspace = child(root, "cardKitWorkspace");
+        QMetaObject::invokeMethod(
+            &workspace,
+            "openWorkspace",
+            Q_ARG(QVariant, QVariant(QString()))
+        );
         require(
             workspace.property("visible").toBool() && !kit.draft().isEmpty(),
-            "pointer opens card workspace"
+            "explicit legacy open preserves the Shape card workspace"
         );
         const auto first = workspace.property("selectedCardId").toString();
         require(!first.isEmpty(), "stable first card identity");

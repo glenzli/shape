@@ -108,7 +108,7 @@ if [ ! -x "$candidate_executable" ]; then
     fail "desktop build produced no executable candidate: $candidate_executable"
 fi
 ctest --test-dir "$build_directory" --output-on-failure \
-    -R '^shape-desktop-(smoke|project-smoke|picture-book-smoke|workflow-smoke|card-print-smoke)$'
+    -R '^shape-desktop-(smoke|project-smoke|picture-book-smoke|workflow-smoke|card-print-smoke|deck-handoff-smoke)$'
 
 "$repository_root/scripts/promote_debug_build.sh" "$candidate_app" "$validation_mode-$validation_label"
 "$repository_root/scripts/run_debug.sh" --check

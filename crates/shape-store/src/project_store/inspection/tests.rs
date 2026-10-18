@@ -4,6 +4,64 @@ use shape_domain::{Artifact, ArtifactKind, OperatorDataTypeId, OperatorTypeId};
 use std::fs;
 
 #[test]
+fn exact_card_revision_inspection_is_read_only_and_preserves_historical_pins() {
+    let root = test_root("readonly-card-pin");
+    let mut store = ProjectStore::create(&root, "Deck").unwrap();
+    let artifact = Artifact::new("Cards", ArtifactKind::CardKit).unwrap();
+    store.insert_artifact(&artifact).unwrap();
+    let composition = serde_json::from_value(
+        serde_json::json!({"name":"Cards","cards":[{"id":"one","title":"ONE"}]}),
+    )
+    .unwrap();
+    let bytes = serde_json::to_vec(&shape_domain::CardKitDocument::new(composition)).unwrap();
+    let mut commit = successful_commit(&artifact, None);
+    commit.output_media_type = shape_domain::CARD_KIT_MEDIA_TYPE.into();
+    commit.output_bytes = bytes.clone().into();
+    commit.transformation.kind = shape_domain::TransformationKind::Composite;
+    commit.transformation.inputs.clear();
+    commit.receipt.capability = shape_execution::CapabilityId::new("card_kit.compose").unwrap();
+    commit.receipt.executor.id = "shape.builtin.card-kit-composition".into();
+    let first = store.accept(commit).unwrap();
+    let mut next = successful_commit(&artifact, Some(first.id));
+    next.output_media_type = shape_domain::CARD_KIT_MEDIA_TYPE.into();
+    next.output_bytes = bytes.clone().into();
+    next.transformation.kind = shape_domain::TransformationKind::Composite;
+    next.transformation.inputs.clear();
+    next.receipt.capability = shape_execution::CapabilityId::new("card_kit.compose").unwrap();
+    next.receipt.executor.id = "shape.builtin.card-kit-composition".into();
+    let second = store.accept(next).unwrap();
+    let paths = [
+        root.join(MANIFEST_FILE),
+        root.join(DATABASE_FILE),
+        root.join("project.sqlite-wal"),
+    ];
+    let before: Vec<_> = paths.iter().map(|p| fs::read(p).unwrap()).collect();
+    let source = WorkingInput {
+        artifact_id: artifact.id,
+        revision_id: first.id,
+    };
+    let (_, revision, actual) = ProjectStore::inspect_card_kit_revision(&root, source).unwrap();
+    assert_eq!(revision.id, first.id);
+    assert_ne!(revision.id, second.id);
+    assert_eq!(actual, bytes);
+    for (path, bytes) in paths.iter().zip(before) {
+        assert_eq!(fs::read(path).unwrap(), bytes);
+    }
+    assert!(
+        ProjectStore::inspect_card_kit_revision(
+            &root,
+            WorkingInput {
+                artifact_id: shape_domain::ArtifactId::new(),
+                revision_id: first.id
+            }
+        )
+        .is_err()
+    );
+    drop(store);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn sees_live_wal_state_without_changing_manifest_database_or_wal_bytes() {
     let root = test_root("readonly-inspection");
     let store = ProjectStore::create(&root, "Inspect").unwrap();

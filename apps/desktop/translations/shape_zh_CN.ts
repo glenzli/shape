@@ -103,7 +103,7 @@
 <context>
     <name>AiImageOperatorWorkspace</name>
     <message>
-        <location filename="../qml/components/AiImageOperatorWorkspace.qml" line="+47"/>
+        <location filename="../qml/components/AiImageOperatorWorkspace.qml" line="+50"/>
         <source>AI IMAGE · STARTING POINT</source>
         <translation>AI 图片 · 起点</translation>
     </message>
@@ -123,7 +123,12 @@
         <translation>纵向 · 2:3</translation>
     </message>
     <message>
-        <location line="+63"/>
+        <location line="+1"/>
+        <source>Custom · %1 × %2</source>
+        <translation>自定 · %1 × %2</translation>
+    </message>
+    <message>
+        <location line="+62"/>
         <source>Creating a new version…</source>
         <translation>正在创建新版本…</translation>
     </message>
@@ -1082,7 +1087,7 @@
         <translation>继续已保存的卡牌…</translation>
     </message>
     <message>
-        <location line="+121"/>
+        <location line="+122"/>
         <source>This list is too large for these cards. Add a smaller group.</source>
         <translation>这份清单太大，请分成更小的一组再添加。</translation>
     </message>
@@ -1197,7 +1202,7 @@
         <translation>草稿尚未保存</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+70"/>
         <source>Title (optional)</source>
         <translation>标题（可选）</translation>
     </message>
@@ -1382,17 +1387,17 @@
         <translation>从清单添加…</translation>
     </message>
     <message>
-        <location line="-304"/>
+        <location line="-309"/>
         <source>Untitled card</source>
         <translation>未命名卡牌</translation>
     </message>
     <message>
-        <location line="-142"/>
+        <location line="-143"/>
         <source>Some images are too narrow or wide for edge cropping. Choose Show the complete image, or use artwork with more suitable proportions.</source>
         <translation>部分图片过窄或过宽，无法裁边填满。请选择“完整显示图片”，或使用比例更合适的图片。</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Make cards</source>
         <translation>做卡牌</translation>
     </message>
@@ -1547,7 +1552,17 @@
         <translation>保存草稿</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+5"/>
+        <source>Keep this Shape card set, or continue editing and printing in Deck.</source>
+        <translation>保留这份 Shape 卡组，也可到 Deck 继续编辑和打印。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Continue in Deck…</source>
+        <translation>在 Deck 中继续…</translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>Blank card</source>
         <translation>空白卡</translation>
     </message>
@@ -2332,19 +2347,19 @@
         <translation>你想创作什么？</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+22"/>
+        <source>Write and lay out your picture book in Storybook Co Editor.</source>
+        <translation>在 Storybook Co Editor 中编写和排版绘本。</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Open Storybook Co Editor</source>
+        <translation>打开 Storybook Co Editor</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Cards</source>
         <translation>卡牌</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Make image or text cards, or arrange existing card images for printing.</source>
-        <translation>制作图片、文字卡牌，或将现有卡面排版打印。</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Make or arrange cards</source>
-        <translation>做卡牌或排版打印</translation>
     </message>
     <message>
         <location line="+52"/>
@@ -2377,12 +2392,7 @@
         <translation>开始写脚本</translation>
     </message>
     <message>
-        <location line="-75"/>
-        <source>Create or continue a picture book</source>
-        <translation>创建或继续编辑绘本</translation>
-    </message>
-    <message>
-        <location line="-10"/>
+        <location line="-85"/>
         <source>Start with a complete task, or choose a single creative tool below.</source>
         <translation>从完整创作任务开始，也可以选用下方的单项工具。</translation>
     </message>
@@ -2392,12 +2402,17 @@
         <translation>绘本</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Write a story, prepare page artwork, then review the book.</source>
-        <translation>编写故事、准备逐页插图，然后审阅整本绘本。</translation>
+        <location line="+1"/>
+        <source>Make, arrange and print image or text cards in Deck.</source>
+        <translation>在 Deck 中制作、排版和打印图片或文字卡片。</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+0"/>
+        <source>Open Deck</source>
+        <translation>打开 Deck</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Refine an image</source>
         <translation>微调图片</translation>
     </message>
@@ -2751,6 +2766,276 @@
         <location line="-280"/>
         <source>Description · Duration · Seed</source>
         <translation>描述 · 时长 · 种子</translation>
+    </message>
+</context>
+<context>
+    <name>DeckHandoffController</name>
+    <message>
+        <location filename="../src/deck_handoff_controller.cpp" line="+163"/>
+        <source>Choose the Deck application or its executable.</source>
+        <translation>请选择 Deck 应用或其可执行程序。</translation>
+    </message>
+    <message>
+        <location line="+79"/>
+        <source>Deck is no longer running and did not return files. Retry or read a saved result.</source>
+        <translation>Deck 已退出，尚未返回文件。可重试或读取已保存的结果。</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <location line="+270"/>
+        <location line="+20"/>
+        <source>Deck is not installed. Choose its application to continue.</source>
+        <translation>未找到 Deck，请选择应用以继续。</translation>
+    </message>
+    <message>
+        <location line="-284"/>
+        <source>Preparing this saved card set for Deck…</source>
+        <translation>正在准备这份已保存的卡组，以便交给 Deck…</translation>
+    </message>
+    <message>
+        <location line="+54"/>
+        <source>This Deck version does not support this handoff. Choose an updated application.</source>
+        <translation>此版本的 Deck 不支持交接，请选择更新后的应用。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The Deck handoff could not be completed. Your Shape draft is unchanged.</source>
+        <translation>未能完成与 Deck 的交接，Shape 草稿保持原样。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Deck could not be started. Choose its application and retry.</source>
+        <translation>未能启动 Deck，请选择应用后重试。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Deck opened for a new card set.</source>
+        <translation>已打开 Deck，可以新建卡组。</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Returned files verified. Open them below.</source>
+        <translation>返回文件已校验，可在下方打开。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Deck editing was cancelled. Saved Deck work can be continued.</source>
+        <translation>已取消 Deck 编辑，仍可继续已保存的 Deck 作品。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Deck reported an error. Saved work can be continued.</source>
+        <translation>Deck 报告了错误，仍可继续已保存的作品。</translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <location line="+48"/>
+        <source>Deck closed without returning files. Continue the saved work or retry the handoff.</source>
+        <translation>Deck 已关闭，尚未返回文件。可继续已保存的作品，或重试交接。</translation>
+    </message>
+    <message>
+        <location line="-21"/>
+        <source>Editing in Deck. Return outputs there when ready.</source>
+        <translation>正在 Deck 中编辑，完成后请在那里返回输出文件。</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Deck has not returned a result yet. Keep editing there, then choose Return outputs.</source>
+        <translation>Deck 尚未返回结果。请继续编辑，完成后选择“返回输出文件”。</translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Stopped waiting. Deck remains open; read its returned files here later.</source>
+        <translation>已停止等待。Deck 仍保持打开，稍后可在此读取返回文件。</translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>Install Storybook Co Editor to make a new picture book. Existing Shape books remain available.</source>
+        <translation>请安装 Storybook Co Editor 以新建绘本。已有的 Shape 绘本仍可打开。</translation>
+    </message>
+</context>
+<context>
+    <name>DeckHandoffDialog</name>
+    <message>
+        <location filename="../qml/components/DeckHandoffDialog.qml" line="+23"/>
+        <source>Continue cards in Deck</source>
+        <translation>在 Deck 中继续卡组</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Make cards in Deck</source>
+        <translation>在 Deck 中制作卡片</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Send this saved card set and its chosen materials to an independent Deck project. Return exported PDF or ZIP files here when ready.</source>
+        <translation>将这份已保存的卡组及选定素材发送到独立的 Deck 工程。完成后可将导出的 PDF 或 ZIP 文件返回此处。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deck is the dedicated card editor for creating, arranging and printing cards. Shape can make images for it.</source>
+        <translation>Deck 专门用于制作、排版和打印卡片。Shape 可以为其制作图片素材。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Choose the installed Deck application to begin.</source>
+        <translation>请选择已安装的 Deck 应用以开始。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Choose Deck…</source>
+        <translation>选择 Deck…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Continue in Deck</source>
+        <translation>在 Deck 中继续</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Send to Deck</source>
+        <translation>发送到 Deck</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Open Deck</source>
+        <translation>打开 Deck</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Send the current Shape snapshot as a new Deck project</source>
+        <translation>将当前 Shape 快照作为新的 Deck 工程发送</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Verified print PDF</source>
+        <translation>已校验的打印 PDF</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Verified materials ZIP</source>
+        <translation>已校验的素材 ZIP</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open</source>
+        <translation>打开</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Show folder</source>
+        <translation>显示文件夹</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Read returned files</source>
+        <translation>读取返回文件</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Retry this handoff</source>
+        <translation>重试此次交接</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop waiting</source>
+        <translation>停止等待</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Choose Deck</source>
+        <translation>选择 Deck</translation>
+    </message>
+</context>
+<context>
+    <name>DeckMaterialTaskBar</name>
+    <message>
+        <location filename="../qml/components/DeckMaterialTaskBar.qml" line="+20"/>
+        <source>Image for Deck · %1</source>
+        <translation>Deck 配图 · %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Generate and choose a version above, then return the accepted image. Deck will ask before using it on the card.</source>
+        <translation>在上方生成并选用一个版本，再返回选定的图片。Deck 会在将其用于卡片前请你确认。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cancel task</source>
+        <translation>取消任务</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Returning…</source>
+        <translation>正在返回…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Return to Deck</source>
+        <translation>返回 Deck</translation>
+    </message>
+</context>
+<context>
+    <name>DeckMaterialTaskController</name>
+    <message>
+        <location filename="../src/deck_material_task_controller.cpp" line="+109"/>
+        <source>This image task or its new result location is invalid. Ask Deck to start a new task.</source>
+        <translation>此图片任务或新的结果位置无效，请从 Deck 重新开始任务。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>The image task folder could not be created.</source>
+        <translation>未能创建图片任务文件夹。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>The saved image task identity changed. Its files have been kept.</source>
+        <translation>已保存的图片任务身份发生变化，其文件已保留。</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>The saved image task could not be reopened. Its files have been kept.</source>
+        <translation>未能重新打开已保存的图片任务，其文件已保留。</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>The saved image task no longer contains its image. Its files have been kept.</source>
+        <translation>已保存的图片任务不再包含其图片，文件已保留。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The isolated image project could not be created.</source>
+        <translation>未能创建独立的图片任务工程。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Image for Deck</source>
+        <translation>Deck 配图</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>The image task could not be prepared.</source>
+        <translation>未能准备图片任务。</translation>
+    </message>
+    <message>
+        <location line="+60"/>
+        <source>The selected image could not be returned. Its accepted version is saved; retry returning it.</source>
+        <translation>未能返回所选图片。已选用的版本已经保存，请重试返回。</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>The cancellation receipt could not be written. Keep this window open and retry.</source>
+        <translation>未能写入取消回执，请保持此窗口打开并重试。</translation>
+    </message>
+    <message>
+        <location filename="../src/deck_material_task_controller.hpp" line="+48"/>
+        <source>Untitled card</source>
+        <translation>未命名卡片</translation>
     </message>
 </context>
 <context>
@@ -3468,12 +3753,12 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/Main.qml" line="+233"/>
+        <location filename="../qml/Main.qml" line="+245"/>
         <source>Untitled sound</source>
         <translation>未命名声音</translation>
     </message>
     <message>
-        <location line="+254"/>
+        <location line="+264"/>
         <source>Export accepted result</source>
         <translation>导出已采用的结果</translation>
     </message>
@@ -3489,7 +3774,7 @@
         <translation>UTF-8 文本与代码 (*.txt *.md *.js *.mjs *.html *.css *.json *.svg)</translation>
     </message>
     <message>
-        <location line="-245"/>
+        <location line="-255"/>
         <source>Finishing the current image, then stopping. %1 of %2 ready.</source>
         <translation>当前图片完成后停止，已完成 %1/%2 个。</translation>
     </message>
@@ -3509,12 +3794,12 @@
         <translation>已完成 %1/%2 个图片候选。请先查看，再决定是否重试。</translation>
     </message>
     <message>
-        <location line="+545"/>
+        <location line="+556"/>
         <source>Generate %1 versions</source>
         <translation>生成 %1 个候选</translation>
     </message>
     <message>
-        <location line="-552"/>
+        <location line="-563"/>
         <source>AI is creating a new image version…</source>
         <translation>AI 正在创建新的图片版本…</translation>
     </message>
@@ -3549,7 +3834,12 @@
         <translation>每次运行都会创建可查看的版本。只有选择采用后，当前结果才会改变。</translation>
     </message>
     <message>
-        <location line="+119"/>
+        <location line="+118"/>
+        <source>Open the dedicated editor</source>
+        <translation>打开专用编辑器</translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <location line="+16"/>
         <source>Choose an image to refine</source>
         <translation>选择要微调的图片</translation>
@@ -3580,7 +3870,7 @@
         <translation>可复用组件将是下一步能力。这里先为大型项目预留位置，让重复的创作工作可以被整理起来，同时不改变当前的项目结构。</translation>
     </message>
     <message>
-        <location line="+285"/>
+        <location line="+286"/>
         <source>Create an image</source>
         <translation>创建图片</translation>
     </message>
@@ -3615,12 +3905,12 @@
         <translation>生成一个版本</translation>
     </message>
     <message>
-        <location line="-502"/>
+        <location line="-508"/>
         <source>Shape — %1</source>
         <translation>Shape — %1</translation>
     </message>
     <message>
-        <location line="-226"/>
+        <location line="-241"/>
         <source>Untitled text</source>
         <translation>未命名文本</translation>
     </message>
@@ -3630,12 +3920,12 @@
         <translation>未命名配音脚本</translation>
     </message>
     <message>
-        <location line="+227"/>
+        <location line="+242"/>
         <source>Shape — No Project</source>
         <translation>Shape — 无项目</translation>
     </message>
     <message>
-        <location line="+156"/>
+        <location line="+161"/>
         <source>Open Shape project folder</source>
         <translation>打开 Shape 项目文件夹</translation>
     </message>
@@ -3661,7 +3951,7 @@
         <translation>组件</translation>
     </message>
     <message>
-        <location line="+290"/>
+        <location line="+291"/>
         <source>Describe the image, composition, light, and mood…</source>
         <translation>描述图像、构图、光线与氛围…</translation>
     </message>

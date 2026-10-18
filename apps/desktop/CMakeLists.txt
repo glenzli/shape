@@ -80,6 +80,10 @@ qt_add_executable(shape-desktop
     src/desktop_backend.hpp
     src/card_kit_controller.cpp
     src/card_kit_controller.hpp
+    src/deck_handoff_controller.cpp
+    src/deck_handoff_controller.hpp
+    src/deck_material_task_controller.cpp
+    src/deck_material_task_controller.hpp
     src/card_print_controller.cpp
     src/card_print_controller.hpp
     src/card_print_export.cpp
@@ -132,6 +136,8 @@ qt_add_executable(shape-desktop
     tests/speech_feedback_smoke.hpp
     tests/workflow_smoke.cpp
     tests/workflow_smoke.hpp
+    tests/deck_handoff_smoke.cpp
+    tests/deck_handoff_smoke.hpp
     tests/card_flex_smoke.cpp
     tests/card_flex_smoke.hpp
     tests/picture_book_smoke.cpp
@@ -173,6 +179,8 @@ qt_add_qml_module(shape-desktop
         qml/components/MaterialEditWorkspace.qml
         qml/components/PictureBookWorkspace.qml
         qml/components/CardKitWorkspace.qml
+        qml/components/DeckHandoffDialog.qml
+        qml/components/DeckMaterialTaskBar.qml
         qml/components/CardLayoutOptions.qml
         qml/components/CardImageIntakeDialog.qml
         qml/components/CardPrintDialog.qml
@@ -300,6 +308,15 @@ install(TARGETS shape-desktop
 )
 
 if(BUILD_TESTING)
+    add_test(
+        NAME shape-desktop-deck-handoff-smoke
+        COMMAND $<TARGET_FILE:shape-desktop> --smoke-deck-handoff "${CMAKE_CURRENT_BINARY_DIR}/deck-handoff-smoke"
+    )
+    set_tests_properties(shape-desktop-deck-handoff-smoke PROPERTIES
+        TIMEOUT 90
+        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QTWEBENGINE_DISABLE_SANDBOX=1"
+    )
     add_test(
         NAME shape-desktop-smoke
         COMMAND $<TARGET_FILE:shape-desktop> --smoke-exit

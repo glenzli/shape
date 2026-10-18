@@ -7,6 +7,13 @@ The repository is in its foundation phase. Text, image, and preset-only speech s
 interactive creative lifecycle, including creation of a typed audio Artifact with exact Runtime
 provenance and selected-only local audition before acceptance.
 
+Shape focuses on reusable material creation and transformation. Dedicated works belong to their
+editors: [Deck](https://github.com/glenzli/deck) for cards and printing, and
+[Storybook Co-Editor](https://github.com/glenzli/storybook-co-editor) for books. Shadow handles
+specialist image edits. [Vox](https://github.com/glenzli/vox) is a planning repository for future
+script-led narration; the existing Shape speech workflow stays in place. See
+[application boundaries](docs/NATURAL_WORKFLOW.md).
+
 ## Repository map
 
 | Area | Stable entry | Responsibility |
@@ -150,23 +157,22 @@ book composition or portable speech cue choice. See [material editing](docs/MATE
 The text workspace authors production scripts with declared roles, delivery, scenes, exact-repeat blocks, pauses and deterministic cues. The speech node requires explicit role voices and replays each repeated recording without another model call; output is previewed and exported as WAV. See [the rules](docs/SPEECH_SCRIPT.md) and [the AI writing prompt](docs/SPEECH_SCRIPT_PROMPT.md). 配音脚本的格式规则和 AI 写稿提示词见上述文档。
 
 
-## Material editing and picture-book composition
+## Specialist applications and existing compositions
 
-The creation menu starts from concrete tasks: **Picture book**, **Cards**,
-and **Refine an image**. Cards can use complete imported faces, text, or images with text;
-game-card fields and styling are optional. Recoverable drafts keep an ordered card list and
-exact material versions, with reviewed SVG/HTML exports and physical-size PDF sheets with crop
-marks for home printing. Card proportions and content layouts are independent of sheet packing. See
-[creative template design](docs/CREATIVE_TEMPLATES.md) and [card material kits](docs/CARD_KIT.md).
+Deck owns new card authoring and printing. Existing Shape CardKit content remains readable and
+editable for compatibility, including text, imported complete faces and mixed image/text cards.
+Game-card fields are optional. A selected saved card set can be transferred with its exact
+materials into an independent Deck project; the original Shape project remains intact. See
+[Deck handoff](docs/DECK_HANDOFF.md), [creative template boundaries](docs/CREATIVE_TEMPLATES.md)
+and [the existing card contract](docs/CARD_KIT.md).
 
 Persistent Shadow/Echo material stages keep originals intact and accept edited
 returns as derived versions only after review. The desktop and strict JSON CLI
 share ticket/session/source/head validation; Echo PCM24 conversion is explicit.
 See [material editing](docs/MATERIAL_EDIT.md).
 
-Open **Picture books / 绘本** in the project rail to start or continue a book, edit
-language scripts, bind accepted artwork, review and adopt a version, then export
-a reading PDF or editable Storybook `.scproj`. `shape-cli picture-book` exposes
-the same revisioned composition for AI callers. Original materials and older book
-versions remain intact. See [picture-book composition](docs/PICTURE_BOOK.md) for
-the workflow, JSON actions, interoperability and unimplemented publishing features.
+Storybook Co-Editor owns book production. Existing Shape picture-book compositions can still
+be read, edited and exported as a reading PDF or editable Storybook `.scproj`.
+`shape-cli picture-book` exposes that revisioned compatibility path for AI callers. Original
+materials and older book versions remain intact. See [picture-book composition](docs/PICTURE_BOOK.md)
+for JSON actions, interoperability and publishing limitations.

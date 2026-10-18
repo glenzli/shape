@@ -5,7 +5,12 @@
 //! receives explicit presence flags and presentation-safe values through one
 //! generated CXX contract. QML never reads or writes project files directly.
 
+mod deck_handoff;
 mod infer_agent;
+use deck_handoff::{
+    finish_deck_material_task, prepare_deck_handoff, read_deck_material_task,
+    verify_deck_output_return,
+};
 mod infer_image;
 mod infer_runtime_access;
 mod infer_sound;
@@ -324,6 +329,30 @@ mod ffi {
 
         /// Probes only the unauthenticated public consumer contract endpoint.
         fn probe_infer_runtime(base_url: &str) -> InferRuntimeProbeWire;
+
+        fn prepare_deck_handoff(
+            project: &str,
+            artifact: &str,
+            digest: &str,
+            request_id: &str,
+            directory: &str,
+            document: &str,
+        ) -> Result<String>;
+        fn verify_deck_output_return(
+            request: &str,
+            result: &str,
+            expected_request_blake3: &str,
+        ) -> Result<String>;
+        fn read_deck_material_task(request: &str, result: &str) -> Result<String>;
+        fn finish_deck_material_task(
+            project: &str,
+            request: &str,
+            result: &str,
+            source: &str,
+            expected_request_blake3: &str,
+            outcome: &str,
+            error: &str,
+        ) -> Result<String>;
 
         /// Checks only owner/permission/format status; token bytes never cross.
         fn infer_runtime_credential_status(path: &str) -> InferRuntimeCredentialStatusWire;

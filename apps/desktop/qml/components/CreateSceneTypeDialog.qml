@@ -45,8 +45,8 @@ ShapeDialog {
             spacing: 12
             Repeater {
                 model: [
-                    {title: qsTr("Picture book"), detail: qsTr("Write a story, prepare page artwork, then review the book."), action: qsTr("Create or continue a picture book"), name: "createPictureBookButton", task: "picture_book"},
-                    {title: qsTr("Cards"), detail: qsTr("Make image or text cards, or arrange existing card images for printing."), action: qsTr("Make or arrange cards"), name: "createCardKitButton", task: "card_kit"},
+                    {title: qsTr("Picture book"), detail: qsTr("Write and lay out your picture book in Storybook Co Editor."), action: qsTr("Open Storybook Co Editor"), name: "createPictureBookButton", task: "picture_book"},
+                    {title: qsTr("Cards"), detail: qsTr("Make, arrange and print image or text cards in Deck."), action: qsTr("Open Deck"), name: "createCardKitButton", task: "card_kit"},
                     {title: qsTr("Refine an image"), detail: qsTr("Choose an image, edit it in Shadow, then review the returned version."), action: qsTr("Choose an image"), name: "createImageRefinementButton", task: "material_edit"}
                 ]
                 delegate: Rectangle {
