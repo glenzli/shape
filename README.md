@@ -152,10 +152,11 @@ The text workspace authors production scripts with declared roles, delivery, sce
 
 ## Material editing and picture-book composition
 
-The creation menu now starts from concrete tasks: **Picture book**, **Card materials**,
-and **Refine an image**. Card kits keep recoverable direction, an ordered card list,
-accepted artwork, a reviewed offline SVG/HTML material package, and physical-size PDF sheets
-with crop marks for home printing. See
+The creation menu starts from concrete tasks: **Picture book**, **Cards**,
+and **Refine an image**. Cards can use complete imported faces, text, or images with text;
+game-card fields and styling are optional. Recoverable drafts keep an ordered card list and
+exact material versions, with reviewed SVG/HTML exports and physical-size PDF sheets with crop
+marks for home printing. Card proportions and content layouts are independent of sheet packing. See
 [creative template design](docs/CREATIVE_TEMPLATES.md) and [card material kits](docs/CARD_KIT.md).
 
 Persistent Shadow/Echo material stages keep originals intact and accept edited

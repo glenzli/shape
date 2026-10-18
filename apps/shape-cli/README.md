@@ -13,6 +13,13 @@ the same project-backed draft and require its last observed digest before saving
 returns unique readable card SVGs and the exact A4 page/crop geometry consumed by the desktop PDF
 writer. Optional settings select Letter, card size, margins and crop marks; they do not alter history.
 The CLI returns the bounded plan as JSON; the desktop paints the PDF using that plan.
+New general cards opt in with composition `"layout":{"mode":"auto"}`. A card can contain only
+an accepted finished-face image, only visible text, or both; per-card partial layout overrides
+choose `image`, `text`, `image_text`, or the optional `classic` preset. The real canvas axes control
+portrait/landscape/square SVG and print proportions. Omitted print axes derive a safe physical size
+from that ratio; one explicit axis derives the other, and two explicit axes are honored. Read/preview
+return normalized `print_defaults`, resolved layouts, hidden-content hints and authoritative readiness.
+Historical compositions without a layout retain their exact original rendering and default size.
 
 `script_check.rs` owns read-only file intake and the JSON diagnostics command used by external
 AI tools and authoring scripts. It calls the same `shape-domain::speech_script` parser as desktop

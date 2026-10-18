@@ -161,6 +161,7 @@ sourceFixture(DesktopBackend& backend, CardKitController& kit, const QString& di
     }
     composition["name"] = QString::fromUtf8("Moon garden · 月光卡牌");
     composition["cards"] = cards;
+    composition.remove("layout"); // Retain the established 63 × 88 mm legacy regression fixture.
     require(
         kit.save(composition) && kit.review("print-card-1") && kit.accept(),
         "explicitly accept complete 12-copy kit"

@@ -13,6 +13,7 @@ use zip::{ZipWriter, write::SimpleFileOptions};
 
 use super::{
     CardKitError, Material, ShapeProject, invalid,
+    layout::shows_artwork,
     preview::{ensure_export_ready, escape, render_card},
 };
 
@@ -43,6 +44,7 @@ impl ShapeProject {
         let repeated_image_bytes = request
             .cards
             .iter()
+            .filter(|c| shows_artwork(&request, c))
             .filter_map(|c| c.artwork)
             .map(|s| {
                 materials

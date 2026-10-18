@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{OperatorConfigurationSchemaId, WorkingInput, WorkingOperatorConfiguration};
 
+mod layout;
+pub use layout::{CardImageFit, CardLayoutConfig, CardLayoutMode, CardTextAlign};
+
 pub const CARD_KIT_SCHEMA: &str = "shape.card-kit/1";
 pub const CARD_KIT_DRAFT_SCHEMA: &str = "shape.card-kit-draft/1";
 pub const CARD_KIT_MEDIA_TYPE: &str = "application/vnd.shape.card-kit+json";
@@ -37,6 +40,9 @@ pub struct CardKitRequest {
     pub canvas_width: u32,
     #[serde(default = "default_height")]
     pub canvas_height: u32,
+    /// Absent in historical kits: their original renderer and completeness rules stay intact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout: Option<CardLayoutConfig>,
     pub cards: Vec<CardKitCard>,
 }
 
@@ -66,6 +72,9 @@ pub struct CardKitCard {
     /// When bound, this exact UTF-8 material supplies rules; authored rules must be empty.
     #[serde(default)]
     pub text_material: Option<WorkingInput>,
+    /// Partial overrides of the kit layout; switching modes never removes authored content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout: Option<CardLayoutConfig>,
 }
 
 impl CardKitRequest {
@@ -83,8 +92,17 @@ impl CardKitRequest {
         {
             return Err("invalid card kit name, direction, canvas or card count (1 to 64)");
         }
+        if let Some(layout) = &self.layout {
+            layout.validate()?;
+        }
         let mut ids = BTreeSet::new();
         for card in &self.cards {
+            if let Some(layout) = &card.layout {
+                if self.layout.is_none() {
+                    return Err("per-card layout requires a kit layout");
+                }
+                layout.validate()?;
+            }
             if card.id.is_empty()
                 || card.id.len() > 64
                 || !card

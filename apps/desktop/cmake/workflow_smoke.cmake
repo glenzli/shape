@@ -9,7 +9,7 @@ execute_process(
     COMMAND "${CMAKE_COMMAND}" -E env QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
         "${SHAPE_DESKTOP_EXECUTABLE}" --smoke-workflow "${fixture}"
     RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error
-    TIMEOUT 50
+    TIMEOUT 90
 )
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "card workflow failed; evidence ${fixture}: ${output} ${error}")

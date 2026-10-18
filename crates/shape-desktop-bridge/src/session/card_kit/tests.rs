@@ -93,3 +93,62 @@ fn desktop_print_plan_pins_accepted_source_and_deduplicates_quantity_svg_resourc
     drop(session);
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn desktop_general_card_json_reopens_additional_text_and_resolves_print_size_without_game_fields() {
+    let root = std::env::temp_dir().join(format!(
+        "shape-general-card-bridge-{}",
+        uuid::Uuid::now_v7()
+    ));
+    let mut session =
+        create_desktop_project(root.to_str().unwrap(), "General card project").unwrap();
+    let created:Value = serde_json::from_str(&session.session_card_kit_action_json(&json!({"action":"draft_new","composition":{"name":"Learning cards","canvas_width":1000,"canvas_height":1000,"layout":{"mode":"auto"},"cards":[{"id":"word","flavor":"Moon · 月","layout":{"text_scale_percent":150}}]}}).to_string()).unwrap()).unwrap();
+    let draft = &created["draft"];
+    drop(session);
+    let mut session = open_desktop_session(root.to_str().unwrap()).unwrap();
+    let preview:Value = serde_json::from_str(&session.session_card_kit_action_json(&json!({"action":"preview","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"]}).to_string()).unwrap()).unwrap();
+    assert_eq!(
+        preview["preview"]["cards"][0]["resolved_layout"]["mode"],
+        "text"
+    );
+    assert_eq!(preview["preview"]["ready_to_export"], true);
+    assert_eq!(
+        preview["preview"]["default_layout"]["text_scale_percent"],
+        100
+    );
+    assert_eq!(
+        preview["preview"]["cards"][0]["resolved_layout"]["text_scale_percent"],
+        150
+    );
+    let accepted:Value = serde_json::from_str(&session.session_card_kit_action_json(&json!({"action":"accept","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"review_digest":preview["review_digest"]}).to_string()).unwrap()).unwrap();
+    let plan:Value = serde_json::from_str(&session.session_card_kit_action_json(&json!({"action":"print_plan","source":accepted["source"],"options":{"card_height_mm":80}}).to_string()).unwrap()).unwrap();
+    assert_eq!(
+        plan["print_plan"]["options"]["card_width_mm"].as_f64(),
+        Some(80.0)
+    );
+    assert!(
+        plan["print_plan"]["cards"][0]["svg"]
+            .as_str()
+            .unwrap()
+            .contains("viewBox=\"0 0 1000 1000\"")
+    );
+    assert!(
+        !plan["print_plan"]["cards"][0]["svg"]
+            .as_str()
+            .unwrap()
+            .contains("data:image/png")
+    );
+    let read: Value = serde_json::from_str(
+        &session
+            .session_card_kit_action_json(
+                &json!({"action":"read","source":accepted["source"]}).to_string(),
+            )
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(read["composition"]["cards"][0]["title"], "");
+    assert_eq!(read["composition"]["cards"][0]["flavor"], "Moon · 月");
+    assert_eq!(read["print_defaults"], read["preview"]["print_defaults"]);
+    drop(session);
+    std::fs::remove_dir_all(root).unwrap();
+}

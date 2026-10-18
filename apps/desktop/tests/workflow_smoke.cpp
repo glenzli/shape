@@ -1,4 +1,5 @@
 #include "workflow_smoke.hpp"
+#include "card_flex_smoke.hpp"
 #include "card_kit_controller.hpp"
 #include "desktop_backend.hpp"
 #include "ui_preferences.hpp"
@@ -311,9 +312,26 @@ void cardListIntake(QObject& workspace) {
         "card removal preserves the original imported identity"
     );
     click(workspace, "cardKitAddFromList");
+    editor.setProperty("text", "body\nhead\narm");
+    QCoreApplication::processEvents();
+    require(
+        workspace.property("listPreview").toMap().value("rows").toList().size() == 3
+            && !workspace.property("listPreview").toMap().value("headerSkipped").toBool(),
+        "single-column learning words never become an implicit heading"
+    );
+    editor.setProperty("text", "text\nA body-only card\nAnother body-only card");
+    workspace.setProperty("listFirstHeader", true);
+    QCoreApplication::processEvents();
+    const auto body_rows = workspace.property("listPreview").toMap().value("rows").toList();
+    require(
+        body_rows.size() == 2 && body_rows.first().toMap().value("title").toString().isEmpty()
+            && body_rows.first().toMap().value("rules") == "A body-only card",
+        "explicit body heading maps title-free text without inventing printed titles"
+    );
+    workspace.setProperty("listFirstHeader", false);
     for (const auto& pair : QList<QPair<QString, QString>>{
              {"One\tTwo\tThree\tFour", "columns"},
-             {"\tRules", "title"},
+             {"\t\tOnly an image prompt", "content"},
              {"One\t\"Unclosed", "quote"},
              {QString(90, QChar(0x6708)) + "\tRules", "field_length"}
          }) {
@@ -407,6 +425,8 @@ bool verify(
     const QString& directory,
     const QString& settingsPath
 ) {
+    if (qEnvironmentVariableIsSet("SHAPE_SMOKE_CARD_FLEX_ONLY"))
+        return card_flex_smoke::verify(backend, kit, preferences, root, directory + "-flex");
     try {
         require(QDir().mkpath(directory), "create evidence directory");
         require(
@@ -445,6 +465,11 @@ bool verify(
         );
         const auto first = workspace.property("selectedCardId").toString();
         require(!first.isEmpty(), "stable first card identity");
+        require(
+            workspace.property("composition").toMap().value("layout").toMap().value("mode")
+                == "auto",
+            "new card sets explicitly use flexible automatic layout"
+        );
         pristineListIntake(workspace);
         type(*window, child(workspace, "cardKitTitle"), "Moon Fox");
         type(
@@ -453,6 +478,8 @@ bool verify(
             "Draw a card.\nProtect the moon garden.",
             true
         );
+        click(workspace, "cardKitSetLayout");
+        evaluate(child(workspace, "cardKitSetLayoutDialog"), "promptsExpanded = true");
         type(
             *window,
             child(workspace, "cardKitBrief"),
@@ -470,8 +497,13 @@ bool verify(
                 && workspace.property("dirty").toBool(),
             "real key input reaches authored card and draft"
         );
+        click(workspace, "cardKitSetLayoutClose");
         require(kit.source().isEmpty(), "draft creation does not accept an output");
         cardListIntake(workspace);
+        evaluate(
+            workspace,
+            "{ const legacy = copy(composition); delete legacy.layout; changed(legacy); flush() }"
+        );
 
         const auto exact =
             backend.beginAiImageDraft("Identity fixture", "A quiet moonlit landscape", 1536, 1024);
@@ -862,6 +894,10 @@ bool verify(
             "original card materials remain recoverable"
         );
         preferences.setLanguageMode("en");
+        require(
+            card_flex_smoke::verify(backend, kit, preferences, root, directory + "-flex"),
+            "flexible-card native consumer"
+        );
         std::cout << "card template pointer entry, typing, persisted draft, reorder-safe return, "
                      "review, acceptance, ZIP, language and project reopen passed"
                   << std::endl;

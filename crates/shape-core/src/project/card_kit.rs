@@ -1,12 +1,13 @@
 //! Recoverable card-kit authoring over accepted materials, with explicit reviewed acceptance.
 mod draft;
 mod export;
+mod layout;
 mod preview;
 mod print;
 
 pub use draft::CardKitDraft;
 pub use export::CardKitExport;
-pub use print::{CardPrintOptions, CardPrintPaper, CardPrintPlan};
+pub use print::{CardPrintOptions, CardPrintPaper, CardPrintPlan, CardPrintRequestOptions};
 
 use std::{path::PathBuf, sync::Arc};
 
@@ -48,6 +49,10 @@ pub enum CardKitError {
         "card_print.text_overflow: card {card_id} text does not fit at readable print sizes; shorten its copy or use larger cards"
     )]
     PrintTextOverflow { card_id: String },
+    #[error(
+        "card_render.cover_limit: card {card_id} cover expansion exceeds supported rendering bounds; use full image (contain) or different artwork proportions"
+    )]
+    ImageCropLimit { card_id: String },
 }
 fn invalid(message: &'static str) -> CardKitError {
     CardKitError::Invalid(message)
@@ -96,7 +101,7 @@ pub enum CardKitAction {
     PrintPlan {
         source: WorkingInput,
         #[serde(default)]
-        options: CardPrintOptions,
+        options: CardPrintRequestOptions,
     },
 }
 
@@ -202,7 +207,7 @@ impl ShapeProject {
             CardKitAction::Read { source, card_id } => {
                 let composition = self.read_card_kit(source)?;
                 Ok(
-                    json!({"source":source,"preview":self.preview_card_kit(&composition, card_id.as_deref())?,"composition":composition}),
+                    json!({"source":source,"preview":self.preview_card_kit(&composition, card_id.as_deref())?,"print_defaults":print::default_options(&composition),"composition":composition}),
                 )
             }
             CardKitAction::Export {
@@ -212,7 +217,7 @@ impl ShapeProject {
                 self.export_card_kit(source, &destination)?,
             )?),
             CardKitAction::PrintPlan { source, options } => Ok(json!({
-                "print_plan": self.plan_card_print(source, &options)?
+                "print_plan": self.plan_card_print_request(source, &options)?
             })),
         }
     }

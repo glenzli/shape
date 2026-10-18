@@ -140,3 +140,100 @@ fn public_cli_preserves_recovery_acceptance_print_and_material_export_boundaries
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn public_cli_reopens_general_text_and_finished_faces_then_exports_their_actual_canvas() {
+    let root =
+        std::env::temp_dir().join(format!("shape-general-card-cli-{}", uuid::Uuid::now_v7()));
+    fs::create_dir(&root).unwrap();
+    let bundle = root.join("cards.shape");
+    let mut project = ShapeProject::create(&bundle, "General cards").unwrap();
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&[20, 40, 80, 255].repeat(6), 3, 2, ColorType::Rgba8.into())
+        .unwrap();
+    let art = project
+        .import_raster_bytes(png, "Finished card.png")
+        .unwrap();
+    drop(project);
+    let composition = json!({"name":"General kit","canvas_width":1200,"canvas_height":800,"layout":{"mode":"auto"},"cards":[{"id":"face","artwork":{"artifact_id":art.artifact_id,"revision_id":art.id},"quantity":2},{"id":"word","rules":"Moon · 月"}]});
+    let created = run(
+        &root,
+        &bundle,
+        &json!({"action":"draft_new","composition":composition}),
+        true,
+    );
+    let draft = &created["draft"];
+    let loaded = run(
+        &root,
+        &bundle,
+        &json!({"action":"draft_load","artifact_id":draft["artifact_id"]}),
+        true,
+    );
+    assert_eq!(loaded["draft"], *draft);
+    let preview = run(
+        &root,
+        &bundle,
+        &json!({"action":"preview","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"card_id":"face"}),
+        true,
+    );
+    assert_eq!(preview["preview"]["ready_to_export"], true);
+    assert_eq!(
+        preview["preview"]["cards"][0]["resolved_layout"]["mode"],
+        "image"
+    );
+    assert_eq!(
+        preview["preview"]["cards"][1]["resolved_layout"]["mode"],
+        "text"
+    );
+    assert_eq!(
+        preview["preview"]["print_defaults"]["card_height_mm"].as_f64(),
+        Some(42.0)
+    );
+    let accepted = run(
+        &root,
+        &bundle,
+        &json!({"action":"accept","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"review_digest":preview["review_digest"]}),
+        true,
+    );
+    let read = run(
+        &root,
+        &bundle,
+        &json!({"action":"read","source":accepted["source"],"card_id":"word"}),
+        true,
+    );
+    assert_eq!(read["composition"]["cards"][0]["title"], "");
+    assert_eq!(read["composition"]["layout"], json!({"mode":"auto"}));
+    assert_eq!(read["print_defaults"], read["preview"]["print_defaults"]);
+    let printed = run(
+        &root,
+        &bundle,
+        &json!({"action":"print_plan","source":accepted["source"],"options":{"card_width_mm":90}}),
+        true,
+    );
+    assert_eq!(
+        printed["print_plan"]["options"]["card_height_mm"].as_f64(),
+        Some(60.0)
+    );
+    assert_eq!(printed["print_plan"]["total_copies"], 3);
+    assert!(
+        printed["print_plan"]["cards"][0]["svg"]
+            .as_str()
+            .unwrap()
+            .contains("viewBox=\"0 0 1200 800\"")
+    );
+    assert!(
+        !printed["print_plan"]["cards"][0]["svg"]
+            .as_str()
+            .unwrap()
+            .contains("<text ")
+    );
+    let exported = run(
+        &root,
+        &bundle,
+        &json!({"action":"export","source":accepted["source"],"destination":root.join("general.zip")}),
+        true,
+    );
+    assert_eq!(exported["cards"], 2);
+    fs::remove_dir_all(root).unwrap();
+}

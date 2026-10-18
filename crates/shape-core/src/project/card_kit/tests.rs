@@ -460,3 +460,84 @@ fn accepted_square_landscape_and_portrait_artwork_have_centered_proportional_svg
         assert!(rect[1] >= 150.0 && rect[1] + rect[3] <= 580.0);
     }
 }
+
+#[test]
+fn layout_switches_recover_hidden_fields_and_accept_new_versions_without_rewriting_history() {
+    let mut f = Fixture::new();
+    let draft = f.draft();
+    let old_candidate = f
+        .project
+        .propose_card_kit(draft.artifact_id, &draft.draft_digest)
+        .unwrap();
+    let old_revision = f.project.accept_card_kit(old_candidate).unwrap();
+    let old_source = WorkingInput {
+        artifact_id: old_revision.artifact_id,
+        revision_id: old_revision.id,
+    };
+    let old_bytes = f
+        .project
+        .read_revision_content(old_revision.id)
+        .unwrap()
+        .bytes;
+    let old_svg = f
+        .project
+        .preview_card_kit(&f.composition, Some("fox"))
+        .unwrap()["svg"]
+        .clone();
+    let reopened = f.project.open_card_kit_draft(draft.artifact_id).unwrap();
+    let mut edited = f.composition.clone();
+    edited.layout = Some(serde_json::from_value(json!({"mode":"auto"})).unwrap());
+    edited.canvas_width = 1200;
+    edited.canvas_height = 800;
+    edited.cards[0].layout = Some(serde_json::from_value(json!({"mode":"image"})).unwrap());
+    let saved = f
+        .project
+        .save_card_kit_draft(draft.artifact_id, &reopened.draft_digest, &edited)
+        .unwrap();
+    let obsolete = f
+        .project
+        .propose_card_kit(saved.artifact_id, &saved.draft_digest)
+        .unwrap();
+    let mut other = ShapeProject::open(f.root.join("cards.shape")).unwrap();
+    let recovered = other.open_card_kit_draft(saved.artifact_id).unwrap();
+    assert_eq!(recovered.composition, edited);
+    let preview = other
+        .preview_card_kit(&recovered.composition, Some("fox"))
+        .unwrap();
+    assert_eq!(
+        preview["cards"][0]["hidden_content"]["text_fields"],
+        json!(["title", "card_type", "cost", "text_material", "stats"])
+    );
+    edited.cards[0].layout =
+        Some(serde_json::from_value(json!({"mode":"text","text_scale_percent":50})).unwrap());
+    let changed = other
+        .save_card_kit_draft(saved.artifact_id, &saved.draft_digest, &edited)
+        .unwrap();
+    assert!(f.project.accept_card_kit(obsolete).is_err());
+    let candidate = other
+        .propose_card_kit(changed.artifact_id, &changed.draft_digest)
+        .unwrap();
+    let accepted = other.accept_card_kit(candidate).unwrap();
+    let current = other
+        .read_card_kit(WorkingInput {
+            artifact_id: accepted.artifact_id,
+            revision_id: accepted.id,
+        })
+        .unwrap();
+    assert_eq!(current.cards[0].artwork, f.composition.cards[0].artwork);
+    assert_eq!(
+        current.cards[0].text_material,
+        f.composition.cards[0].text_material
+    );
+    assert_eq!(current.cards[0].stats, "2 / 3");
+    let old = other.read_card_kit(old_source).unwrap();
+    assert!(old.layout.is_none());
+    assert_eq!(
+        other.read_revision_content(old_revision.id).unwrap().bytes,
+        old_bytes
+    );
+    assert_eq!(
+        other.preview_card_kit(&old, Some("fox")).unwrap()["svg"],
+        old_svg
+    );
+}

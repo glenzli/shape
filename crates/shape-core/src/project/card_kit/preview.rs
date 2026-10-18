@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use shape_domain::{ArtifactKind, CardKitCard, CardKitRequest};
 use std::fmt::Write as _;
 
-use super::{CardKitError, Material, ShapeProject, invalid};
+use super::{CardKitError, Material, ShapeProject, invalid, layout};
 
 pub(super) struct RenderedCard {
     pub svg: String,
@@ -34,32 +34,54 @@ impl ShapeProject {
                 _ => Some(m.source),
             })
             .collect::<Vec<_>>();
-        let missing_artwork = request
+        let mut missing_artwork = Vec::new();
+        let mut missing_text = Vec::new();
+        let mut empty_content = Vec::new();
+        let mut overflow = Vec::new();
+        let mut ready = true;
+        let cards = request
             .cards
             .iter()
-            .filter(|c| c.artwork.is_none())
-            .map(|c| c.id.clone())
-            .collect::<Vec<_>>();
-        let missing_text = request
-            .cards
-            .iter()
-            .filter(|c| c.title.trim().is_empty() || rules(c, &materials).trim().is_empty())
-            .map(|c| c.id.clone())
-            .collect::<Vec<_>>();
-        let overflow = request
-            .cards
-            .iter()
-            .filter(|c| layout_overflow(c, &materials))
-            .map(|c| c.id.clone())
+            .map(|c| {
+                let resolved = layout::resolve(request, c, &materials, true);
+                let has_text = if resolved.legacy {
+                    !c.title.trim().is_empty() && !rules(c, &materials).trim().is_empty()
+                } else {
+                    !layout::text_fields(c, &materials).is_empty()
+                };
+                let mut issues = layout::missing(&resolved, c, &materials);
+                let overflowing = layout_overflow(request, c, &materials);
+                if issues.contains(&"missing_artwork") {
+                    missing_artwork.push(c.id.clone());
+                }
+                if issues
+                    .iter()
+                    .any(|v| matches!(*v, "missing_text" | "missing_title" | "missing_body"))
+                {
+                    missing_text.push(c.id.clone());
+                }
+                if issues.contains(&"empty_content") {
+                    empty_content.push(c.id.clone());
+                }
+                if overflowing {
+                    overflow.push(c.id.clone());
+                    issues.push("layout_overflow");
+                }
+                ready &= issues.is_empty();
+                json!({"id":c.id,"title":c.title,"quantity":c.quantity,
+                "has_artwork":c.artwork.is_some(),"has_text":has_text,
+                "artwork":c.artwork,"text_material":c.text_material,"layout_overflow":overflowing,
+                "resolved_layout":resolved,"hidden_content":layout::hidden(&resolved,c,&materials),
+                "issues":issues,"content_ready":issues.is_empty()})
+            })
             .collect::<Vec<_>>();
         let rendered = render_card(request, selected, &materials);
-        let cards = request.cards.iter().map(|c| json!({"id":c.id,"title":c.title,"quantity":c.quantity,
-            "has_artwork":c.artwork.is_some(),"has_text":!c.title.trim().is_empty()&&!rules(c,&materials).trim().is_empty(),
-            "artwork":c.artwork,"text_material":c.text_material,"layout_overflow":layout_overflow(c,&materials)})).collect::<Vec<_>>();
         Ok(
             json!({"schema":"shape.card-kit-preview/1","cards":cards,"selected_card_id":selected_id,
-            "svg":rendered.svg,"ready_to_export":missing_artwork.is_empty()&&missing_text.is_empty()&&overflow.is_empty(),
+            "svg":rendered.svg,"ready_to_export":ready,
             "missing_artwork_ids":missing_artwork,"missing_text_ids":missing_text,"overflow_card_ids":overflow,
+            "empty_content_ids":empty_content,"default_layout":layout::resolve(request,selected,&materials,false),
+            "print_defaults":super::print::default_options(request),
             "stale_inputs":stale_inputs,"output_kind":"card_material_kit","print_ready":false}),
         )
     }
@@ -76,8 +98,12 @@ pub(super) fn rules<'a>(card: &'a CardKitCard, materials: &'a [Material]) -> &'a
         .unwrap_or(&card.rules)
 }
 
-fn layout_overflow(card: &CardKitCard, materials: &[Material]) -> bool {
-    copy_overflow(card, materials, &MATERIAL_STYLE)
+fn layout_overflow(request: &CardKitRequest, card: &CardKitCard, materials: &[Material]) -> bool {
+    if request.layout.is_some() {
+        layout::overflow(request, card, materials)
+    } else {
+        copy_overflow(card, materials, &MATERIAL_STYLE)
+    }
 }
 
 pub(super) fn ensure_export_ready(
@@ -88,7 +114,7 @@ pub(super) fn ensure_export_ready(
     if request
         .cards
         .iter()
-        .any(|card| layout_overflow(card, materials))
+        .any(|card| layout_overflow(request, card, materials))
     {
         return Err(invalid(
             "card text overflows; review the reported card ids before export",
@@ -101,14 +127,22 @@ pub(super) fn ensure_complete(
     request: &CardKitRequest,
     materials: &[Material],
 ) -> Result<(), CardKitError> {
-    if request.cards.iter().any(|card| {
-        card.artwork.is_none()
-            || card.title.trim().is_empty()
-            || rules(card, materials).trim().is_empty()
-    }) {
-        return Err(invalid(
-            "every card needs accepted artwork, a title and rules before export",
-        ));
+    for card in &request.cards {
+        let issues = layout::missing(
+            &layout::resolve(request, card, materials, true),
+            card,
+            materials,
+        );
+        if issues.contains(&"image_crop_limit") {
+            return Err(CardKitError::ImageCropLimit {
+                card_id: card.id.clone(),
+            });
+        }
+        if !issues.is_empty() {
+            return Err(invalid(
+                "every card needs the visible content required by its layout before export",
+            ));
+        }
     }
     Ok(())
 }
@@ -118,7 +152,12 @@ pub(super) fn render_card(
     card: &CardKitCard,
     materials: &[Material],
 ) -> RenderedCard {
-    render_card_with_style(request, card, materials, &MATERIAL_STYLE)
+    if request.layout.is_some() {
+        layout::render(request, card, materials, None)
+            .expect("ordinary preview reports overflow without failing")
+    } else {
+        render_card_with_style(request, card, materials, &MATERIAL_STYLE)
+    }
 }
 
 pub(super) fn render_print_card(
@@ -127,6 +166,9 @@ pub(super) fn render_print_card(
     materials: &[Material],
     millimetres_per_unit: f64,
 ) -> Result<RenderedCard, CardKitError> {
+    if request.layout.is_some() {
+        return layout::render(request, card, materials, Some(millimetres_per_unit));
+    }
     let style = CopyStyle::for_print(millimetres_per_unit)?;
     if copy_overflow(card, materials, &style) {
         return Err(CardKitError::PrintTextOverflow {
@@ -277,33 +319,54 @@ fn text_lines(
     }
 }
 
-struct WrappedText {
-    lines: Vec<String>,
-    overflow: bool,
+pub(super) struct WrappedText {
+    pub lines: Vec<String>,
+    pub overflow: bool,
 }
 
 fn wrap(text: &str, font_size: u16) -> WrappedText {
-    // Reserve 1.25 em per ASCII/CJK scalar and 2 em for other Unicode. Each line stays inside
-    // the 638-pixel copy area under this conservative advance budget. Keep ordinary words whole;
-    // CJK phrases and oversized tokens can fill the remaining line before continuing on the next.
-    let capacity = 638 * 4 / usize::from(font_size);
+    // Preserve historical quarter-em capacity and 5/8 glyph costs exactly.
+    wrap_with_advances(text, f64::from(font_size), 638.0, 4.0, glyph_units)
+}
+
+pub(super) fn wrap_flex_to_width(text: &str, font_size: f64, width: f64) -> WrappedText {
+    // Flexible cards reserve 1.05 em for ASCII sans-serif advances, retaining 1.25 em for CJK
+    // and 2 em for other Unicode. Twentieth-em integers keep the capacity comparison exact.
+    wrap_with_advances(text, font_size, width, 20.0, flex_glyph_units)
+}
+
+fn wrap_with_advances(
+    text: &str,
+    font_size: f64,
+    width: f64,
+    units_per_em: f64,
+    advance: fn(char) -> usize,
+) -> WrappedText {
+    // Keep ordinary words whole; CJK phrases and oversized tokens can fill remaining line space.
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "Card geometry bounds the nonnegative advance budget"
+    )]
+    let capacity = (width * units_per_em / font_size).max(0.0).floor() as usize;
+    let space_units = advance(' ');
     let mut lines = Vec::new();
     let mut overflow = false;
     for paragraph in text.replace('\r', "").split('\n') {
         let mut line = String::new();
         let mut units = 0;
         for word in paragraph.split_whitespace() {
-            let word_units = word.chars().map(glyph_units).sum::<usize>();
+            let word_units = word.chars().map(advance).sum::<usize>();
             let can_split = word_units > capacity || word.chars().any(is_cjk);
             if !line.is_empty() {
                 let required = if can_split {
-                    word.chars().next().map_or(0, glyph_units)
+                    word.chars().next().map_or(0, advance)
                 } else {
                     word_units
                 };
-                if units + 5 + required <= capacity {
+                if units + space_units + required <= capacity {
                     line.push(' ');
-                    units += 5;
+                    units += space_units;
                 } else {
                     lines.push(std::mem::take(&mut line));
                     units = 0;
@@ -312,14 +375,14 @@ fn wrap(text: &str, font_size: u16) -> WrappedText {
             let mut chars = word.char_indices().peekable();
             while let Some((start, c)) = chars.next() {
                 let mut end = start + c.len_utf8();
-                let mut cost = glyph_units(c);
+                let mut cost = advance(c);
                 // Keep a complete character with its following closing punctuation. Explicit
                 // paragraph boundaries above remain authored; only automatic breaks change.
                 while let Some(&(index, next)) = chars.peek() {
                     if !closing_punctuation(next) {
                         break;
                     }
-                    cost += glyph_units(next);
+                    cost += advance(next);
                     end = index + next.len_utf8();
                     chars.next();
                 }
@@ -334,7 +397,7 @@ fn wrap(text: &str, font_size: u16) -> WrappedText {
                             &mut line,
                             &mut units,
                             &cluster[index..index + c.len_utf8()],
-                            glyph_units(c),
+                            advance(c),
                             capacity,
                         );
                     }
@@ -406,6 +469,16 @@ const fn glyph_units(value: char) -> usize {
         5
     } else {
         8
+    }
+}
+
+const fn flex_glyph_units(value: char) -> usize {
+    if value.is_ascii() {
+        21
+    } else if is_cjk(value) {
+        25
+    } else {
+        40
     }
 }
 

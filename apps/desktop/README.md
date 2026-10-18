@@ -7,11 +7,19 @@ ports expose a `+` insertion affordance, and focused work happens only after the
 The current artifact-as-Scene implementation remains a compatibility projection while a real
 Scene-owned mutable graph is added; it must not be mistaken for the final multi-source persistence
 model.
-The creation chooser also offers task templates for picture books, card materials and image
+The creation chooser also offers task templates for picture books, cards and image
 refinement. Each template opens its concrete workspace; the graph and single-purpose tools remain
 available. `CardKitController` owns recoverable card drafting, exact review identity and accepted
 export through the Rust card-kit action contract. `CardKitWorkspace.qml` owns the shared brief and
 style, stable card selection, text fields, accepted-artwork choice and material return routing.
+New card sets use automatic layout: an image, text, or both are enough. Each card can override the
+set with a complete-image, text, image-and-text or game-card preset. Titles and game fields are
+optional. `CardLayoutOptions.qml` owns these inherited controls, color selection and its exact
+project/bundle/kit/card callback fence. Switching layouts keeps all text and material pins; the
+workspace names content hidden by the selected layout. Removing an image only detaches its binding.
+Set proportions support portrait, landscape, square and custom width-to-height input without a free
+canvas. Old sets without a layout keep their original appearance and readiness rules until the
+author explicitly chooses a flexible layout.
 Draft edits save in the project after a short pause and before closing or opening a material tool;
 a failed save keeps the current text in the workspace. Artwork generation and Shadow refinement
 produce reviewable versions, and explicit adoption updates the requested card by stable id even
@@ -23,13 +31,24 @@ external-edit stage in the same isolated desktop settings as Shadow's handoff ob
 validates the card source, current original head and persisted stage before resuming that observer;
 it reuses the working copy and still requires explicit adoption. The card preview can also open at
 its full canvas size for scrollable inspection.
-The card list intake previews spreadsheet rows before appending them. It accepts title, rules and
-artwork-description columns, optional recognized headings and quoted multiline cells. It preserves
+The card list intake previews spreadsheet rows before appending them. It accepts optional titles,
+body text and image-description columns, recognized two/three-column headings and quoted multiline
+cells. A single column always keeps every row as a card unless the author explicitly marks it as a
+heading. A body-only row is valid; an image prompt alone is not printable content. It preserves
 existing cards, keeps repeated titles as separate stable identities, rejects malformed/oversized
 lists and enforces the 64-card and composition-size bounds before mutation. Only the sole completely
 untouched starter card is replaced by incoming rows; authored or additional cards remain intact.
 Cancelling the intake
 does not change the card draft.
+`CardImageIntakeDialog.qml` owns native multiple-file selection, the pending confirmation list and
+per-image progress/cancellation/retry. Each successfully imported image is saved as a stable complete
+card without printing its file name. The loop yields between files, rechecks project/bundle/kit
+identity before each import, keeps a successful source for draft-save retries, and inserts a retried
+card at its original batch position. Cancellation keeps completed cards and leaves the rest pending;
+an untouched starter can be replaced. Images of different proportions are contained without cropping.
+The first added image can set an empty set's proportions; unsupported extreme ratios keep the current
+canvas with an explicit explanation. A legacy set must be explicitly converted or replaced before
+this intake starts.
 `CardPrintController` owns the separate accepted-version print session and rejects delayed export
 callbacks after its project, source or layout changes. The Rust `print_plan` action owns all paper,
 card, quantity and crop-mark geometry in millimetres. `card_print_export` consumes that plan through
@@ -39,6 +58,11 @@ Letter layouts support custom card size, margins, gaps and crop marks. PDF publi
 temporary sibling file and an atomic no-clobber hard link; destinations inside any `.shape` bundle,
 including through directory symlinks, are rejected. Print PDFs at **100% / Actual size**, with Fit
 to page disabled. This single-sided layout does not submit a job to a physical printer.
+Print starts with the core's normalized defaults for the set's proportions, and changing one
+measurement can preserve that ratio. The explicit **Accept and arrange for print** action reviews
+and accepts the current card version before opening print; already accepted current content opens
+directly. A later print-layout failure never reports that a successful acceptance was undone.
+AI/Shadow returns still require their own explicit adoption before they become card content.
 Card image-import dialogs also capture the kit, stable card, project id and bundle path before
 opening; a stale callback creates no material. ZIP dialogs retain the exact accepted kit pin.
 The text and speech workflow uses the [node contract](../../docs/NODE_MODEL.md).
@@ -331,7 +355,7 @@ For the stable Shadow/Echo-style local launch path, build, validate, promote, an
 ```
 
 The default promotion is intentionally fast: it checks finished Simplified Chinese translations,
-builds the packaged desktop app, and runs the two packaged desktop smoke paths before advancing
+builds the packaged desktop app, and runs the five packaged desktop smoke paths before advancing
 `current-debug`. Use `./scripts/build_and_promote_debug.sh --full` before commits, cross-module
 handoffs, or release-like checkpoints to also run Rust formatting, workspace Clippy, and all Rust
 tests. Promotion copies a complete candidate bundle into an immutable external release and atomically

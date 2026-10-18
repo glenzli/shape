@@ -17,7 +17,7 @@ pub use project::{
 };
 pub use project::{
     CardKitAction, CardKitCandidate, CardKitDraft, CardKitError, CardKitExport, CardPrintOptions,
-    CardPrintPaper, CardPrintPlan,
+    CardPrintPaper, CardPrintPlan, CardPrintRequestOptions,
 };
 pub use project::{
     PictureBookCandidate, PictureBookDraft, PictureBookDraftAction, PictureBookError,

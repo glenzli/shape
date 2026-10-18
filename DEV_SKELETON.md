@@ -348,6 +348,10 @@ print imposition and publication; native archive intake is deferred. See
 engine. `shape-domain::card_kit` owns stable card identities, shared direction and accepted material
 pins. Core `project::card_kit` owns recoverable WorkingGraph drafts, explicit composition acceptance
 and inert SVG/HTML material exports; store repeats the composition provenance and head checks.
+Card faces belong to this composition owner: complete image faces, text and ordinary image/text
+layouts use the authored canvas ratio, while the original game-card layout remains a compatibility
+path for existing versions. Presets guide authoring without making game fields mandatory. Layout
+changes retain hidden content and exact pins; card styling is independent of physical sheet packing.
 Card print planning owns bounded quantities and physical page, trim and crop-mark geometry over
 one accepted version. Desktop preview and PDF consume that same plan without changing creative history.
 The desktop `CardKitController` and `CardKitWorkspace` own authoring, per-card return routing and

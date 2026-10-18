@@ -92,6 +92,14 @@ bool CardPrintController::prepare(const QVariantMap& source, const QVariantMap& 
         document_.reset();
         emit documentChanged();
         const QString detail = QString::fromUtf8(e.what());
+        if (detail.contains("card_render.cover_limit:"))
+            return fail(
+                QT_TR_NOOP(
+                    "An image is too narrow or wide for edge cropping. Go back to cards and "
+                    "choose Show the complete image, or use artwork with more suitable proportions."
+                ),
+                detail
+            );
         if (detail.contains("card_print.crop_clearance"))
             return fail(
                 QT_TR_NOOP(
@@ -136,8 +144,8 @@ bool CardPrintController::prepare(const QVariantMap& source, const QVariantMap& 
         if (detail.contains("card_print.incomplete"))
             return fail(
                 QT_TR_NOOP(
-                    "Some cards need a title, rules or accepted artwork. Complete and accept the "
-                    "card version before printing."
+                    "Some cards still need content for their chosen layout. Check the unfinished "
+                    "cards and accept the version before printing."
                 ),
                 detail
             );

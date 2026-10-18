@@ -23,16 +23,102 @@ a transient candidate; only explicit acceptance advances the immutable kit revis
 rechecks the exact authored node, target head and all material heads in the store transaction,
 and rebases the saved draft to the accepted head. No AI result is automatically bound or accepted.
 
-An incomplete list can be accepted as a reviewable checklist version. Preview reports
-`missing_artwork_ids`, `missing_text_ids`, and `overflow_card_ids`; `ready_to_export` requires all
-three lists to be empty. A selected card's SVG has separate text and artwork and embeds its PNG,
+An incomplete list can be accepted as a reviewable checklist version. Preview reports each card's
+`issues` and `content_ready`, plus `missing_artwork_ids`, `missing_text_ids`, `empty_content_ids`,
+and `overflow_card_ids`; `ready_to_export` requires every card to be ready. Readiness follows its
+selected layout. A selected card's SVG has separate text and artwork and embeds its PNG,
 with no scripts or network resources. Long text is explicitly reported as layout overflow.
 Artwork is fitted and centered using its accepted raster dimensions, preserving its proportions
 in both Qt and browser SVG renderers without stretching or decoding the PNG a second time.
 The preview keeps ordinary English word boundaries and reserves a conservative width per
-character (1.25 em for ASCII and common CJK ranges, 2 em for other Unicode). CJK phrases and
+character: new flexible faces use 1.05 em for ASCII sans-serif copy, 1.25 em for common CJK ranges,
+and 2 em for other Unicode. Historical cards retain their original 1.25-em ASCII budget and exact
+capacity arithmetic. CJK phrases and
 oversized tokens fill available line space before continuing; ordinary English words remain whole.
 Wide `W`/`M` sequences and mixed Chinese/English copy use the same line budget for preview and export.
+
+## General card faces and historical compatibility
+
+New kits explicitly opt into general card faces with `"layout":{"mode":"auto"}`. They can hold
+finished card images, word/learning cards, reference cards, or image-and-text cards. No game fields
+are required. The shared `canvas_width` and `canvas_height` are the real SVG viewBox axes, so square,
+landscape and portrait faces retain those proportions in previews, material exports and printing.
+All cards share that canvas; this is a small set of presets, without free-form canvas editing or
+mixed-size page packing.
+
+`layout` is optional on the kit and each card. Missing or `null` **kit** layout selects the original
+750:1050 game-card renderer, frame, text limits and artwork/title/body completeness requirements.
+These optional fields serialize only when present: reopening or saving a historical kit does not
+insert `null`, rewrite accepted bytes, alter its review identity or change its material/print SVGs.
+A per-card layout without a kit layout is rejected. To start a new general layout from an old kit,
+explicitly save/review/accept that change as a new version; historical versions remain unchanged.
+
+```json
+{
+  "name": "Plant cards",
+  "canvas_width": 1200,
+  "canvas_height": 800,
+  "layout": {"mode":"auto"},
+  "cards": [
+    {"id":"word","title":"Moon · 月","quantity":2},
+    {"id":"face","artwork":{"artifact_id":"<UUID>","revision_id":"<UUID>"},
+     "layout":{"mode":"image","image_fit":"contain"}}
+  ]
+}
+```
+
+Every configuration field is optional. A card overrides only its explicitly supplied fields;
+other explicit kit fields are inherited, then mode-specific defaults apply. Changing mode preserves
+all text, prompts and material pins, including currently hidden content.
+
+| Field | Values / default |
+| --- | --- |
+| `mode` | `auto`, `image`, `text`, `image_text`, `classic`; default `auto` |
+| `image_fit` | `contain` (complete image) or explicit `cover` (center crop) |
+| `background_color` / `text_color` | Exact `#RRGGBB`; defaults `#ffffff` / `#202020` |
+| `border` | Boolean, default `false` |
+| `padding_percent` | Integer 0–20, as a percentage of the shorter canvas axis; image default 0, others 4 |
+| `text_align` | `left`, `center`, `right`; text default center, others left |
+| `text_scale_percent` | Integer 50–300, default 100; scales authored text in preview and print |
+
+`auto` selects image, text, or image_text from actual accepted artwork and nonblank visible text.
+All of title, body (`rules` or bound `text_material`), type, cost, stats and flavor count as text;
+brief, style and art prompts never count. A full-face image with no text fills the entire canvas
+at equal aspect ratio, with no generated title, filename, game frame or padding. At a different
+ratio, contain centers the complete image over the background; cover clips proportionally inside
+the same card canvas. Both use explicit image geometry that works in Qt and browser SVG renderers.
+Cover uses a local zero-origin `symbol` viewport with explicit `overflow="hidden"` and one image
+child, positioned by `use`. [Qt's symbol implementation](https://github.com/qt/qtsvg/blob/v6.11.2/src/svg/qsvgstructure.cpp)
+sets the painter clip before drawing that image. This avoids the expanded-image intermediate
+buffers allocated by SVG masks. Text stays outside the viewport and retains its vector rendering;
+contain keeps its existing explicit proportional rectangle without an intermediate buffer.
+
+Text cards use the full available face and more prominent type. Image_text splits the actual
+canvas into artwork and copy areas; classic is an artwork-focused visual preset with optional
+text. New classic accepts any actual visible artwork/text and does not impose legacy game fields.
+Image requires artwork; text requires at least one actual text field; image_text requires both;
+empty auto/classic faces report `empty_content`. A prompt or blank material is never a ready face.
+Large type or excess copy reports `layout_overflow`; it is never silently shrunk to fit.
+
+Each preview card returns complete `resolved_layout`, `hidden_content:{artwork,text_fields}`,
+`issues` and `content_ready`. Hidden text names are `title`, `rules`/`text_material`, `card_type`,
+`cost`, `stats`, or `flavor`, only when nonblank. Image mode reports hidden text; text mode reports
+hidden artwork. Stable issue strings are `empty_content`, `missing_artwork`, `missing_text`,
+`missing_title`, `missing_body`, `layout_overflow`, `image_crop_limit`; title/body requirements are legacy-only.
+The top-level preview `default_layout` resolves the selected card using only the kit config,
+ignoring per-card overrides, so global controls cannot accidentally copy a selected card's override.
+`preview.print_defaults` and top-level `read.print_defaults` provide normalized A4 print settings.
+
+For new cover layouts, an expanded image axis above 524,287 SVG units reports `image_crop_limit`.
+The current 64-bit native profile's 300 dpi PDF writer, physical card axes at most 300 mm and canvas axes at least 240
+imply a device scale below 15. Reserving a factor of 16 keeps admitted cover geometry below the
+[64-bit Qt mapped-axis limit](https://github.com/qt/qtbase/blob/v6.11.2/src/gui/painting/qoutlinemapper_p.h)
+of 2²³−1. Ordinary 50:1 artwork filling a 2,400-unit-high card expands to 120,000 units and remains
+admitted. An extreme 16,384:1 source can exceed that rendering bound. Preview omits its unsafe
+image, reports the issue and blocks ZIP/PDF with `card_render.cover_limit`; choose complete-image
+`contain` or different artwork proportions. This does not reject saving, reviewing or explicitly
+accepting a checklist version, alter any source pin/bytes, limit hidden artwork in text mode, or
+change contain and historical rendering. No mask or expanded-image intermediate bitmap is created.
 
 ## Shared desktop and CLI actions
 
@@ -48,7 +134,7 @@ CLI output wraps the result as
 `error`, a `message`, and exit 1. The action request must be a regular UTF-8 JSON file of at most
 96 KiB. Unknown fields are rejected.
 
-Create a complete recoverable draft; defaults are 750 × 1050 pixels and quantity 1:
+Create a recoverable draft; default canvas is 750 × 1050 pixels and quantity is 1:
 
 ```json
 {
@@ -59,6 +145,7 @@ Create a complete recoverable draft; defaults are 750 × 1050 pixels and quantit
     "style": "Ink, quiet moonlight, readable silhouettes",
     "canvas_width": 750,
     "canvas_height": 1050,
+    "layout": {"mode":"auto"},
     "cards": [
       {
         "id": "moon-fox",
@@ -91,7 +178,7 @@ head, operator identity and configuration; never synthesize it from the visible 
 | `draft_discard` | `artifact_id`, `draft_digest` | `{discarded:true}`; preserves accepted revisions |
 | `preview` | `artifact_id`, `draft_digest`, optional `card_id` | `{draft,review_digest,preview}` |
 | `accept` | `artifact_id`, `draft_digest`, `review_digest` | `{source:{artifact_id,revision_id},draft}` with rebased head/digest |
-| `read` | `source`, optional `card_id` | `{source,composition,preview}` for that exact historical version |
+| `read` | `source`, optional `card_id` | `{source,composition,preview,print_defaults}` for that exact historical version |
 | `export` | `source`, `destination` | `shape.card-kit-export/1` receipt |
 | `print_plan` | `source`, optional `options` | `{print_plan}` with unique SVGs and physical page geometry |
 
@@ -101,13 +188,14 @@ Save changes before preview. `preview` verifies current accepted source heads an
 ```json
 {
   "schema": "shape.card-kit-preview/1",
-  "cards": [{"id":"moon-fox","title":"Moon fox","quantity":1,"has_artwork":false,"has_text":true,"artwork":null,"text_material":null,"layout_overflow":false}],
+  "cards": [{"id":"moon-fox","title":"Moon fox","quantity":1,"has_artwork":false,"has_text":true,"artwork":null,"text_material":null,"layout_overflow":false,"content_ready":true,"issues":[],"resolved_layout":{"mode":"text","legacy":false,"image_fit":"contain","background_color":"#ffffff","text_color":"#202020","border":false,"padding_percent":4,"text_align":"center","text_scale_percent":100,"canvas_width":750,"canvas_height":1050},"hidden_content":{"artwork":false,"text_fields":[]}}],
   "selected_card_id": "moon-fox",
   "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" ...>...</svg>",
-  "ready_to_export": false,
-  "missing_artwork_ids": ["moon-fox"],
+  "ready_to_export": true,
+  "missing_artwork_ids": [],
   "missing_text_ids": [],
   "overflow_card_ids": [],
+  "empty_content_ids": [],
   "stale_inputs": [],
   "output_kind": "card_material_kit",
   "print_ready": false
@@ -128,14 +216,15 @@ become paths. All rendered text and attributes are escaped. The manifest retains
 quantities, direction, exact artifact/revision pins and source content identities.
 
 This is a card **material kit**, not print imposition, bleed/trim/PDF production, a game engine,
-or proof of generated artwork. The brief/style guide authoring; this first renderer uses one
-neutral readable frame. Inspect the exported HTML/SVG before any further production process.
+or proof of generated artwork. The brief/style guide authoring; layout chooses a bounded card-face
+preset. Inspect the exported HTML/SVG before any further production process.
 
 The contract admits 1–64 cards, at most 64 distinct materials (one revision per material), 60 KiB
 of composition JSON, a 240–2400 pixel canvas on either axis, and quantity 1–999. Accepted images
 are canonical Shape PNGs of at most 20 MiB each; rules materials are at most 8 KiB UTF-8. Total
 unique input bytes are limited to 128 MiB. Exported self-contained previews admit at most 96 MiB
-of artwork counted once per card, including repeated artwork; split larger kits or bind smaller
+of visible artwork counted once per card, including repeated artwork; hidden artwork remains an
+exact source in the package but is not embedded in that card's SVG. Split larger kits or bind smaller
 accepted images. Project schema `20261018.1` additively recognizes CardKit without adding tables;
 older `20261004.1` projects retain their accepted content and draft configurations on upgrade.
 
@@ -167,8 +256,18 @@ The existing desktop/CLI JSON channel accepts:
 }
 ```
 
-All options may be omitted. Default A4 is 210 × 297 mm, with 3 columns × 3 rows of 63 × 88 mm
-cards. The trim grid is 195 × 270 mm; its conservative full-stroke mark envelope is
+All options may be omitted. New general kits derive physical size from their real canvas ratio,
+anchored at 63 mm wide, proportionally enlarged/shrunk if necessary to keep both axes at least
+10 mm and fit the selected paper with all marks/margins. For example 1200:800 defaults to 63 × 42 mm,
+2400:240 to 100 × 10 mm, and 240:2400 to 28.28 × 282.8 mm on A4. One explicit card axis derives the
+other proportionally, rounded to 0.001 mm; the explicit axis is never silently reduced. Both explicit
+axes are used exactly, containing and centering the face if their ratio differs. Invalid or unfit
+derived dimensions are rejected before artwork allocation. The result always returns both normalized
+numeric dimensions; the composition does not store transient print settings.
+
+Historical kits with no layout retain 63 × 88 mm when both axes are omitted. Default A4 is
+210 × 297 mm, with 3 columns × 3 rows of those legacy cards. The trim grid is 195 × 270 mm;
+its conservative full-stroke mark envelope is
 199.2 × 274.2 mm, leaving at least the requested 5 mm outer margin. Letter is 215.9 × 279.4 mm
 and fits 3 × 2 at these settings. A partial last page contains only its actual copies and marks;
 an exact multiple never creates an empty trailing page.
@@ -199,10 +298,13 @@ The result's `print_plan` carries `source`, `name`, normalized/defaulted `option
   white trim rectangle and `content_rect_mm` with the same shape for proportional SVG placement.
 - Each crop mark is `{x1,y1,x2,y2}` in mm; paint it with `options.stroke_width_mm` and butt caps.
 
-The fixed 750:1050 logical card frame is contained and centered inside each trim rectangle.
-Its accepted artwork keeps its own proportions. The printing SVG uses physical minimum font sizes:
+The real logical card canvas (historically 750:1050) is contained and centered inside each trim
+rectangle. Its accepted artwork keeps its own proportions; explicit cover cropping happens inside
+the SVG, not by enlarging a print slot beyond its trim area. The printing SVG uses minimum font sizes:
 9 pt title, 7 pt rules/type/stats and 6 pt flavor, rounding upward in SVG units at the actual print
-scale. It wraps again in fixed text areas and rejects overflow with the stable card id; it never
+scale. General text cards use their full text area, and their ordinary preview applies the same
+font floor at the reported default print size. Text scale changes both renderings; a smaller
+explicit physical print size may raise the logical font floor. It rejects overflow with the stable card id; it never
 silently shrinks or omits copy. A longer card can remain valid for the material package while
 requiring shorter copy or a larger card for printing.
 
@@ -212,11 +314,15 @@ Before loading artwork bytes or expanding copies, planning admits at most 4,096 
 128 Mi pixels from accepted raster contracts across the unique card SVGs, alongside the existing
 input limits. Distinct card SVGs sharing an image count that image again because renderers can
 decode each resource separately; repeated copies of one card do not multiply the resource budget.
+Hidden artwork is not embedded and does not count against per-card SVG artwork budgets; all source
+pins still receive the existing verification, input bounds and acceptance/CAS checks.
 
 Stable error prefixes include `card_print.quantity_limit`, `page_limit`, `slot_limit`,
 `option_range`, `crop_clearance`, `paper_fit`, `artwork_bytes`, `artwork_pixels`,
 `artwork_contract`, `incomplete`, and `text_overflow` (each with `card_print.`). They let the desktop
 give a specific suggestion while retaining neutral handling for corrupt or unavailable materials.
+The separate `card_render.cover_limit` prefix identifies unsupported image expansion and suggests
+complete-image contain; it is preserved by both material-package and PDF planning errors.
 
 The output declares `output_kind:"home_print_layout"`, `commercial_prepress:false` and
 `duplex:false`. This is a one-sided home-print PDF with cut lines, without bleed, back registration,

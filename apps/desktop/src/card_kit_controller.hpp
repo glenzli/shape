@@ -26,6 +26,7 @@ class CardKitController : public QObject {
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(bool hasReview READ hasReview NOTIFY previewChanged)
     Q_PROPERTY(bool canExport READ canExport NOTIFY previewChanged)
+    Q_PROPERTY(bool currentAccepted READ currentAccepted NOTIFY currentAcceptedChanged)
   public:
     explicit CardKitController(DesktopBackend& backend, QObject* parent = nullptr);
     CardKitController(
@@ -62,6 +63,9 @@ class CardKitController : public QObject {
         return !review_digest_.isEmpty();
     }
     bool canExport() const;
+    bool currentAccepted() const {
+        return accepted_current_ && !source_.isEmpty();
+    }
     Q_INVOKABLE bool refresh();
     Q_INVOKABLE bool beginNew();
     Q_INVOKABLE bool load(const QString& artifactId);
@@ -84,12 +88,14 @@ class CardKitController : public QObject {
     void draftsChanged();
     void previewChanged();
     void statusChanged();
+    void currentAcceptedChanged();
 
   private:
     QJsonObject action(QJsonObject request);
     void setDraft(const QJsonObject& value);
     void updateSource();
     void clear();
+    void setAcceptedCurrent(bool value);
     bool fail(const char* message, const std::exception& error);
     QString artworkEditKey(const QString& cardId) const;
     QString legacyArtworkEditKey(const QString& cardId) const;

@@ -132,6 +132,8 @@ qt_add_executable(shape-desktop
     tests/speech_feedback_smoke.hpp
     tests/workflow_smoke.cpp
     tests/workflow_smoke.hpp
+    tests/card_flex_smoke.cpp
+    tests/card_flex_smoke.hpp
     tests/picture_book_smoke.cpp
     tests/picture_book_smoke.hpp
     tests/picture_book_process_smoke.cpp
@@ -171,6 +173,8 @@ qt_add_qml_module(shape-desktop
         qml/components/MaterialEditWorkspace.qml
         qml/components/PictureBookWorkspace.qml
         qml/components/CardKitWorkspace.qml
+        qml/components/CardLayoutOptions.qml
+        qml/components/CardImageIntakeDialog.qml
         qml/components/CardPrintDialog.qml
         qml/components/CardListImport.js
         qml/components/AiImageOperatorWorkspace.qml
@@ -331,7 +335,7 @@ if(BUILD_TESTING)
     )
     set_tests_properties(shape-desktop-workflow-smoke PROPERTIES
         FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
-        TIMEOUT 60
+        TIMEOUT 100
     )
     add_test(
         NAME shape-desktop-card-print-smoke

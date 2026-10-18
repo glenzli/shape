@@ -1,10 +1,14 @@
 //! One bounded physical home-print plan; adapters paint these exact millimetre coordinates.
 //! Print settings never enter an accepted composition or create a new artifact revision.
 use serde::{Deserialize, Serialize};
-use shape_domain::{ArtifactContentContract, ArtifactRevision, WorkingInput};
+use shape_domain::{ArtifactContentContract, ArtifactRevision, CardKitRequest, WorkingInput};
+
+mod options;
+pub use options::CardPrintRequestOptions;
 
 use super::{
     CardKitError, ShapeProject,
+    layout::shows_artwork,
     preview::{ensure_complete, render_print_card},
 };
 
@@ -168,20 +172,49 @@ impl ShapeProject {
         options: &CardPrintOptions,
     ) -> Result<CardPrintPlan, CardKitError> {
         let request = self.read_card_kit(source)?;
+        self.plan_card_print_composition(source, request, options)
+    }
+
+    /// Resolves omitted axes proportionally from this accepted face, then admits one print plan.
+    /// # Errors
+    /// Rejects invalid, unsupported or overflowing dimensions without changing accepted history.
+    pub fn plan_card_print_request(
+        &self,
+        source: WorkingInput,
+        options: &CardPrintRequestOptions,
+    ) -> Result<CardPrintPlan, CardKitError> {
+        let request = self.read_card_kit(source)?;
+        let resolved = options.resolve(&request)?;
+        self.plan_card_print_composition(source, request, &resolved)
+    }
+
+    fn plan_card_print_composition(
+        &self,
+        source: WorkingInput,
+        request: CardKitRequest,
+        options: &CardPrintOptions,
+    ) -> Result<CardPrintPlan, CardKitError> {
         let total_copies = request.cards.iter().map(|c| usize::from(c.quantity)).sum();
         let layout = Layout::new(options, total_copies)?;
         let mut artwork_budget = ArtworkBudget::default();
-        for pin in request.cards.iter().filter_map(|c| c.artwork) {
+        for pin in request
+            .cards
+            .iter()
+            .filter(|c| shows_artwork(&request, c))
+            .filter_map(|c| c.artwork)
+        {
             artwork_budget.add(&self.revision(pin.revision_id)?)?;
         }
         let materials = self.card_kit_materials(&request, false)?;
-        ensure_complete(&request, &materials).map_err(|_| {
-            print_invalid(
+        ensure_complete(&request, &materials).map_err(|error| match error {
+            error @ CardKitError::ImageCropLimit { .. } => error,
+            _ => print_invalid(
                 "card_print.incomplete",
-                "every card needs accepted artwork, a title and rules before printing",
-            )
+                "each card needs visible content required by its layout before printing",
+            ),
         })?;
-        let content_scale = (mm(layout.width) / 750.0).min(mm(layout.height) / 1050.0);
+        let canvas = options::canvas(&request);
+        let content_scale = (mm(layout.width) / canvas.0).min(mm(layout.height) / canvas.1);
         let cards = request
             .cards
             .iter()
@@ -204,7 +237,8 @@ impl ShapeProject {
                         crop_marks: Vec::new(),
                     });
                 }
-                let (slot, marks) = layout.slot(index % layout.capacity, &card.id, copy_index);
+                let (slot, marks) =
+                    layout.slot(index % layout.capacity, &card.id, copy_index, canvas);
                 let page = pages.last_mut().ok_or_else(|| {
                     print_invalid(
                         "card_print.layout",
@@ -237,6 +271,10 @@ impl ShapeProject {
             duplex: false,
         })
     }
+}
+
+pub(super) fn default_options(request: &CardKitRequest) -> CardPrintOptions {
+    options::defaults(request)
 }
 
 /// All trim and mark placement uses integral micrometres, without cumulative float rounding.
@@ -329,6 +367,7 @@ impl Layout {
         index: usize,
         card_id: &str,
         copy_index: u16,
+        canvas: (f64, f64),
     ) -> (CardPrintSlot, Vec<CardPrintLine>) {
         let column = i32::try_from(index % self.columns).expect("admitted column count");
         let row = i32::try_from(index / self.columns).expect("admitted row count");
@@ -340,12 +379,12 @@ impl Layout {
             width: mm(self.width),
             height: mm(self.height),
         };
-        let scale = (rect_mm.width / 750.0).min(rect_mm.height / 1050.0);
+        let scale = (rect_mm.width / canvas.0).min(rect_mm.height / canvas.1);
         let content_rect_mm = CardPrintRect {
-            x: rect_mm.x + (rect_mm.width - 750.0 * scale) / 2.0,
-            y: rect_mm.y + (rect_mm.height - 1050.0 * scale) / 2.0,
-            width: 750.0 * scale,
-            height: 1050.0 * scale,
+            x: rect_mm.x + (rect_mm.width - canvas.0 * scale) / 2.0,
+            y: rect_mm.y + (rect_mm.height - canvas.1 * scale) / 2.0,
+            width: canvas.0 * scale,
+            height: canvas.1 * scale,
         };
         let mut marks = Vec::with_capacity(8);
         for (corner_x, direction_x) in [(x, -1), (x + self.width, 1)] {

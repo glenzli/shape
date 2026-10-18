@@ -908,24 +908,117 @@
     </message>
 </context>
 <context>
+    <name>CardImageIntakeDialog</name>
+    <message>
+        <location filename="../qml/components/CardImageIntakeDialog.qml" line="+35"/>
+        <source>Add existing card images</source>
+        <translation>添加现有卡面</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>There is room for %1 more cards. Choose fewer images or start a new set.</source>
+        <translation>还可以添加 %1 张卡牌。请选择更少的图片，或新建一套卡牌。</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>The card list changed or is full. Keep the added cards and reopen this list.</source>
+        <translation>卡牌清单已更改或已满。已添加的卡牌会保留，请重新打开待添加清单。</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>The image was imported, but its card could not be identified. Choose it from the project’s images.</source>
+        <translation>图片已导入，但无法确定对应卡牌。请从项目图片中选择它。</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Choose complete card images</source>
+        <translation>选择完整卡面图片</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Images (*.png *.jpg *.jpeg)</source>
+        <translation>图片 (*.png *.jpg *.jpeg)</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Each image becomes one complete card with one copy, in the order shown below. Existing cards stay. Images are shown in full without cropping; file names are not printed on the cards.</source>
+        <translation>每张图片将按下列顺序添加为一张完整卡牌，默认各印一份。已有卡牌会保留。图片完整显示，不裁切；文件名不会印在卡面上。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Use the first added image’s proportions for this set</source>
+        <translation>整套卡牌采用首张成功添加图片的比例</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>%1 added · %2 failed · %3 waiting</source>
+        <translation>已添加 %1 张 · 失败 %2 张 · 待添加 %3 张</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Adding stopped. Cards already added are kept; you can continue the remaining images.</source>
+        <translation>已停止添加。已添加的卡牌会保留，可以继续添加其余图片。</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Added</source>
+        <translation>已添加</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ready to add</source>
+        <translation>待添加</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Stop adding</source>
+        <translation>停止添加</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Back to cards</source>
+        <translation>返回卡牌</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Retry remaining images</source>
+        <translation>重试剩余图片</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Continue adding</source>
+        <translation>继续添加</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Add %1 cards</source>
+        <translation>添加 %1 张卡牌</translation>
+    </message>
+</context>
+<context>
     <name>CardKitController</name>
     <message>
-        <location filename="../src/card_kit_controller.cpp" line="+210"/>
+        <location filename="../src/card_kit_controller.cpp" line="+216"/>
         <source>Could not load saved card drafts. Your current work is still here.</source>
         <translation>无法读取已保存的卡牌草稿，当前内容仍然保留。</translation>
     </message>
     <message>
         <location line="+21"/>
-        <source>New card materials</source>
-        <translation>新卡牌物料</translation>
+        <source>New cards</source>
+        <translation>新建卡牌</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Could not create a card draft. Check that this project is writable.</source>
         <translation>无法创建卡牌草稿，请检查项目是否可写。</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+27"/>
         <location line="+109"/>
         <source>Could not open these cards. The saved version has not changed.</source>
         <translation>无法打开这些卡牌，已保存的版本未被更改。</translation>
@@ -989,17 +1082,7 @@
         <translation>继续已保存的卡牌…</translation>
     </message>
     <message>
-        <location line="+35"/>
-        <source>Card materials</source>
-        <translation>卡牌物料</translation>
-    </message>
-    <message>
-        <location line="+74"/>
-        <source>Paste at least one card title to begin.</source>
-        <translation>请先粘贴至少一个卡牌标题。</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+121"/>
         <source>This list is too large for these cards. Add a smaller group.</source>
         <translation>这份清单太大，请分成更小的一组再添加。</translation>
     </message>
@@ -1009,17 +1092,7 @@
         <translation>每组最多包含 64 张卡牌。请减少行数，或新建一组卡牌。</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Row %1 has more than three columns. Use title, rules and artwork description.</source>
-        <translation>第 %1 行超过三列，请按标题、规则、插图描述的顺序填写。</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Row %1 needs a card title.</source>
-        <translation>请为第 %1 行填写卡牌标题。</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+4"/>
         <source>Row %1 has too much text. Shorten its title, rules or artwork description.</source>
         <translation>第 %1 行文字过长，请精简标题、规则或插图描述。</translation>
     </message>
@@ -1044,29 +1117,9 @@
         <translation>插图正在编辑</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Needs text</source>
-        <translation>待补文字</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Needs artwork</source>
-        <translation>待补插图</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Shorten text</source>
-        <translation>需精简文字</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+8"/>
         <source>Ready</source>
         <translation>已就绪</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Checked</source>
-        <translation>已检查</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1074,27 +1127,27 @@
         <translation>待检查</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+85"/>
+        <source>Complete the content needed by each card’s layout before printing.</source>
+        <translation>打印前，请补齐每张卡牌所选版式需要的内容。</translation>
+    </message>
+    <message>
+        <location line="+51"/>
         <source>The image was imported. Choose it from accepted artwork to add it to this card.</source>
         <translation>图像已导入，请在已采用的插图中选择它，添加到此卡牌。</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Finish or stop the current image run before starting another.</source>
         <translation>请完成或停止当前图像生成后，再开始下一次生成。</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Landscape card illustration. Keep lettering and rules outside the artwork.</source>
-        <translation>横幅卡牌插图，图中不要包含文字或规则。</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+11"/>
         <source>Card artwork</source>
         <translation>卡牌插图</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+18"/>
         <source>Choose the current accepted artwork explicitly before editing it.</source>
         <translation>编辑前，请明确选择插图当前已采用的版本。</translation>
     </message>
@@ -1104,7 +1157,7 @@
         <translation>工作副本已打开，但无法保存重开 Shape 后的返回位置。</translation>
     </message>
     <message>
-        <location line="+75"/>
+        <location line="+76"/>
         <source>Choose card artwork</source>
         <translation>选择卡牌插图</translation>
     </message>
@@ -1129,12 +1182,7 @@
         <translation>新建卡牌</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Name these card materials</source>
-        <translation>为这些卡牌物料命名</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+9"/>
         <source>Saving draft…</source>
         <translation>正在保存草稿…</translation>
     </message>
@@ -1149,47 +1197,372 @@
         <translation>草稿尚未保存</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+65"/>
+        <source>Title (optional)</source>
+        <translation>标题（可选）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Body text</source>
+        <translation>正文</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>A word, question, explanation, reminder…</source>
+        <translation>单词、问题、说明、提醒……</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>This card uses accepted text from the project. Writing here replaces that text binding.</source>
+        <translation>此卡牌使用项目中已采用的文字。在这里书写会替换该文字绑定。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hide more text</source>
+        <translation>收起更多文字</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>More text…</source>
+        <translation>更多文字…</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Additional text (optional)</source>
+        <translation>补充文字（可选）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hide image description</source>
+        <translation>收起图片描述</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Image description…</source>
+        <translation>图片描述…</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Card preview and image</source>
+        <translation>卡面预览与图片</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Remove image</source>
+        <translation>移除图片</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Choose the content you need, then accept the cards and arrange them for printing.</source>
+        <translation>按需要添加内容，然后采用卡牌并排版打印。</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Text does not fit on %1 cards. Adjust the text or layout, or use a larger card size for printing.</source>
+        <translation>有 %1 张卡牌的文字超出版面。请调整文字或版式，或在打印时选择更大的卡牌尺寸。</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Accept and arrange for print…</source>
+        <translation>采用并排版…</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Enter a positive width and height. Neither side can be more than ten times the other.</source>
+        <translation>请输入大于零的宽和高，任意一边不能超过另一边的十倍。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Set layout and optional creative direction</source>
+        <translation>整套版式与创作提示</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Card proportions</source>
+        <translation>卡面比例</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Keep current proportions</source>
+        <translation>保持当前比例</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait · 5:7</source>
+        <translation>竖版 · 5:7</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape · 7:5</source>
+        <translation>横版 · 7:5</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Square · 1:1</source>
+        <translation>方形 · 1:1</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape · 3:2</source>
+        <translation>横版 · 3:2</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait · 2:3</source>
+        <translation>竖版 · 2:3</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Custom proportions…</source>
+        <translation>自定义宽高比例…</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Width</source>
+        <translation>宽</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Height</source>
+        <translation>高</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apply proportions</source>
+        <translation>应用比例</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Choosing new proportions or a flexible layout changes the appearance of these original cards. Their text and images are kept.</source>
+        <translation>选择新比例或通用版式将改变这些原版卡牌的外观，文字和图片都会保留。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The whole set uses one card size. Print starts with these proportions; choose the finished size in the print layout.</source>
+        <translation>整套卡牌使用统一尺寸。打印时会沿用此比例，可在打印排版中选择成品尺寸。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Hide creative direction</source>
+        <translation>收起创作提示</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Creative direction (optional)…</source>
+        <translation>创作提示（可选）…</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Shared brief</source>
         <translation>共同创作要求</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>What are these cards for?</source>
         <translation>这些卡牌用来做什么？</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Visual style</source>
         <translation>视觉风格</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Palette, mood and illustration style…</source>
         <translation>配色、氛围和插画风格…</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="-248"/>
         <source>Cards · %1</source>
         <translation>卡牌 · %1</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Add</source>
-        <translation>添加</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>Add from a list…</source>
         <translation>从清单添加…</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="-304"/>
         <source>Untitled card</source>
         <translation>未命名卡牌</translation>
     </message>
     <message>
+        <location line="-142"/>
+        <source>Some images are too narrow or wide for edge cropping. Choose Show the complete image, or use artwork with more suitable proportions.</source>
+        <translation>部分图片过窄或过宽，无法裁边填满。请选择“完整显示图片”，或使用比例更合适的图片。</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Make cards</source>
+        <translation>做卡牌</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Choose a flexible default layout for this set before changing a card’s layout.</source>
+        <translation>请先为整套卡牌选择通用默认版式，再修改单张卡牌的版式。</translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>Paste at least one card title or text to begin.</source>
+        <translation>请先粘贴至少一张卡牌的标题或正文。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Row %1 has more than three columns. Use title, text and image description.</source>
+        <translation>第 %1 行超过三列，请使用标题、正文和图片描述三列。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row %1 needs a title or text. An image description alone is not printable content.</source>
+        <translation>第 %1 行需要标题或正文，仅有图片描述不能形成可打印内容。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Use title, text or image description as column headings, or turn off the heading option.</source>
+        <translation>请使用标题、正文或图片描述作为表头，或取消勾选表头选项。</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Use the full image or artwork with different proportions</source>
+        <translation>请完整显示图片，或换用其他比例的图片</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shorten text or change the layout</source>
+        <translation>需精简文字或调整版式</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add an image or text</source>
+        <translation>待添加图片或文字</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add an image</source>
+        <translation>待添加图片</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add text</source>
+        <translation>待添加文字</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>image</source>
+        <translation>图片</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>title</source>
+        <translation>标题</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>body text</source>
+        <translation>正文</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>accepted text</source>
+        <translation>已采用的文字</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>type</source>
+        <translation>类型</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>cost</source>
+        <translation>费用</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>stats</source>
+        <translation>数值</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>additional text</source>
+        <translation>补充文字</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This layout hides %1. The content is kept.</source>
+        <translation>此版式不显示%1，内容仍保留。</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Choose a flexible layout or start a new set before adding complete card images. The saved cards keep their original layout until you choose.</source>
+        <translation>添加完整卡面前，请先选择通用版式，或新建一套卡牌。在您明确选择前，已保存卡牌保持原版式。</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>The project or card set changed. Reopen the image list.</source>
+        <translation>项目或卡牌套组已更改，请重新打开待添加图片清单。</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>This card changed. Keep its current content and reopen the image list.</source>
+        <translation>此卡牌已更改，当前内容会保留，请重新打开待添加图片清单。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>This set already contains 64 cards.</source>
+        <translation>此套已包含 64 张卡牌。</translation>
+    </message>
+    <message>
         <location line="+6"/>
+        <source>This image is unusually narrow or wide. The set’s proportions were kept, and the complete image will fit inside the card.</source>
+        <translation>此图片的宽高比例过于狭长，已保留整套卡牌的当前比例，图片仍会完整放入卡面。</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>The card version was accepted. Adjust the print layout in the opened window to continue.</source>
+        <translation>卡牌版本已采用，请在已打开的窗口中调整打印排版后继续。</translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>Create a complete card image. Follow the chosen card proportions.</source>
+        <translation>创作完整卡面图片，遵循所选卡面比例。</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Card illustration. Keep the card text outside the artwork.</source>
+        <translation>创作卡牌插图，卡牌文字置于插图之外。</translation>
+    </message>
+    <message>
+        <location line="+145"/>
+        <source>Name this card set</source>
+        <translation>为这套卡牌命名</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Set layout…</source>
+        <translation>整套版式…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Save draft</source>
+        <translation>保存草稿</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Blank card</source>
+        <translation>空白卡</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Add existing card images…</source>
+        <translation>添加现有卡面…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Start with images, text, or both. Each card can use its own layout.</source>
+        <translation>可以从图片、文字或图文开始，每张卡牌均可选择版式。</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>Move up</source>
         <translation>上移</translation>
     </message>
@@ -1199,17 +1572,12 @@
         <translation>下移</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+18"/>
         <source>Card text</source>
         <translation>卡牌文字</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Card title</source>
-        <translation>卡牌标题</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+17"/>
         <source>Type (optional)</source>
         <translation>类型（可选）</translation>
     </message>
@@ -1220,31 +1588,11 @@
     </message>
     <message>
         <location line="+2"/>
-        <source>Rules or description</source>
-        <translation>规则或说明</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Write the card effect or description…</source>
-        <translation>填写卡牌效果或说明…</translation>
-    </message>
-    <message>
-        <location line="+4"/>
         <source>Stats (optional)</source>
         <translation>数值（可选）</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Flavor text (optional)</source>
-        <translation>背景描述（可选）</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Artwork description</source>
-        <translation>插图描述</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+9"/>
         <source>Describe this card’s subject and composition…</source>
         <translation>描述这张卡牌的主体和构图…</translation>
     </message>
@@ -1259,22 +1607,17 @@
         <translation>移除卡牌</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Artwork and check</source>
-        <translation>插图与检查</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+11"/>
         <source>Check the cards to see the layout here.</source>
         <translation>检查卡牌后，可在这里查看排版。</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Enlarge preview</source>
         <translation>放大预览</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+6"/>
         <source>Import image…</source>
         <translation>导入图像…</translation>
     </message>
@@ -1294,12 +1637,7 @@
         <translation>继续编辑插图…</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Next: add text and accepted artwork, check each card, then use the version before exporting.</source>
-        <translation>下一步：补齐文字和已采用的插图，逐张检查并采用此版本后导出。</translation>
-    </message>
-    <message>
-        <location line="+13"/>
+        <location line="+15"/>
         <source>Copy complete draft</source>
         <translation>复制完整草稿</translation>
     </message>
@@ -1314,12 +1652,7 @@
         <translation>重新加载会替换尚未保存的内容。如需保留，请先复制草稿。</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Shorten the text on %1 cards before exporting.</source>
-        <translation>导出前，请精简 %1 张卡牌上的文字。</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+13"/>
         <source>Some chosen materials have newer versions. Choose them explicitly if you want to update these cards.</source>
         <translation>部分已选素材有更新版本。若要更新这些卡牌，请明确选择新版素材。</translation>
     </message>
@@ -1349,7 +1682,12 @@
         <translation>导出已采用的文件…</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+94"/>
+        <source>Done</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Card preview</source>
         <translation>卡牌预览</translation>
     </message>
@@ -1379,14 +1717,14 @@
         <translation>从清单添加卡牌</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Copy rows from a table: title, rules, artwork description. Only the title is required; the other columns can be filled in later.</source>
-        <translation>从表格复制整行：标题、规则、插图描述。只需填写标题，其他列可以稍后补齐。</translation>
+        <location line="+4"/>
+        <source>Paste your rows here…</source>
+        <translation>在这里粘贴表格行…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Paste your rows here…</source>
-        <translation>在这里粘贴表格行…</translation>
+        <source>First row contains column headings</source>
+        <translation>首行为表头</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1470,16 +1808,180 @@
         <translation>采用此插图到卡牌</translation>
     </message>
     <message>
-        <location line="-94"/>
-        <location line="+65"/>
+        <location line="-95"/>
+        <location line="+66"/>
         <location line="+27"/>
         <source>Back to cards</source>
         <translation>返回卡牌</translation>
     </message>
     <message>
-        <location line="-18"/>
+        <location line="-81"/>
+        <source>Paste one card per row, or copy table columns for title, text and image description. A title or body text is enough. A single column keeps every row as a card.</source>
+        <translation>每行粘贴一张卡牌，或从表格复制标题、正文和图片描述列。标题或正文任选其一即可。单列内容的每一行都会保留为卡牌。</translation>
+    </message>
+    <message>
+        <location line="+63"/>
         <source>Refine card artwork</source>
         <translation>微调卡牌插图</translation>
+    </message>
+</context>
+<context>
+    <name>CardLayoutOptions</name>
+    <message>
+        <location filename="../qml/components/CardLayoutOptions.qml" line="+64"/>
+        <source>Choose text color</source>
+        <translation>选择文字颜色</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Choose background color</source>
+        <translation>选择背景颜色</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>This card’s layout</source>
+        <translation>此卡版式</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Default layout</source>
+        <translation>默认版式</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Automatic</source>
+        <translation>自动</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Complete image</source>
+        <translation>完整图片</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Text only</source>
+        <translation>纯文字</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Image and text</source>
+        <translation>图文</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Game card</source>
+        <translation>游戏卡</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Use the set’s layout type</source>
+        <translation>版式类型跟随整套</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Original game-card layout</source>
+        <translation>原游戏卡版式</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>These saved cards keep their original appearance. Choose another layout to use the flexible card settings.</source>
+        <translation>这些已保存卡牌保持原有外观。选择其他版式后，可使用通用卡牌设置。</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Image placement</source>
+        <translation>图片放置</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Show the complete image</source>
+        <translation>完整显示图片</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fill the card · crop edges</source>
+        <translation>铺满图片区域 · 裁切边缘</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Edges outside the image area will be cropped. Check the preview before printing.</source>
+        <translation>超出图片区域的边缘将被裁切，打印前请检查预览。</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Text size (%)</source>
+        <translation>文字大小（%）</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Hide layout options</source>
+        <translation>收起版式选项</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Layout options…</source>
+        <translation>版式选项…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Background color</source>
+        <translation>背景颜色</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choose background color…</source>
+        <translation>选择背景颜色…</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+13"/>
+        <source>Use a color such as #ffffff.</source>
+        <translation>请使用类似 #ffffff 的颜色值。</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>Text color</source>
+        <translation>文字颜色</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choose text color…</source>
+        <translation>选择文字颜色…</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Show a border</source>
+        <translation>显示边框</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Text alignment</source>
+        <translation>文字对齐</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Left</source>
+        <translation>左对齐</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Center</source>
+        <translation>居中</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Right</source>
+        <translation>右对齐</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Inner space (%)</source>
+        <translation>内部留白（%）</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Reset this card’s layout options</source>
+        <translation>重置此卡的版式选项</translation>
     </message>
 </context>
 <context>
@@ -1501,6 +2003,11 @@
     </message>
     <message>
         <location line="+56"/>
+        <source>An image is too narrow or wide for edge cropping. Go back to cards and choose Show the complete image, or use artwork with more suitable proportions.</source>
+        <translation>有图片过窄或过宽，无法裁边填满。请返回卡牌，选择“完整显示图片”，或使用比例更合适的图片。</translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>The crop marks need more room. Increase the card spacing or shorten the marks, and keep the mark offset at least half the line width.</source>
         <translation>裁切线需要更多空间。请增大卡牌间隙或缩短裁切线，并让裁切线与卡牌的距离至少为线宽的一半。</translation>
     </message>
@@ -1526,8 +2033,8 @@
     </message>
     <message>
         <location line="+7"/>
-        <source>Some cards need a title, rules or accepted artwork. Complete and accept the card version before printing.</source>
-        <translation>部分卡牌缺少标题、规则或已采用的插图。请补齐并采用卡牌版本后再打印。</translation>
+        <source>Some cards still need content for their chosen layout. Check the unfinished cards and accept the version before printing.</source>
+        <translation>部分卡牌尚未满足所选版式的内容要求。请检查未完成卡牌，并采用版本后再打印。</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -1558,12 +2065,12 @@
 <context>
     <name>CardPrintDialog</name>
     <message>
-        <location filename="../qml/components/CardPrintDialog.qml" line="+20"/>
+        <location filename="../qml/components/CardPrintDialog.qml" line="+22"/>
         <source>Print card layout</source>
         <translation>卡牌打印排版</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+41"/>
         <source>Export card print PDF</source>
         <translation>导出卡牌打印 PDF</translation>
     </message>
@@ -1599,6 +2106,11 @@
     </message>
     <message>
         <location line="+7"/>
+        <source>Keep the card proportions</source>
+        <translation>保持卡面比例</translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>Card width (mm)</source>
         <translation>卡牌宽度（毫米）</translation>
     </message>
@@ -1820,7 +2332,22 @@
         <translation>你想创作什么？</translation>
     </message>
     <message>
-        <location line="+75"/>
+        <location line="+23"/>
+        <source>Cards</source>
+        <translation>卡牌</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Make image or text cards, or arrange existing card images for printing.</source>
+        <translation>制作图片、文字卡牌，或将现有卡面排版打印。</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Make or arrange cards</source>
+        <translation>做卡牌或排版打印</translation>
+    </message>
+    <message>
+        <location line="+52"/>
         <source>Free writing</source>
         <translation>自由文字</translation>
     </message>
@@ -1870,22 +2397,7 @@
         <translation>编写故事、准备逐页插图，然后审阅整本绘本。</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Card materials</source>
-        <translation>卡牌物料</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Keep a shared brief and style. Add artwork and text to each card.</source>
-        <translation>设定共同要求和风格，为每张卡牌添加插图与文字。</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Create or continue cards</source>
-        <translation>新建或继续卡牌</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Refine an image</source>
         <translation>微调图片</translation>
     </message>

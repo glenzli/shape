@@ -127,11 +127,17 @@ void CardKitController::forgetArtworkEdit(const QString& cardId) {
         settings_->remove(legacy);
     settings_->sync();
 }
+void CardKitController::setAcceptedCurrent(bool value) {
+    if (accepted_current_ == value)
+        return;
+    accepted_current_ = value;
+    emit currentAcceptedChanged();
+}
 void CardKitController::clear() {
     draft_ = {};
     source_ = {};
     drafts_.clear();
-    accepted_current_ = false;
+    setAcceptedCurrent(false);
     error_.clear();
     status_.clear();
     invalidateReview();
@@ -228,16 +234,17 @@ bool CardKitController::beginNew() {
             {"text_material", QJsonValue::Null}
         };
         const QJsonObject composition{
-            {"name", tr("New card materials")},
+            {"name", tr("New cards")},
             {"brief", ""},
             {"style", ""},
             {"canvas_width", 750},
             {"canvas_height", 1050},
+            {"layout", QJsonObject{{"mode", "auto"}}},
             {"cards", QJsonArray{card}}
         };
         auto result = action({{"action", "draft_new"}, {"composition", composition}});
         invalidateReview();
-        accepted_current_ = false;
+        setAcceptedCurrent(false);
         setDraft(result["draft"].toObject());
         refresh();
         return true;
@@ -252,12 +259,13 @@ bool CardKitController::load(const QString& artifactId) {
     try {
         auto result = action({{"action", "draft_load"}, {"artifact_id", artifactId}});
         invalidateReview();
-        accepted_current_ = false;
+        setAcceptedCurrent(false);
         setDraft(result["draft"].toObject());
         if (!source_.isEmpty()) {
             const auto accepted = action({{"action", "read"}, {"source", source_}});
-            accepted_current_ =
-                accepted["composition"].toObject() == draft_["composition"].toObject();
+            setAcceptedCurrent(
+                accepted["composition"].toObject() == draft_["composition"].toObject()
+            );
             if (accepted_current_) {
                 preview_ = accepted["preview"].toObject();
                 preview_source_ =
@@ -288,7 +296,7 @@ bool CardKitController::save(const QVariantMap& composition) {
              {"composition", value}}
         );
         invalidateReview();
-        accepted_current_ = false;
+        setAcceptedCurrent(false);
         setDraft(result["draft"].toObject());
         status_ = QString::fromUtf8(QT_TR_NOOP("Draft saved in this project."));
         emit statusChanged();
@@ -345,7 +353,7 @@ bool CardKitController::accept() {
         );
         setDraft(result["draft"].toObject());
         source_ = result["source"].toObject();
-        accepted_current_ = true;
+        setAcceptedCurrent(true);
         review_digest_.clear();
         status_ = QString::fromUtf8(QT_TR_NOOP("This card version is now accepted."));
         emit documentChanged();
@@ -355,7 +363,7 @@ bool CardKitController::accept() {
         return true;
     } catch (const std::exception& e) {
         invalidateReview();
-        accepted_current_ = false;
+        setAcceptedCurrent(false);
         return fail(
             QT_TR_NOOP(
                 "The cards or a material changed. Reopen the draft and check again before using "
@@ -367,7 +375,7 @@ bool CardKitController::accept() {
 }
 bool CardKitController::showCard(const QString& cardId) {
     if (!accepted_current_ || source_.isEmpty())
-        return hasReview() ? review(cardId) : false;
+        return review(cardId);
     try {
         preview_ = action({{"action", "read"}, {"source", source_}, {"card_id", cardId}})["preview"]
                        .toObject();

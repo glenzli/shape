@@ -13,6 +13,8 @@ ShapeDialog {
     property var sourcePin: ({})
     property var options: ({})
     property string projectIdentity: ""
+    property string sizeAnchor: ""
+    property bool keepProportions: true
     parent: Overlay.overlay
     anchors.centerIn: parent
     width: parent ? parent.width - 48 : 1100
@@ -20,21 +22,32 @@ ShapeDialog {
     title: qsTr("Print card layout")
     modal: true
     closePolicy: Popup.NoAutoClose
-    function openForSource(source) {
+    function openForSource(source, defaults) {
         if (controller.running) return false
         sourcePin = JSON.parse(JSON.stringify(source))
         projectIdentity = backend.projectId + "|" + backend.bundlePath
-        options = {paper: "a4", card_width_mm: 63, card_height_mm: 88, margin_mm: 5, gap_mm: 3,
-            crop_mark_offset_mm: 0.5, crop_mark_length_mm: 1.5, stroke_width_mm: 0.2}
-        const result = controller.prepare(sourcePin, options)
+        options = Object.assign({paper: "a4", margin_mm: 5, gap_mm: 3,
+            crop_mark_offset_mm: 0.5, crop_mark_length_mm: 1.5, stroke_width_mm: 0.2}, defaults || {})
+        sizeAnchor = ""; keepProportions = true
+        const result = refresh()
         open(); return result
     }
     function setOption(key, value) {
         if (controller.running || options[key] === value) return
         const next = JSON.parse(JSON.stringify(options)); next[key] = value; options = next
+        if (key === "card_width_mm" || key === "card_height_mm")
+            sizeAnchor = keepProportions ? (key === "card_width_mm" ? "width" : "height") : "both"
         refreshTimer.restart()
     }
-    function refresh() { refreshTimer.stop(); return controller.prepare(sourcePin, options) }
+    function refresh() {
+        refreshTimer.stop()
+        const request = JSON.parse(JSON.stringify(options))
+        if (sizeAnchor === "" || sizeAnchor === "height") delete request.card_width_mm
+        if (sizeAnchor === "" || sizeAnchor === "width") delete request.card_height_mm
+        const result = controller.prepare(sourcePin, request)
+        if (result) options = JSON.parse(JSON.stringify(controller.plan.options))
+        return result
+    }
     Timer { id: refreshTimer; interval: 180; onTriggered: root.refresh() }
     Connections {
         target: root.backend
@@ -77,6 +90,12 @@ ShapeDialog {
                         currentIndex: root.options.paper === "letter" ? 1 : 0
                         enabled: !root.controller.running
                         onActivated: index => root.setOption("paper", index === 1 ? "letter" : "a4")
+                    }
+                    CheckBox {
+                        objectName: "cardPrintKeepProportions"
+                        text: qsTr("Keep the card proportions")
+                        checked: root.keepProportions; enabled: !root.controller.running
+                        onToggled: { root.keepProportions = checked; root.sizeAnchor = checked ? "width" : "both"; refreshTimer.restart() }
                     }
                     Repeater {
                         model: [

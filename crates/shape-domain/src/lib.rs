@@ -30,7 +30,8 @@ mod artifact;
 mod card_kit;
 pub use card_kit::{
     CARD_KIT_DATA_TYPE, CARD_KIT_DRAFT_SCHEMA, CARD_KIT_MAX_BYTES, CARD_KIT_MEDIA_TYPE,
-    CARD_KIT_OPERATOR_TYPE, CARD_KIT_SCHEMA, CardKitCard, CardKitDocument, CardKitRequest,
+    CARD_KIT_OPERATOR_TYPE, CARD_KIT_SCHEMA, CardImageFit, CardKitCard, CardKitDocument,
+    CardKitRequest, CardLayoutConfig, CardLayoutMode, CardTextAlign,
 };
 mod workflow;
 pub use workflow::{WorkflowTemplate, workflow_templates};

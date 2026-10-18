@@ -48,3 +48,20 @@ fn unknown_fields_and_unbounded_text_do_not_enter_drafts() {
     value.cards[0].rules = "x".repeat(8193);
     assert!(value.validate().is_err());
 }
+
+#[test]
+fn legacy_missing_or_null_layout_is_omitted_and_card_overrides_require_opt_in() {
+    let value = request();
+    let original = serde_json::to_value(&value).unwrap();
+    assert!(original.get("layout").is_none());
+    assert!(original["cards"][0].get("layout").is_none());
+    let mut explicit_null = original.clone();
+    explicit_null["layout"] = json!(null);
+    explicit_null["cards"][0]["layout"] = json!(null);
+    let mut parsed: CardKitRequest = serde_json::from_value(explicit_null).unwrap();
+    assert_eq!(serde_json::to_value(&parsed).unwrap(), original);
+    parsed.cards[0].layout = Some(CardLayoutConfig::default());
+    assert!(parsed.validate().is_err());
+    parsed.layout = Some(CardLayoutConfig::default());
+    parsed.validate().unwrap();
+}
