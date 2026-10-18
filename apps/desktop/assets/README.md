@@ -1,42 +1,62 @@
 # Shape application icon
 
-Generated with **built-in imagegen** on 2026-10-18. The selected original artwork is
-`app-icon-source.png`, preserved byte-for-byte from `exec-af2231be-71d7-427a-85bd-a328fcc3b969.png`.
+The current artwork was edited with **built-in imagegen** on 2026-10-19.
+`app-icon-source.png` is the byte-identical selected output
+`exec-6a59ef86-7384-48f1-9262-47b3d4a7616b.png`.
 
-- Original SHA-256: `9f0949e2059dfbfcf0c1c8c7d10d7414b3522a16e14f7144b9407eec3b7d2e2f`
-- Design meaning: A solid square frame with a circular opening represents creating and transforming material. The angular exterior, smooth inner curve and pale blue edge distinguish Shape from the card and audio applications.
+- Source SHA-256: `a4055ceae9a72fbb05828b9dd0151ee51adf8708990a97a768b210f876cf3bdd`
+- Design: a frontal square frame and circular opening represent creating and transforming
+  material. Shallow relief and a restrained pale-blue inner edge retain the Shape identity while
+  reducing the previous sculpture-like depth.
+- The previous original and its generation prompt remain in Git history.
 
-## Original generation prompt
+## Imagegen editing briefs
 
-```text
-Use case: logo-brand. Create one finished macOS application icon for Shape, an app for general AI creation and transformation of creative material.
-Square 1024x1024 artwork. Pure deep black background extending edge to edge, no drawn rounded-square app tile. One centered sculptural geometric object occupying about 72% of the canvas, generous negative space.
-The object is a thick continuous square frame with a perfectly circular opening, like a small monolithic sculpture whose outside is angular and whose inside is smoothly curved. A softly chamfered square outer boundary, large circular aperture, simple balanced proportions. The frame is seen almost frontally with a slight three-quarter turn so its thickness is subtly visible. It must read as one coherent solid geometric form, never as several nested rings, a letter, or a box containing another icon.
-Material and lighting: satin silver-white metal on the upper-left planes, deep graphite on the lower-right sides, one very restrained pale ice-blue luminous edge along the inner curve. Fine subtle grain, crisp geometry, soft controlled gallery lighting. The center opening stays black. Quiet black, ivory and cool silver palette with a tiny touch of ice blue, no colorful gradients or neon wash.
-This belongs to the same icon family as Shadow's black-and-champagne geometric planes with a glowing seam and Echo's silver-white sound rings on black. Match their restrained materiality and luminous edges while giving Shape a stronger solid angular silhouette.
-No text, letters, numbers, nodes, arrows, workflow diagram, sparkles, AI symbols, wireframes, extra shapes, floor, scenery, platform logo, watermark or decorative border. Sophisticated simple emblem, instantly recognizable at 32px.
-```
+The approved source followed two imagegen edits:
 
-## Mechanical outputs
+1. Reduce the three-dimensional appearance: face the frame forward, remove the thick visible side,
+   retain only shallow relief and the restrained blue inner edge, and keep the black background.
+2. Enlarge only the existing subject to about 80% of the source width, preserving its design.
+   Icon Forge's default 824/1024 inset then places the subject at about 64% of the final canvas,
+   close to the previous icon's apparent scale. The first-round output was a study, not a shipped
+   source.
 
-`app-icon.png` is 1024×1024. `app-icon.icns` contains the standard macOS 16, 32, 64, 128,
-256, 512 and 1024 pixel representations, including the paired Retina entries.
-Both derive directly from the opaque RGB original: macOS supplies the native outer presentation,
-avoiding a second frame around a precomposed transparent tile. No repainting, cropping, filtering,
-masking or background removal is applied. No Windows binary or ICO is claimed.
+## Mechanical packaging
 
-From this asset directory on macOS, reproduce the outputs with:
+**Icon Forge 1.0.0**, revision `e9cd09e88e65390018b59921441843ec80ad3ca2`, generates
+all outputs using `--skip-rembg` and its defaults: 1024px desktop canvas, 824px inset artwork,
+186px corner radius, and extension sizes 16/32/48/128. Background removal is skipped; the supplied
+source is never changed. Forge applies its standard rounded mask and transparent macOS padding.
+No extra scaling, crop, filter or postprocessing is applied to the final outputs.
+
+Shape keeps only these application assets:
+
+| Repository file | Exact Forge output |
+| --- | --- |
+| `app-icon-source.png` | Original selected imagegen PNG, unchanged |
+| `app-icon.png` | `rounded-source.png` (1024×1024), for the existing Qt resource contract |
+| `app-icon.icns` | `tauri/icon.icns`, with ten standard macOS representations |
+
+Forge also produces extension, ICO, Android and iOS assets in the temporary candidate directory.
+Their presence is checked, but they are not additional shipped Shape platform integrations.
+`tauri/icon.png` is 512×512; it is intentionally not substituted for Shape's existing 1024px Qt
+resource. The ICNS and Qt PNG derive from the same Forge rounded source.
+
+From this asset directory, reproduce with an installed Icon Forge checkout:
 
 ```sh
-sips --resampleHeightWidth 1024 1024 app-icon-source.png --out app-icon.png
-ICON_WORK=$(mktemp -d)
-mkdir "$ICON_WORK/app-icon.iconset"
-for ICON_ENTRY in 16x16:16 16x16@2x:32 32x32:32 32x32@2x:64 128x128:128 128x128@2x:256 256x256:256 256x256@2x:512 512x512:512 512x512@2x:1024; do
-    ICON_LABEL=${ICON_ENTRY%:*}
-    ICON_SIZE=${ICON_ENTRY#*:}
-    sips --resampleHeightWidth "$ICON_SIZE" "$ICON_SIZE" app-icon.png --out "$ICON_WORK/app-icon.iconset/icon_$ICON_LABEL.png"
-done
-iconutil --convert icns "$ICON_WORK/app-icon.iconset" --output app-icon.icns
+set -eu
+SHAPE_ASSETS="$PWD"
+ICON_FORGE=/path/to/icon-forge
+ICON_OUTPUT=$(mktemp -d)
+(cd "$ICON_FORGE" && node forge.js \
+  -i "$SHAPE_ASSETS/app-icon-source.png" -o "$ICON_OUTPUT" --skip-rembg)
+cp "$ICON_OUTPUT/rounded-source.png" "$SHAPE_ASSETS/app-icon.png"
+cp "$ICON_OUTPUT/tauri/icon.icns" "$SHAPE_ASSETS/app-icon.icns"
 ```
 
-The temporary iconset stays outside the repository. These commands never regenerate the original.
+The source, candidate outputs and extracted ICNS entries are checked by hash, dimensions and alpha.
+The 1024px rounded source has a 100px transparent inset on every side; its nonzero-alpha bounds are
+`(100,100)–(923,923)`. At 16/32px the standard resampling can leave edge alpha of at most 2/255;
+this is retained without postprocessing. Small sizes are visually checked at 16, 32, 64 and 128px.
+The existing native startup check loads the Qt resource and window icon at those same sizes.
