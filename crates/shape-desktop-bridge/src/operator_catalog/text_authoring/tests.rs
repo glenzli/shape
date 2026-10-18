@@ -11,7 +11,7 @@ fn empty_drafts_are_valid_but_generation_requires_authored_intent() {
     );
     assert!(state.configuration().is_ok());
     assert!(
-        !serde_json::to_string(&state)
+        serde_json::to_string(&state)
             .unwrap()
             .contains("repeat_count")
     );
@@ -96,55 +96,17 @@ fn script_source_controls_ai_output_without_duplicate_form_constraints() {
         );
         assert!(validate_output(&state, &bad).is_err());
     }
-    let old_draft = serde_json::json!({"profile":"listening","entry":"generate","instruction":"write","material":"","text":""});
-    let migrated = TextAuthoring::from_json(&old_draft.to_string()).unwrap();
-    assert_eq!(migrated.profile, WritingProfile::Script);
-    assert_eq!(migrated.example, WritingExample::General);
-    assert!(
-        migrated
-            .instruction
-            .contains("Create a listening exercise.")
-    );
-    let canonical = serde_json::to_value(migrated).unwrap();
-    assert_eq!(canonical["profile"], "script");
-    assert!(canonical.get("example").is_none());
-    for (legacy, requirement) in [("narration", None), ("dialogue", Some("Write a dialogue."))] {
-        let old = serde_json::json!({"profile":legacy,"entry":"generate","instruction":"write","material":"","text":""});
-        let migrated = TextAuthoring::from_json(&old.to_string()).unwrap();
-        assert_eq!(migrated.profile, WritingProfile::Script);
-        assert_eq!(migrated.example, WritingExample::General);
-        if let Some(requirement) = requirement {
-            assert!(migrated.instruction.contains(requirement));
-        }
+    for legacy in ["listening", "narration", "dialogue"] {
+        let old = serde_json::json!({"profile":legacy,"entry":"generate","instruction":"write","material":"","text":"","future_setting":{"enabled":true},"repeat_count":3});
+        let restored = TextAuthoring::from_json(&old.to_string()).unwrap();
+        assert_eq!(restored.instruction, "write");
+        let saved = serde_json::to_value(restored).unwrap();
+        assert_eq!(saved["profile"], legacy);
+        assert_eq!(saved["repeat_count"], 3);
+        assert_eq!(saved["future_setting"], old["future_setting"]);
+        let again = TextAuthoring::from_json(&saved.to_string()).unwrap();
+        assert_eq!(again.instruction, "write");
     }
-    let reloaded = TextAuthoring::from_json(&canonical.to_string()).unwrap();
-    assert_eq!(
-        reloaded
-            .instruction
-            .matches("Create a listening exercise.")
-            .count(),
-        1
-    );
-    let empty_old = serde_json::json!({"profile":"listening","entry":"generate","instruction":"","material":"","text":""});
-    assert_eq!(
-        TextAuthoring::from_json(&empty_old.to_string())
-            .unwrap()
-            .instruction,
-        ""
-    );
-    let oversized_old = serde_json::json!({"profile":"script","example":"listening","entry":"generate","instruction":"x".repeat(MAX_INSTRUCTION_BYTES),"material":"","text":""});
-    let preserved = TextAuthoring::from_json(&oversized_old.to_string()).unwrap();
-    assert_eq!(preserved.example, WritingExample::Listening);
-    assert!(
-        preserved
-            .compiled_instruction()
-            .unwrap()
-            .contains("Create a listening exercise.")
-    );
-    assert_eq!(
-        serde_json::to_value(preserved).unwrap()["example"],
-        "listening"
-    );
 }
 
 #[test]

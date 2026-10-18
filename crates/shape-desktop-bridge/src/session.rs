@@ -35,8 +35,9 @@ use crate::operator_catalog::{
 
 use crate::infer_agent::InferAgentTextCandidate;
 use crate::infer_image::{InferImageBatch, InferImageCandidate};
-use crate::infer_speech::InferSpeechCandidate;
 use crate::infer_text::InferTextCandidate;
+#[cfg(test)]
+use tests::InferSpeechCandidate;
 
 const USER_AUTHORED_TEXT_INTENT: &str = "Calibrate text with a user-authored replacement";
 
@@ -75,21 +76,11 @@ pub fn open_desktop_session(path: &str) -> Result<Box<DesktopSession>, String> {
 }
 
 fn desktop_session(project: ShapeProject, path: &str) -> Result<Box<DesktopSession>, String> {
-    let mut operator_drafts = OperatorDrafts::from_graphs(
+    let operator_drafts = OperatorDrafts::from_graphs(
         project
             .artifact_working_graphs()
             .map_err(|error| error.to_string())?,
     )?;
-    let previous = operator_drafts.clone();
-    for graph in operator_drafts.initialize_audio_speech_defaults()? {
-        project
-            .replace_artifact_working_graph(
-                graph.context_artifact_id(),
-                previous.graph(graph.context_artifact_id()),
-                Some(&graph),
-            )
-            .map_err(|error| error.to_string())?;
-    }
     Ok(Box::new(DesktopSession {
         project,
         bundle_path: super::project_path(path),
@@ -208,7 +199,7 @@ impl DesktopSession {
             return self.begin_material_edit(artifact_id, shape_domain::MaterialEditor::Echo);
         }
         if operator_type == AUDIO_SPEECH_OPERATOR {
-            return self.session_begin_authoring_speech(artifact_id);
+            return Err("speech authoring moved to Vox; transfer the saved draft instead".into());
         }
         if let Some(state) = crate::operator_catalog::text_authoring::node_preset(operator_type)? {
             return self.create_text_derivation_with_state(artifact_id, state);
@@ -383,6 +374,7 @@ impl DesktopSession {
     ///
     /// Returns an error for an unknown or incompatible draft, unsupported
     /// preset, hidden synthetic disclosure, stale source, or persistence failure.
+    #[cfg(test)]
     pub fn session_update_audio_speech_draft(
         &mut self,
         draft_id: &str,
@@ -822,13 +814,8 @@ impl DesktopSession {
         let preserves_text_intent = matches!(&candidate, Candidate::Text(_));
         let preserves_node = matches!(&candidate, Candidate::Material(_))
             || preserves_text_intent
-            || matches!(&candidate, Candidate::Book(book) if book.request_node().is_some())
             || matches!(&candidate, Candidate::Audio(a) if a.request_node().is_some());
         let accepted_revision = match candidate {
-            Candidate::Book(candidate) => self
-                .project
-                .accept_picture_book(candidate)
-                .map_err(|e| e.to_string())?,
             Candidate::Material(candidate) => self
                 .project
                 .accept_material_return(candidate)
@@ -971,8 +958,7 @@ impl DesktopSession {
                 | Candidate::AiImage(_) => {
                     Err("candidate does not belong to the selected artifact".to_owned())
                 }
-                Candidate::Book(_)
-                | Candidate::Text(_)
+                Candidate::Text(_)
                 | Candidate::AgentText(_)
                 | Candidate::Audio(_)
                 | Candidate::Sound(_) => Err("candidate is not an image preview".to_owned()),
@@ -1161,7 +1147,8 @@ impl DesktopSession {
     }
 
     /// Adopts a completed speech Candidate after rechecking its text source head.
-    pub fn session_adopt_infer_speech(
+    #[cfg(test)]
+    fn session_adopt_infer_speech(
         &mut self,
         candidate: Box<InferSpeechCandidate>,
     ) -> Result<ffi::CandidateWire, String> {
@@ -1470,7 +1457,6 @@ fn parse_artifact_id(value: &str) -> Result<ArtifactId, String> {
 
 fn candidate_wire(candidate: &Candidate) -> ffi::CandidateWire {
     match candidate {
-        Candidate::Book(candidate) => picture_book::candidate_wire(candidate),
         Candidate::Material(candidate) => material_edit::material_candidate_wire(candidate),
         Candidate::Text(candidate) => text_candidate_wire(candidate),
         Candidate::AgentText(candidate) => agent_text_candidate_wire(candidate),

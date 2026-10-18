@@ -2,9 +2,9 @@
 use std::{fs, path::Path};
 
 use serde_json::{Value, json};
-use shape_domain::{ArtifactId, ArtifactKind, ContentDigest};
+use shape_domain::{ArtifactId, ArtifactKind, ContentDigest, WorkingInput};
 
-use super::{CardKitError, ShapeProject, invalid};
+use super::{CardKitDraft, CardKitError, ShapeProject, invalid};
 use crate::project::deck_handoff::files::write_new;
 
 impl ShapeProject {
@@ -19,12 +19,61 @@ impl ShapeProject {
         request_id: &str,
         destination: &Path,
     ) -> Result<Value, CardKitError> {
+        let draft = self.checked_card_kit_draft(artifact_id, draft_digest)?;
+        self.publish_deck_card_snapshot(&draft, request_id, destination, None)
+    }
+
+    /// Publishes one exact accepted card revision even when a newer draft exists.
+    /// # Errors
+    /// Rejects changed accepted heads, wrong pins, corrupt materials and unsafe destinations.
+    pub fn export_deck_accepted_card_transfer(
+        &self,
+        source: WorkingInput,
+        request_id: &str,
+        destination: &Path,
+    ) -> Result<Value, CardKitError> {
+        let draft = self.accepted_deck_card_snapshot(source)?;
+        self.publish_deck_card_snapshot(&draft, request_id, destination, Some(source))
+    }
+
+    pub(in crate::project) fn accepted_deck_card_snapshot(
+        &self,
+        source: WorkingInput,
+    ) -> Result<CardKitDraft, CardKitError> {
+        let artifact = self
+            .store
+            .artifact(source.artifact_id)
+            .map_err(crate::CoreError::from)?
+            .ok_or_else(|| invalid("card set is missing"))?;
+        if artifact.accepted_revision != Some(source.revision_id) {
+            return Err(invalid(
+                "selected accepted card head changed; reload before exporting",
+            ));
+        }
+        let composition = self.read_card_kit(source)?;
+        let revision = self.revision(source.revision_id)?;
+        Ok(CardKitDraft {
+            artifact_id: source.artifact_id,
+            expected_head: Some(source.revision_id),
+            draft_digest: revision.content.digest.to_string(),
+            composition,
+        })
+    }
+
+    fn publish_deck_card_snapshot(
+        &self,
+        draft: &CardKitDraft,
+        request_id: &str,
+        destination: &Path,
+        accepted_source: Option<WorkingInput>,
+    ) -> Result<Value, CardKitError> {
+        let artifact_id = draft.artifact_id;
+        let draft_digest = &draft.draft_digest;
         if !super::super::deck_handoff::valid_token(request_id) || !destination.is_absolute() {
             return Err(invalid(
                 "Deck transfer needs an absolute destination and bounded request id",
             ));
         }
-        let draft = self.checked_card_kit_draft(artifact_id, draft_digest)?;
         // Historical accepted material pins are preserved, including hidden content.
         let materials = self.card_kit_materials(&draft.composition, false)?;
         let parent = destination
@@ -59,7 +108,11 @@ impl ShapeProject {
                 "relative_path":relative_path
             }));
         }
-        self.checked_card_kit_draft(artifact_id, draft_digest)?;
+        if let Some(source) = accepted_source {
+            self.accepted_deck_card_snapshot(source)?;
+        } else {
+            self.checked_card_kit_draft(artifact_id, draft_digest)?;
+        }
         let manifest = json!({
             "schema":"deck.card-transfer/1","request_id":request_id,
             "origin":{"producer":"shape","project_id":self.snapshot()?.metadata.id,

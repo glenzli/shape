@@ -1,4 +1,4 @@
-//! Recoverable card-kit authoring over accepted materials, with explicit reviewed acceptance.
+//! Legacy card-kit decoding and material migration. New authoring and printing belong to Deck.
 mod draft;
 mod export;
 mod layout;
@@ -110,6 +110,11 @@ pub enum CardKitAction {
         request_id: String,
         destination: PathBuf,
     },
+    DeckAcceptedTransfer {
+        source: WorkingInput,
+        request_id: String,
+        destination: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -163,58 +168,19 @@ impl ShapeProject {
     /// Every action retains the owning draft, material validation and explicit accept boundaries.
     pub fn card_kit_action(&mut self, action: CardKitAction) -> Result<Value, CardKitError> {
         match action {
-            CardKitAction::DraftNew { composition } => {
-                Ok(json!({"draft":self.create_card_kit_draft(&composition)?}))
-            }
+            CardKitAction::DeckAcceptedTransfer {
+                source,
+                request_id,
+                destination,
+            } => self.export_deck_accepted_card_transfer(source, &request_id, &destination),
             CardKitAction::DraftList => Ok(json!({"drafts":self.card_kit_drafts()?})),
             CardKitAction::DraftLoad { artifact_id } => {
-                Ok(json!({"draft":self.open_card_kit_draft(artifact_id)?}))
-            }
-            CardKitAction::DraftSave {
-                artifact_id,
-                draft_digest,
-                composition,
-            } => Ok(
-                json!({"draft":self.save_card_kit_draft(artifact_id, &draft_digest, &composition)?}),
-            ),
-            CardKitAction::DraftDiscard {
-                artifact_id,
-                draft_digest,
-            } => {
-                self.discard_card_kit_draft(artifact_id, &draft_digest)?;
-                Ok(json!({"discarded":true}))
-            }
-            CardKitAction::Preview {
-                artifact_id,
-                draft_digest,
-                card_id,
-            } => {
-                let draft = self.checked_card_kit_draft(artifact_id, &draft_digest)?;
-                let candidate = self.propose_card_kit(artifact_id, &draft_digest)?;
-                Ok(
-                    json!({"draft":draft,"review_digest":candidate.review_digest(),"preview":self.preview_card_kit(&draft.composition, card_id.as_deref())?}),
-                )
-            }
-            CardKitAction::Accept {
-                artifact_id,
-                draft_digest,
-                review_digest,
-            } => {
-                let candidate = self.propose_card_kit(artifact_id, &draft_digest)?;
-                if candidate.review_digest() != review_digest {
-                    return Err(invalid(
-                        "review digest does not match this exact saved card kit",
-                    ));
-                }
-                let revision = self.accept_card_kit(candidate)?;
-                Ok(
-                    json!({"source":WorkingInput {artifact_id:revision.artifact_id,revision_id:revision.id},"draft":self.open_card_kit_draft(artifact_id)?}),
-                )
+                Ok(json!({"draft":self.load_card_kit_draft(artifact_id)?}))
             }
             CardKitAction::Read { source, card_id } => {
                 let composition = self.read_card_kit(source)?;
                 Ok(
-                    json!({"source":source,"preview":self.preview_card_kit(&composition, card_id.as_deref())?,"print_defaults":print::default_options(&composition),"composition":composition}),
+                    json!({"source":source,"preview":self.preview_card_kit(&composition, card_id.as_deref())?,"composition":composition,"read_only":true}),
                 )
             }
             CardKitAction::Export {
@@ -223,9 +189,6 @@ impl ShapeProject {
             } => Ok(serde_json::to_value(
                 self.export_card_kit(source, &destination)?,
             )?),
-            CardKitAction::PrintPlan { source, options } => Ok(json!({
-                "print_plan": self.plan_card_print_request(source, &options)?
-            })),
             CardKitAction::DeckTransfer {
                 artifact_id,
                 draft_digest,
@@ -237,6 +200,14 @@ impl ShapeProject {
                 &request_id,
                 &destination,
             ),
+            CardKitAction::DraftNew { .. }
+            | CardKitAction::DraftSave { .. }
+            | CardKitAction::DraftDiscard { .. }
+            | CardKitAction::Preview { .. }
+            | CardKitAction::Accept { .. }
+            | CardKitAction::PrintPlan { .. } => Err(invalid(
+                "card authoring and printing moved to Deck; use legacy reads or a Deck transfer",
+            )),
         }
     }
 

@@ -33,207 +33,110 @@ fn run(root: &Path, project: &Path, request: &Value, success: bool) -> Value {
 #[test]
 #[allow(
     clippy::too_many_lines,
-    reason = "One process-per-action lifecycle proves recovery, print planning and material export preserve the same accepted source"
+    reason = "One new process per action proves accepted and draft selections plus all retired public writes preserve the source project"
 )]
-fn public_cli_preserves_recovery_acceptance_print_and_material_export_boundaries() {
-    let root = std::env::temp_dir().join(format!("shape-card-cli-{}", uuid::Uuid::now_v7()));
+fn public_cli_reads_legacy_cards_and_transfers_drafts_but_rejects_creation_and_printing() {
+    let root = std::env::temp_dir().join(format!("shape-card-cli-compat-{}", uuid::Uuid::now_v7()));
     fs::create_dir(&root).unwrap();
     let bundle = root.join("cards.shape");
-    let mut project = ShapeProject::create(&bundle, "CLI cards").unwrap();
+    let mut project = ShapeProject::create(&bundle, "Legacy cards").unwrap();
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
         .write_image(&[20, 40, 80, 255], 1, 1, ColorType::Rgba8.into())
         .unwrap();
-    let art = project.import_raster_bytes(png, "Card art").unwrap();
-    drop(project);
-    let composition = json!({"name":"CLI kit","brief":"One card","style":"Ink","cards":[{"id":"fox","title":"Moon fox","rules":"Draw one card.","quantity":7,"artwork":{"artifact_id":art.artifact_id,"revision_id":art.id}}]});
-    let created = run(
-        &root,
-        &bundle,
-        &json!({"action":"draft_new","composition":composition}),
-        true,
-    );
-    let draft = &created["draft"];
-    let list = run(&root, &bundle, &json!({"action":"draft_list"}), true);
-    assert_eq!(list["drafts"][0], *draft);
-    let mut edited = composition.clone();
-    edited["cards"][0]["flavor"] = json!("Under the moon.");
-    let saved = run(
-        &root,
-        &bundle,
-        &json!({"action":"draft_save","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"composition":edited}),
-        true,
-    );
-    run(
-        &root,
-        &bundle,
-        &json!({"action":"draft_save","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"composition":composition}),
-        false,
-    );
-    let draft = &saved["draft"];
-    let preview = run(
-        &root,
-        &bundle,
-        &json!({"action":"preview","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"card_id":"fox"}),
-        true,
-    );
-    assert_eq!(preview["preview"]["ready_to_export"], true);
-    assert!(
-        preview["preview"]["svg"]
-            .as_str()
-            .unwrap()
-            .contains("data:image/png;base64,")
-    );
-    let accepted = run(
-        &root,
-        &bundle,
-        &json!({"action":"accept","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"review_digest":preview["review_digest"]}),
-        true,
-    );
-    let read = run(
-        &root,
-        &bundle,
-        &json!({"action":"read","source":accepted["source"]}),
-        true,
-    );
-    assert_eq!(
-        serde_json::from_value::<shape_domain::CardKitRequest>(read["composition"].clone())
-            .unwrap(),
-        serde_json::from_value::<shape_domain::CardKitRequest>(edited).unwrap()
-    );
-    let printed = run(
-        &root,
-        &bundle,
-        &json!({"action":"print_plan","source":accepted["source"],"options":{"paper":"letter"}}),
-        true,
-    );
-    let plan = &printed["print_plan"];
-    assert_eq!(plan["schema"], "shape.card-print-plan/1");
-    assert_eq!(plan["source"], accepted["source"]);
-    assert_eq!(plan["total_copies"], 7);
-    assert_eq!(plan["cards"].as_array().unwrap().len(), 1);
-    assert_eq!(plan["page_count"], 2);
-    assert_eq!(plan["pages"][0]["slots"].as_array().unwrap().len(), 6);
-    assert_eq!(plan["pages"][1]["slots"].as_array().unwrap().len(), 1);
-    assert_eq!(plan["pages"][1]["slots"][0]["copy_index"], 7);
-    assert_eq!(plan["commercial_prepress"], false);
-    run(
-        &root,
-        &bundle,
-        &json!({"action":"print_plan","source":accepted["source"],"options":{"bleed_mm":3}}),
-        false,
-    );
-    let exported = run(
-        &root,
-        &bundle,
-        &json!({"action":"export","source":accepted["source"],"destination":root.join("cards.zip")}),
-        true,
-    );
-    assert_eq!(exported["cards"], 1);
-    assert_eq!(exported["print_ready"], false);
-    assert!(root.join("cards.zip").is_file());
-    run(
-        &root,
-        &bundle,
-        &json!({"action":"export","source":accepted["source"],"destination":root.join("cards.zip")}),
-        false,
-    );
-    fs::remove_dir_all(root).unwrap();
-}
-
-#[test]
-fn public_cli_reopens_general_text_and_finished_faces_then_exports_their_actual_canvas() {
-    let root =
-        std::env::temp_dir().join(format!("shape-general-card-cli-{}", uuid::Uuid::now_v7()));
-    fs::create_dir(&root).unwrap();
-    let bundle = root.join("cards.shape");
-    let mut project = ShapeProject::create(&bundle, "General cards").unwrap();
-    let mut png = Vec::new();
-    PngEncoder::new(&mut png)
-        .write_image(&[20, 40, 80, 255].repeat(6), 3, 2, ColorType::Rgba8.into())
-        .unwrap();
     let art = project
-        .import_raster_bytes(png, "Finished card.png")
+        .import_raster_bytes(png, "Accepted card art")
         .unwrap();
+    let composition:shape_domain::CardKitRequest=serde_json::from_value(json!({"name":"Saved kit","cards":[{"id":"moon","title":"Moon","rules":"Moon · 月","art_prompt":"Unfinished prompt","artwork":{"artifact_id":art.artifact_id,"revision_id":art.id}}]})).unwrap();
+    let draft = project.create_card_kit_draft(&composition).unwrap();
+    let candidate = project
+        .propose_card_kit(draft.artifact_id, &draft.draft_digest)
+        .unwrap();
+    let accepted = project.accept_card_kit(candidate).unwrap();
+    let draft = project.open_card_kit_draft(draft.artifact_id).unwrap();
+    let mut changed = composition.clone();
+    changed.cards[0].rules = "Draft text only".into();
+    let draft = project
+        .save_card_kit_draft(draft.artifact_id, &draft.draft_digest, &changed)
+        .unwrap();
+    let source = json!({"artifact_id":accepted.artifact_id,"revision_id":accepted.id});
     drop(project);
-    let composition = json!({"name":"General kit","canvas_width":1200,"canvas_height":800,"layout":{"mode":"auto"},"cards":[{"id":"face","artwork":{"artifact_id":art.artifact_id,"revision_id":art.id},"quantity":2},{"id":"word","rules":"Moon · 月"}]});
-    let created = run(
-        &root,
-        &bundle,
-        &json!({"action":"draft_new","composition":composition}),
-        true,
-    );
-    let draft = &created["draft"];
+    let before = fs::read(bundle.join("project.sqlite")).unwrap();
     let loaded = run(
         &root,
         &bundle,
-        &json!({"action":"draft_load","artifact_id":draft["artifact_id"]}),
+        &json!({"action":"draft_load","artifact_id":draft.artifact_id}),
         true,
     );
-    assert_eq!(loaded["draft"], *draft);
-    let preview = run(
-        &root,
-        &bundle,
-        &json!({"action":"preview","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"card_id":"face"}),
-        true,
-    );
-    assert_eq!(preview["preview"]["ready_to_export"], true);
-    assert_eq!(
-        preview["preview"]["cards"][0]["resolved_layout"]["mode"],
-        "image"
-    );
-    assert_eq!(
-        preview["preview"]["cards"][1]["resolved_layout"]["mode"],
-        "text"
-    );
-    assert_eq!(
-        preview["preview"]["print_defaults"]["card_height_mm"].as_f64(),
-        Some(42.0)
-    );
-    let accepted = run(
-        &root,
-        &bundle,
-        &json!({"action":"accept","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"review_digest":preview["review_digest"]}),
-        true,
-    );
+    assert_eq!(loaded["draft"]["draft_digest"], draft.draft_digest);
     let read = run(
         &root,
         &bundle,
-        &json!({"action":"read","source":accepted["source"],"card_id":"word"}),
-        true,
-    );
-    assert_eq!(read["composition"]["cards"][0]["title"], "");
-    assert_eq!(read["composition"]["layout"], json!({"mode":"auto"}));
-    assert_eq!(read["print_defaults"], read["preview"]["print_defaults"]);
-    let printed = run(
-        &root,
-        &bundle,
-        &json!({"action":"print_plan","source":accepted["source"],"options":{"card_width_mm":90}}),
+        &json!({"action":"read","source":source}),
         true,
     );
     assert_eq!(
-        printed["print_plan"]["options"]["card_height_mm"].as_f64(),
-        Some(60.0)
+        read["composition"]["cards"][0]["art_prompt"],
+        "Unfinished prompt"
     );
-    assert_eq!(printed["print_plan"]["total_copies"], 3);
-    assert!(
-        printed["print_plan"]["cards"][0]["svg"]
-            .as_str()
-            .unwrap()
-            .contains("viewBox=\"0 0 1200 800\"")
-    );
-    assert!(
-        !printed["print_plan"]["cards"][0]["svg"]
-            .as_str()
-            .unwrap()
-            .contains("<text ")
-    );
-    let exported = run(
+    for request in [
+        json!({"action":"draft_new","composition":composition}),
+        json!({"action":"draft_save","artifact_id":draft.artifact_id,"draft_digest":draft.draft_digest,"composition":composition}),
+        json!({"action":"draft_discard","artifact_id":draft.artifact_id,"draft_digest":draft.draft_digest}),
+        json!({"action":"preview","artifact_id":draft.artifact_id,"draft_digest":draft.draft_digest}),
+        json!({"action":"accept","artifact_id":draft.artifact_id,"draft_digest":draft.draft_digest,"review_digest":"review"}),
+        json!({"action":"print_plan","source":source}),
+    ] {
+        let failure = run(&root, &bundle, &request, false);
+        assert!(
+            failure["message"]
+                .as_str()
+                .unwrap()
+                .contains("moved to Deck")
+        );
+    }
+    let transfer = run(
         &root,
         &bundle,
-        &json!({"action":"export","source":accepted["source"],"destination":root.join("general.zip")}),
+        &json!({"action":"deck_transfer","artifact_id":draft.artifact_id,"draft_digest":draft.draft_digest,"request_id":"legacy-cli","destination":root.join("deck-transfer")}),
         true,
     );
-    assert_eq!(exported["cards"], 2);
+    let manifest: Value =
+        serde_json::from_slice(&fs::read(transfer["manifest_path"].as_str().unwrap()).unwrap())
+            .unwrap();
+    assert_eq!(
+        manifest["composition"]["cards"][0]["art_prompt"],
+        "Unfinished prompt"
+    );
+    assert_eq!(manifest["materials"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        manifest["composition"]["cards"][0]["rules"],
+        "Draft text only"
+    );
+    let accepted_transfer = run(
+        &root,
+        &bundle,
+        &json!({"action":"deck_accepted_transfer","source":source,"request_id":"selected-accepted","destination":root.join("accepted-transfer")}),
+        true,
+    );
+    let accepted_manifest: Value = serde_json::from_slice(
+        &fs::read(accepted_transfer["manifest_path"].as_str().unwrap()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        accepted_manifest["composition"]["cards"][0]["rules"],
+        "Moon · 月"
+    );
+    assert_eq!(
+        accepted_manifest["origin"]["expected_head"],
+        accepted.id.to_string()
+    );
+    run(
+        &root,
+        &bundle,
+        &json!({"action":"export","source":source,"destination":root.join("legacy.zip")}),
+        true,
+    );
+    assert_eq!(fs::read(bundle.join("project.sqlite")).unwrap(), before);
     fs::remove_dir_all(root).unwrap();
 }

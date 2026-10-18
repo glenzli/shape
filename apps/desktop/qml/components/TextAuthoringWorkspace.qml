@@ -1,5 +1,5 @@
 pragma ComponentBehavior: Bound
-//! Empty-first authoring, grammar review and explicit text-to-speech handoff.
+//! General text authoring. Older format/configuration fields remain intact on save.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -43,7 +43,7 @@ Item {
     property bool showSource: false
     property string profile: "plain"
     // Only retained when a legacy requirement cannot fit in the instruction buffer.
-    property string unmigratedExample: ""
+    property var preservedState: ({})
     property string entry: "generate"
     property string outputText: ""
     property string repairFeedback: ""
@@ -55,7 +55,7 @@ Item {
                                              : instructionEditor.text.trim().length > 0 || materialEditor.text.trim().length > 0)
     signal generationRequested(string artifactId, string draftId, string modelKey, string effortKey)
     signal candidateSelected(string candidateId)
-    signal speechRequested(string artifactId)
+    signal continueVoxRequested(string artifactId)
     signal setupRequested()
 
     function utf8Length(value) : int {
@@ -66,59 +66,27 @@ Item {
         if (!initialized || dirty || draftJson.length === 0) return
         const saved = JSON.parse(draftJson)
         loading = true
-        profile = saved.profile === "plain" ? "plain" : "script"
-        const oldExample = saved.profile === "listening" ? "listening"
-                           : saved.profile === "dialogue" ? "dialogue" : saved.example || "general"
-        unmigratedExample = ""
+        preservedState = saved
+        profile = saved.profile || "plain"
         mode = saved.mode || "rewrite"
         expressionJson = JSON.stringify(saved.expression || {tones: [{kind: "preset", preset: "neutral"}], intensity: "balanced", audience: {kind: "preset", preset: "general"}})
         style = saved.style || "natural"
-        entry = saved.entry
-        let instruction = saved.instruction || ""
-        const legacySettings = saved.profile !== "plain" && saved.entry !== "manual"
-                               && saved.repeat_count !== undefined
-        const migrateExample = saved.profile !== "plain" && saved.entry !== "manual"
-                               && oldExample !== "general"
-                               && (instruction.trim().length > 0 || (saved.material || "").trim().length > 0 || saved.entry === "adapt")
-        const requirements = []
-        if (migrateExample)
-            requirements.push(oldExample === "listening" ? qsTr("Create a listening exercise.") : qsTr("Write a dialogue."))
-        if (legacySettings) {
-            if ((saved.cast || "").trim().length > 0)
-                requirements.push(qsTr("Use these roles: %1.").arg(saved.cast))
-            requirements.push(qsTr("Use overall delivery: %1.").arg(saved.delivery || "neutral"))
-            if (saved.profile === "listening") {
-                requirements.push(qsTr("For each question, repeat %1 times with %2 seconds between plays; pause %3 seconds afterwards.")
-                                  .arg(saved.repeat_count).arg(saved.gap_seconds ?? 2).arg(saved.pause_seconds))
-                if (saved.answer_beep)
-                    requirements.push(qsTr("Declare a beep cue and play it before that pause."))
-            }
-        }
-        const imported = requirements.length > 0
-                         ? (instruction.trim().length > 0 ? "\n\n" : "")
-                           + qsTr("Imported requirements from this older draft:") + "\n"
-                           + requirements.join(" ") : ""
-        if (utf8Length(instruction + imported) <= 4096)
-            instruction += imported
-        else {
-            if (legacySettings) instruction += imported // Keep the existing save failure visible instead of discarding old settings.
-            else if (migrateExample) unmigratedExample = oldExample
-        }
-        instructionEditor.text = instruction
+        entry = saved.entry || "generate"
+        instructionEditor.text = saved.instruction || ""
         repairFeedback = saved.repair_feedback || ""
-        materialEditor.text = saved.material
-        manualEditor.text = saved.text
-        showReference = saved.material.length > 0
+        materialEditor.text = saved.material || ""
+        manualEditor.text = saved.text || ""
+        showReference = materialEditor.text.length > 0
         loading = false
-        if (legacySettings || migrateExample || oldExample !== "general") changed()
         refreshOutput()
     }
     function stateJson() : string {
-        const state = {profile: profile, mode: mode, expression: JSON.parse(expressionJson), style: style, entry: entry,
-            instruction: instructionEditor.text, repair_feedback: repairFeedback, material: materialEditor.text,
-            text: manualEditor.text}
-        if (unmigratedExample.length > 0) state.example = unmigratedExample
-        return JSON.stringify(state)
+        // Preserve older format and delivery metadata without parsing or normalizing the text.
+        return JSON.stringify(Object.assign({}, preservedState, {
+            profile: profile, mode: mode, expression: JSON.parse(expressionJson),
+            style: style, entry: entry, instruction: instructionEditor.text,
+            repair_feedback: repairFeedback, material: materialEditor.text, text: manualEditor.text
+        }))
     }
     function changed() : void {
         if (!initialized || loading) return
@@ -165,15 +133,8 @@ Item {
         changed()
         manualEditor.focusEditor()
     }
-    function repairScript() : void {
-        materialEditor.text = reviewText
-        repairFeedback = JSON.stringify((preview.plan?.issues || []).slice(0, 32).map(issue => ({line: issue.line, code: issue.code})))
-        entry = "adapt"
-        showReference = true
-        reviewing = false
-        changed()
-    }
-    function adopt(goToSpeech) : void {
+
+    function adopt() : void {
         updatePreview()
         if (!inputCurrent || !preview.valid || !checkpoint()) return
         let candidateId = selectedCandidateId
@@ -185,7 +146,6 @@ Item {
         candidateSelected("")
         refreshOutput()
         reviewing = true
-        if (goToSpeech) speechRequested(artifactId)
     }
     onDraftJsonChanged: restoreDraft()
     onSelectedCandidateIdChanged: refreshOutput()
@@ -199,7 +159,6 @@ Item {
         target: workspace.backend
         function onProjectChanged() : void { workspace.refreshOutput() }
     }
-    SpeechScriptHelpDialog { id: helpDialog }
 
     ScrollView {
         id: writingScroll
@@ -231,42 +190,25 @@ Item {
                         Label { text: workspace.editing ? qsTr("Text editing") : qsTr("Text creation"); color: Theme.accent; font.pixelSize: 12 }
                         Label { text: workspace.artifactName; color: Theme.text; font.pixelSize: 21; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                     }
-                    ShapeButton {
-                        objectName: "writingScriptRulesButton"
-                        text: qsTr("Format and examples")
-                        quiet: true
-                        onClicked: helpDialog.open()
-                    }
+
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
                     ShapeButton { text: qsTr("Write"); selected: true; onClicked: workspace.reviewing = false }
+
                     ShapeButton {
-                        text: qsTr("Voices and audition")
+                        objectName: "writingContinueVoxButton"
+                        text: qsTr("Continue in Vox…")
                         quiet: true
-                        enabled: workspace.hasAcceptedRevision && !workspace.generationRunning && !workspace.dirty
-                        onClicked: workspace.speechRequested(workspace.artifactId)
+                        enabled: !workspace.generationRunning
+                        onClicked: if (workspace.checkpoint()) workspace.continueVoxRequested(workspace.artifactId)
                     }
                     Item { Layout.fillWidth: true }
                     Label { text: workspace.saveFailed ? qsTr("Not saved") : workspace.dirty ? qsTr("Saving…") : qsTr("Draft saved"); color: workspace.saveFailed ? Theme.danger : Theme.muted; font.pixelSize: 11 }
                 }
-                TextFormatPanel {
-                    Layout.fillWidth: true
-                    profile: workspace.profile
-                    enabled: !workspace.generationRunning
-                    onProfileSelected: profile => {
-                        workspace.profile = profile
-                        workspace.changed()
-                    }
-                    onGuideRequested: helpDialog.open()
-                }
-                Label {
-                    visible: workspace.scriptMode && !workspace.reviewing
-                    Layout.fillWidth: true
-                    text: qsTr("The script controls playback. Declare roles and cues before spoken text; place pauses, delivery changes and repeat blocks where they belong.")
-                    color: Theme.muted; font.pixelSize: 12; wrapMode: Text.WordWrap
-                }
+
+
                 Rectangle {
                     visible: workspace.editing
                     Layout.fillWidth: true
@@ -307,13 +249,12 @@ Item {
                         }
                         ShapeComboBox {
                             objectName: "textEditMode"
-                            property var keys: ["rewrite", "translate", "summarize", "polish", "expand", "outline", "prepare_script"]
-                            model: [qsTr("Rewrite"), qsTr("Translate"), qsTr("Summarize"), qsTr("Polish"), qsTr("Expand"), qsTr("Outline"), qsTr("Prepare a script")]
+                            property var keys: ["rewrite", "translate", "summarize", "polish", "expand", "outline"]
+                            model: [qsTr("Rewrite"), qsTr("Translate"), qsTr("Summarize"), qsTr("Polish"), qsTr("Expand"), qsTr("Outline")]
                             Layout.fillWidth: true
                             currentIndex: keys.indexOf(workspace.mode)
                             onActivated: index => {
                                 workspace.mode = keys[index]
-                                if (workspace.mode === "prepare_script" && !workspace.scriptMode) workspace.profile = "script"
                                 workspace.changed()
                             }
                         }
@@ -380,7 +321,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: Math.max(220, Math.min(380, workspace.height * 0.52))
                         enabled: !workspace.generationRunning
-                        placeholderText: workspace.scriptMode ? qsTr("Write spoken lines here. Use Format and examples whenever you need a role, pause or audio cue.") : qsTr("Start writing whenever you are ready…")
+                        placeholderText: qsTr("Start writing whenever you are ready…")
                         onTextChanged: workspace.changed()
                     }
                     RowLayout {
@@ -402,17 +343,10 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 200
                         enabled: !workspace.generationRunning
-                        placeholderText: qsTr("Paste ordinary text, vocabulary or existing questions. AI will apply the script format.")
+                        placeholderText: qsTr("Paste the text you want to work with…")
                         onTextChanged: workspace.changed()
                     }
-                    Label {
-                        visible: workspace.scriptMode
-                        Layout.fillWidth: true
-                        text: qsTr("Shape applies the script rules automatically. You can review and edit every spoken line before choosing voices.")
-                        color: Theme.muted
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                    }
+
                 }
                 ShapeButton {
                     visible: !workspace.reviewing
@@ -435,37 +369,18 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Label { text: workspace.selectedCandidateId.length > 0 ? qsTr("Candidate · not adopted") : qsTr("Current text"); color: Theme.muted; Layout.fillWidth: true }
-                        ShapeButton { text: qsTr("Read"); selected: !workspace.showSource; onClicked: workspace.showSource = false }
-                        ShapeButton { text: qsTr("Script source"); selected: workspace.showSource; onClicked: workspace.showSource = true }
                     }
                     ShapeTextEditor {
-                        visible: workspace.showSource || !workspace.scriptMode
                         readOnly: true
                         text: workspace.reviewText
                         Layout.fillWidth: true
                         Layout.preferredHeight: Math.max(220, Math.min(420, workspace.height * 0.6))
                     }
-                    ScrollView {
-                        id: scriptReadingScroll
-                        objectName: "scriptReadingScroll"
-                        visible: !workspace.showSource && workspace.scriptMode
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: Math.max(220, Math.min(420, workspace.height * 0.6))
-                        contentWidth: availableWidth
-                        clip: true
-                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                        ScrollBar.vertical.policy: contentHeight > availableHeight
-                                                   ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-                        SpeechScriptReadingView {
-                            width: scriptReadingScroll.availableWidth
-                            preview: workspace.preview
-                        }
-                    }
+
                     RowLayout {
                         Layout.fillWidth: true
                         ShapeButton { text: qsTr("Adjust writing request"); enabled: !workspace.generationRunning; onClicked: workspace.reviewing = false }
                         ShapeButton { text: qsTr("Edit this text"); enabled: !workspace.generationRunning; onClicked: workspace.editOutput() }
-                        ShapeButton { visible: workspace.scriptMode && !workspace.preview.valid; text: qsTr("Prepare AI format repair"); enabled: !workspace.generationRunning; onClicked: workspace.repairScript() }
                         Item { Layout.fillWidth: true }
                     }
                 }
@@ -500,13 +415,13 @@ Item {
                         text: !workspace.inputCurrent ? qsTr("The original changed. Update the input before generating or adopting a result.")
                             : workspace.generationRunning ? qsTr("AI is writing. This may take a moment…")
                             : workspace.entry === "manual" || workspace.reviewing
-                              ? workspace.preview.valid ? qsTr("Ready to adopt") : qsTr("Add spoken text and check the script instructions before continuing.")
+                              ? workspace.preview.valid ? qsTr("Ready to adopt") : qsTr("Add some text before using this result.")
                               : qsTr("Generated text remains a candidate until you adopt it.")
                     }
                     ShapeButton {
                         objectName: "writingGenerateButton"
                         visible: !workspace.reviewing && workspace.entry !== "manual"
-                        text: workspace.entry === "adapt" ? qsTr("Adapt text") : workspace.scriptMode ? qsTr("Generate script") : qsTr("Generate text")
+                        text: workspace.entry === "adapt" ? qsTr("Adapt text") : qsTr("Generate text")
                         primary: true
                         busy: workspace.generationRunning
                         enabled: workspace.canGenerate
@@ -522,10 +437,10 @@ Item {
                     ShapeButton {
                         objectName: "writingAdoptButton"
                         visible: workspace.reviewing || workspace.entry === "manual"
-                        text: workspace.scriptMode ? qsTr("Adopt script and choose voices") : qsTr("Adopt text")
+                        text: qsTr("Use this text")
                         primary: true
                         enabled: workspace.inputCurrent && workspace.preview.valid === true && !workspace.generationRunning
-                        onClicked: workspace.adopt(workspace.scriptMode)
+                        onClicked: workspace.adopt()
                     }
                 }
             }

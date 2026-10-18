@@ -11,7 +11,7 @@ fn preview_projects_the_canonical_prerequisites_after_each_explicit_binding() {
         .session_create_text_document("Original", source)
         .unwrap();
     let draft = session
-        .session_begin_operator_draft(&snapshot.artifacts[0].id, "audio.speech_synthesize")
+        .session_begin_authoring_speech(&snapshot.artifacts[0].id)
         .unwrap();
     let mut options = SpeechScriptOptions::default();
     let plan = shape_domain::speech_script::parse_speech_script(source);

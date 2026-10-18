@@ -2,92 +2,53 @@ use crate::session::{create_desktop_project, open_desktop_session};
 use serde_json::{Value, json};
 
 #[test]
-fn desktop_book_checkpoint_restores_script_and_selection_then_explicitly_reviews_and_accepts() {
+fn legacy_book_draft_reads_without_checkpoint_and_exports_unaccepted_script() {
     let root = std::env::temp_dir().join(format!(
-        "shape-book-draft-bridge-{}",
+        "shape-book-draft-compat-{}",
         shape_domain::ArtifactId::new()
     ));
-    let mut session = create_desktop_project(root.to_str().unwrap(), "Books").unwrap();
-    let mut state = json!({"composition":{"name":"Book","default_language":"en","languages":{},"pages":[{"kind":"blank"},{"kind":"blank"}],"canvas_width":1024,"canvas_height":768},"active_language":"en","page_index":1,"script":"[Cover] unfinished","script_dirty":true,"artwork_edit":null});
-    let created: Value = serde_json::from_str(
-        &session
-            .session_book_draft_action_json(
-                &json!({"action":"draft_new","state":state}).to_string(),
-            )
-            .unwrap(),
-    )
-    .unwrap();
-    let draft = created["draft"].clone();
-    drop(session);
-    let mut session = open_desktop_session(root.to_str().unwrap()).unwrap();
-    let restored: Value = serde_json::from_str(
-        &session
-            .session_book_draft_action_json(
-                &json!({"action":"draft_load","artifact_id":draft["artifact_id"]}).to_string(),
-            )
-            .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(restored["draft"], draft);
-    assert_eq!(
-        session
-            .session_snapshot()
-            .unwrap()
-            .artifacts
-            .iter()
-            .filter(|a| a.kind_key == "text_document")
-            .count(),
-        0
-    );
-    assert!(
-        session
-            .session_book_draft_propose(
-                draft["artifact_id"].as_str().unwrap(),
-                draft["draft_digest"].as_str().unwrap()
-            )
-            .is_err()
-    );
-    state["script_dirty"] = json!(false);
-    state["script"] = json!("[Cover] Moon\n[Author] Ada\n[1] Hello");
-    state["composition"]["languages"]["en"] = serde_json::from_str::<Value>(
-        &session
-            .session_book_script("English", "", state["script"].as_str().unwrap())
-            .unwrap(),
-    )
-    .unwrap();
-    let saved:Value=serde_json::from_str(&session.session_book_draft_action_json(&json!({"action":"draft_save","artifact_id":draft["artifact_id"],"draft_digest":draft["draft_digest"],"state":state}).to_string()).unwrap()).unwrap();
-    let candidate = session
-        .session_book_draft_propose(
-            draft["artifact_id"].as_str().unwrap(),
-            saved["draft"]["draft_digest"].as_str().unwrap(),
-        )
-        .unwrap();
-    session.session_accept_candidate(&candidate).unwrap();
+    std::fs::create_dir(&root).unwrap();
+    let bundle = root.join("legacy.shape");
+    let mut project = shape_core::ShapeProject::create(&bundle, "Legacy").unwrap();
+    let state = serde_json::from_value(json!({"composition":{"name":"Book","default_language":"en","languages":{},"pages":[{"kind":"blank"},{"kind":"blank"}],"canvas_width":1024,"canvas_height":768},"active_language":"en","page_index":1,"script":"unfinished raw draft [with notes]","script_dirty":true})).unwrap();
+    let draft = project.create_picture_book_draft(&state).unwrap();
+    drop(project);
+    let mut session = open_desktop_session(bundle.to_str().unwrap()).unwrap();
+    let before = std::fs::read(bundle.join("project.sqlite")).unwrap();
     let loaded: Value = serde_json::from_str(
         &session
             .session_book_draft_action_json(
-                &json!({"action":"draft_load","artifact_id":draft["artifact_id"]}).to_string(),
+                &json!({"action":"draft_load","artifact_id":draft.artifact_id}).to_string(),
             )
             .unwrap(),
     )
     .unwrap();
-    assert!(!loaded["draft"]["source"].is_null());
     assert_eq!(
-        serde_json::from_value::<shape_domain::PictureBookDraftState>(
-            loaded["draft"]["state"].clone()
-        )
-        .unwrap(),
-        serde_json::from_value::<shape_domain::PictureBookDraftState>(state).unwrap()
+        loaded["draft"]["state"]["script"],
+        "unfinished raw draft [with notes]"
     );
-    assert_eq!(
+    assert!(
         session
-            .session_snapshot()
-            .unwrap()
-            .artifacts
-            .iter()
-            .filter(|a| a.kind_key == "text_document")
-            .count(),
-        1
+            .session_book_draft_action_json(
+                &json!({"action":"draft_new","state":state}).to_string()
+            )
+            .unwrap_err()
+            .contains("moved to Storybook")
+    );
+    let result: Value = serde_json::from_str(
+        &session
+            .session_book_draft_export(
+                &draft.artifact_id.to_string(),
+                &draft.draft_digest,
+                root.join("draft.scproj").to_str().unwrap(),
+            )
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(result["unaccepted_script_preserved"], true);
+    assert_eq!(
+        std::fs::read(bundle.join("project.sqlite")).unwrap(),
+        before
     );
     drop(session);
     std::fs::remove_dir_all(root).unwrap();

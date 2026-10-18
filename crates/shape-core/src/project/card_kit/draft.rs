@@ -88,6 +88,21 @@ impl ShapeProject {
             .collect()
     }
 
+    /// Reads an existing saved draft without creating an editor checkpoint.
+    /// # Errors
+    /// Rejects missing or malformed persisted draft metadata.
+    pub fn load_card_kit_draft(
+        &self,
+        artifact_id: ArtifactId,
+    ) -> Result<CardKitDraft, CardKitError> {
+        let graph = self
+            .store
+            .artifact_working_graph(artifact_id)
+            .map_err(CoreError::from)?
+            .ok_or_else(|| invalid("card kit draft is missing"))?;
+        projection(&graph)
+    }
+
     /// Reopens an existing exact draft or explicitly starts editing the current accepted kit.
     /// # Errors
     /// Rejects changed heads and unrelated existing drafts; no other writer's draft is replaced.

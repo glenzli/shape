@@ -41,7 +41,6 @@ Rectangle {
     signal componentOpened(string componentId, int index)
     signal assetSelected(string assetId, int index)
     signal assetOpened(string assetId, int index)
-    signal pictureBooksRequested()
     signal newProjectRequested()
     signal openProjectRequested()
     signal createSceneRequested()
@@ -230,20 +229,14 @@ Rectangle {
             Item { Layout.fillWidth: true }
         }
 
-        ShapeButton {
-            objectName: "railPictureBooksButton"
-            Layout.fillWidth: true
-            text: qsTr("Picture books")
-            enabled: rail.projectOpen
-            onClicked: rail.pictureBooksRequested()
-        }
+
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 4
 
             Repeater {
-                model: ["scenes", "components", "assets"]
+                model: ["scenes", "assets"]
 
                 delegate: ShapeButton {
                     id: sectionButton
@@ -305,6 +298,7 @@ Rectangle {
 
         ListView {
             id: itemList
+            objectName: "railWorkList"
 
             Layout.fillWidth: true
             Layout.fillHeight: true

@@ -2,6 +2,7 @@ foreach(variable IN ITEMS
     SHAPE_SOURCE_DIR
     SHAPE_BUILD_DIR
     SHAPE_CARGO_EXECUTABLE
+    SHAPE_CARGO_TARGET_DIRECTORY
     SHAPE_DESKTOP_EXECUTABLE
 )
     if(NOT DEFINED ${variable} OR "${${variable}}" STREQUAL "")
@@ -14,6 +15,7 @@ file(REMOVE_RECURSE "${project_path}")
 
 execute_process(
     COMMAND
+        "${CMAKE_COMMAND}" -E env "CARGO_TARGET_DIR=${SHAPE_CARGO_TARGET_DIRECTORY}"
         "${SHAPE_CARGO_EXECUTABLE}" run --quiet --package shape-cli --
         demo "${project_path}"
     WORKING_DIRECTORY "${SHAPE_SOURCE_DIR}"

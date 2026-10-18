@@ -297,6 +297,13 @@ void DeckHandoffController::openKit(
             if (!supportsDeck(binary))
                 return QJsonObject{{"worker_error", "unsupported"}};
             try {
+                if (digest.startsWith("accepted:")) {
+                    const auto source = QString::fromUtf8(QJsonDocument(QJsonObject{
+                        {"artifact_id", kitId}, {"revision_id", digest.mid(9)}
+                    }).toJson(QJsonDocument::Compact));
+                    return object(fromRust(shape::desktop::prepare_deck_accepted_handoff(
+                        utf8(project), utf8(source), utf8(requestId), utf8(directory), utf8(document))));
+                }
                 return object(fromRust(
                     shape::desktop::prepare_deck_handoff(
                         utf8(project),
@@ -576,20 +583,6 @@ void DeckHandoffController::openNewDeck() {
         return supportsDeck(binary) ? QJsonObject{} : QJsonObject{{"worker_error", "unsupported"}};
     }));
     emit changed();
-}
-bool DeckHandoffController::openStorybook() {
-#ifdef Q_OS_MACOS
-    const auto binary = resolveExecutable("/Applications/storybook-co-editor.app");
-    if (!binary.isEmpty() && QProcess::startDetached(binary, {}))
-        return true;
-#endif
-    fail(
-        QString::fromUtf8(QT_TR_NOOP(
-            "Install Storybook Co Editor to make a new picture book. Existing Shape books remain "
-            "available."
-        ))
-    );
-    return false;
 }
 bool DeckHandoffController::openOutput(int index, bool reveal) {
     if (busy() || !contextCurrent())

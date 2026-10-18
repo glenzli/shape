@@ -1,4 +1,10 @@
-# Card material kits and creation templates
+# Legacy card material kits
+
+> Current Shape exposes legacy reading and snapshot transfer to Deck. Card creation, editing,
+> review/accept and print production belong to Deck. The format and authoring descriptions below
+> document the earlier stored contract and its compatibility requirements; they are not current
+> Shape desktop or public CLI authoring instructions. See [legacy migration](LEGACY_MIGRATION.md)
+> and [Deck handoff](DECK_HANDOFF.md) for the supported continuation path.
 
 Shape's creation templates route to concrete workspaces: picture books, card material kits,
 and accepted-material editing. They do not introduce a second graph engine or execute every step

@@ -10,11 +10,28 @@ pub(super) fn prepare_deck_handoff(
     directory: &str,
     document: &str,
 ) -> Result<String, String> {
-    ShapeProject::open(project)
+    ShapeProject::open_read_only(project)
         .map_err(|e| e.to_string())?
         .prepare_deck_handoff(
             artifact.parse().map_err(|_| "invalid card set id")?,
             digest,
+            request_id,
+            Path::new(directory),
+            document,
+        )
+        .map_err(|e| e.to_string())
+}
+pub(super) fn prepare_deck_accepted_handoff(
+    project: &str,
+    source_json: &str,
+    request_id: &str,
+    directory: &str,
+    document: &str,
+) -> Result<String, String> {
+    ShapeProject::open_read_only(project)
+        .map_err(|e| e.to_string())?
+        .prepare_deck_accepted_handoff(
+            serde_json::from_str(source_json).map_err(|_| "invalid accepted card pin")?,
             request_id,
             Path::new(directory),
             document,

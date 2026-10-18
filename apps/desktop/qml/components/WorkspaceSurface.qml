@@ -26,7 +26,7 @@ Item {
     property string candidateImageSource: ""
     required property InferImageController inferImage
     required property DesktopBackend backend
-    required property InferSpeechController inferSpeech
+    required property LegacyWorkController legacyWork
     required property MaterialEditController materialEdit
     required property InferAgentController inferAgent
     required property InferSoundController inferSound
@@ -54,9 +54,7 @@ Item {
     readonly property var workRoot: artifactForId(workGraph.rootId)
     readonly property bool graphActive: currentMode === 0
     readonly property bool focusActive: currentMode === 1
-    readonly property bool guidedAuthoringActive: focusActive && (authoringRoute
-        || (workspaceRouteKey === "operator.audio.speech_synthesize"
-            && speechDraftForArtifact(operatorWorkspaceHost.openedArtifactId) !== null))
+    readonly property bool guidedAuthoringActive: focusActive && authoringRoute
     readonly property bool editWorkspaceActive: focusActive
                                                 && operatorWorkspaceHost.openedRoleKey
                                                    === "operator"
@@ -73,9 +71,8 @@ Item {
                                                 && selectedDraft !== null
                                                 && selectedDraft.operatorTypeKey
                                                    === "image.generate"
-    readonly property string workspaceRouteKey: operatorWorkspaceHost.routeKey
-    readonly property string loadedWorkspaceObjectName: operatorWorkspaceHost
-                                                         .loadedWorkspaceObjectName
+    readonly property string workspaceRouteKey: currentMode === 2 ? "legacy." + (legacyWork.work.kind || "unknown") : operatorWorkspaceHost.routeKey
+    readonly property string loadedWorkspaceObjectName: currentMode === 2 ? "legacyWorkWorkspace" : operatorWorkspaceHost.loadedWorkspaceObjectName
     readonly property bool candidateForSelected: hasSelectedArtifact
                                                   && selectedCandidate !== null
                                                   && selectedCandidate.contextArtifactId
@@ -110,13 +107,6 @@ Item {
                                       int amountMilli, int threshold)
     signal rasterDropShadowRequested(string artifactId, int offsetX, int offsetY,
                                      int blurRadius, int red, int green, int blue, int alpha)
-    signal speechDraftSaveRequested(string draftId, string presetAlias,
-                                    string presetCatalogRevision, string language,
-                                    int speedMilli, bool syntheticDisclosureRequired)
-    signal speechSynthesisRequested(string sourceArtifactId, string draftId,
-                                    string artifactName, string presetAlias,
-                                    string presetCatalogRevision, string language,
-                                    int speedMilli, bool syntheticDisclosureRequired)
     signal aiImageDraftSaveRequested(string draftId, string instruction,
                                      int outputWidth, int outputHeight, int candidateCount)
     signal operatorDraftRequested(string operatorTypeKey)
@@ -133,7 +123,7 @@ Item {
     signal inferAccessSetupRequested()
     signal authoringGenerationRequested(string artifactId, string draftId,
                                         string modelKey, string effortKey)
-    signal authoringSpeechRequested(string artifactId)
+    signal deckRequested(string artifactId, string digest)
     signal writingRequested(string artifactId, bool scriptMode)
     signal audioExportRequested(string artifactId, string candidateId)
     signal materialExportRequested(string artifactId, string kindKey)
@@ -145,7 +135,6 @@ Item {
             for (const draft of operatorDrafts || []) {
                 if (draft.operatorTypeKey === "audio.generate") return openOperatorDraft(draft.id)
             }
-            if (selectedArtifact.kindKey === "text_document") return openSpeechWorkspace()
         }
         if (selectedCandidate !== null && selectedCandidate.hasImagePreview) {
             const drafts = operatorDrafts || []
@@ -167,6 +156,42 @@ Item {
         return false
     }
 
+    function checkpoint() : bool {
+        const active = operatorWorkspaceHost.loadedWorkspace
+        return active === null || typeof active.checkpoint !== "function" || active.checkpoint()
+    }
+    function openLegacyWork(artifactId, draftId) : bool {
+        if (!checkpoint() || !legacyWork.openWork(artifactId, draftId || "")) return false
+        operatorWorkspaceHost.closeWorkspace()
+        currentMode = 2
+        return true
+    }
+    function openTextInVox(artifactId, revisionId) : bool {
+        if (!checkpoint() || !legacyWork.openText(artifactId, revisionId)) return false
+        operatorWorkspaceHost.closeWorkspace()
+        currentMode = 2
+        const token = legacyWork.selectionToken
+        Qt.callLater(() => {
+            if (currentMode === 2 && token === legacyWork.selectionToken) legacyWorkspace.beginVox()
+        })
+        return true
+    }
+    function openPinnedMaterial(artifactId, revisionId) : bool {
+        if (!checkpoint()) return false
+        const material = artifactForId(artifactId)
+        if (material === null) return false
+        operatorWorkspaceHost.closeWorkspace()
+        const index = allArtifacts.findIndex(a => a.id === artifactId)
+        if (index >= 0) sceneSelected(index)
+        const type = material.kindKey === "image_raster" ? "image.raster"
+                     : material.kindKey === "audio_clip" ? "audio.clip" : "text.document"
+        if (!operatorWorkspaceHost.openWorkspace("legacy.source." + revisionId, "source", "",
+                artifactId, revisionId, "", {artifactName: material.name,
+                    outputPorts: [{id: "source.value", dataTypeKey: type}], hasTextPreview: false})) return false
+        currentMode = 1
+        return true
+    }
+
     function artifactForId(artifactId) : var {
         for (let index = 0; index < allArtifacts.length; ++index) {
             if (allArtifacts[index].id === artifactId) return allArtifacts[index]
@@ -174,32 +199,17 @@ Item {
         return null
     }
 
-    function openSpeechWorkspace() : bool {
-        if (!hasSelectedArtifact || selectedArtifact.kindKey !== "text_document"
-                || !selectedArtifact.hasAcceptedRevision) {
-            return false
-        }
-        const speechDraft = speechDraftForArtifact(selectedArtifact.id)
-        const nodeId = speechDraft !== null
-                       ? speechDraft.id
-                       : "draft.audio.speech." + selectedArtifact.id
-        if (!operatorWorkspaceHost.openWorkspace(
-                nodeId,
-                "operator", "audio.speech_synthesize", selectedArtifact.id,
-                selectedArtifact.acceptedRevisionId, "")) {
-            return false
-        }
-        currentMode = 1
-        Qt.callLater(surface.refreshSpeechDraftProjection)
-        return true
-    }
+
 
     function showGraph() : void {
+        if (!checkpoint()) return
         operatorWorkspaceHost.closeWorkspace()
         currentMode = 0
     }
 
     function activateScene(index) : void {
+        if (!checkpoint()) return
+        operatorWorkspaceHost.closeWorkspace()
         sceneSelected(index)
         if (index >= 0 && index < allArtifacts.length) {
             const outputId = "output." + allArtifacts[index].id
@@ -208,7 +218,10 @@ Item {
             else
                 synchronizeNodeSelection()
         }
-        showGraph()
+        if (index >= 0 && index < allArtifacts.length
+                && (allArtifacts[index].kindKey === "card_kit" || allArtifacts[index].kindKey === "picture_book")) {
+            openLegacyWork(allArtifacts[index].id, "")
+        } else showGraph()
     }
 
     function selectNode(nodeId) : void {
@@ -296,33 +309,9 @@ Item {
         return true
     }
 
-    function projectSpeechDraft(workspace) : void {
-        if (!workspace || workspace.objectName !== "audioSpeechOperatorWorkspace") {
-            return
-        }
-        const draft = draftForId(operatorWorkspaceHost.openedNodeId)
-        if (draft === null
-                || draft.operatorTypeKey !== "audio.speech_synthesize") {
-            workspace.operatorDraftId = ""
-            workspace.presetAlias = ""
-            workspace.presetCatalogRevision = ""
-            workspace.language = ""
-            workspace.speedMilli = 0
-            workspace.syntheticDisclosureRequired = false
-            return
-        }
-        workspace.operatorDraftId = draft.id
-        workspace.scriptJson = draft.audioSpeechScriptJson
-        workspace.presetAlias = draft.audioSpeechPresetAlias
-        workspace.presetCatalogRevision = draft.audioSpeechPresetCatalogRevision
-        workspace.language = draft.audioSpeechLanguage
-        workspace.speedMilli = draft.audioSpeechSpeedMilli
-        workspace.syntheticDisclosureRequired = draft.audioSpeechDisclosureRequired
-    }
 
-    function refreshSpeechDraftProjection() : void {
-        projectSpeechDraft(operatorWorkspaceHost.loadedWorkspace)
-    }
+
+
 
     function openNode(nodeId) : bool {
         let node = currentMode === 0 ? null : nodeForId(nodeId)
@@ -336,6 +325,7 @@ Item {
         }
         if (node === null) node = nodeForId(nodeId)
         if (node === null) return false
+        if (node.operatorTypeKey === "audio.speech_synthesize") return openLegacyWork(node.artifactId, node.id)
         const composition = allArtifacts.find(a => a.id === node.artifactId
             && (a.kindKey === "card_kit" || a.kindKey === "picture_book"))
         if (composition) {
@@ -356,6 +346,7 @@ Item {
             }
         }
         if (draftForId(nodeId) !== null) return openOperatorDraft(nodeId)
+        if (!checkpoint()) return false
         selectedNodeId = nodeId
         if (!operatorWorkspaceHost.openWorkspace(
                 node.id, node.roleKey, node.operatorTypeKey,
@@ -376,6 +367,8 @@ Item {
             compositionRequested(selectedArtifact.id, selectedArtifact.kindKey)
             return true
         }
+        if (draft.operatorTypeKey === "audio.speech_synthesize") return openLegacyWork(draft.contextArtifactId, draft.id)
+        if (!checkpoint()) return false
         selectedNodeId = draftId
         if (!operatorWorkspaceHost.openWorkspace(
                 draft.id, "operator", draft.operatorTypeKey,
@@ -383,7 +376,6 @@ Item {
             return false
         }
         currentMode = 1
-        Qt.callLater(surface.refreshSpeechDraftProjection)
         return true
     }
 
@@ -415,25 +407,18 @@ Item {
     onGraphNodesChanged: synchronizeNodeSelection()
     onOperatorDraftsChanged: Qt.callLater(function() {
         surface.synchronizeNodeSelection()
-        surface.refreshSpeechDraftProjection()
     })
 
-    Connections {
-        target: operatorWorkspaceHost
 
-        function onWorkspaceLoaded(workspace) : void {
-            surface.projectSpeechDraft(workspace)
-        }
-
-        function onOpenedNodeIdChanged() : void {
-            surface.refreshSpeechDraftProjection()
-        }
-    }
 
     Component {
         id: textAuthoringWorkspace
         TextAuthoringWorkspace {
             backend: surface.backend
+            onContinueVoxRequested: artifactId => {
+                const text = surface.artifactForId(artifactId)
+                if (text) surface.openTextInVox(artifactId, text.acceptedRevisionId || "")
+            }
             artifactId: operatorWorkspaceHost.openedArtifactId
             artifactName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
             draftId: surface.openedTextDraft !== null ? surface.openedTextDraft.id : ""
@@ -451,7 +436,6 @@ Item {
             onGenerationRequested: (artifactId, draftId, modelKey, effortKey) =>
                 surface.authoringGenerationRequested(artifactId, draftId, modelKey, effortKey)
             onCandidateSelected: candidateId => surface.candidateSelected(candidateId)
-            onSpeechRequested: artifactId => surface.authoringSpeechRequested(artifactId)
             onSetupRequested: surface.inferAccessSetupRequested()
         }
     }
@@ -574,77 +558,7 @@ Item {
         }
     }
 
-    Component {
-        id: audioSpeechOperatorWorkspace
 
-        AudioSpeechOperatorWorkspace {
-            property bool selectedIsAcceptedAudio: surface.hasSelectedArtifact
-                                                   && surface.selectedArtifact.kindKey
-                                                      === "audio_clip"
-            property var speechDraft: surface.speechDraftForArtifact(operatorWorkspaceHost.openedArtifactId)
-            property string sourceId: speechDraft !== null ? speechDraft.inputArtifactId
-                : selectedIsAcceptedAudio && surface.selectedArtifact.transformationInputArtifactIds.length > 0
-                  ? surface.selectedArtifact.transformationInputArtifactIds[0] : operatorWorkspaceHost.openedArtifactId
-            property var sourceArtifact: surface.artifactForId(sourceId)
-            backend: surface.backend
-            inferSpeech: surface.inferSpeech
-            audioPreview: surface.audioPreview
-            projectPath: surface.projectPath
-            sourceArtifactId: sourceId
-            outputArtifactId: operatorWorkspaceHost.openedArtifactId
-            outputName: surface.hasSelectedArtifact ? surface.selectedArtifact.name : ""
-            sourceName: sourceArtifact !== null ? sourceArtifact.name : ""
-            inputRevisionId: speechDraft !== null ? speechDraft.inputRevisionId
-                : selectedIsAcceptedAudio && surface.selectedArtifact.transformationInputRevisionIds.length > 0
-                  ? surface.selectedArtifact.transformationInputRevisionIds[0] : ""
-            sourceText: inputRevisionId.length > 0 ? surface.backend.sourceRevisionText(inputRevisionId) : ""
-            inputCurrent: sourceArtifact !== null && inputRevisionId.length > 0
-                          && inputRevisionId === sourceArtifact.acceptedRevisionId
-            canGenerate: inputCurrent && speechDraft !== null
-                         && sourceArtifact.kindKey === "text_document"
-                         && operatorDraftId.length > 0
-            credentialConfigured: surface.inferCredentialConfigured
-            acceptedAudioArtifactId: selectedIsAcceptedAudio && surface.selectedArtifact.hasAcceptedRevision
-                                     ? surface.selectedArtifact.id : ""
-            sourceChanged: selectedIsAcceptedAudio && sourceArtifact !== null
-                           && surface.selectedArtifact.transformationInputRevisionIds.length > 0
-                           && surface.selectedArtifact.transformationInputRevisionIds[0]
-                              !== sourceArtifact.acceptedRevisionId
-            acceptedDurationMillis: selectedIsAcceptedAudio
-                                    ? surface.selectedArtifact.audioDurationMillis : 0
-            acceptedSampleRateHz: selectedIsAcceptedAudio
-                                  ? surface.selectedArtifact.audioSampleRateHz : 0
-            acceptedChannels: selectedIsAcceptedAudio
-                              ? surface.selectedArtifact.audioChannels : 0
-            acceptedOriginKey: selectedIsAcceptedAudio
-                               ? surface.selectedArtifact.audioOriginKey : ""
-            onWritingRequested: surface.writingRequested(sourceId, scriptMode)
-            onExportRequested: surface.audioExportRequested(
-                operatorWorkspaceHost.openedArtifactId,
-                candidate !== null ? candidate.id : "")
-            candidate: surface.candidateForSelected
-                       && surface.selectedCandidate.hasAudioPreview
-                       ? surface.selectedCandidate : null
-
-            onDraftSaveRequested: (draftId, presetAlias, presetCatalogRevision,
-                                   language, speedMilli,
-                                   syntheticDisclosureRequired) =>
-                                      surface.speechDraftSaveRequested(
-                                          draftId, presetAlias,
-                                          presetCatalogRevision, language,
-                                          speedMilli,
-                                          syntheticDisclosureRequired)
-            onSynthesizeRequested: (sourceArtifactId, draftId, artifactName,
-                                    presetAlias, presetCatalogRevision,
-                                    language, speedMilli,
-                                    syntheticDisclosureRequired) =>
-                                      surface.speechSynthesisRequested(
-                                          sourceArtifactId, draftId, artifactName,
-                                          presetAlias, presetCatalogRevision,
-                                          language, speedMilli,
-                                          syntheticDisclosureRequired)
-        }
-    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -750,11 +664,19 @@ Item {
                     "image.unsharp_mask": imageEditorWorkspace,
                     "image.drop_shadow": imageEditorWorkspace,
                     "image.generate": aiImageOperatorWorkspace,
-                    "audio.generate": soundGenerationWorkspace,
-                    "audio.speech_synthesize": audioSpeechOperatorWorkspace
+                    "audio.generate": soundGenerationWorkspace
                 })
+                onContinueVoxRequested: (artifactId, revisionId) => surface.openTextInVox(artifactId, revisionId)
                 onReturnRequested: surface.showGraph()
             }
+            LegacyWorkWorkspace {
+                id: legacyWorkspace
+                controller: surface.legacyWork
+                onDeckRequested: (artifactId, selection) => surface.deckRequested(artifactId, selection)
+                onMaterialRequested: (artifactId, revisionId) => surface.openPinnedMaterial(artifactId, revisionId)
+                onCloseRequested: surface.showGraph()
+            }
+
         }
     }
 }

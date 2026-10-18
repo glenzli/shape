@@ -3,6 +3,10 @@ use super::*;
 #[test]
 fn text_and_raster_catalogs_expose_only_exercised_compatible_operators() {
     let text = compatible_descriptors(ArtifactKind::TextDocument).collect::<Vec<_>>();
+    assert!(
+        text.iter()
+            .all(|descriptor| descriptor.type_key != AUDIO_SPEECH_OPERATOR)
+    );
     for key in [
         "text.translate",
         "text.summarize",

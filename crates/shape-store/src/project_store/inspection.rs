@@ -34,6 +34,16 @@ pub struct MaterialInspection {
 }
 
 impl ProjectStore {
+    /// Opens current-schema persisted data without migrations or logical writes.
+    /// The same bounded metadata validation used by public inspection applies.
+    /// # Errors
+    /// Rejects incompatible, corrupt, busy or oversized bundles.
+    pub fn open_read_only(root: impl AsRef<Path>) -> Result<Self, StoreError> {
+        let store = open_for_inspection(root.as_ref())?;
+        store.inspect_state()?;
+        Ok(store)
+    }
+
     /// Reads and verifies one historical accepted card-kit revision without migrating the bundle.
     /// This narrow external-document check also returns its immutable exact bytes.
     /// # Errors
@@ -197,6 +207,11 @@ impl ProjectStore {
     /// any inspected collection, or more than 4 MiB of combined inspected metadata.
     pub fn inspect(root: impl AsRef<Path>) -> Result<ProjectInspection, StoreError> {
         let store = open_for_inspection(root.as_ref())?;
+        store.inspect_state()
+    }
+
+    fn inspect_state(&self) -> Result<ProjectInspection, StoreError> {
+        let store = self;
         let transaction = store.connection.unchecked_transaction()?;
         let mut budget = MAX_METADATA_BYTES;
         check_budget(

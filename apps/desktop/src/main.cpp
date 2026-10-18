@@ -1,33 +1,26 @@
 #include "audio_export_controller.hpp"
 #include "audio_preview_controller.hpp"
 #include "audio_preview_smoke.hpp"
-#include "card_kit_controller.hpp"
-#include "card_print_controller.hpp"
-#include "card_print_smoke.hpp"
 #include "deck_handoff_controller.hpp"
 #include "deck_handoff_smoke.hpp"
 #include "deck_material_task_controller.hpp"
 #include "desktop_backend.hpp"
+#include "legacy_work_controller.hpp"
+#include "convergence_smoke.hpp"
 #include "image_live_smoke.hpp"
 #include "image_preview_provider.hpp"
 #include "infer_agent_controller.hpp"
 #include "infer_image_controller.hpp"
 #include "infer_runtime_controller.hpp"
 #include "infer_sound_controller.hpp"
-#include "infer_speech_controller.hpp"
 #include "infer_text_controller.hpp"
 #include "material_edit_controller.hpp"
 #include "material_edit_smoke.hpp"
-#include "picture_book_controller.hpp"
-#include "picture_book_smoke.hpp"
 #include "recent_projects.hpp"
 #include "sound_live_smoke.hpp"
-#include "speech_feedback_smoke.hpp"
-#include "speech_live_smoke.hpp"
 #include "text_authoring_smoke.hpp"
 #include "ui_preferences.hpp"
 #include "web_animation_preview.hpp"
-#include "workflow_smoke.hpp"
 #include "workspace_host_smoke.hpp"
 
 #if defined(Q_OS_MACOS)
@@ -50,6 +43,7 @@
 #include <QQmlContext>
 #include <QQmlExpression>
 #include <QQuickWindow>
+#include <QQuickItem>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -68,18 +62,11 @@ namespace {
 struct Arguments {
     std::optional<std::string> project_path;
     bool smoke_exit = false;
-    std::optional<QString> picture_book_directory;
-    std::optional<QString> workflow_directory;
-    std::optional<QString> card_print_directory;
-    std::optional<QString> preview_card_id;
-    std::optional<QString> preview_capture_prefix;
     bool smoke_text_cycle = false;
     bool smoke_raster_cycle = false;
     std::optional<QString> sound_live_directory;
-    std::optional<QString> speech_live_directory;
-    std::optional<QString> speech_script_directory;
-    std::optional<QString> text_authoring_directory;
     std::optional<QString> image_live_directory;
+    std::optional<QString> convergence_directory;
     std::optional<QString> deck_handoff_directory;
     std::optional<QString> deck_material_request;
     std::optional<QString> deck_material_result;
@@ -100,22 +87,14 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             arguments.deck_material_request = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--result" && index + 1 < argc) {
             arguments.deck_material_result = QString::fromLocal8Bit(argv[++index]);
+        } else if (argument == "--smoke-convergence" && index + 1 < argc) {
+            arguments.convergence_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-deck-handoff" && index + 1 < argc) {
             arguments.deck_handoff_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-deck-material-cancel") {
             arguments.deck_material_cancel_smoke = true;
         } else if (argument == "--smoke-deck-material-live") {
             arguments.deck_material_live_smoke = true;
-        } else if (argument == "--smoke-picture-book" && index + 1 < argc) {
-            arguments.picture_book_directory = QString::fromLocal8Bit(argv[++index]);
-        } else if (argument == "--smoke-workflow" && index + 1 < argc) {
-            arguments.workflow_directory = QString::fromLocal8Bit(argv[++index]);
-        } else if (argument == "--smoke-card-print" && index + 1 < argc) {
-            arguments.card_print_directory = QString::fromLocal8Bit(argv[++index]);
-        } else if (argument == "--preview-card-kit" && index + 1 < argc) {
-            arguments.preview_card_id = QString::fromLocal8Bit(argv[++index]);
-        } else if (argument == "--capture-preview-prefix" && index + 1 < argc) {
-            arguments.preview_capture_prefix = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-exit") {
             arguments.smoke_exit = true;
         } else if (argument == "--smoke-text-cycle") {
@@ -124,14 +103,8 @@ std::optional<Arguments> parse_arguments(int argc, char* argv[]) {
             arguments.smoke_raster_cycle = true;
         } else if (argument == "--smoke-sound-live" && index + 1 < argc) {
             arguments.sound_live_directory = QString::fromLocal8Bit(argv[++index]);
-        } else if (argument == "--smoke-speech-script" && index + 1 < argc) {
-            arguments.speech_script_directory = QString::fromLocal8Bit(argv[++index]);
-        } else if (argument == "--smoke-speech-live" && index + 1 < argc) {
-            arguments.speech_live_directory = QString::fromLocal8Bit(argv[++index]);
         } else if (argument == "--smoke-image-generation" && index + 1 < argc) {
             arguments.image_live_directory = QString::fromLocal8Bit(argv[++index]);
-        } else if (argument == "--smoke-text-authoring" && index + 1 < argc) {
-            arguments.text_authoring_directory = QString::fromLocal8Bit(argv[++index]);
         } else {
             return std::nullopt;
         }
@@ -812,6 +785,14 @@ bool verify_infer_runtime_surface(QObject& root_object) {
     return true;
 }
 
+QQuickItem* smoke_visual_child(QQuickItem* parent, const QString& name) {
+    if (!parent) return nullptr;
+    if (parent->objectName() == name) return parent;
+    for (auto* child : parent->childItems())
+        if (auto* found = smoke_visual_child(child, name)) return found;
+    return nullptr;
+}
+
 bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) {
     QTemporaryDir project_parent;
     if (!project_parent.isValid()
@@ -833,14 +814,13 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
         return false;
     }
     QCoreApplication::processEvents();
-    if (!creative_start->property("visible").toBool()
-        || root_object.findChild<QObject*>(QStringLiteral("createTextSceneTypeButton")) == nullptr
-        || root_object.findChild<QObject*>(QStringLiteral("createAiImageSceneTypeButton"))
-               == nullptr
-        || root_object.findChild<QObject*>(QStringLiteral("importMaterialStartButton"))
-               == nullptr) {
-        std::cerr << "desktop authoring smoke found an incomplete creative start chooser"
-                  << std::endl;
+    auto* window = qobject_cast<QQuickWindow*>(&root_object);
+    if (!creative_start->property("visible").toBool() || !window
+        || !smoke_visual_child(window->contentItem(), "createTextSceneTypeButton")
+        || !smoke_visual_child(window->contentItem(), "createAiImageSceneTypeButton")
+        || !smoke_visual_child(window->contentItem(), "createSoundSceneTypeButton")
+        || !smoke_visual_child(window->contentItem(), "importMaterialStartButton")) {
+        std::cerr << "desktop authoring smoke found an incomplete creative start chooser" << std::endl;
         return false;
     }
     QMetaObject::invokeMethod(creative_start, "close", Qt::DirectConnection);
@@ -1025,8 +1005,7 @@ bool run_smoke_project_authoring(DesktopBackend& backend, QObject& root_object) 
                   << std::endl;
         return false;
     }
-    if (!workspace_host_smoke::verifyProjectedDraftRemoval(root_object, backend)
-        || !workspace_host_smoke::verifyManualSourceAcrossSpeechSelection(root_object, backend)) {
+    if (!workspace_host_smoke::verifyProjectedDraftRemoval(root_object, backend)) {
         return false;
     }
     QTemporaryDir material_directory;
@@ -1269,16 +1248,10 @@ int main(int argc, char* argv[]) {
     application.setWindowIcon(QIcon(QStringLiteral(":/branding/app-icon.png")));
     application.setApplicationName(QStringLiteral("Shape"));
     application.setOrganizationName(QStringLiteral("Shape"));
-    const bool offline_smoke =
-        arguments->smoke_exit || arguments->smoke_text_cycle || arguments->smoke_raster_cycle
-        || arguments->picture_book_directory.has_value()
-        || arguments->workflow_directory.has_value() || arguments->card_print_directory.has_value()
-        || arguments->deck_handoff_directory.has_value() || arguments->deck_material_cancel_smoke
-        || arguments->preview_card_id.has_value();
-    const bool smoke_mode = offline_smoke || arguments->speech_live_directory.has_value()
-                            || arguments->speech_script_directory.has_value()
-                            || arguments->text_authoring_directory.has_value()
-                            || arguments->image_live_directory.has_value()
+    const bool offline_smoke = arguments->smoke_exit || arguments->convergence_directory.has_value()
+                            || arguments->deck_handoff_directory.has_value()
+                            || arguments->deck_material_cancel_smoke;
+    const bool smoke_mode = offline_smoke || arguments->image_live_directory.has_value()
                             || arguments->sound_live_directory.has_value()
                             || arguments->deck_material_live_smoke;
     std::optional<QTemporaryDir> smoke_profile;
@@ -1314,12 +1287,9 @@ int main(int argc, char* argv[]) {
     InferTextController infer_text(*backend, infer_credential_path, &application);
     InferSoundController infer_sound(*backend, infer_credential_path, &application);
     InferAgentController infer_agent(*backend, infer_credential_path, &application);
-    InferSpeechController infer_speech(*backend, infer_credential_path, &application);
     MaterialEditController material_edit(*backend, settings_path, &application);
-    PictureBookController picture_book(*backend, &application);
-    CardKitController card_kit(*backend, settings_path, &application);
-    CardPrintController card_print(*backend, &application);
     InferImageController infer_image(*backend, infer_credential_path, &application);
+    LegacyWorkController legacy_work(*backend, settings_path, &application);
     DeckHandoffController deck_handoff(*backend, settings_path, &application);
     DeckMaterialTaskController deck_material_task(*backend, infer_image, &application);
     if (arguments->deck_material_request) {
@@ -1370,18 +1340,8 @@ int main(int argc, char* argv[]) {
         &DesktopBackend::retranslate
     );
     backend->retranslate();
-    QObject::connect(
-        &ui_preferences,
-        &UiPreferences::languageModeChanged,
-        &card_kit,
-        &CardKitController::retranslate
-    );
-    QObject::connect(
-        &ui_preferences,
-        &UiPreferences::languageModeChanged,
-        &card_print,
-        &CardPrintController::retranslate
-    );
+    QObject::connect(&ui_preferences, &UiPreferences::languageModeChanged,
+        &legacy_work, &LegacyWorkController::retranslate);
     QObject::connect(
         &ui_preferences,
         &UiPreferences::languageModeChanged,
@@ -1412,15 +1372,12 @@ int main(int argc, char* argv[]) {
     );
     ui_preferences.attachEngine(engine);
     engine.setInitialProperties({
-        {QStringLiteral("pictureBook"), QVariant::fromValue(&picture_book)},
-        {QStringLiteral("cardKit"), QVariant::fromValue(&card_kit)},
-        {QStringLiteral("cardPrint"), QVariant::fromValue(&card_print)},
+        {QStringLiteral("legacyWork"), QVariant::fromValue(&legacy_work)},
         {QStringLiteral("backend"), QVariant::fromValue(backend.get())},
         {QStringLiteral("inferRuntime"), QVariant::fromValue(&infer_runtime)},
         {QStringLiteral("inferText"), QVariant::fromValue(&infer_text)},
         {QStringLiteral("inferSound"), QVariant::fromValue(&infer_sound)},
         {QStringLiteral("inferAgent"), QVariant::fromValue(&infer_agent)},
-        {QStringLiteral("inferSpeech"), QVariant::fromValue(&infer_speech)},
         {QStringLiteral("materialEdit"), QVariant::fromValue(&material_edit)},
         {QStringLiteral("inferImage"), QVariant::fromValue(&infer_image)},
         {QStringLiteral("audioPreview"), QVariant::fromValue(&audio_preview)},
@@ -1457,6 +1414,12 @@ int main(int argc, char* argv[]) {
             }
         });
     }
+    if (arguments->convergence_directory) {
+        QTimer::singleShot(200, &application, [&] {
+            application.exit(convergence_smoke::verify(*backend, legacy_work, deck_handoff, deck_material_task,
+                ui_preferences, *root_object, *arguments->convergence_directory, settings_path) ? 0 : 1);
+        });
+    }
     if (arguments->deck_handoff_directory) {
         QTimer::singleShot(150, &application, [&] {
             const bool passed = deck_handoff_smoke::verify(
@@ -1470,65 +1433,10 @@ int main(int argc, char* argv[]) {
             application.exit(passed ? 0 : 1);
         });
     }
-    if (arguments->preview_card_id) {
-        QTimer::singleShot(200, &application, [&] {
-            auto* workspace = root_object->findChild<QObject*>(QStringLiteral("cardKitWorkspace"));
-            if (!workspace
-                || !QMetaObject::invokeMethod(
-                    workspace,
-                    "openWorkspace",
-                    Q_ARG(QVariant, QVariant(*arguments->preview_card_id))
-                )) {
-                application.exit(1);
-                return;
-            }
-            if (arguments->preview_capture_prefix
-                && !workflow_smoke::capturePreview(
-                    card_kit,
-                    ui_preferences,
-                    *root_object,
-                    *arguments->preview_capture_prefix
-                ))
-                application.exit(1);
-        });
-    }
-    if (arguments->workflow_directory) {
-        QTimer::singleShot(400, &application, [&] {
-            const bool passed = workflow_smoke::verify(
-                *backend,
-                card_kit,
-                ui_preferences,
-                *root_object,
-                *arguments->workflow_directory,
-                settings_path
-            );
-            application.exit(passed ? 0 : 1);
-        });
-    }
-    if (arguments->card_print_directory) {
-        QTimer::singleShot(400, &application, [&] {
-            const bool passed = card_print_smoke::verify(
-                *backend,
-                card_kit,
-                card_print,
-                ui_preferences,
-                *root_object,
-                *arguments->card_print_directory
-            );
-            application.exit(passed ? 0 : 1);
-        });
-    }
-    if (arguments->picture_book_directory) {
-        QTimer::singleShot(400, &application, [&] {
-            const bool passed = picture_book_smoke::verify(
-                *backend,
-                picture_book,
-                *root_object,
-                *arguments->picture_book_directory
-            );
-            application.exit(passed ? 0 : 1);
-        });
-    }
+
+
+
+
 
 #if defined(Q_OS_MACOS)
     QObject* const title_toolbar = root_object->findChild<QObject*>(QStringLiteral("titleToolBar"));
@@ -1548,32 +1456,8 @@ int main(int argc, char* argv[]) {
             QCoreApplication::exit(passed ? 0 : 8);
         });
     }
-    if (arguments->speech_script_directory.has_value()) {
-        QTimer::singleShot(0, &application, [&]() {
-            const bool passed = speech_live_smoke::run_script(
-                *backend,
-                infer_speech,
-                audio_preview,
-                audio_export,
-                *root_object,
-                *arguments->speech_script_directory
-            );
-            QCoreApplication::exit(passed ? 0 : 6);
-        });
-    }
-    if (arguments->text_authoring_directory.has_value()) {
-        QTimer::singleShot(0, &application, [&]() {
-            const bool passed = text_authoring_smoke::runLive(
-                *backend,
-                infer_text,
-                infer_speech,
-                audio_export,
-                *root_object,
-                *arguments->text_authoring_directory
-            );
-            QCoreApplication::exit(passed ? 0 : 7);
-        });
-    }
+
+
     if (arguments->sound_live_directory.has_value()) {
         QTimer::singleShot(0, &application, [&]() {
             const bool passed = sound_live_smoke::run(
@@ -1587,19 +1471,7 @@ int main(int argc, char* argv[]) {
             QCoreApplication::exit(passed ? 0 : 9);
         });
     }
-    if (arguments->speech_live_directory.has_value()) {
-        QTimer::singleShot(0, &application, [&]() {
-            const bool passed = speech_live_smoke::run(
-                *backend,
-                infer_speech,
-                audio_preview,
-                audio_export,
-                *root_object,
-                *arguments->speech_live_directory
-            );
-            QCoreApplication::exit(passed ? 0 : 6);
-        });
-    }
+
     if (arguments->smoke_exit) {
         if (!audio_preview_smoke::verify())
             return 3;
@@ -1632,7 +1504,6 @@ int main(int argc, char* argv[]) {
         }
         if (arguments->smoke_text_cycle
             && (!text_authoring_smoke::verify(*backend, *root_object)
-                || !speech_feedback_smoke::verify(*backend, infer_speech, *root_object)
                 || !material_edit_smoke::verify(*backend, material_edit, *root_object))) {
             return 4;
         }

@@ -122,7 +122,7 @@ impl ShapeProject {
     ) -> Result<PictureBookCandidate, PictureBookError> {
         validate_request(&request)?;
         // Reuse media, exact-byte and multilingual role checks for both direct and saved-draft proposals.
-        let composition = self.compose_picture_book(&request, true)?;
+        let composition = self.compose_picture_book(&request, true, None)?;
         let inputs = request.inputs();
         let transformation = Transformation::new(
             TransformationKind::Composite,
@@ -261,7 +261,7 @@ impl ShapeProject {
         request: &PictureBookRequest,
     ) -> Result<Value, PictureBookError> {
         validate_request(request)?;
-        let composition = self.compose_picture_book(request, false)?;
+        let composition = self.compose_picture_book(request, false, None)?;
         let heads = self.snapshot()?.artifacts;
         let stale = request
             .inputs()

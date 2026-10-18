@@ -59,9 +59,10 @@ pub(crate) enum WritingEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub(crate) struct TextAuthoring {
     pub profile: WritingProfile,
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, serde_json::Value>,
     // Decode old writing presets, then migrate them into explicit user requirements.
     #[serde(default, skip_serializing_if = "WritingExample::is_general")]
     pub example: WritingExample,
@@ -78,17 +79,17 @@ pub(crate) struct TextAuthoring {
     pub material: String,
     pub text: String,
     // Retained for reading existing drafts; playback instructions live in the script source.
-    #[serde(default = "default_repeat", skip_serializing)]
+    #[serde(default = "default_repeat")]
     pub repeat_count: u8,
-    #[serde(default = "default_gap", skip_serializing)]
+    #[serde(default = "default_gap")]
     pub gap_seconds: u8,
-    #[serde(default, skip_serializing)]
+    #[serde(default)]
     pub delivery: shape_domain::speech_script::SpeechDelivery,
-    #[serde(default, skip_serializing)]
+    #[serde(default)]
     pub cast: String,
-    #[serde(default, skip_serializing)]
+    #[serde(default)]
     pub answer_beep: bool,
-    #[serde(default = "default_pause", skip_serializing)]
+    #[serde(default = "default_pause")]
     pub pause_seconds: u8,
 }
 
@@ -121,6 +122,7 @@ impl TextAuthoring {
         };
         Ok(Self {
             profile,
+            extra: std::collections::BTreeMap::new(),
             example: WritingExample::General,
             mode: default_mode(),
             expression: super::text_transform::TextExpression::default(),
@@ -143,37 +145,7 @@ impl TextAuthoring {
         if json.len() > 64 * 1024 {
             return Err("writing_draft_too_large".into());
         }
-        let mut state: Self = serde_json::from_str(json).map_err(|_| "invalid_writing_draft")?;
-        let old_example = match state.profile {
-            WritingProfile::Listening => WritingExample::Listening,
-            WritingProfile::Dialogue => WritingExample::Dialogue,
-            _ => state.example,
-        };
-        if state.profile != WritingProfile::Plain {
-            state.profile = WritingProfile::Script;
-        }
-        state.example = WritingExample::General;
-        if state.is_script()
-            && state.entry != WritingEntry::Manual
-            && let Some(requirement) = old_example.legacy_requirement()
-            && (!state.instruction.trim().is_empty()
-                || !state.material.trim().is_empty()
-                || state.entry == WritingEntry::Adapt)
-        {
-            let separator = if state.instruction.trim().is_empty() {
-                ""
-            } else {
-                "\n\n"
-            };
-            let imported =
-                format!("{separator}Imported requirements from this older draft:\n{requirement}");
-            if state.instruction.len() + imported.len() <= MAX_INSTRUCTION_BYTES {
-                state.instruction.push_str(&imported);
-            } else {
-                // Keep an oversized legacy instruction readable without losing its intent.
-                state.example = old_example;
-            }
-        }
+        let state: Self = serde_json::from_str(json).map_err(|_| "invalid_writing_draft")?;
         state.validate()?;
         Ok(state)
     }

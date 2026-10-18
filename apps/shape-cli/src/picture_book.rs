@@ -48,7 +48,7 @@ fn execute(project: &Path, request: &Path) -> Result<serde_json::Value, Box<dyn 
         return Err("request exceeds 256 KiB".into());
     }
     let value: serde_json::Value = serde_json::from_slice(&bytes)?;
-    let mut project = ShapeProject::open(project)?;
+    let mut project = ShapeProject::open_read_only(project)?;
     if value.get("action").is_some() {
         return execute_action(&mut project, serde_json::from_value(value)?);
     }
@@ -62,6 +62,15 @@ fn execute(project: &Path, request: &Path) -> Result<serde_json::Value, Box<dyn 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 enum Action {
+    DraftList,
+    DraftLoad {
+        artifact_id: shape_domain::ArtifactId,
+    },
+    DraftExport {
+        artifact_id: shape_domain::ArtifactId,
+        draft_digest: String,
+        destination: PathBuf,
+    },
     Preview {
         composition: PictureBookRequest,
         target: Option<shape_domain::WorkingInput>,
@@ -89,13 +98,27 @@ fn execute_action(
     action: Action,
 ) -> Result<serde_json::Value, Box<dyn Error>> {
     match action {
+        Action::DraftList => Ok(json!({"drafts":project.picture_book_drafts()?})),
+        Action::DraftLoad { artifact_id } => {
+            Ok(json!({"draft":project.load_picture_book_draft(artifact_id)?}))
+        }
+        Action::DraftExport {
+            artifact_id,
+            draft_digest,
+            destination,
+        } => Ok(project.export_legacy_picture_book_draft(
+            artifact_id,
+            &draft_digest,
+            &destination,
+        )?),
         Action::Preview {
             composition,
             target,
         } => {
-            let candidate = project.propose_picture_book(target, composition.clone())?;
-            Ok(
-                json!({"review_digest":candidate.review_digest(),"preview":project.preview_picture_book(&composition)?}),
+            let _ = (composition, target);
+            Err(
+                "book authoring moved to Storybook Co-Editor; use legacy reads or .scproj export"
+                    .into(),
             )
         }
         Action::Accept {
@@ -103,13 +126,11 @@ fn execute_action(
             target,
             review_digest,
         } => {
-            let candidate = project.propose_picture_book(target, composition)?;
-            if candidate.review_digest() != review_digest {
-                return Err("review digest does not match this exact book proposal".into());
-            }
-            Ok(serde_json::to_value(
-                project.accept_picture_book(candidate)?,
-            )?)
+            let _ = (composition, target, review_digest);
+            Err(
+                "book authoring moved to Storybook Co-Editor; use legacy reads or .scproj export"
+                    .into(),
+            )
         }
         Action::Read { source } => {
             let composition = project.read_picture_book(source)?;
@@ -121,8 +142,9 @@ fn execute_action(
         } => Ok(serde_json::to_value(
             project.export_accepted_picture_book(source, &destination)?,
         )?),
-        Action::AdoptScript { name, source, text } => Ok(serde_json::to_value(
-            project.adopt_picture_book_script(&name, source, &text)?,
-        )?),
+        Action::AdoptScript { name, source, text } => {
+            let _ = (name, source, text);
+            Err("book script adoption moved to Storybook Co-Editor".into())
+        }
     }
 }

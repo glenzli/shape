@@ -17,9 +17,11 @@ pub(crate) use ai_image_generate::{
     ai_image_generate_parameters_from_draft, ai_image_generate_state_from_draft,
     configuration_for_ai_image_generate,
 };
+#[cfg(test)]
+pub(crate) use audio_speech::configuration_for_audio_speech;
 use audio_speech::validate_audio_speech_configuration;
 pub(crate) use audio_speech::{
-    audio_speech_operation_from_draft, configuration_for_audio_speech, configuration_with_script,
+    audio_speech_operation_from_draft, configuration_with_script,
     default_audio_speech_configuration,
 };
 use image_resize::validate_image_resize_configuration;
@@ -182,7 +184,8 @@ pub(crate) fn compatible_descriptors(
     source_kind: ArtifactKind,
 ) -> impl Iterator<Item = &'static OperatorDescriptor> {
     DESCRIPTORS.iter().filter(move |descriptor| {
-        descriptor.source_kind == source_kind || descriptor.input_data_type.is_empty()
+        descriptor.type_key != AUDIO_SPEECH_OPERATOR
+            && (descriptor.source_kind == source_kind || descriptor.input_data_type.is_empty())
     })
 }
 
@@ -202,8 +205,12 @@ pub(crate) fn descriptor_for(
         } else {
             operator_type
         };
-    compatible_descriptors(source_kind)
-        .find(|descriptor| descriptor.type_key == operator_type)
+    DESCRIPTORS
+        .iter()
+        .find(|descriptor| {
+            descriptor.type_key == operator_type
+                && (descriptor.source_kind == source_kind || descriptor.input_data_type.is_empty())
+        })
         .ok_or_else(|| "this Operator is incompatible with the selected Scene source".to_owned())
 }
 

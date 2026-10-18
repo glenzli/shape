@@ -36,6 +36,6 @@ fn execute(project: &Path, request: &Path) -> Result<serde_json::Value, Box<dyn 
         return Err("card kit request exceeds 96 KiB".into());
     }
     let request = std::str::from_utf8(&bytes)?;
-    let result = ShapeProject::open(project)?.card_kit_action_json(request)?;
+    let result = ShapeProject::open_read_only(project)?.card_kit_action_json(request)?;
     Ok(serde_json::from_str(&result)?)
 }

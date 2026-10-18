@@ -1,6 +1,7 @@
 //! Public command routing; use cases and script diagnostics retain their own owners.
 
 mod card_kit;
+mod legacy;
 mod material_edit;
 mod picture_book;
 mod project_status;
@@ -31,7 +32,11 @@ fn run() -> Result<u8, Box<dyn Error>> {
     let mut arguments = env::args_os().skip(1);
     let command = arguments.next().ok_or_else(usage_error)?;
     let path = PathBuf::from(arguments.next().ok_or_else(usage_error)?);
-    if command == "material-edit" || command == "picture-book" || command == "card-kit" {
+    if command == "material-edit"
+        || command == "picture-book"
+        || command == "card-kit"
+        || command == "vox-transfer"
+    {
         let request = PathBuf::from(arguments.next().ok_or_else(usage_error)?);
         if arguments.next().is_some() {
             return Err(usage_error().into());
@@ -40,8 +45,10 @@ fn run() -> Result<u8, Box<dyn Error>> {
             material_edit::run(&path, &request)
         } else if command == "card-kit" {
             card_kit::run(&path, &request)
-        } else {
+        } else if command == "picture-book" {
             picture_book::run(&path, &request)
+        } else {
+            legacy::vox_transfer(&path, &request)
         });
     }
     let bindings = if let Some(flag) = arguments.next() {
@@ -61,6 +68,7 @@ fn run() -> Result<u8, Box<dyn Error>> {
         Some("inspect") => inspect(&path).map(|()| 0),
         Some("script-check") => script_check::run(&path, bindings.as_deref()),
         Some("project-status") => project_status::run(&path),
+        Some("legacy-snapshot") => Ok(legacy::snapshot(&path)),
         _ => Err(usage_error().into()),
     }
 }
@@ -126,6 +134,6 @@ fn inspect(path: &Path) -> Result<(), Box<dyn Error>> {
 fn usage_error() -> io::Error {
     io::Error::new(
         io::ErrorKind::InvalidInput,
-        "usage: shape-cli <demo|inspect|project-status> <project.shape> | script-check <script.txt> [--bindings <bindings.json>] | material-edit <project.shape> <request.json> | picture-book <project.shape> <request.json> | card-kit <project.shape> <request.json>",
+        "usage: shape-cli <demo|inspect|project-status|legacy-snapshot> <project.shape> | script-check <script.txt> [--bindings <bindings.json>] | <material-edit|picture-book|card-kit|vox-transfer> <project.shape> <request.json>",
     )
 }

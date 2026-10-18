@@ -2,7 +2,7 @@
 pub(super) mod files;
 mod types;
 
-use super::{CardKitAction, ShapeProject};
+use super::{CardKitDraft, ShapeProject};
 use crate::CoreError;
 use serde_json::json;
 use shape_domain::{
@@ -102,16 +102,50 @@ impl ShapeProject {
         directory: &Path,
         document_json: &str,
     ) -> Result<String, DeckHandoffError> {
+        let draft = self.load_card_kit_draft(artifact_id)?;
+        if draft.draft_digest != draft_digest {
+            return Err(invalid("card set draft changed; reload and retry"));
+        }
+        self.prepare_deck_snapshot_handoff(&draft, request_id, directory, document_json, None)
+    }
+
+    /// Prepares a handoff from the selected accepted version, independently of saved draft edits.
+    /// # Errors
+    /// Rejects changed pins, existing/internal destinations and invalid continuation projects.
+    pub fn prepare_deck_accepted_handoff(
+        &self,
+        source: WorkingInput,
+        request_id: &str,
+        directory: &Path,
+        document_json: &str,
+    ) -> Result<String, DeckHandoffError> {
+        let draft = self.accepted_deck_card_snapshot(source)?;
+        self.prepare_deck_snapshot_handoff(
+            &draft,
+            request_id,
+            directory,
+            document_json,
+            Some(source),
+        )
+    }
+
+    fn prepare_deck_snapshot_handoff(
+        &self,
+        draft: &CardKitDraft,
+        request_id: &str,
+        directory: &Path,
+        document_json: &str,
+        accepted_source: Option<WorkingInput>,
+    ) -> Result<String, DeckHandoffError> {
+        let artifact_id = draft.artifact_id;
+        let draft_digest = &draft.draft_digest;
+        self.verify_deck_snapshot_selection(draft, accepted_source)?;
         if !valid_token(request_id) {
             return Err(invalid("invalid request id"));
         }
         let directory = files::new_path(directory)?;
         if directory.starts_with(self.store.root().canonicalize()?) {
             return Err(invalid("handoff must be outside the Shape project"));
-        }
-        let draft = self.open_card_kit_draft(artifact_id)?;
-        if draft.draft_digest != draft_digest {
-            return Err(invalid("card set draft changed; save and retry"));
         }
         fs::create_dir(&directory)?;
         let origin = Origin {
@@ -122,12 +156,20 @@ impl ShapeProject {
             draft_digest: draft_digest.into(),
         };
         let input = if document_json.is_empty() {
-            let transfer = self.card_kit_action(CardKitAction::DeckTransfer {
-                artifact_id,
-                draft_digest: draft_digest.into(),
-                request_id: request_id.into(),
-                destination: directory.join("transfer"),
-            })?;
+            let transfer = if let Some(source) = accepted_source {
+                self.export_deck_accepted_card_transfer(
+                    source,
+                    request_id,
+                    &directory.join("transfer"),
+                )?
+            } else {
+                self.export_deck_card_transfer(
+                    artifact_id,
+                    draft_digest,
+                    request_id,
+                    &directory.join("transfer"),
+                )?
+            };
             Input::Transfer {
                 manifest_path: serde_json::from_value(transfer["manifest_path"].clone())?,
                 manifest_blake3: transfer["manifest_blake3"]
@@ -162,10 +204,39 @@ impl ShapeProject {
         };
         let bytes = serde_json::to_vec_pretty(&request)?;
         let request_path = directory.join("request.json");
+        self.verify_deck_snapshot_selection(draft, accepted_source)?;
         files::write_new(&request_path, &bytes)?;
         Ok(serde_json::to_string(
             &json!({"request_path":request_path,"result_path":directory.join("result.json"),"request_blake3":ContentDigest::from_bytes(&bytes).to_string(),"request":request}),
         )?)
+    }
+
+    fn verify_deck_snapshot_selection(
+        &self,
+        draft: &CardKitDraft,
+        accepted_source: Option<WorkingInput>,
+    ) -> Result<(), DeckHandoffError> {
+        let current = if let Some(source) = accepted_source {
+            self.accepted_deck_card_snapshot(source)?
+        } else {
+            self.load_card_kit_draft(draft.artifact_id)?
+        };
+        let head = self
+            .snapshot()?
+            .artifacts
+            .into_iter()
+            .find(|artifact| artifact.id == draft.artifact_id)
+            .ok_or_else(|| invalid("card set disappeared"))?
+            .accepted_revision;
+        if current.draft_digest != draft.draft_digest
+            || current.expected_head != draft.expected_head
+            || head != draft.expected_head
+        {
+            return Err(invalid(
+                "selected card snapshot changed; reload before handoff",
+            ));
+        }
+        Ok(())
     }
 
     /// Independently verifies a Deck terminal result and every returned PDF/ZIP exact byte identity.

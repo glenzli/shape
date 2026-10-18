@@ -62,6 +62,12 @@ struct Composition {
     inputs: Vec<PinnedSource>,
 }
 
+#[derive(Debug)]
+struct LanguageLayers {
+    languages: BTreeMap<String, Value>,
+    parsed: BTreeMap<String, script::ParsedScript>,
+}
+
 impl ShapeProject {
     /// Export a new `.scproj` for Storybook's human/AI composition and publication workflow.
     /// Inputs must be current accepted revisions; originals and Shape heads never change.
@@ -83,6 +89,18 @@ impl ShapeProject {
         require_current: bool,
     ) -> Result<PictureBookExport, PictureBookError> {
         validate_request(request)?;
+        let composition = self.compose_picture_book(request, require_current, None)?;
+        self.publish_book_snapshot(request, destination, require_current, &composition, None)
+    }
+
+    fn publish_book_snapshot(
+        &self,
+        request: &PictureBookRequest,
+        destination: &Path,
+        require_current: bool,
+        composition: &Composition,
+        draft: Option<&PictureBookDraft>,
+    ) -> Result<PictureBookExport, PictureBookError> {
         if destination.extension().and_then(|s| s.to_str()) != Some("scproj") {
             return Err(invalid("destination must end in .scproj"));
         }
@@ -100,7 +118,6 @@ impl ShapeProject {
                 "destination must be a new file outside the Shape project",
             ));
         }
-        let composition = self.compose_picture_book(request, require_current)?;
         let temporary =
             Temporary(parent.join(format!(".shape-book-{}.partial", uuid::Uuid::now_v7())));
         let mut options = OpenOptions::new();
@@ -120,6 +137,12 @@ impl ShapeProject {
             archive.start_file(name, options)?;
             archive.write_all(&serde_json::to_vec_pretty(value)?)?;
         }
+        if let Some(draft) = draft {
+            archive.start_file("shape-draft.json", options)?;
+            archive.write_all(&serde_json::to_vec_pretty(
+                &json!({"schema":"shape.legacy-book-draft/1","status":"unaccepted","draft":draft}),
+            )?)?;
+        }
         for (name, bytes) in &composition.assets {
             archive.start_file(name, options)?;
             archive.write_all(bytes)?;
@@ -130,6 +153,14 @@ impl ShapeProject {
         if require_current {
             for input in &composition.inputs {
                 self.verify_book_head(input.source)?;
+            }
+        }
+        if let Some(draft) = draft {
+            let current = self.load_picture_book_draft(draft.artifact_id)?;
+            if current.draft_digest != draft.draft_digest
+                || current.expected_head != draft.expected_head
+            {
+                return Err(invalid("book draft changed before export publication"));
             }
         }
         let (byte_length, output_blake3) = digest_file(&temporary.0)?;
@@ -143,6 +174,54 @@ impl ShapeProject {
             pages: request.pages.len(),
             languages: request.languages.len(),
         })
+    }
+
+    /// Exports an exact recoverable book draft without accepting its script or changing Shape.
+    /// Raw active-language text is preserved in Storybook and in an explicit unaccepted sidecar.
+    /// # Errors
+    /// Rejects changed identities, corrupt pins, invalid output paths and publication failures.
+    pub fn export_legacy_picture_book_draft(
+        &self,
+        artifact_id: shape_domain::ArtifactId,
+        draft_digest: &str,
+        destination: &Path,
+    ) -> Result<Value, PictureBookError> {
+        let draft = self.load_picture_book_draft(artifact_id)?;
+        if draft.draft_digest != draft_digest {
+            return Err(invalid("book draft changed; reload before exporting"));
+        }
+        let artifact = self
+            .store
+            .artifact(artifact_id)
+            .map_err(CoreError::from)?
+            .ok_or_else(|| invalid("book draft artifact is missing"))?;
+        if draft.expected_head != artifact.accepted_revision {
+            return Err(invalid(
+                "book draft output head changed; reload before exporting",
+            ));
+        }
+        let mut request = draft.state.composition.clone();
+        let script_is_draft = draft.state.script_dirty
+            || !request.languages.contains_key(&draft.state.active_language);
+        let override_script = script_is_draft.then_some((
+            draft.state.active_language.as_str(),
+            draft.state.script.as_str(),
+        ));
+        if request.default_language.is_empty() || (request.languages.is_empty() && script_is_draft)
+        {
+            request
+                .default_language
+                .clone_from(&draft.state.active_language);
+        }
+        let mut composition = self.compose_picture_book(&request, false, override_script)?;
+        composition.origin["workflow"] =
+            json!("legacy Shape draft -> editable Storybook snapshot; no Shape acceptance");
+        composition.origin["draft_status"] = json!("unaccepted");
+        let exported =
+            self.publish_book_snapshot(&request, destination, false, &composition, Some(&draft))?;
+        Ok(
+            json!({"export":exported,"draft":{"artifact_id":artifact_id,"draft_digest":draft_digest,"status":"unaccepted"},"unaccepted_script_preserved":script_is_draft,"warnings":if script_is_draft { vec!["unaccepted_script_requires_review_in_storybook"] } else { vec![] }}),
+        )
     }
 
     fn verify_book_head(&self, source: WorkingInput) -> Result<(), PictureBookError> {
@@ -194,32 +273,62 @@ impl ShapeProject {
         Ok(content.bytes)
     }
 
-    fn compose_picture_book(
+    fn book_language_layers(
         &self,
         request: &PictureBookRequest,
         require_current: bool,
-    ) -> Result<Composition, PictureBookError> {
-        let mut inputs = Vec::new();
-        let mut remaining = MAX_INPUT_BYTES;
+        draft_script: Option<(&str, &str)>,
+        inputs: &mut Vec<PinnedSource>,
+        remaining: &mut usize,
+    ) -> Result<LanguageLayers, PictureBookError> {
         let mut languages = BTreeMap::new();
         let mut parsed_languages = BTreeMap::new();
         let mut title_role = None;
-        for (language, source) in &request.languages {
-            let bytes = self.book_input(
-                *source,
-                ArtifactKind::TextDocument,
-                &mut inputs,
-                &mut remaining,
-                require_current,
-            )?;
-            let text = String::from_utf8(bytes).map_err(|_| invalid("script must be UTF-8"))?;
-            let parsed = script::parse(&text, request.pages.len())?;
-            if title_role.is_some_and(|has_title| has_title != parsed.has_title) {
+        let mut language_names = request
+            .languages
+            .keys()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>();
+        if let Some((language, _)) = draft_script {
+            language_names.insert(language.to_owned());
+        }
+        for language in &language_names {
+            let unaccepted = draft_script.filter(|(draft_language, _)| *draft_language == language);
+            let text = if let Some((_, text)) = unaccepted {
+                text.to_owned()
+            } else {
+                let source = request
+                    .languages
+                    .get(language)
+                    .ok_or_else(|| invalid("book language source missing"))?;
+                let bytes = self.book_input(
+                    *source,
+                    ArtifactKind::TextDocument,
+                    inputs,
+                    remaining,
+                    require_current,
+                )?;
+                String::from_utf8(bytes).map_err(|_| invalid("script must be UTF-8"))?
+            };
+            let parsed = match script::parse(&text, request.pages.len()) {
+                Ok(parsed) => parsed,
+                Err(_) if unaccepted.is_some() => script::ParsedScript {
+                    page_text: BTreeMap::new(),
+                    author: String::new(),
+                    has_title: false,
+                },
+                Err(error) => return Err(error),
+            };
+            if unaccepted.is_none()
+                && title_role.is_some_and(|has_title| has_title != parsed.has_title)
+            {
                 return Err(invalid(
-                    "all language scripts must agree whether a title page exists",
+                    "all accepted language scripts must agree whether a title page exists",
                 ));
             }
-            title_role = Some(parsed.has_title);
+            if unaccepted.is_none() {
+                title_role = Some(parsed.has_title);
+            }
             let contributors = if parsed.author.is_empty() {
                 vec![]
             } else {
@@ -235,13 +344,37 @@ impl ShapeProject {
                         .max(64))
                 );
             }
-            languages.insert(language, json!({"script":text,
+            languages.insert(language.clone(), json!({"script":text,
                 "cover_text_settings":cover, "title_text_settings":text_settings(u32::from(request.font_size) * 5 / 4),
                 "inner_text_settings":text_settings(u32::from(request.font_size)), "author_text_settings":text_settings(16),
                 "page_text_overrides":{}, "publication_metadata": {"version":1,
                     "language":language,"title":parsed.page_text.get(&0),"contributors":contributors}}));
-            parsed_languages.insert(language, parsed);
+            parsed_languages.insert(language.clone(), parsed);
         }
+        Ok(LanguageLayers {
+            languages,
+            parsed: parsed_languages,
+        })
+    }
+
+    fn compose_picture_book(
+        &self,
+        request: &PictureBookRequest,
+        require_current: bool,
+        draft_script: Option<(&str, &str)>,
+    ) -> Result<Composition, PictureBookError> {
+        let mut inputs = Vec::new();
+        let mut remaining = MAX_INPUT_BYTES;
+        let LanguageLayers {
+            languages,
+            parsed: parsed_languages,
+        } = self.book_language_layers(
+            request,
+            require_current,
+            draft_script,
+            &mut inputs,
+            &mut remaining,
+        )?;
         let mut visible = Vec::new();
         let mut page_settings = BTreeMap::new();
         let mut assets = Vec::new();
@@ -256,8 +389,9 @@ impl ShapeProject {
                         require_current,
                     )?;
                     let digest = shape_domain::ContentDigest::from_bytes(&bytes);
+                    // Storybook serves basenames from workspace root after archive extraction.
                     // Repeated artwork still receives distinct editable page identities.
-                    let path = format!("images/{index:04}-{digest}.png");
+                    let path = format!("{index:04}-{digest}.png");
                     assets.push((path.clone(), bytes));
                     (path, *print_only)
                 }

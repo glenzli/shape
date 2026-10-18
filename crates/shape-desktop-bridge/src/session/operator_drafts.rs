@@ -12,12 +12,13 @@ use shape_domain::{
 };
 
 use crate::operator_catalog::OperatorDescriptor;
+#[cfg(test)]
+use crate::operator_catalog::configuration_for_audio_speech;
 use crate::operator_catalog::{
     AUDIO_SPEECH_OPERATOR, IMAGE_GENERATE_OPERATOR, IMAGE_RESIZE_OPERATOR, TEXT_CREATE_OPERATOR,
-    TEXT_EDIT_OPERATOR, configuration_for_ai_image_generate, configuration_for_audio_speech,
-    configuration_for_expression_studio, configuration_for_image_resize, configuration_for_studio,
-    default_audio_speech_configuration, is_image_edit_workspace_operator,
-    is_text_workspace_operator, validate_draft_configuration,
+    TEXT_EDIT_OPERATOR, configuration_for_ai_image_generate, configuration_for_expression_studio,
+    configuration_for_image_resize, configuration_for_studio, default_audio_speech_configuration,
+    is_image_edit_workspace_operator, is_text_workspace_operator, validate_draft_configuration,
 };
 
 /// Identity-addressed drafts owned by one open desktop session.
@@ -35,40 +36,6 @@ impl OperatorDrafts {
             }
         }
         Ok(Self { graphs })
-    }
-
-    /// Upgrades legacy preset speech drafts that predate Operator-owned
-    /// configuration. The caller persists every returned graph before making
-    /// the session available, so execution never observes UI-only defaults.
-    pub(crate) fn initialize_audio_speech_defaults(
-        &mut self,
-    ) -> Result<Vec<ArtifactWorkingGraph>, String> {
-        let mut changed = Vec::new();
-        for graph in &mut self.graphs {
-            let draft_ids = graph
-                .operators()
-                .iter()
-                .filter(|draft| {
-                    draft.operator_type().as_str() == AUDIO_SPEECH_OPERATOR
-                        && draft.configuration().is_none()
-                })
-                .map(|draft| draft.id().clone())
-                .collect::<Vec<_>>();
-            if draft_ids.is_empty() {
-                continue;
-            }
-            for draft_id in draft_ids {
-                if !graph.set_operator_configuration(
-                    &draft_id,
-                    Some(default_audio_speech_configuration()?),
-                ) {
-                    return Err("Operator draft disappeared during legacy configuration".to_owned());
-                }
-            }
-            graph.validate().map_err(|error| error.to_string())?;
-            changed.push(graph.clone());
-        }
-        Ok(changed)
     }
 
     /// Begins or reuses one compatible Operator draft.
@@ -260,6 +227,7 @@ impl OperatorDrafts {
         )
     }
 
+    #[cfg(test)]
     pub(crate) fn begin_speech_node(
         &mut self,
         target: &Artifact,
@@ -442,6 +410,7 @@ impl OperatorDrafts {
         Ok((artifact_id, draft))
     }
 
+    #[cfg(test)]
     pub(crate) fn update_audio_speech_configuration(
         &mut self,
         draft_id: &str,

@@ -8,13 +8,12 @@
 mod deck_handoff;
 mod infer_agent;
 use deck_handoff::{
-    finish_deck_material_task, prepare_deck_handoff, read_deck_material_task,
-    verify_deck_output_return,
+    finish_deck_material_task, prepare_deck_accepted_handoff, prepare_deck_handoff,
+    read_deck_material_task, verify_deck_output_return,
 };
 mod infer_image;
 mod infer_runtime_access;
 mod infer_sound;
-mod infer_speech;
 use infer_sound::{
     InferSoundCandidate, SoundGenerationControl, generate_infer_sound_candidate, new_sound_control,
     sound_control_cancel, sound_control_resume, sound_control_stage,
@@ -41,11 +40,7 @@ use infer_image::{
     infer_image_batch_failure_code, new_image_generation_control,
 };
 use infer_runtime_access::{infer_runtime_credential_status, install_infer_runtime_credential};
-use infer_speech::{
-    InferSpeechCandidate, SpeechSynthesisControl, generate_infer_speech_candidate,
-    generate_infer_speech_candidate_controlled, new_speech_control, speech_control_cancel,
-    speech_control_completed, speech_control_resume, speech_control_total, speech_presets,
-};
+
 use infer_text::{InferTextCandidate, generate_infer_text_candidate};
 use operator_graph::project_operator_graph;
 use session::{DesktopSession, create_desktop_project, open_desktop_session};
@@ -245,14 +240,6 @@ mod ffi {
         wav_bytes: Vec<u8>,
     }
 
-    #[derive(Debug)]
-    struct SpeechPresetWire {
-        key: String,
-        alias: String,
-        language: String,
-        catalog_revision: String,
-    }
-
     /// Public Infer Runtime contract availability. Error codes are stable and
     /// language-neutral; credentials and response payloads never cross here.
     #[derive(Debug)]
@@ -319,7 +306,6 @@ mod ffi {
         type InferImageCandidate;
         type InferImageBatch;
         type ImageGenerationControl;
-        type InferSpeechCandidate;
         type InferTextCandidate;
         type InferAgentTextCandidate;
 
@@ -334,6 +320,13 @@ mod ffi {
             project: &str,
             artifact: &str,
             digest: &str,
+            request_id: &str,
+            directory: &str,
+            document: &str,
+        ) -> Result<String>;
+        fn prepare_deck_accepted_handoff(
+            project: &str,
+            source_json: &str,
             request_id: &str,
             directory: &str,
             document: &str,
@@ -379,34 +372,6 @@ mod ffi {
             credential_path: &str,
             explicit_override: &str,
         ) -> Result<Box<InferAgentTextCandidate>>;
-
-        type SpeechSynthesisControl;
-        #[allow(clippy::unnecessary_box_returns)] // CXX opaque Rust ownership requires Box.
-        fn new_speech_control() -> Box<SpeechSynthesisControl>;
-        fn speech_control_resume(control: &SpeechSynthesisControl);
-        fn speech_control_cancel(control: &SpeechSynthesisControl);
-        fn speech_control_completed(control: &SpeechSynthesisControl) -> u32;
-        fn speech_control_total(control: &SpeechSynthesisControl) -> u32;
-        fn speech_presets() -> Vec<SpeechPresetWire>;
-        fn generate_infer_speech_candidate_controlled(
-            project_path: &str,
-            source_artifact_id: &str,
-            draft_id: &str,
-            artifact_name: &str,
-            credential_path: &str,
-            explicit_override: &str,
-            control: &SpeechSynthesisControl,
-        ) -> Result<Box<InferSpeechCandidate>>;
-
-        /// Runs preset-only speech synthesis outside the live desktop session.
-        fn generate_infer_speech_candidate(
-            project_path: &str,
-            source_artifact_id: &str,
-            draft_id: &str,
-            artifact_name: &str,
-            credential_path: &str,
-            explicit_override: &str,
-        ) -> Result<Box<InferSpeechCandidate>>;
 
         /// Runs zero-input AI image generation outside the live desktop session.
         fn generate_infer_image_candidate(
@@ -485,23 +450,17 @@ mod ffi {
             self: &mut DesktopSession,
             candidate: Box<PreparedMaterialReturn>,
         ) -> Result<CandidateWire>;
-        fn session_book_preview(self: &DesktopSession, composition: &str) -> Result<String>;
-        fn session_book_propose(
-            self: &mut DesktopSession,
-            source: &str,
-            composition: &str,
-        ) -> Result<String>;
         fn session_book_read(self: &DesktopSession, source: &str) -> Result<String>;
         fn session_book_export(
             self: &DesktopSession,
             source: &str,
             destination: &str,
         ) -> Result<String>;
-        fn session_book_script(
-            self: &mut DesktopSession,
-            name: &str,
-            source: &str,
-            text: &str,
+        fn session_book_draft_export(
+            self: &DesktopSession,
+            artifact_id: &str,
+            draft_digest: &str,
+            destination: &str,
         ) -> Result<String>;
         fn session_book_material(
             self: &DesktopSession,
@@ -512,15 +471,12 @@ mod ffi {
             self: &mut DesktopSession,
             request_json: &str,
         ) -> Result<String>;
-        fn session_book_draft_propose(
-            self: &mut DesktopSession,
-            artifact_id: &str,
-            draft_digest: &str,
-        ) -> Result<String>;
         fn session_card_kit_action_json(
             self: &mut DesktopSession,
             request_json: &str,
         ) -> Result<String>;
+        fn session_legacy_snapshot_json(self: &DesktopSession) -> Result<String>;
+        fn session_vox_transfer_json(self: &DesktopSession, request_json: &str) -> Result<String>;
         fn session_workflow_templates_json(self: &DesktopSession) -> Result<String>;
         fn session_snapshot(self: &DesktopSession) -> Result<ProjectSnapshotWire>;
         fn session_rename_artifact(
@@ -579,10 +535,6 @@ mod ffi {
             self: &mut DesktopSession,
             draft_id: &str,
         ) -> Result<CandidateWire>;
-        fn session_begin_authoring_speech(
-            self: &mut DesktopSession,
-            artifact_id: &str,
-        ) -> Result<OperatorDraftWire>;
         fn session_begin_operator_draft(
             self: &mut DesktopSession,
             artifact_id: &str,
@@ -607,27 +559,7 @@ mod ffi {
             style_key: &str,
             variant_count: u8,
         ) -> Result<OperatorDraftWire>;
-        fn session_update_audio_speech_draft(
-            self: &mut DesktopSession,
-            draft_id: &str,
-            preset_alias: &str,
-            preset_catalog_revision: &str,
-            language: &str,
-            speed_milli: u16,
-            synthetic_disclosure_required: bool,
-        ) -> Result<OperatorDraftWire>;
-        fn session_update_speech_script(
-            self: &mut DesktopSession,
-            draft_id: &str,
-            options_json: &str,
-        ) -> Result<OperatorDraftWire>;
         fn session_speech_script_preview(self: &DesktopSession, draft_id: &str) -> Result<String>;
-        fn session_import_speech_cue(
-            self: &mut DesktopSession,
-            draft_id: &str,
-            label: &str,
-            bytes: &[u8],
-        ) -> Result<OperatorDraftWire>;
         fn session_update_image_resize_draft(
             self: &mut DesktopSession,
             draft_id: &str,
@@ -754,13 +686,6 @@ mod ffi {
             self: &mut DesktopSession,
             candidate: Box<InferAgentTextCandidate>,
         ) -> Result<CandidateWire>;
-        /// Adopts one completed speech result only if its source head remains current.
-        fn session_adopt_infer_speech(
-            self: &mut DesktopSession,
-            candidate: Box<InferSpeechCandidate>,
-        ) -> Result<CandidateWire>;
-        /// Adopts one completed zero-input image result only while its target
-        /// Artifact remains unaccepted and its exact draft still exists.
         fn session_adopt_infer_image(
             self: &mut DesktopSession,
             candidate: Box<InferImageCandidate>,

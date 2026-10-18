@@ -32,6 +32,9 @@ Rectangle {
     readonly property bool isHtml: isText && /\.html?$/i.test(nodeData.artifactName || "")
     readonly property string textPreview: nodeData.hasTextPreview === true
                                                    ? nodeData.textPreview : ""
+    readonly property string pinnedImageSource: isImage && backend !== null ? backend.sourceRevisionImage(artifactId, revisionId) : ""
+    signal continueVoxRequested(string artifactId, string revisionId)
+    readonly property bool currentTextRevision: isText && backend !== null && backend.artifacts.some(a => a.id === artifactId && a.acceptedRevisionId === revisionId)
     property string completeText: ""
     property bool previewMode: false
     property bool agentMode: false
@@ -142,6 +145,14 @@ Rectangle {
                 }
             }
 
+            ShapeButton {
+                objectName: "sourceContinueVoxButton"
+                visible: workspace.isText
+                text: qsTr("Continue in Vox…")
+                quiet: true
+                enabled: workspace.currentTextRevision
+                onClicked: workspace.continueVoxRequested(workspace.artifactId, workspace.revisionId)
+            }
             Rectangle {
                 Layout.preferredWidth: lockedLabel.implicitWidth + 22
                 Layout.preferredHeight: 30
@@ -227,8 +238,18 @@ Rectangle {
             credentialConfigured: workspace.inferCredentialConfigured
         }
 
+        Image {
+            objectName: "sourcePinnedImage"
+            visible: workspace.isImage
+            source: workspace.pinnedImageSource
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            fillMode: Image.PreserveAspectFit
+            asynchronous: false
+        }
+
         Rectangle {
-            visible: !workspace.isText
+            visible: !workspace.isText && !workspace.isImage
             Layout.fillWidth: true
             Layout.fillHeight: true
             radius: Theme.radiusMedium

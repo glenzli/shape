@@ -16,16 +16,13 @@ ApplicationWindow {
     required property InferTextController inferText
     required property InferSoundController inferSound
     required property InferAgentController inferAgent
-    required property InferSpeechController inferSpeech
-    required property PictureBookController pictureBook
-    required property CardKitController cardKit
-    required property CardPrintController cardPrint
     required property MaterialEditController materialEdit
     required property InferImageController inferImage
     required property AudioPreviewController audioPreview
     required property AudioExportController audioExport
     required property UiPreferences uiPreferences
     required property RecentProjects recentProjects
+    required property LegacyWorkController legacyWork
     required property DeckHandoffController deckHandoff
     required property DeckMaterialTaskController deckMaterialTask
 
@@ -75,8 +72,8 @@ ApplicationWindow {
     }
 
     function startTextAuthoring(preset) : void {
-        if (preset !== "plain" && preset !== "script") return
-        const name = preset === "script" ? qsTr("Untitled production script") : qsTr("Untitled text")
+        if (preset !== "plain") return
+        const name = qsTr("Untitled text")
         if (!backend.createTextAuthoring(name, preset)) return
         selectedArtifactIndex = Math.max(0, backend.artifactCount - 1)
         selectedCandidateId = ""
@@ -89,15 +86,14 @@ ApplicationWindow {
     }
 
     function openCreativeWork(artifactId, index) : void {
-        const artifact = backend.artifacts[index]
-        if (artifact && artifact.kindKey === "card_kit") {
-            selectedArtifactIndex = index
-            cardWorkspace.openWorkspace(artifactId)
-        } else if (artifact && artifact.kindKey === "picture_book") {
-            selectedArtifactIndex = index
-            bookWorkspace.openWorkspace(artifactId)
-        }
-        else workspaceSurface.activateScene(index)
+        const target = artifactIndex(artifactId)
+        if (target < 0) return
+        if (!workspaceSurface.checkpoint()) return
+        selectedArtifactIndex = target
+        const artifact = backend.artifacts[target]
+        if (artifact.kindKey === "card_kit" || artifact.kindKey === "picture_book")
+            workspaceSurface.openLegacyWork(artifactId, "")
+        else workspaceSurface.activateScene(target)
     }
     function openDeckMaterialTask() : void {
         if (!window.deckMaterialTask.active) return
@@ -127,13 +123,9 @@ ApplicationWindow {
         Qt.callLater(window.refreshSelectedImage)
     }
 
-    function openAuthoringSpeech(artifactId) : void {
-        openDraftTarget(backend.beginAuthoringSpeech(artifactId))
-    }
-
     function openProject(projectUrl) : void {
         if (window.deckMaterialTask.active) return
-        if (!cardWorkspace.flush() || !bookWorkspace.flush()) return
+        if (!workspaceSurface.checkpoint()) return
         if (!window.backend.openProject(projectUrl)) return
         window.selectedArtifactIndex = 0
         window.selectedCandidateId = ""
@@ -313,7 +305,7 @@ ApplicationWindow {
         if (window.deckMaterialTask.active) {
             close.accepted = false
             window.deckMaterialTask.cancel()
-        } else if (!cardWorkspace.flush() || !bookWorkspace.flush()) close.accepted = false
+        } else if (!workspaceSurface.checkpoint()) close.accepted = false
     }
     title: Qt.platform.os === "osx" ? ""
            : window.backend.projectOpen
@@ -360,88 +352,15 @@ ApplicationWindow {
 
     CreateSceneTypeDialog {
         id: createSceneTypeDialog
-        templateKeys: window.cardKit.templateKeys
-        onAboutToShow: window.cardKit.refresh()
         onTextAuthoringRequested: profile => window.startTextAuthoring(profile)
         onSoundSceneRequested: window.startSoundScene()
         onAiImageSceneRequested: createAiImageSceneDialog.openForCreation()
-        onPictureBookRequested: if (!window.deckHandoff.openStorybook()) externalApplicationMessage.open()
-        onCardKitRequested: deckDialog.openForKit("", "")
-        onImageRefinementRequested: refineImageChooser.open()
         onImportMaterialRequested: materialImportDialog.open()
         onPasteMaterialRequested: window.pasteMaterialIntoProject()
     }
 
-    PictureBookWorkspace {
-        id: bookWorkspace
-        backend: window.backend
-        controller: window.pictureBook
-        materialEdit: window.materialEdit
-        inferImage: window.inferImage
-        inferText: window.inferText
-        uiPreferences: window.uiPreferences
-        onInferAccessSetupRequested: settingsDialog.open()
-        onMaterialRequested: materialImportDialog.open()
-        onEditMaterialRequested: artifactId => {
-            bookWorkspace.close()
-            const index = window.artifactIndex(artifactId)
-            if (index >= 0) workspaceSurface.activateScene(index)
-        }
-    }
-
-    CardKitWorkspace {
-        id: cardWorkspace
-        backend: window.backend
-        controller: window.cardKit
-        cardPrint: window.cardPrint
-        onInferAccessSetupRequested: settingsDialog.open()
-        inferImage: window.inferImage
-        inferText: window.inferText
-        materialEdit: window.materialEdit
-        audioPreview: window.audioPreview
-        uiPreferences: window.uiPreferences
-        onDeckRequested: (artifactId, digest) => deckDialog.openForKit(artifactId, digest)
-    }
-
     DeckHandoffDialog { id: deckDialog; controller: window.deckHandoff; backend: window.backend }
-    ShapeMessageDialog { id: externalApplicationMessage; title: qsTr("Open the dedicated editor"); text: window.deckHandoff.error }
     footer: DeckMaterialTaskBar { controller: window.deckMaterialTask }
-
-    ShapeDialog {
-        id: refineImageChooser
-        objectName: "refineImageChooser"
-        readonly property var images: window.backend.artifacts.filter(a => a.kindKey === "image_raster" && a.hasAcceptedRevision)
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: Math.min(520, parent.width - 48)
-        modal: true
-        title: qsTr("Choose an image to refine")
-        contentItem: ColumnLayout {
-            spacing: 12
-            Label { Layout.fillWidth: true; text: qsTr("Open an accepted image in Shadow, then review the returned version in Shape."); color: Theme.muted; wrapMode: Text.WordWrap }
-            ShapeComboBox { id: refineImagePicker; objectName: "refineImagePicker"; Layout.fillWidth: true; model: refineImageChooser.images; textRole: "name" }
-            RowLayout {
-                ShapeButton { text: qsTr("Import an image…"); onClicked: { refineImageChooser.close(); imageRefinementImport.projectId = window.backend.projectId; imageRefinementImport.open() } }
-                Item { Layout.fillWidth: true }
-                ShapeButton { text: qsTr("Continue with this image"); primary: true; enabled: refineImagePicker.currentIndex >= 0 && refineImagePicker.currentIndex < refineImageChooser.images.length; onClicked: { const image = refineImageChooser.images[refineImagePicker.currentIndex]; refineImageChooser.close(); window.startImageRefinement(image.id) } }
-            }
-        }
-    }
-
-    FileDialog {
-        id: imageRefinementImport
-        property string projectId: ""
-        title: qsTr("Choose an image to refine")
-        nameFilters: [qsTr("Images (*.png *.jpg *.jpeg)")]
-        onAccepted: {
-            if (projectId !== window.backend.projectId) return
-            const previous = new Set(window.backend.artifacts.map(a => a.id))
-            if (!window.backend.importRaster(selectedFile)) return
-            const added = window.backend.artifacts.filter(a => !previous.has(a.id)
-                && a.kindKey === "image_raster" && a.hasAcceptedRevision)
-            if (added.length === 1) window.startImageRefinement(added[0].id)
-        }
-    }
 
     CreateTextSceneDialog {
         id: createTextSceneDialog
@@ -514,13 +433,6 @@ ApplicationWindow {
         onAccepted: window.backend.exportAcceptedMaterial(artifactId, selectedFile)
     }
 
-    ShapeMessageDialog {
-        id: componentPreviewDialog
-        objectName: "componentPreviewDialog"
-        title: qsTr("Components")
-        text: qsTr("Reusable components are coming next. This section is reserved so larger projects can organize repeated creative work without changing today's project structure.")
-    }
-
     BranchArtifactDialog {
         id: branchDialog
         backend: window.backend
@@ -578,11 +490,9 @@ ApplicationWindow {
                 const targetIndex = window.artifactIndex(assetId)
                 if (targetIndex >= 0) workspaceSurface.activateScene(targetIndex)
             }
-            onPictureBooksRequested: bookWorkspace.openWorkspace()
             onNewProjectRequested: createProjectDialog.openForCreation()
             onOpenProjectRequested: projectOpenDialog.open()
             onCreateSceneRequested: createSceneTypeDialog.openForCreation()
-            onCreateComponentRequested: componentPreviewDialog.open()
             onImportAssetRequested: materialImportDialog.open()
             onPasteAssetRequested: window.pasteMaterialIntoProject("assets")
         }
@@ -621,7 +531,7 @@ ApplicationWindow {
                     candidateImageSource: window.backend.candidateImageSource
                     inferImage: window.inferImage
                     backend: window.backend
-                    inferSpeech: window.inferSpeech
+                    legacyWork: window.legacyWork
                     materialEdit: window.materialEdit
                     inferAgent: window.inferAgent
                     inferSound: window.inferSound
@@ -632,6 +542,7 @@ ApplicationWindow {
                     inferTextErrorCode: window.inferText.errorCode
                     inferRuntimeCompatible: window.inferRuntime.compatible
                     onSceneSelected: index => window.selectedArtifactIndex = index
+                    onDeckRequested: (artifactId, digest) => deckDialog.openForKit(artifactId, digest)
                     onCompositionRequested: (artifactId, kindKey) => window.openCreativeWork(artifactId, window.artifactIndex(artifactId))
                     onCandidateSelected: candidateId => window.activateCandidate(candidateId)
                     onCandidateReviewRequested: candidateId => window.reviewCandidate(candidateId)
@@ -699,28 +610,6 @@ ApplicationWindow {
                                 artifactId, window.selectedCandidateId)
                         }
                     }
-                    onSpeechDraftSaveRequested: (draftId, presetAlias,
-                                                 presetCatalogRevision, language,
-                                                 speedMilli,
-                                                 syntheticDisclosureRequired) => {
-                        window.backend.updateAudioSpeechDraft(
-                            draftId, presetAlias, presetCatalogRevision,
-                            language, speedMilli, syntheticDisclosureRequired)
-                    }
-                    onSpeechSynthesisRequested: (sourceArtifactId, draftId,
-                                                 artifactName, presetAlias,
-                                                 presetCatalogRevision, language,
-                                                 speedMilli,
-                                                 syntheticDisclosureRequired) => {
-                        if (window.backend.updateAudioSpeechDraft(
-                                draftId, presetAlias, presetCatalogRevision,
-                                language, speedMilli,
-                                syntheticDisclosureRequired)) {
-                            window.inferSpeech.generate(
-                                window.backend.bundlePath, sourceArtifactId,
-                                draftId, artifactName)
-                        }
-                    }
                     onAiImageDraftSaveRequested: (draftId, instruction,
                                                   outputWidth, outputHeight, candidateCount) => {
                         window.backend.updateAiImageDraft(
@@ -771,7 +660,6 @@ ApplicationWindow {
                     onAuthoringGenerationRequested: (artifactId, draftId, modelKey, effortKey) =>
                         window.inferText.generate(window.backend.bundlePath, artifactId, draftId,
                                                   modelKey, effortKey)
-                    onAuthoringSpeechRequested: artifactId => window.openAuthoringSpeech(artifactId)
                     onWritingRequested: (artifactId, scriptMode) => window.returnToWriting(artifactId, scriptMode)
                     onAudioExportRequested: (artifactId, candidateId) => audioExportDialog.openForAudio(artifactId, candidateId)
                     onMaterialExportRequested: (artifactId, kindKey) => {
@@ -965,19 +853,6 @@ ApplicationWindow {
         function onCandidateCreated(candidateId, artifactId) : void {
             if (window.hasSelectedArtifact && window.selectedArtifact.id === artifactId) {
                 window.reviewCandidate(candidateId)
-            }
-        }
-    }
-
-    Connections {
-        target: window.inferSpeech
-
-        function onCandidateCreated(candidateId, sourceArtifactId) : void {
-            if (window.hasSelectedArtifact
-                    && window.selectedArtifact.id === sourceArtifactId
-                    && window.activateCandidate(candidateId)) {
-                window.compareMode = true
-                workspaceSurface.openSpeechWorkspace()
             }
         }
     }

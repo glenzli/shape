@@ -281,7 +281,7 @@ fn image_resize_configuration_is_exact_and_identity_addressed() {
 }
 
 #[test]
-fn legacy_unconfigured_speech_draft_receives_executable_preset_defaults() {
+fn legacy_unconfigured_speech_draft_remains_unconfigured() {
     let text = accepted_artifact(ArtifactKind::TextDocument);
     let mut graph = ArtifactWorkingGraph::new(text.id, text.accepted_revision.unwrap());
     let legacy = graph
@@ -292,17 +292,15 @@ fn legacy_unconfigured_speech_draft_receives_executable_preset_defaults() {
         )
         .unwrap();
     assert!(legacy.configuration().is_none());
-    let mut drafts = OperatorDrafts::from_graphs(vec![graph]).unwrap();
-    let changed = drafts.initialize_audio_speech_defaults().unwrap();
-    assert_eq!(changed.len(), 1);
+    let drafts = OperatorDrafts::from_graphs(vec![graph.clone()]).unwrap();
+    assert_eq!(drafts.graph(text.id).unwrap(), &graph);
     let restored = drafts.entries().next().unwrap().1;
     assert_eq!(restored.id(), legacy.id());
-    assert_eq!(
+    assert!(restored.configuration().is_none());
+    assert!(
         audio_speech_operation_from_draft(restored)
             .unwrap()
-            .unwrap()
-            .speed_milli,
-        1_000
+            .is_none()
     );
 }
 

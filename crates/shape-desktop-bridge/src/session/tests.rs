@@ -22,8 +22,20 @@ use crate::infer_image::{
     image_generation_control_cancel, image_generation_control_has_candidate,
     image_generation_control_take_candidate,
 };
-use crate::infer_speech::InferSpeechCandidate;
-use crate::operator_catalog::{AUDIO_SPEECH_OPERATOR, IMAGE_CROP_OPERATOR, IMAGE_RESIZE_OPERATOR};
+use crate::operator_catalog::{IMAGE_CROP_OPERATOR, IMAGE_RESIZE_OPERATOR};
+
+#[derive(Debug)]
+pub(super) struct InferSpeechCandidate {
+    candidate: shape_core::AudioCandidate,
+}
+impl InferSpeechCandidate {
+    fn new(candidate: shape_core::AudioCandidate) -> Self {
+        Self { candidate }
+    }
+    pub(super) fn into_candidate(self) -> shape_core::AudioCandidate {
+        self.candidate
+    }
+}
 
 #[derive(Debug)]
 struct BridgeSpeechExecutor {
@@ -317,7 +329,7 @@ fn empty_project_can_create_a_text_scene_and_drive_an_operator_draft() {
             .session_operator_descriptors(&artifact.id)
             .expect("catalog projects")
             .len(),
-        11
+        10
     );
 
     drop(session);
@@ -832,7 +844,7 @@ fn speech_draft_configuration_persists_and_failed_stale_save_rolls_back() {
         .expect("text scene creates");
     let artifact_id = snapshot.artifacts[0].id.clone();
     let draft = session
-        .session_begin_operator_draft(&artifact_id, AUDIO_SPEECH_OPERATOR)
+        .session_begin_authoring_speech(&artifact_id)
         .expect("speech draft begins with executable defaults");
     assert_eq!(
         draft.audio_speech_preset_alias,
@@ -1600,7 +1612,7 @@ fn script_preview_reads_full_source_and_bindings_and_cue_bytes_survive_reopen() 
         .unwrap();
     let artifact_id = snapshot.artifacts[0].id.clone();
     let draft = session
-        .session_begin_operator_draft(&artifact_id, AUDIO_SPEECH_OPERATOR)
+        .session_begin_authoring_speech(&artifact_id)
         .unwrap();
     session
         .session_update_speech_script(

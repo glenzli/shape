@@ -61,7 +61,6 @@ class DeckHandoffController : public QObject {
     Q_INVOKABLE void
     openKit(const QString& kitId, const QString& draftDigest, bool freshSnapshot = false);
     Q_INVOKABLE void openNewDeck();
-    Q_INVOKABLE bool openStorybook();
     Q_INVOKABLE void readReturnedOutputs();
     Q_INVOKABLE void stopWaiting();
     Q_INVOKABLE void retryHandoff();

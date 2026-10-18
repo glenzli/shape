@@ -294,9 +294,11 @@ fn recovered_image_pin_continues_a_bilingual_book_without_changing_its_old_revis
     let composition = json!({"name":"Moon / 月亮","default_language":"zh-CN",
         "languages":{"en":{"artifact_id":en.artifact_id,"revision_id":en.id},"zh-CN":{"artifact_id":zh.artifact_id,"revision_id":zh.id}},
         "pages":[{"kind":"image","source":image_pin,"print_only":false},{"kind":"blank","print_only":false},{"kind":"image","source":image_pin,"print_only":false}],"canvas_width":1024,"canvas_height":768,"font_size":26});
+    let candidate = project
+        .propose_picture_book(None, serde_json::from_value(composition.clone()).unwrap())
+        .unwrap();
+    let book = serde_json::to_value(project.accept_picture_book(candidate).unwrap()).unwrap();
     drop(project);
-    let review = f.book(&json!({"action":"preview","composition":composition}));
-    let book = f.book(&json!({"action":"accept","composition":composition,"review_digest":review["review_digest"]}));
     let ticket = f.material(
         &json!({"action":"begin","source":image_pin,"name":"Moon revision","editor":"shadow"}),
         true,
@@ -308,26 +310,10 @@ fn recovered_image_pin_continues_a_bilingual_book_without_changing_its_old_revis
     assert_eq!(previous["composition"]["pages"][2]["source"], image_pin);
     let mut next = previous["composition"].clone();
     next["pages"][2]["source"] = recovered["source"].clone();
-    let review = f.book(&json!({"action":"preview","composition":next,"target":pin(&book)}));
-    assert_eq!(
-        review["preview"]["parsed_scripts"]["en"]["page_text"]["2"],
-        "Hello"
-    );
-    assert_eq!(
-        review["preview"]["parsed_scripts"]["zh-CN"]["page_text"]["2"],
-        "你好"
-    );
-    let updated = f.book(&json!({"action":"accept","composition":next,"target":pin(&book),"review_digest":review["review_digest"]}));
     let old = f.book(&json!({"action":"read","source":pin(&book)}));
     assert_eq!(old["composition"], composition);
-    let current = f.book(&json!({"action":"read","source":pin(&updated)}));
-    assert_eq!(
-        current["composition"]["pages"][2]["source"],
-        recovered["source"]
-    );
-    assert_eq!(current["composition"]["pages"][0]["source"], image_pin);
     let destination = f.root.join("continued.scproj");
-    f.book(&json!({"action":"export","source":pin(&updated),"destination":destination}));
+    f.book(&json!({"composition":next,"destination":destination}));
     assert!(fs::metadata(destination).unwrap().len() > 0);
     let reopened = ShapeProject::open(&f.path).unwrap();
     assert_eq!(

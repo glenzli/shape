@@ -2,7 +2,7 @@ use super::*;
 use crate::{create_desktop_project, open_desktop_session};
 
 #[test]
-fn empty_writing_reopens_then_explicit_accept_preserves_profile_and_enables_speech() {
+fn writing_reopens_and_accepts_without_enabling_retired_speech_creation() {
     let path = std::env::temp_dir().join(format!("shape-authoring-{}", uuid::Uuid::now_v7()));
     let mut session = create_desktop_project(path.to_str().unwrap(), "Writing").unwrap();
     let snapshot = session
@@ -47,22 +47,11 @@ fn empty_writing_reopens_then_explicit_accept_preserves_profile_and_enables_spee
             .profile,
         state.profile
     );
-    let speech = session.session_begin_authoring_speech(&id).unwrap();
-    assert!(!speech.audio_speech_script_json.is_empty());
-    assert_eq!(
-        session
-            .session_begin_authoring_speech(&id)
-            .unwrap()
-            .draft_id,
-        speech.draft_id
-    );
-    assert_eq!(
+    assert!(
         session
             .session_begin_operator_draft(&id, "audio.speech_synthesize")
-            .unwrap()
-            .draft_id,
-        speech.draft_id,
-        "the graph node library must continue the existing speech step"
+            .unwrap_err()
+            .contains("moved to Vox")
     );
     assert_eq!(
         session
@@ -72,7 +61,7 @@ fn empty_writing_reopens_then_explicit_accept_preserves_profile_and_enables_spee
     );
     drop(session);
     let session = open_desktop_session(path.to_str().unwrap()).unwrap();
-    assert_eq!(session.session_operator_drafts().len(), 2);
+    assert_eq!(session.session_operator_drafts().len(), 1);
     drop(session);
     std::fs::remove_dir_all(path).unwrap();
 }

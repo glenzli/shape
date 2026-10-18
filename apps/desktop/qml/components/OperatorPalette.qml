@@ -29,12 +29,10 @@ Popup {
         case "text.polish": return qsTr("Polish")
         case "text.expand": return qsTr("Expand")
         case "text.outline": return qsTr("Outline")
-        case "text.prepare_script": return qsTr("Prepare a script")
         case "audio.generate": return qsTr("Create sound effects or music")
         case "image.generate": return qsTr("Generate an image")
         case "text.edit":
         case "text.transform": return qsTr("Text editing")
-        case "audio.speech_synthesize": return qsTr("Turn text into speech")
         case "image.edit":
         case "image.crop":
         case "image.resize": return qsTr("Edit the image")
@@ -72,15 +70,12 @@ Popup {
         case "text.polish": return qsTr("Improve grammar, clarity and flow while keeping the meaning.")
         case "text.expand": return qsTr("Develop a short text into a fuller draft.")
         case "text.outline": return qsTr("Organize an original into headings and key points.")
-        case "text.prepare_script": return qsTr("Turn an original into a narration script with roles and timing.")
         case "audio.generate": return qsTr("Generate local sound effects or short music from a description.")
         case "image.generate": return qsTr("Create an image from a description with Codex Luna through Infer.")
-        case "text.create": return qsTr("Start with an idea or write manually; choose plain text or a narration script.")
+        case "text.create": return qsTr("Start with an idea or write manually.")
         case "text.edit":
         case "text.transform":
-            return qsTr("Derive a separate text from an original: rewrite, translate, summarize, or prepare a script.")
-        case "audio.speech_synthesize":
-            return qsTr("Create a spoken version from the current text.")
+            return qsTr("Derive a separate text from an original: rewrite, translate, summarize, or polish.")
         case "image.edit":
         case "image.crop":
         case "image.resize":
@@ -108,10 +103,8 @@ Popup {
         case "text.polish": return "polish grammar 润色 校对"
         case "text.expand": return "expand 扩写"
         case "text.outline": return "outline 大纲 提纲"
-        case "text.prepare_script": return "script narration 脚本 口播 改编"
         case "text.edit":
         case "text.transform": return "text write edit revise ai transform rewrite expand polish llm"
-        case "audio.speech_synthesize": return "ai audio speech synthesize voice tts"
         case "image.edit":
         case "image.crop":
         case "image.resize": return "image raster edit crop frame resize scale dimensions assist"
@@ -123,7 +116,6 @@ Popup {
         switch (typeKey) {
         case "text.edit":
         case "text.transform": return "addWritingOperatorAction"
-        case "audio.speech_synthesize": return "addSpeechOperatorAction"
         case "image.edit":
         case "image.crop":
         case "image.resize": return "addImageEditingAction"

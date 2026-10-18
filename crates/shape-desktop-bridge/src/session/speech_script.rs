@@ -1,10 +1,13 @@
 //! Full-source script preview and project-backed authoring; no truncated UI text is parsed.
-use super::{DesktopSession, audio_speech_operation_from_draft, ffi, operator_draft_wire};
-use shape_domain::speech_script::{
-    SpeechCueAction, SpeechScriptEventKind, SpeechScriptOptions, parse_speech_script_for_review,
-};
+use super::{DesktopSession, audio_speech_operation_from_draft};
+#[cfg(test)]
+use super::{ffi, operator_draft_wire};
+#[cfg(test)]
+use shape_domain::speech_script::{SpeechCueAction, SpeechScriptOptions};
+use shape_domain::speech_script::{SpeechScriptEventKind, parse_speech_script_for_review};
 
 impl DesktopSession {
+    #[cfg(test)]
     pub fn session_update_speech_script(
         &mut self,
         draft_id: &str,
@@ -67,6 +70,7 @@ impl DesktopSession {
         serde_json::to_string(&serde_json::json!({"ready": prerequisites.ready, "prerequisites": prerequisites, "roles": roles, "cues": cues, "pause_ms": plan.pause_millis(), "shared_voices": plan.shared_voices(&options), "plan": plan, "note_lines": note_lines})).map_err(|e| e.to_string())
     }
 
+    #[cfg(test)]
     pub fn session_import_speech_cue(
         &mut self,
         draft_id: &str,

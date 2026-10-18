@@ -1,80 +1,34 @@
-use crate::session::{create_desktop_project, open_desktop_session};
+use crate::session::open_desktop_session;
 use serde_json::{Value, json};
+use shape_core::ShapeProject;
+
 #[test]
-fn desktop_book_review_discard_repeated_edit_and_reopen_use_shared_shelf() {
+fn accepted_historical_book_still_reads_and_exports_without_new_authoring() {
     let root = std::env::temp_dir().join(format!(
-        "shape-book-bridge-{}",
+        "shape-book-compat-{}",
         shape_domain::ArtifactId::new()
     ));
-    let mut session = create_desktop_project(root.to_str().unwrap(), "Books").unwrap();
-    let en: Value = serde_json::from_str(
+    std::fs::create_dir(&root).unwrap();
+    let bundle = root.join("legacy.shape");
+    let mut project = ShapeProject::create(&bundle, "Legacy").unwrap();
+    let text = project
+        .create_text_document("Script", "[Cover] Moon\n[1] Hello")
+        .unwrap();
+    let request = serde_json::from_value(json!({"name":"Moon","default_language":"en","languages":{"en":{"artifact_id":text.artifact_id,"revision_id":text.id}},"pages":[{"kind":"blank"},{"kind":"blank"}],"canvas_width":1024,"canvas_height":768})).unwrap();
+    let candidate = project.propose_picture_book(None, request).unwrap();
+    let book = project.accept_picture_book(candidate).unwrap();
+    drop(project);
+    let session = open_desktop_session(bundle.to_str().unwrap()).unwrap();
+    let pin = json!({"artifact_id":book.artifact_id,"revision_id":book.id}).to_string();
+    let loaded: Value = serde_json::from_str(&session.session_book_read(&pin).unwrap()).unwrap();
+    assert_eq!(loaded["name"], "Moon");
+    let result: Value = serde_json::from_str(
         &session
-            .session_book_script("English", "", "[Cover] Moon\n[Author] Ada\n[1] Hello")
+            .session_book_export(&pin, root.join("saved.scproj").to_str().unwrap())
             .unwrap(),
     )
     .unwrap();
-    let zh: Value = serde_json::from_str(
-        &session
-            .session_book_script("中文", "", "[封面] 月亮\n[作者] 艾达\n[1] 你好")
-            .unwrap(),
-    )
-    .unwrap();
-    let mut request = json!({"name":"Moon / 月亮","default_language":"en","languages":{"en":en,"zh-CN":zh},
-        "pages":[{"kind":"blank"},{"kind":"blank"}],"canvas_width":1024,"canvas_height":768});
-    let before = session.session_snapshot().unwrap().artifacts.len();
-    let discarded = session
-        .session_book_propose("", &request.to_string())
-        .unwrap();
-    session.session_discard_candidate(&discarded).unwrap();
-    assert_eq!(session.session_snapshot().unwrap().artifacts.len(), before);
-    let candidate = session
-        .session_book_propose("", &request.to_string())
-        .unwrap();
-    let artifact = session
-        .candidates
-        .candidate(&candidate)
-        .unwrap()
-        .artifact_id();
-    session.session_accept_candidate(&candidate).unwrap();
-    assert!(session.candidates.candidate(&candidate).is_err());
-    let mut source = session
-        .session_snapshot()
-        .unwrap()
-        .artifacts
-        .into_iter()
-        .find(|a| a.id == artifact.to_string())
-        .unwrap();
-    for size in [30, 28] {
-        request["font_size"] = json!(size);
-        let pin = json!({"artifact_id":source.id,"revision_id":source.accepted_revision_id});
-        let candidate = session
-            .session_book_propose(&pin.to_string(), &request.to_string())
-            .unwrap();
-        session.session_accept_candidate(&candidate).unwrap();
-        source = session
-            .session_snapshot()
-            .unwrap()
-            .artifacts
-            .into_iter()
-            .find(|a| a.id == artifact.to_string())
-            .unwrap();
-    }
+    assert!(std::path::Path::new(result["destination"].as_str().unwrap()).is_file());
     drop(session);
-    let reopened = open_desktop_session(root.to_str().unwrap()).unwrap();
-    let pin = json!({"artifact_id":source.id,"revision_id":source.accepted_revision_id});
-    let saved: Value =
-        serde_json::from_str(&reopened.session_book_read(&pin.to_string()).unwrap()).unwrap();
-    assert_eq!(saved["font_size"], 28);
-    assert_eq!(
-        reopened.session_snapshot().unwrap().artifacts.len(),
-        before + 1
-    );
-    assert!(
-        reopened
-            .session_book_preview(&saved.to_string())
-            .unwrap()
-            .contains("你好")
-    );
-    drop(reopened);
     std::fs::remove_dir_all(root).unwrap();
 }

@@ -76,39 +76,40 @@ impl ShapeProject {
         if request.len() > 2 * 1024 * 1024 {
             return Err(invalid("book draft action exceeds 2 MiB"));
         }
-        let result = self.picture_book_draft_action(serde_json::from_str(request)?)?;
+        let result = self.picture_book_draft_action(&serde_json::from_str(request)?)?;
         Ok(serde_json::to_string(&result)?)
     }
     /// # Errors
     /// Routes both adapters through exact Working Graph CAS and verified script checkpoint recovery.
     pub fn picture_book_draft_action(
         &mut self,
-        action: PictureBookDraftAction,
+        action: &PictureBookDraftAction,
     ) -> Result<Value, PictureBookError> {
         match action {
-            PictureBookDraftAction::DraftNew { state } => {
-                Ok(json!({"draft":self.create_picture_book_draft(&state)?}))
-            }
             PictureBookDraftAction::DraftList => Ok(json!({"drafts":self.picture_book_drafts()?})),
             PictureBookDraftAction::DraftLoad { artifact_id } => {
-                Ok(json!({"draft":self.open_picture_book_draft(artifact_id)?}))
+                Ok(json!({"draft":self.load_picture_book_draft(*artifact_id)?}))
             }
-            PictureBookDraftAction::DraftSave {
-                artifact_id,
-                draft_digest,
-                state,
-            } => {
-                Ok(json!({"draft":self.save_picture_book_draft(artifact_id,&draft_digest,&state)?}))
-            }
-            PictureBookDraftAction::DraftDiscard {
-                artifact_id,
-                draft_digest,
-            } => {
-                self.discard_picture_book_draft(artifact_id, &draft_digest)?;
-                Ok(json!({"discarded":true}))
-            }
+            _ => Err(invalid(
+                "book authoring moved to Storybook Co-Editor; use legacy reads or a .scproj export",
+            )),
         }
     }
+    /// Reads the exact saved checkpoint, including unaccepted script bytes, without writing.
+    /// # Errors
+    /// Rejects missing graphs or corrupt checkpoint bytes.
+    pub fn load_picture_book_draft(
+        &self,
+        artifact_id: ArtifactId,
+    ) -> Result<PictureBookDraft, PictureBookError> {
+        let graph = self
+            .store
+            .artifact_working_graph(artifact_id)
+            .map_err(CoreError::from)?
+            .ok_or_else(|| invalid("book draft is missing"))?;
+        self.book_draft_projection(&graph)
+    }
+
     fn book_draft_projection(
         &self,
         graph: &ArtifactWorkingGraph,

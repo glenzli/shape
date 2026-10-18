@@ -1302,6 +1302,7 @@ dependencies = [
  "shape-core",
  "shape-domain",
  "uuid",
+ "zip",
 ]
 
 [[package]]

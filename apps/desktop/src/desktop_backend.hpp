@@ -48,7 +48,6 @@ class DesktopBackend : public QObject {
     Q_PROPERTY(bool candidateTextTruncated READ candidateTextTruncated NOTIFY candidateChanged)
     Q_PROPERTY(QString acceptedImageSource READ acceptedImageSource NOTIFY imagePreviewChanged)
     Q_PROPERTY(QString candidateImageSource READ candidateImageSource NOTIFY imagePreviewChanged)
-    Q_PROPERTY(bool speechCueImporting READ speechCueImporting NOTIFY speechCueImportingChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
 
   public:
@@ -111,6 +110,7 @@ class DesktopBackend : public QObject {
     Q_INVOKABLE bool updateTextAuthoring(const QString& draftId, const QString& json);
     Q_INVOKABLE QString textAuthoringContent(const QString& artifactId, const QString& candidateId);
     Q_INVOKABLE QString sourceRevisionText(const QString& revisionId);
+    Q_INVOKABLE QString sourceRevisionImage(const QString& artifactId, const QString& revisionId);
     Q_INVOKABLE QString
     textAuthoringConfiguredPreview(const QString& settings, const QString& text);
     Q_INVOKABLE QString textAuthoringPreview(const QString& profile, const QString& text);
@@ -122,7 +122,6 @@ class DesktopBackend : public QObject {
     QString adoptMaterialReturn(rust::Box<shape::desktop::PreparedMaterialReturn> candidate);
     Q_INVOKABLE bool renameArtifact(const QString& artifactId, const QString& name);
     Q_INVOKABLE bool proposeAuthoredText(const QString& draftId);
-    Q_INVOKABLE QString beginAuthoringSpeech(const QString& artifactId);
     Q_INVOKABLE QString
     beginOperatorDraft(const QString& artifactId, const QString& operatorTypeKey);
     Q_INVOKABLE QVariantList compatibleOperators(const QString& artifactId);
@@ -134,21 +133,6 @@ class DesktopBackend : public QObject {
         const QString& styleKey,
         int variantCount
     );
-    Q_INVOKABLE bool updateAudioSpeechDraft(
-        const QString& draftId,
-        const QString& presetAlias,
-        const QString& presetCatalogRevision,
-        const QString& language,
-        int speedMilli,
-        bool syntheticDisclosureRequired
-    );
-    [[nodiscard]] bool speechCueImporting() const {
-        return speech_cue_importing_;
-    }
-    Q_INVOKABLE bool updateSpeechScript(const QString& draftId, const QString& optionsJson);
-    Q_INVOKABLE QString speechScriptPreview(const QString& draftId);
-    Q_INVOKABLE void
-    importSpeechCue(const QString& draftId, const QString& label, const QUrl& source);
     Q_INVOKABLE bool updateImageResizeDraft(
         const QString& draftId,
         int targetWidth,
@@ -201,9 +185,6 @@ class DesktopBackend : public QObject {
     adoptInferTextCandidate(rust::Box<shape::desktop::InferTextCandidate> candidate);
     [[nodiscard]] QString
     adoptInferAgentTextCandidate(rust::Box<shape::desktop::InferAgentTextCandidate> candidate);
-    /// Adopts one background speech result on the UI thread after Rust revalidates its source.
-    [[nodiscard]] QString
-    adoptInferSpeechCandidate(rust::Box<shape::desktop::InferSpeechCandidate> candidate);
     /// Adopts one background source-less image result after exact draft revalidation.
     [[nodiscard]] QString
     adoptInferImageCandidate(rust::Box<shape::desktop::InferImageCandidate> candidate);
@@ -217,18 +198,14 @@ class DesktopBackend : public QObject {
         const QString& revisionId = QString()
     );
 
-    // Picture-book controller consumes bounded session values; QML never handles CAS bytes.
-    QString bookPreview(const QString& composition) const;
-    QString bookPropose(const QString& source, const QString& composition);
+    // Read-only compatibility and external snapshot publication; no specialist authoring.
+    QString legacySnapshot() const;
+    QString exportVoxTransfer(const QString& request) const;
+    QString bookDraftExport(const QString& id, const QString& digest, const QString& path) const;
     QString bookRead(const QString& source) const;
     QString bookExport(const QString& source, const QString& path) const;
-    QString bookScript(const QString& name, const QString& source, const QString& text);
-    QByteArray bookMaterial(const QString& source, const QString& kind) const;
     QString bookDraftAction(const QString& request);
-    QString bookDraftPropose(const QString& artifactId, const QString& draftDigest);
-    // Card authoring owns its recoverable draft and reviewed action contract in Rust.
     QString cardKitAction(const QString& request);
-    QString workflowTemplates() const;
 
     /// Rebuilds translated presentation values after a runtime locale change.
     void retranslate();
@@ -236,12 +213,6 @@ class DesktopBackend : public QObject {
     [[nodiscard]] std::shared_ptr<ImagePreviewStore> imagePreviewStore() const;
 
   signals:
-    void speechCueImportingChanged();
-    void speechDraftOperationFinished(
-        const QString& projectPath,
-        const QString& draftId,
-        const QString& error
-    );
     void projectChanged();
     void candidateChanged();
     void operatorDraftsChanged();
@@ -261,12 +232,10 @@ class DesktopBackend : public QObject {
     void replaceSession(rust::Box<shape::desktop::DesktopSession> session);
     void clearCandidateSelection();
     void setLastError(const QString& message);
-    void finishSpeechDraftOperation(const QString& draftId, const QString& error);
     [[nodiscard]] QString
     cacheImagePreview(shape::desktop::ImagePreviewWire preview, bool thumbnail = false);
 
     std::unique_ptr<SessionState> session_;
-    bool speech_cue_importing_ = false;
     bool project_open_ = false;
     QString project_id_;
     QString project_name_;

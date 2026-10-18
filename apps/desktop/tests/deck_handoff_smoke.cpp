@@ -111,39 +111,33 @@ QJsonObject verifyReturnedReceipts(
     require(!record.isEmpty(), "prepared handoff record missing");
     const auto request = read(record.value("request_path").toString());
 
-    // A separate real accepted project exercises the verifier's document and revision checks.
+    // A copied fixture isolates receipt verification from the source. It has a real accepted kit.
     const auto documentPath = directory + "/Returned cards.deck";
-    DesktopBackend document(
-        shape::desktop::create_desktop_project(documentPath.toStdString(), "Returned card fixture")
-    );
-    const auto draft =
-        action(
-            document,
-            {{"action", "draft_new"},
-             {"composition",
-              QJsonObject{
-                  {"name", "Returned cards"},
-                  {"layout", QJsonObject{{"mode", "text"}}},
-                  {"cards",
-                   QJsonArray{QJsonObject{{"id", "returned-card"}, {"title", "Verified return"}}}}
-              }}}
-        )["draft"]
-            .toObject();
-    const auto review = action(
-        document,
-        {{"action", "preview"},
-         {"artifact_id", draft["artifact_id"]},
-         {"draft_digest", draft["draft_digest"]}}
-    );
-    const auto source = action(
-                            document,
-                            {{"action", "accept"},
-                             {"artifact_id", draft["artifact_id"]},
-                             {"draft_digest", draft["draft_digest"]},
-                             {"review_digest", review["review_digest"]}}
-    )["source"]
-                            .toObject();
-    require(!source.isEmpty(), "accepted returned kit missing");
+    QDirIterator copied(backend.bundlePath(), QDir::Files, QDirIterator::Subdirectories);
+    require(QDir().mkpath(documentPath), "returned document directory");
+    while (copied.hasNext()) {
+        const auto file = copied.next();
+        const auto destination =
+            documentPath + '/' + QDir(backend.bundlePath()).relativeFilePath(file);
+        require(
+            QDir().mkpath(QFileInfo(destination).absolutePath()) && QFile::copy(file, destination),
+            "copy accepted fixture document"
+        );
+    }
+    DesktopBackend document(shape::desktop::open_desktop_session(documentPath.toStdString()));
+    QJsonObject source;
+    const auto catalog = QJsonDocument::fromJson(document.legacySnapshot().toUtf8()).object();
+    for (const auto& item : catalog["legacy_artifacts"].toArray()) {
+        const auto saved = item.toObject();
+        if (saved["kind"] == "card_kit" && saved["accepted_revision"].isString()) {
+            source = {
+                {"artifact_id", saved["artifact_id"]},
+                {"revision_id", saved["accepted_revision"]}
+            };
+            break;
+        }
+    }
+    require(!source.isEmpty(), "fixture has no accepted card version");
     write(
         documentPath + "/deck-transfer.json",
         QJsonDocument(
@@ -158,9 +152,20 @@ QJsonObject verifyReturnedReceipts(
         ).toJson()
     );
     const auto zipPath = directory + "/returned-cards.zip";
-    const auto exported =
-        action(document, {{"action", "export"}, {"source", source}, {"destination", zipPath}});
-    require(exported["byte_length"].toDouble() > 0, "real material ZIP not exported");
+    // Deterministic valid ZIP tests receipt publication, not removed Shape card authoring.
+    // The actual Deck producer/consumer export is checked by the cross-application gate.
+    const auto zip = QByteArray::fromHex(
+        "504b03041400000000000000525dec32ff0f25000000250000000b000000726563656970742e747874"
+        "4e6174697665207265636569707420766572696669636174696f6e20666978747572652e0a"
+        "504b010214031400000000000000525dec32ff0f25000000250000000b00000000000000000000008001000000"
+        "00726563656970742e747874"
+        "504b05060000000001000100390000004e0000000000"
+    );
+    write(zipPath, zip);
+    const QJsonObject exported{
+        {"byte_length", zip.size()},
+        {"output_blake3", "ba77e2f83650861e6936dc8fa461b0d448e6d40e83988b20eca18e21b6f10330"}
+    };
     // Deterministic valid one-page PDF; the native worker verifies these exact bytes and BLAKE3.
     const QByteArray pdf =
         "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
@@ -369,64 +374,16 @@ bool deck_handoff_smoke::verify(
         const auto directory =
             outputDirectory + "/run-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
         require(QDir().mkpath(directory), "cannot create fixture directory");
-        const auto projectName = QStringLiteral("Mixed legacy source");
-        require(
-            backend.createProject(QUrl::fromLocalFile(directory), projectName),
-            "create mixed project"
-        );
-        QImage image(16, 12, QImage::Format_RGBA8888);
-        image.fill(QColor(50, 120, 180));
-        const auto png = directory + "/source.png";
-        require(image.save(png), "PNG fixture");
-        require(backend.importRaster(QUrl::fromLocalFile(png)), "import accepted raster");
-        const auto art = backend.artifacts().last().toMap();
-        require(
-            backend.createTextScene("Source text", "Unfinished words\n未采用排版"),
-            "accepted text fixture"
-        );
-        const auto text = backend.artifacts().last().toMap();
-        QByteArray wav = QByteArray::fromHex(
-            "524946462c00000057415645666d74201000000001000100401f0000803e00000200100064617461080000"
-            "000000010002000300"
-        );
-        const auto audio = directory + "/source.wav";
-        write(audio, wav);
-        require(backend.importMaterial(QUrl::fromLocalFile(audio)), "accepted audio fixture");
-        const auto pin = [](const QVariantMap& item) {
-            return QJsonObject{
-                {"artifact_id", item.value("id").toString()},
-                {"revision_id", item.value("acceptedRevisionId").toString()}
-            };
-        };
-        const QJsonObject composition{
-            {"name", "Incomplete legacy cards"},
-            {"cards",
-             QJsonArray{
-                 QJsonObject{
-                     {"id", "image-card"},
-                     {"art_prompt", "Unfinished prompt"},
-                     {"artwork", pin(art)}
-                 },
-                 QJsonObject{{"id", "text-card"}, {"text_material", pin(text)}}
-             }}
-        };
-        const auto draft =
-            QJsonDocument::fromJson(
-                backend
-                    .cardKitAction(
-                        QString::fromUtf8(
-                            QJsonDocument(
-                                QJsonObject{{"action", "draft_new"}, {"composition", composition}}
-                            ).toJson()
-                        )
-                    )
-                    .toUtf8()
-            )
-                .object()
-                .value("draft")
-                .toObject();
-        const auto kit = draft.value("artifact_id").toString(),
-                   digest = draft.value("draft_digest").toString();
+        require(backend.projectOpen(), "a frozen legacy fixture project is required");
+        QJsonObject draft;
+        const auto saved = action(backend, {{"action", "draft_list"}})["drafts"].toArray();
+        for (const auto& item : saved)
+            if (item.toObject()["expected_head"].isNull()) {
+                draft = item.toObject();
+                break;
+            }
+        require(!draft.isEmpty(), "fixture has no unfinished legacy card draft");
+        const auto kit = draft["artifact_id"].toString(), digest = draft["draft_digest"].toString();
         const auto before = digests(backend.bundlePath());
         require(!before.isEmpty(), "source snapshot");
         const auto executable = directory + "/deck-process-fixture";
@@ -477,7 +434,7 @@ bool deck_handoff_smoke::verify(
         const auto manifest = read(manifestPath);
         require(
             manifest.value("schema") == "deck.card-transfer/1"
-                && manifest.value("materials").toArray().size() == 2,
+                && manifest.value("composition").toObject() == draft["composition"].toObject(),
             "complete real transfer"
         );
         require(
@@ -586,6 +543,38 @@ bool deck_handoff_smoke::verify(
 #endif
         report["returned_receipts"] =
             verifyReturnedReceipts(backend, deck, root, directory, settingsPath, kit, digest);
+        QJsonObject acceptedSource;
+        for (const auto& entry : QJsonDocument::fromJson(backend.legacySnapshot().toUtf8())
+                                     .object()["legacy_artifacts"]
+                                     .toArray()) {
+            const auto work = entry.toObject();
+            if (work["kind"] == "card_kit" && work["accepted_revision"].isString()) {
+                acceptedSource = {
+                    {"artifact_id", work["artifact_id"]},
+                    {"revision_id", work["accepted_revision"]}
+                };
+                break;
+            }
+        }
+        require(!acceptedSource.isEmpty(), "accepted snapshot fixture");
+        deck.openKit(
+            acceptedSource["artifact_id"].toString(),
+            "accepted:" + acceptedSource["revision_id"].toString(),
+            true
+        );
+        require(
+            wait([&] { return !deck.busy() && !deck.waiting() && !deck.error().isEmpty(); }),
+            "accepted snapshot child lifecycle"
+        );
+        const auto acceptedRequest = read(deck.requestPath());
+        const auto acceptedManifest =
+            read(acceptedRequest["input"].toObject()["manifest_path"].toString());
+        require(
+            acceptedManifest["composition"]
+                == action(backend, {{"action", "read"}, {"source", acceptedSource}})["composition"],
+            "accepted snapshot contains no saved draft edits"
+        );
+        report["accepted_snapshot_exact"] = true;
         require(digests(backend.bundlePath()) == before, "receipt reads changed the source bundle");
         const auto taskPath = directory + "/image-task.json",
                    resultPath = directory + "/image-result.json";

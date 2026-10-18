@@ -263,6 +263,7 @@ impl DesktopSession {
         Ok(wire)
     }
 
+    #[cfg(test)]
     pub fn session_begin_authoring_speech(
         &mut self,
         artifact_id: &str,
@@ -288,6 +289,7 @@ impl DesktopSession {
         self.create_speech_derivation(artifact_id, script)
     }
 
+    #[cfg(test)]
     pub(super) fn create_speech_derivation(
         &mut self,
         source_id: &str,

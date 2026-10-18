@@ -3,30 +3,19 @@
 `main.rs` routes the public commands. `demo` creates a synthetic project; `inspect` opens and
 summarizes an existing project through Core (including supported project schema upgrades).
 
-`card_kit.rs` routes recoverable card-list drafts, exact review/accept, historical reads, offline
-material-kit export and accepted-version home-print planning through the same Core action used by
-the desktop. The concrete JSON actions,
-material bindings, readiness checks and bounds are in [Card material kits](../../docs/CARD_KIT.md).
-Run `shape-cli card-kit /path/to/project.shape /path/to/request.json`; separate invocations recover
-the same project-backed draft and require its last observed digest before saving or accepting.
-`{"action":"print_plan","source":{"artifact_id":"<UUID>","revision_id":"<UUID>"}}`
-returns unique readable card SVGs and the exact A4 page/crop geometry consumed by the desktop PDF
-writer. Optional settings select Letter, card size, margins and crop marks; they do not alter history.
-The CLI returns the bounded plan as JSON; the desktop paints the PDF using that plan.
-New general cards opt in with composition `"layout":{"mode":"auto"}`. A card can contain only
-an accepted finished-face image, only visible text, or both; per-card partial layout overrides
-choose `image`, `text`, `image_text`, or the optional `classic` preset. The real canvas axes control
-portrait/landscape/square SVG and print proportions. Omitted print axes derive a safe physical size
-from that ratio; one explicit axis derives the other, and two explicit axes are honored. Read/preview
-return normalized `print_defaults`, resolved layouts, hidden-content hints and authoritative readiness.
-Historical compositions without a layout retain their exact original rendering and default size.
+`card_kit.rs` is a read-only compatibility and Deck migration adapter. It accepts saved draft
+list/load, exact accepted reads, material-kit ZIP export, saved-draft Deck transfer and explicit
+accepted-version Deck transfer. New/save/discard/preview/accept/print actions report that card
+authoring moved to Deck. `picture_book.rs` reads exact accepted books and saved drafts and exports
+`.scproj` snapshots for Storybook Co-Editor, including an explicit unaccepted draft sidecar. It no
+longer proposes or accepts books or adopts specialist scripts.
 
-`{"action":"deck_transfer","artifact_id":"<kit UUID>","draft_digest":"<saved digest>","request_id":"<unique token>","destination":"/absolute/new-directory"}`
-exports an editable Deck snapshot through the same public command. It preserves unfinished/hidden
-fields, stable card ids, legacy layout absence and all exact accepted image/text pins. It does not
-accept the kit or require print readiness. The returned `manifest_path` and `manifest_blake3` are
-consumed by Deck's `import-transfer`, not by opening the Shape bundle. See the exact
-[request, result and material-task contracts](../../docs/DECK_HANDOFF.md).
+`legacy.rs` owns `shape-cli legacy-snapshot PROJECT.shape` and
+`shape-cli vox-transfer PROJECT.shape REQUEST.json`. They open current-schema source projects
+read-only, without migration or checkpoint writes. [Legacy migration](../../docs/LEGACY_MIGRATION.md)
+defines the retired and retained commands. [Vox transfer](../../docs/VOX_TRANSFER.md) defines exact
+selection heads, draft digests, full-text/voice/cue/audio payloads and manifest-last publication.
+[Deck handoff](../../docs/DECK_HANDOFF.md) defines its unchanged external v1 file protocol.
 
 `script_check.rs` owns read-only file intake and the JSON diagnostics command used by external
 AI tools and authoring scripts. It calls the same `shape-domain::speech_script` parser as desktop
@@ -154,7 +143,7 @@ advances. The requested pin is never silently replaced by the newest head.
 
 This action opens the current schema read-only, verifies bounded durable bytes and returns only
 metadata; it does not migrate, repair, produce a candidate or authorize acceptance. A book caller
-can repin a page using `picture-book read → preview → accept`; an audio caller can carry the content
+can carry recovered material pins into an explicit Storybook `.scproj` snapshot; an audio caller can carry the content
 reference into an explicit cue in `script-check --bindings` for portable readiness. That check does
 not persist the cue in a speech draft or verify playback/synthesis. See the complete
 [material editing contract](../../docs/MATERIAL_EDIT.md) for request fields, limits and recovery.

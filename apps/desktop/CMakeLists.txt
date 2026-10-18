@@ -78,20 +78,12 @@ qt_add_executable(shape-desktop
     src/main.cpp
     src/desktop_backend.cpp
     src/desktop_backend.hpp
-    src/card_kit_controller.cpp
-    src/card_kit_controller.hpp
+    src/legacy_work_controller.cpp
+    src/legacy_work_controller.hpp
     src/deck_handoff_controller.cpp
     src/deck_handoff_controller.hpp
     src/deck_material_task_controller.cpp
     src/deck_material_task_controller.hpp
-    src/card_print_controller.cpp
-    src/card_print_controller.hpp
-    src/card_print_export.cpp
-    src/card_print_export.hpp
-    src/picture_book_controller.cpp
-    src/picture_book_controller.hpp
-    src/picture_book_renderer.cpp
-    src/picture_book_renderer.hpp
     src/infer_runtime_controller.cpp
     src/infer_runtime_controller.hpp
     src/infer_text_controller.cpp
@@ -100,8 +92,6 @@ qt_add_executable(shape-desktop
     src/infer_sound_controller.hpp
     src/infer_agent_controller.cpp
     src/infer_agent_controller.hpp
-    src/infer_speech_controller.cpp
-    src/infer_speech_controller.hpp
     src/material_edit_controller.cpp
     src/material_edit_controller.hpp
     src/infer_image_controller.cpp
@@ -117,8 +107,6 @@ qt_add_executable(shape-desktop
     src/ui_preferences.hpp
     src/recent_projects.cpp
     src/recent_projects.hpp
-    src/speech_script_documentation.cpp
-    src/speech_script_documentation.hpp
     src/text_expression_library.cpp
     src/text_expression_library.hpp
     src/web_animation_preview.cpp
@@ -126,34 +114,20 @@ qt_add_executable(shape-desktop
     src/mac_titlebar.hpp
     tests/workspace_host_smoke.cpp
     tests/workspace_host_smoke.hpp
-    tests/speech_script_help_smoke.cpp
-    tests/speech_script_help_smoke.hpp
+    tests/convergence_smoke.cpp
+    tests/convergence_smoke.hpp
     tests/image_live_smoke.cpp
     tests/image_live_smoke.hpp
     tests/text_authoring_smoke.cpp
     tests/text_authoring_smoke.hpp
-    tests/speech_feedback_smoke.cpp
-    tests/speech_feedback_smoke.hpp
-    tests/workflow_smoke.cpp
-    tests/workflow_smoke.hpp
     tests/deck_handoff_smoke.cpp
     tests/deck_handoff_smoke.hpp
-    tests/card_flex_smoke.cpp
-    tests/card_flex_smoke.hpp
-    tests/picture_book_smoke.cpp
-    tests/picture_book_smoke.hpp
-    tests/picture_book_process_smoke.cpp
-    tests/picture_book_process_smoke.hpp
-    tests/card_print_smoke.cpp
-    tests/card_print_smoke.hpp
     tests/material_edit_smoke.cpp
     tests/material_edit_smoke.hpp
     tests/audio_preview_smoke.cpp
     tests/audio_preview_smoke.hpp
     tests/sound_live_smoke.cpp
     tests/sound_live_smoke.hpp
-    tests/speech_live_smoke.cpp
-    tests/speech_live_smoke.hpp
 )
 if(APPLE)
     target_sources(shape-desktop PRIVATE src/mac_titlebar.mm)
@@ -172,19 +146,11 @@ qt_add_qml_module(shape-desktop
         qml/components/ArtifactDetailsPanel.qml
         qml/components/ArtifactLineagePanel.qml
         qml/components/AudioExportDialog.qml
-        qml/components/SpeechScriptHelpDialog.qml
-        qml/components/SpeechScriptPanel.qml
-        qml/components/AudioSpeechOperatorWorkspace.qml
         qml/components/SoundGenerationWorkspace.qml
         qml/components/MaterialEditWorkspace.qml
-        qml/components/PictureBookWorkspace.qml
-        qml/components/CardKitWorkspace.qml
+        qml/components/LegacyWorkWorkspace.qml
         qml/components/DeckHandoffDialog.qml
         qml/components/DeckMaterialTaskBar.qml
-        qml/components/CardLayoutOptions.qml
-        qml/components/CardImageIntakeDialog.qml
-        qml/components/CardPrintDialog.qml
-        qml/components/CardListImport.js
         qml/components/AiImageOperatorWorkspace.qml
         qml/components/AiModelPicker.qml
         qml/components/CandidateFilmstrip.qml
@@ -217,9 +183,6 @@ qt_add_qml_module(shape-desktop
         qml/components/ShapeDialog.qml
         qml/components/ShapeMessageDialog.qml
         qml/components/TextAuthoringWorkspace.qml
-        qml/components/ScriptPresentation.js
-        qml/components/TextFormatPanel.qml
-        qml/components/SpeechScriptReadingView.qml
         qml/components/ShapeIcon.qml
         qml/components/ShapeIconButton.qml
         qml/components/SourceMaterialWorkspace.qml
@@ -249,14 +212,6 @@ qt_add_qml_module(shape-desktop
         icons/waveform.svg
         icons/zoom-in.svg
         icons/zoom-out.svg
-)
-
-qt_add_resources(shape-desktop speech-script-documentation
-    PREFIX "/shape/help"
-    BASE "${PROJECT_SOURCE_DIR}/docs"
-    FILES
-        "${PROJECT_SOURCE_DIR}/docs/SPEECH_SCRIPT.md"
-        "${PROJECT_SOURCE_DIR}/docs/SPEECH_SCRIPT_PROMPT.md"
 )
 
 # Keep runtime/window branding and the macOS bundle on the same approved artwork.
@@ -320,15 +275,17 @@ install(TARGETS shape-desktop
 )
 
 if(BUILD_TESTING)
-    add_test(
-        NAME shape-desktop-deck-handoff-smoke
-        COMMAND $<TARGET_FILE:shape-desktop> --smoke-deck-handoff "${CMAKE_CURRENT_BINARY_DIR}/deck-handoff-smoke"
-    )
-    set_tests_properties(shape-desktop-deck-handoff-smoke PROPERTIES
-        TIMEOUT 90
-        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QTWEBENGINE_DISABLE_SANDBOX=1"
-    )
+    set(SHAPE_COMPAT_FIXTURE_BUNDLE "" CACHE PATH "Optional frozen legacy fixture from the test-only Rust factory")
+    add_test(NAME shape-desktop-convergence-smoke
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSHAPE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            "-DSHAPE_CARGO_EXECUTABLE=${SHAPE_CARGO_EXECUTABLE}"
+            "-DSHAPE_CARGO_TARGET_DIRECTORY=${SHAPE_CARGO_TARGET_DIRECTORY}"
+            "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
+            "-DSHAPE_COMPAT_FIXTURE_BUNDLE=${SHAPE_COMPAT_FIXTURE_BUNDLE}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/convergence_smoke.cmake")
+    set_tests_properties(shape-desktop-convergence-smoke PROPERTIES TIMEOUT 150)
     add_test(
         NAME shape-desktop-smoke
         COMMAND $<TARGET_FILE:shape-desktop> --smoke-exit
@@ -345,41 +302,9 @@ if(BUILD_TESTING)
             "-DSHAPE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
             "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
             "-DSHAPE_CARGO_EXECUTABLE=${SHAPE_CARGO_EXECUTABLE}"
+            "-DSHAPE_CARGO_TARGET_DIRECTORY=${SHAPE_CARGO_TARGET_DIRECTORY}"
             "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/project_smoke.cmake"
-    )
-    add_test(
-        NAME shape-desktop-picture-book-smoke
-        COMMAND "${CMAKE_COMMAND}"
-            "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
-            "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/picture_book_smoke.cmake"
-    )
-    add_test(
-        NAME shape-desktop-workflow-smoke
-        COMMAND "${CMAKE_COMMAND}"
-            "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
-            "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/workflow_smoke.cmake"
-    )
-    set_tests_properties(shape-desktop-workflow-smoke PROPERTIES
-        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
-        TIMEOUT 100
-    )
-    add_test(
-        NAME shape-desktop-card-print-smoke
-        COMMAND "${CMAKE_COMMAND}"
-            "-DSHAPE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
-            "-DSHAPE_DESKTOP_EXECUTABLE=$<TARGET_FILE:shape-desktop>"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/card_print_smoke.cmake"
-    )
-    set_tests_properties(shape-desktop-card-print-smoke PROPERTIES
-        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
-        TIMEOUT 90
-    )
-    set_tests_properties(shape-desktop-picture-book-smoke PROPERTIES
-        FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"
-        TIMEOUT 60
     )
     set_tests_properties(shape-desktop-project-smoke PROPERTIES
         FAIL_REGULAR_EXPRESSION "QQml;ReferenceError;TypeError;Binding loop;failed to load"

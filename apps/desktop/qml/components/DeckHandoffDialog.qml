@@ -46,16 +46,16 @@ ShapeDialog {
             Item { Layout.fillWidth: true }
             ShapeButton {
                 objectName: "deckOpen"
-                text: root.kitId.length ? (root.boundToKit && root.controller.hasDocument ? qsTr("Continue in Deck") : qsTr("Send to Deck")) : qsTr("Open Deck")
+                text: root.kitId.length ? qsTr("Send selected snapshot") : qsTr("Open Deck")
                 primary: true; enabled: root.contextCurrent && !root.controller.busy && !root.controller.waiting && root.controller.executable.length > 0
-                onClicked: root.kitId.length ? root.controller.openKit(root.kitId, root.draftDigest, false) : root.controller.openNewDeck()
+                onClicked: root.kitId.length ? root.controller.openKit(root.kitId, root.draftDigest, true) : root.controller.openNewDeck()
             }
         }
         ShapeButton {
-            objectName: "deckSendFreshSnapshot"; visible: root.boundToKit && root.controller.hasDocument
-            text: qsTr("Send the current Shape snapshot as a new Deck project")
+            objectName: "deckContinueLinkedProject"; visible: root.boundToKit && root.controller.hasDocument
+            text: qsTr("Continue the linked Deck project")
             enabled: root.contextCurrent && !root.controller.busy && !root.controller.waiting
-            onClicked: root.controller.openKit(root.kitId, root.draftDigest, true)
+            onClicked: root.controller.openKit(root.kitId, root.draftDigest, false)
         }
         Label { Layout.fillWidth: true; visible: root.controller.status.length > 0; text: root.controller.status; wrapMode: Text.WordWrap; color: Theme.muted }
         Label { Layout.fillWidth: true; visible: root.controller.error.length > 0; text: root.controller.error; wrapMode: Text.WordWrap; color: Theme.warning }

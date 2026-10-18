@@ -65,6 +65,7 @@ Rectangle {
     readonly property string loadedWorkspaceObjectName: workspaceLoader.item !== null ? workspaceLoader.item.objectName : ""
     readonly property var loadedWorkspace: workspaceLoader.item
 
+    signal continueVoxRequested(string artifactId, string revisionId)
     signal returnRequested
     signal workspaceLoaded(var workspace)
 
@@ -167,6 +168,7 @@ Rectangle {
             audioOriginKey: host.sourceAudioOriginKey
             inferAgent: host.inferAgent
             inferCredentialConfigured: host.inferCredentialConfigured
+            onContinueVoxRequested: (artifactId, revisionId) => host.continueVoxRequested(artifactId, revisionId)
             selectedCandidate: host.selectedCandidate
         }
     }

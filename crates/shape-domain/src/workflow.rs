@@ -10,24 +10,13 @@ pub struct WorkflowTemplate {
 }
 
 pub fn workflow_templates() -> Vec<WorkflowTemplate> {
-    vec![
-        WorkflowTemplate {
-            id: "picture_book",
-            output_kind: "picture_book",
-            steps: &["brief", "script", "artwork", "review", "export"],
-            slots: &["script", "page_artwork"],
-        },
-        WorkflowTemplate {
-            id: "card_kit",
-            output_kind: "card_kit",
-            steps: &["brief", "card_list", "artwork", "review", "export"],
-            slots: &["card_text", "card_artwork"],
-        },
-        WorkflowTemplate {
-            id: "material_edit",
-            output_kind: "image_raster",
-            steps: &["source", "edit", "review", "accept"],
-            slots: &["accepted_material"],
-        },
-    ]
+    vec![WorkflowTemplate {
+        id: "material_edit",
+        output_kind: "image_raster",
+        steps: &["source", "edit", "review", "accept"],
+        slots: &["accepted_material"],
+    }]
 }
+
+#[cfg(test)]
+mod tests;

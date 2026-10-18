@@ -1,178 +1,94 @@
 # Shape
 
-Shape is a cross-platform, AI-native creative environment for preserving what matters, changing
-what is intended, exploring alternatives, and accepting durable artifact revisions.
+Shape is a cross-platform creative workspace for making and transforming materials with AI.
+Keep the source, compare candidates, and explicitly accept the version you want to keep.
 
-The repository is in its foundation phase. Text, image, and preset-only speech slices prove the
-interactive creative lifecycle, including creation of a typed audio Artifact with exact Runtime
-provenance and selected-only local audition before acceptance.
+Shape owns reusable text, image and sound operations, their exact inputs, and their revision history.
+Specialist production belongs to independent applications:
 
-Shape focuses on reusable material creation and transformation. Dedicated works belong to their
-editors: [Deck](https://github.com/glenzli/deck) for cards and printing, and
-[Storybook Co-Editor](https://github.com/glenzli/storybook-co-editor) for books. Shadow handles
-specialist image edits. [Vox](https://github.com/glenzli/vox) is a planning repository for future
-script-led narration; the existing Shape speech workflow stays in place. See
-[application boundaries](docs/NATURAL_WORKFLOW.md).
+| Application | Responsibility |
+| --- | --- |
+| [Deck](https://github.com/glenzli/deck) | Card authoring, layout, quantities and printing with crop marks |
+| [Storybook Co-Editor](https://github.com/glenzli/storybook-co-editor) | Book scripts, pages, typography and publishing |
+| [Vox](https://github.com/glenzli/vox) | Script-led voice production, speaker direction and takes |
+| [Shadow](https://github.com/glenzli/shadow) | Specialist image editing |
+| [Echo](https://github.com/glenzli/echo) | Specialist audio editing and mixing |
+
+See [application boundaries](docs/NATURAL_WORKFLOW.md) for the product and compatibility policy.
+
+## Creative work
+
+- Write manually or use AI to create, rewrite, translate and derive text from an exact source.
+- Continue a selected text or saved writing draft in Vox when it is ready for voice production.
+- Generate images, compare alternatives, and apply bounded crop, resize, orientation and effects.
+- Generate sound materials, audition saved or candidate audio, and export selected verified WAV bytes.
+- Import PNG/JPEG, UTF-8 text/code and supported PCM WAV files as source materials.
+- Send a material copy to Shadow or Echo; review the return before accepting a derived version.
+- Use the graph to inspect or combine processing steps. Each operation retains its input identity;
+  changing selection or opening another window does not change a running task's target.
+
+Candidates are transient. Only explicit acceptance advances an immutable artifact revision.
+Unavailable models or external applications do not prevent reading existing accepted materials.
+Self-contained HTML can be previewed in a bounded offline surface; other imported code remains text.
+
+## Existing specialist work
+
+Older `.shape` projects may contain cards, picture books, speech drafts and accepted recordings.
+They remain readable and exportable through a compatibility surface. Shape no longer offers their
+specialist authoring, page-layout, card-printing or voice-production workspaces.
+
+- Continue a saved card snapshot in Deck with its exact materials and stable card identities.
+- Export a selected book snapshot for Storybook Co-Editor while retaining unfinished source work.
+- Transfer a script and its saved voice settings, cues and optional accepted audio to an independent
+  Vox project. Accepted history and unfinished drafts remain distinct.
+
+The original Shape project remains intact. Independent applications own their new projects and
+databases. A successful launch is separate from a verified output; returning a material still requires
+review. See [Deck handoff](docs/DECK_HANDOFF.md), [legacy composition contracts](docs/CREATIVE_TEMPLATES.md)
+and [material editing](docs/MATERIAL_EDIT.md).
 
 ## Repository map
 
-| Area | Stable entry | Responsibility |
+| Area | Entry | Responsibility |
 | --- | --- | --- |
-| Product and staged design | [`SHAPE_PLAN.md`](SHAPE_PLAN.md) | Product philosophy, architecture target, external executors, roadmap, and completion gates |
-| Engineering orientation | [`DEV_SKELETON.md`](DEV_SKELETON.md) | Stable implementation boundaries and navigation |
-| Creative contracts | [`shape-domain`](crates/shape-domain/src/lib.rs) | Scene/Artifact identities, immutable revisions, typed Operator Graph, raster/audio contracts, transformations, constraints, and validation |
-| Execution contracts | [`shape-execution`](crates/shape-execution/src/lib.rs) | Infer discovery/contract clients, executor lifecycle, bounded raster and preset speech adapters, outputs, and provenance receipts |
-| Project persistence | [`shape-store`](crates/shape-store/src/lib.rs) | `.shape` bundle, SQLite ownership, durable BLAKE3 object store, and atomic Artifact/Scene accepted-head commits |
-| Use cases | [`shape-core`](crates/shape-core/src/lib.rs) | Project and Scene creation, graph draft/accept, text/raster/speech Candidates, cross-artifact branching, and inspection |
-| Desktop bridge | [`shape-desktop-bridge`](crates/shape-desktop-bridge/src/lib.rs) | Bounded CXX session for validated project snapshots, graph edges, on-demand raster/audio previews, and a cross-media Candidate Shelf |
-| Foundation CLI | [`shape-cli`](apps/shape-cli/README.md) | Public project smoke/inspection, exact accepted material reads and JSON script/project diagnostics |
-| Desktop shell | [`apps/desktop`](apps/desktop/README.md) | Cross-platform Qt/QML assembly that creates, opens, and edits real `.shape` projects |
-| Repository checks | [`xtask`](xtask/src/main.rs) | Formatting, lint, tests, CMake configuration, and prerequisite checks |
+| Product design | [SHAPE_PLAN.md](SHAPE_PLAN.md) | Product boundaries and staged design; historical milestones are not current capability claims |
+| Engineering orientation | [DEV_SKELETON.md](DEV_SKELETON.md) | Ownership, invariants and navigation |
+| Creative contracts | [shape-domain](crates/shape-domain/src/lib.rs) | Artifact/Scene identities, media contracts and immutable revision semantics |
+| Execution | [shape-execution](crates/shape-execution/src/lib.rs) | Executor lifecycle, Infer adapters, raster/audio validation and provenance |
+| Persistence | [shape-store](crates/shape-store/src/lib.rs) | `.shape` bundles, SQLite, BLAKE3 objects and atomic accepted-head updates |
+| Use cases | [shape-core](crates/shape-core/src/lib.rs) | General creative operations and bounded legacy read/export compatibility |
+| Desktop bridge | [shape-desktop-bridge](crates/shape-desktop-bridge/src/lib.rs) | Bounded CXX session projections and shared use cases |
+| CLI | [shape-cli](apps/shape-cli/README.md) | Project inspection, exact material reads and machine-readable actions |
+| Desktop | [apps/desktop](apps/desktop/README.md) | Qt/QML workspace, material review and specialist application handoffs |
+| Checks | [xtask](xtask/src/main.rs) | Formatting, lint, tests and prerequisite checks |
 
-The nearest code-owned module documentation is the navigation index. Planned modules in
-`SHAPE_PLAN.md` are not implemented facts.
-
-## Quick start
+## Run locally
 
 ```sh
 cargo xtask check
-
 cargo run --package shape-cli -- demo /tmp/shape-foundation.shape
 cargo run --package shape-cli -- inspect /tmp/shape-foundation.shape
-cargo run --quiet --package shape-cli -- script-check /path/to/script.txt
-cargo run --quiet --package shape-cli -- project-status /tmp/shape-foundation.shape
-
-cmake --preset native-dev
-cmake --build --preset native-dev
+cargo run --package shape-cli -- project-status /tmp/shape-foundation.shape
 
 cmake --preset desktop-dev
 cmake --build --preset desktop-dev
 ctest --preset desktop-dev
 
-./scripts/build_and_promote_debug.sh
+./scripts/build_and_promote_debug.sh --full
 ./scripts/run_debug.sh [/path/to/project.shape]
 ```
 
-CMake output is written to the sibling `.shape-local-build` directory, not the source worktree.
+Build products stay in sibling build directories. The debug promotion script validates the packaged
+application, copies it into an immutable release and atomically advances
+`.shape-local-build/current-debug`. `--full` also runs Rust formatting, workspace Clippy and tests;
+use it before commits and cross-module checkpoints. `run_debug.sh --check` prints the current paths
+without launching the application.
 
-`scripts/run_debug.sh` is the stable local launcher shared with the Shadow/Echo development
-convention. `scripts/build_and_promote_debug.sh` defaults to a fast promotion gate: translation
-completeness, desktop build, and the packaged desktop smoke paths. Use
-`./scripts/build_and_promote_debug.sh --full` before commits, cross-module handoffs, or release-like
-checkpoints to additionally run Rust formatting, workspace Clippy, and all Rust tests. Either mode
-copies the app into an immutable revision-stamped release and atomically advances
-`.shape-local-build/current-debug`. The launcher starts that canonical app in the background and
-logs to `.shape-local-build/logs/shape-debug.log`; use `--foreground` for attached output or
-`--check` to inspect resolved paths without launching. Pass a `.shape` bundle, or set
-`SHAPE_DEBUG_PROJECT_PATH`, to open a project directly.
+The CLI and desktop use the same business and acceptance boundaries. Public JSON actions and their
+limits are documented beside the owning implementation. A historical schema or parser remaining in
+the repository does not make the corresponding specialist production workflow a Shape feature.
 
-After reopening, the original CLI can recover an exact accepted image/audio revision and its
-verified content reference through `material-edit read`, then continue an explicitly reviewed
-book composition or portable speech cue choice. See [material editing](docs/MATERIAL_EDIT.md).
+## License
 
-文本与配音的节点职责、输入输出和界面入口见 [节点与文本工作流](docs/NODE_MODEL.md)。
-新建文本先选格式；编辑原稿会生成独立分支；配音自动读取已采用文稿的格式。
-
-## Current boundary
-
-- Implemented: pure Creative Document contracts, durable project store, executor lifecycle,
-  separately revisioned Scenes with explicit named outputs and stale-draft-safe graph acceptance,
-  deterministic text acceptance and new-artifact branching, plus an `image.raster` slice that
-  safely imports bounded 8-bit PNG/JPEG sources into a canonical RGBA8 PNG contract. Raster crop
-  follows the same Draft/Preview → Candidate → Compare → Accept → Reopen lifecycle without putting
-  previews in durable history. Selected accepted/candidate image bytes are verified and loaded on
-  demand into a bounded native preview cache; ordinary project snapshots carry only raster
-  metadata. The cross-platform desktop can create or open a project, atomically create its first
-  accepted Text Scene, and begin compatible project-backed Operator drafts from the graph. An
-  unexecuted draft restores on reopen without entering immutable accepted history; execution turns
-  it into a transient Candidate, and only explicit acceptance publishes durable history. The
-  desktop keeps text and image candidates on one typed shelf while each medium owns
-  its central workspace. It uses the official Infer Runtime SDK frozen at revision
-  `8588a945047cedaea62035969e479e7fb7ff795c` for owner-only Infra Discovery,
-  `infer-runtime.consumer-core@20260813.1`, the dated Capability Catalog, transport, credentials,
-  and public errors. Shape imports its existing managed credential into an owner-only secret store
-  and requests local-only `text.edit` through the ACL-authorized
-  `ollama_qwen3_5_4b` Deployment as a transient candidate.
-  The `audio.speech_synthesize` desktop workspace consumes immutable accepted text and creates a
-  transient audio Candidate through nine versioned voice presets. Language defaults to automatic
-  detection for mixed text and can be explicitly selected independently of the voice. Long text
-  is split at sentence/word boundaries and assembled as one PCM WAV with per-segment receipts.
-  The selected Candidate or accepted audio can be exported as WAV. A Candidate can be
-  auditioned from an in-memory WAV device and becomes a new `audio.clip` only after explicit
-  acceptance. Shape re-parses exact PCM S16 LE WAV bytes,
-  requires preset voice/disclosure and local-only no-fallback Runtime provenance, and atomically
-  rejects a stale text source. Schema `20260811.5` additively upgrades initial, Scene-era, audio-era,
-  and Working-Graph-era projects without changing existing accepted heads. Mutable Operator state
-  now uses bounded versioned configuration envelopes. `text.transform` restores an exact authored
-  mode plus instruction, keeps rewrite/expand/polish/shorten inside one stable Operator identity,
-  and reloads that project-backed draft before Infer execution. `audio.speech_synthesize` likewise
-  persists its preset, language, pace, and disclosure contract; legacy unconfigured speech drafts
-  receive the same validated preset default before the desktop session becomes available. Offline
-  or unconfigured AI never affects direct editing.
-- Deterministic Image Editing now includes Crop, Resize, orientation Transform, Blur, Drop Shadow,
-  and Unsharp Mask. The concise [raster algorithm index](crates/shape-execution/src/raster/README.md)
-  records their parameters, limits, and integration entry points. Every result remains a transient
-  Candidate until explicit acceptance records its typed operation in immutable history.
-- Shape will not duplicate mature photo-editing systems by default. Creative color grading and RAW
-  work remain separate from Shape's built-in pixel operations. The implemented bounded
-  `image.external_edit` stage hands canonical PNG to Shadow; RAW intake and a dedicated grading
-  operator remain deferred. Shape pins the input revision, independently verifies returned
-  material and native completion, and advances history only after explicit acceptance. Shadow never writes the Shape project, and Shape never copies Shadow's internal Recipe.
-- The desktop shell now follows the node-focused workbench model: a compact Scene/Component/Asset
-  rail, a clickable graph-context strip above the active media workspace, and a horizontal Candidate
-  filmstrip wired to exact Select/Compare/Accept/Discard/Branch actions. The generic Inspector is no
-  longer a permanent third column. A separate comprehensive-Operator intent surface is packaged
-  without placeholder state; its first real consumer is the zero-input AI Image Source Operator.
-- New Content also exposes empty-first Free Writing and Narration Script workspaces. Listening,
-  narration and dialogue templates support AI drafting, adapting existing material and manual writing.
-  Script rules are included in AI requests and available before typing. Reviewed text is explicitly
-  adopted before entering voice selection, audition and WAV export; rewriting preserves saved audio.
-- AI image semantics are split deliberately. `image.generate` is a zero-material Source Operator;
-  `image.generate_from_materials` requires accepted raster materials with explicit roles. Both have
-  one logical output and place multiple generated options on the Candidate Shelf. The typed domain
-  contract exists now. The source-less form uses the stable Core plus
-  `infer.responses@20260812.1` SDK client and a Core Candidate/explicit-Accept path: PNG payloads
-  and typed cloud Job provenance are revalidated,
-  and no accepted revision is written before user acceptance. The desktop can atomically create a
-  source-less AI Image Scene, restore its exact prompt/canvas draft, and open its dedicated canvas
-  plus Intent sidebar. Live execution remains fail-closed under the current Shape App ACL until
-  Infer explicitly grants the required subscription/balanced/cloud-only authority.
-  Material-conditioned `image.edit` execution stays unavailable until Infer publishes a stable
-  typed raster-output provider, Capability Schema, and SDK client; text output or a mock route is
-  not substituted.
-- Deferred: desktop editing of the new persistent Scene graph, GraphComponent instances, Infer-side
-  App provisioning, operator-facing Job/explain inspection, pinned or durable explorations,
-  composite/layer image structure, waveform editing, recording, Voice Reference execution,
-  `audio.transform`, live editor attachment/process management, whole-project imports/exports
-  and material-conditioned image execution. The bounded Shadow/Echo file stages and Storybook
-  revisioned composition described below are implemented.
-  The required Infer speech alias/ACL is locally
-  proven but remains an externally unpublished dependency until Infer commits it.
-- License: Shape source is licensed under the [`MIT License`](LICENSE). Shadow's GPL components
-  remain behind independent-process or documented protocol boundaries so Shape's own distribution
-  does not silently inherit a different license obligation.
-
-### Narration scripts / 配音脚本
-
-The text workspace authors production scripts with declared roles, delivery, scenes, exact-repeat blocks, pauses and deterministic cues. The speech node requires explicit role voices and replays each repeated recording without another model call; output is previewed and exported as WAV. See [the rules](docs/SPEECH_SCRIPT.md) and [the AI writing prompt](docs/SPEECH_SCRIPT_PROMPT.md). 配音脚本的格式规则和 AI 写稿提示词见上述文档。
-
-
-## Specialist applications and existing compositions
-
-Deck owns new card authoring and printing. Existing Shape CardKit content remains readable and
-editable for compatibility, including text, imported complete faces and mixed image/text cards.
-Game-card fields are optional. A selected saved card set can be transferred with its exact
-materials into an independent Deck project; the original Shape project remains intact. See
-[Deck handoff](docs/DECK_HANDOFF.md), [creative template boundaries](docs/CREATIVE_TEMPLATES.md)
-and [the existing card contract](docs/CARD_KIT.md).
-
-Persistent Shadow/Echo material stages keep originals intact and accept edited
-returns as derived versions only after review. The desktop and strict JSON CLI
-share ticket/session/source/head validation; Echo PCM24 conversion is explicit.
-See [material editing](docs/MATERIAL_EDIT.md).
-
-Storybook Co-Editor owns book production. Existing Shape picture-book compositions can still
-be read, edited and exported as a reading PDF or editable Storybook `.scproj`.
-`shape-cli picture-book` exposes that revisioned compatibility path for AI callers. Original
-materials and older book versions remain intact. See [picture-book composition](docs/PICTURE_BOOK.md)
-for JSON actions, interoperability and publishing limitations.
+Shape is licensed under the [MIT License](LICENSE). External editors run through independent process
+and material contracts; their databases, implementation and license obligations remain with them.

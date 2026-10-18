@@ -22,8 +22,11 @@ mod sound_generation;
 pub use sound_generation::SoundCandidate;
 mod file_import;
 mod image;
+mod legacy;
 mod scene;
 mod text;
+mod vox_transfer;
+pub use vox_transfer::VoxTransferError;
 
 pub use agent_file::AgentTextCandidate;
 pub use audio::AudioCandidate;
@@ -59,6 +62,15 @@ pub struct AcceptedArtifactContent {
 }
 
 impl ShapeProject {
+    /// Opens compatibility and external-transfer data without changing the project.
+    /// # Errors
+    /// Rejects non-current schemas, corrupt or oversized metadata and busy stores.
+    pub fn open_read_only(root: impl AsRef<Path>) -> Result<Self, CoreError> {
+        Ok(Self {
+            store: ProjectStore::open_read_only(root)?,
+        })
+    }
+
     /// Reads persisted project heads and drafts in one bounded read-only snapshot.
     /// Does not migrate a project or observe another desktop session's transient candidates.
     ///

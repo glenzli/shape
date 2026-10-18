@@ -154,6 +154,74 @@ fn native_archive_preserves_page_roles_languages_source_bytes_and_independent_re
 }
 
 #[test]
+fn storybook_image_serving_resolves_root_assets_after_basename_normalization() {
+    let mut f = Fixture::new();
+    let draft = f
+        .project
+        .create_picture_book_draft(&shape_domain::PictureBookDraftState {
+            composition: f.request.clone(),
+            active_language: "en".into(),
+            page_index: 2,
+            script: "Unfinished script [preserve exact text]".into(),
+            script_dirty: true,
+            artwork_edit: None,
+        })
+        .unwrap();
+    let snapshot = f.project.snapshot().unwrap();
+    for name in ["accepted", "draft"] {
+        let path = f.root.join(format!("{name}.scproj"));
+        if name == "accepted" {
+            f.project.export_picture_book(&f.request, &path).unwrap();
+        } else {
+            f.project
+                .export_legacy_picture_book_draft(draft.artifact_id, &draft.draft_digest, &path)
+                .unwrap();
+        }
+        let workspace = f.root.join(format!("storybook-{name}"));
+        // Storybook preserves archive paths during extraction, normalizes visible_images to
+        // basenames in EditorScreen, then serves workspace_root.join(filename) in receiver.rs.
+        let mut archive = zip::ZipArchive::new(File::open(path).unwrap()).unwrap();
+        archive.extract(&workspace).unwrap();
+        let document: Value =
+            serde_json::from_slice(&fs::read(workspace.join("project.json")).unwrap()).unwrap();
+        assert_eq!(document["visible_images"].as_array().unwrap().len(), 4);
+        assert_eq!(document["visible_images"][1], "blank://shape-1");
+        assert_eq!(document["visible_images"][3], "blank://shape-3");
+        assert_ne!(document["visible_images"][0], document["visible_images"][2]);
+        for index in [0, 2] {
+            let visible = document["visible_images"][index].as_str().unwrap();
+            let filename = Path::new(visible).file_name().unwrap().to_str().unwrap();
+            let served = fs::read(workspace.join(filename)).expect(
+                "Storybook image serving must find each normalized filename at workspace root",
+            );
+            assert_eq!(
+                visible, filename,
+                "exported image identity must already be a basename"
+            );
+            assert!(filename.starts_with(&format!("{index:04}-")));
+            let PictureBookPage::Image { source, .. } = f.request.pages[index] else {
+                panic!("image")
+            };
+            assert_eq!(
+                served,
+                f.project
+                    .read_revision_content(source.revision_id)
+                    .unwrap()
+                    .bytes
+            );
+        }
+    }
+    assert_eq!(f.project.snapshot().unwrap(), snapshot);
+    assert_eq!(
+        f.project
+            .load_picture_book_draft(draft.artifact_id)
+            .unwrap()
+            .draft_digest,
+        draft.draft_digest
+    );
+}
+
+#[test]
 fn changed_input_wrong_media_and_ambiguous_language_roles_publish_nothing() {
     let mut f = Fixture::new();
     let path = f.root.join("book.scproj");

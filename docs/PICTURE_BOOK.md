@@ -1,4 +1,10 @@
-# Picture-book capability / 绘本创作
+# Legacy picture-book compositions / 旧绘本兼容
+
+> Current Shape reads existing book compositions and exports selected snapshots for Storybook
+> Co-Editor. Book creation, page editing and publishing belong to Storybook. The earlier authoring
+> workflow below records the stored format and historical behavior; it is not an available Shape
+> workspace. Unfinished script state must remain distinct from adopted material during export.
+> See [legacy migration](LEGACY_MIGRATION.md) for the current read/export path.
 
 Shape can create and continue an accepted, revisioned picture book from its text
 and image materials. The desktop offers a shared page sequence, language scripts,

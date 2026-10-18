@@ -1,5 +1,5 @@
 //! Narrow card authoring channel; the core owns draft CAS, review and export publication.
-use super::{DesktopSession, OperatorDrafts};
+use super::DesktopSession;
 
 impl DesktopSession {
     pub fn session_card_kit_action_json(&mut self, request_json: &str) -> Result<String, String> {
@@ -7,12 +7,18 @@ impl DesktopSession {
             .project
             .card_kit_action_json(request_json)
             .map_err(|e| e.to_string())?;
-        self.operator_drafts = OperatorDrafts::from_graphs(
-            self.project
-                .artifact_working_graphs()
-                .map_err(|e| e.to_string())?,
-        )?;
         Ok(result)
+    }
+
+    pub fn session_legacy_snapshot_json(&self) -> Result<String, String> {
+        self.project
+            .legacy_snapshot_json()
+            .map_err(|error| error.to_string())
+    }
+    pub fn session_vox_transfer_json(&self, request_json: &str) -> Result<String, String> {
+        self.project
+            .export_vox_transfer_json(request_json)
+            .map_err(|error| error.to_string())
     }
 
     // The CXX terminal adapter intentionally exposes a single project-session method channel.
