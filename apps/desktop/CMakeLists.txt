@@ -259,6 +259,18 @@ qt_add_resources(shape-desktop speech-script-documentation
         "${PROJECT_SOURCE_DIR}/docs/SPEECH_SCRIPT_PROMPT.md"
 )
 
+# Keep runtime/window branding and the macOS bundle on the same approved artwork.
+qt_add_resources(shape-desktop shape-app-branding
+    PREFIX "/branding"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+    FILES assets/app-icon.png)
+if(APPLE)
+    set(SHAPE_APP_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/assets/app-icon.icns")
+    set_source_files_properties("${SHAPE_APP_ICON_FILE}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(shape-desktop PRIVATE "${SHAPE_APP_ICON_FILE}")
+    set_target_properties(shape-desktop PROPERTIES MACOSX_BUNDLE_ICON_FILE "app-icon.icns")
+endif()
+
 qt_add_translations(shape-desktop
     TS_FILES translations/shape_zh_CN.ts
     RESOURCE_PREFIX "/translations"

@@ -44,6 +44,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QImage>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -1265,6 +1266,7 @@ int main(int argc, char* argv[]) {
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QtWebEngineQuick::initialize();
     QGuiApplication application(argc, argv);
+    application.setWindowIcon(QIcon(QStringLiteral(":/branding/app-icon.png")));
     application.setApplicationName(QStringLiteral("Shape"));
     application.setOrganizationName(QStringLiteral("Shape"));
     const bool offline_smoke =

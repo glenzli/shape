@@ -8,6 +8,10 @@
 #include "ui_preferences.hpp"
 
 #include <QCoreApplication>
+#include <QGuiApplication>
+#include <QIcon>
+#include <QImage>
+#include <QQuickWindow>
 #include <QDir>
 #include <QFileInfo>
 #include <QMetaObject>
@@ -767,6 +771,14 @@ bool verifyLocalization(QObject& root_object, UiPreferences& ui_preferences) {
 }
 
 bool verifyProjectWelcome(QObject& root_object) {
+    const QImage branding(QStringLiteral(":/branding/app-icon.png"));
+    auto* window = qobject_cast<QQuickWindow*>(&root_object);
+    if (branding.isNull() || branding.size() != QSize(1024, 1024)
+        || QGuiApplication::windowIcon().isNull() || !window || window->icon().isNull())
+        return false;
+    for (const auto size : {16, 32, 64, 128})
+        if (QGuiApplication::windowIcon().pixmap(QSize(size, size)).isNull())
+            return false;
     QQuickItem* const welcome =
         root_object.findChild<QQuickItem*>(QStringLiteral("projectWelcome"));
     QQuickItem* const new_project =

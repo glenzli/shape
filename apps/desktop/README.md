@@ -597,3 +597,9 @@ material-task entry and never generates with real credentials.
 The separate opt-in `--smoke-deck-material-live` modifier runs the actual image consumer, explicitly
 accepts its exact target Candidate, and clicks the real **Return to Deck** button; it intentionally
 uses Shape's existing Infer credential and is excluded from offline CTest.
+
+## Application icon
+
+[Icon assets and provenance](assets/README.md) own the selected imagegen artwork, exact source
+hashes and mechanical PNG/ICNS conversion commands. CMake embeds the PNG for Qt window branding
+and copies the matching ICNS into the macOS bundle; no developer-local image path is used at runtime.
